@@ -339,6 +339,7 @@ tr:hover td{background:#fafafa}
     <p class="sec-title">Lisenser per år — fordelt på type</p>
     <div class="filters" id="slic-filters"></div>
     <div class="chart-wrap"><canvas id="chart-slic" height="240"></canvas></div>
+    <div id="slic-yearly" style="display:grid;gap:10px;margin-bottom:16px"></div>
     <div class="tbl-wrap" style="margin-bottom:28px"><table id="tbl-slic"></table></div>
 
     <p class="sec-title">Kickback per år — fordelt på kilde</p>
@@ -1052,6 +1053,21 @@ function renderSammenligning(){
     return`<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${on?`border-color:${c}`:''}" onclick="toggleSlicFilter('${p.replace(/'/g,"\\'")}')"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${p}</button>`;
   });
   document.getElementById('slic-filters').innerHTML=`<span class="filter-lbl">Vis:</span>${slPills.join('')}`;
+
+  // ---- YEARLY SUMMARY CARDS ----
+  const yearlyTotals=years.map(y=>activeProd.reduce((s,p)=>s+lic.filter(l=>l.year===y&&l.product===p).reduce((s2,l)=>s2+l.amount,0),0));
+  const cols=years.length;
+  document.getElementById('slic-yearly').style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  document.getElementById('slic-yearly').innerHTML=yearlyTotals.map((total,i)=>{
+    const prev=i>0?yearlyTotals[i-1]:null;
+    const delta=prev&&prev>0?((total-prev)/prev*100):null;
+    const dHtml=delta!==null?`<div style="font-size:13px;font-weight:600;color:${delta>=0?'#16a34a':'#dc2626'};margin-top:4px">${delta>=0?'▲':'▼'}${Math.abs(delta).toFixed(1)}% vs ${years[i-1]}</div>`:'';
+    return`<div style="background:white;border-radius:8px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center">
+      <div style="font-size:12px;color:#6b7280;margin-bottom:4px">${years[i]==2026?'2026 YTD':years[i]}</div>
+      <div style="font-size:18px;font-weight:700;color:#1A3A6B">${fS(total)}</div>
+      ${dHtml}
+    </div>`;
+  }).join('');
 
   // ---- LICENSE TABLE ----
   const licRows=activeProd.map(p=>{
