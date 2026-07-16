@@ -1410,13 +1410,31 @@ function addAging(){
   if(!date){alert('Velg en dato');return;}
   const vals=AGING_KEYS.map(k=>Number(document.getElementById(`ag-${k}`).value)||0);
   if(vals.every(v=>v===0)){alert('Fyll inn minst ett beløp');return;}
-  const entry={id:uid(),date};
+  const entry={id:uid(),spId:null,date};
   AGING_KEYS.forEach((k,i)=>entry[k]=vals[i]);
   entry.note=document.getElementById('ag-note').value.trim();
   aging.push(entry);
   AGING_KEYS.forEach(k=>{document.getElementById(`ag-${k}`).value='';});
   document.getElementById('ag-note').value='';
-  isSeed=false;save();renderAging();
+  renderAging();
+  // Lagre til SharePoint
+  setSPStatus('⏳ Synkroniserer…');
+  spCreate('Aldersfordelt',{
+    Title:entry.date,
+    Dato:entry.date,
+    D1_30:entry['d1_30']||0,
+    D31_60:entry['d31_60']||0,
+    D61_90:entry['d61_90']||0,
+    D90plus:entry['d90plus']||0,
+    Note:entry.note||''
+  }).then(r=>{
+    entry.spId=r.id;entry.id=`sp${r.id}`;
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+  }).catch(e=>{
+    setSPStatus('❌ '+e.message,false);
+    console.error('SP Aldersfordelt feil:',e);
+    alert('Kunne ikke lagre til SharePoint:\n'+e.message);
+  });
 }
 
 function delAging(id){
