@@ -87,6 +87,19 @@ details[open].prod-mgr summary::before{content:'▼'}
 .filter-year{display:flex;align-items:center;gap:6px;margin-left:auto}
 .filter-year select{padding:4px 8px;font-size:12px;border:1px solid #e5e7eb;border-radius:6px;background:white}
 
+/* Settings */
+.settings-list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.settings-item{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#f9fafb;border-radius:10px;border:1px solid #f0f0f0;transition:background .1s}
+.settings-item:hover{background:#f3f4f6}
+.settings-item .item-name{flex:1;font-size:14px;color:#111;font-weight:500}
+.settings-item .item-freq{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:none;cursor:pointer;white-space:nowrap;background:#dbeafe;color:#1d4ed8}
+.settings-item .item-freq.quarterly{background:#dcfce7;color:#15803d}
+.settings-item input.inline-edit{flex:1;padding:6px 10px;border:1.5px solid #2E86C1;border-radius:6px;font-size:14px;background:white}
+.settings-add{display:flex;gap:8px;align-items:center;padding-top:4px;border-top:1px solid #f3f4f6;margin-top:4px}
+.settings-add input{flex:1}
+.settings-add select{padding:7px 10px;font-size:13px;border-radius:6px;border:1px solid #d0d5dd}
+.settings-section-title{font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+
 /* Tables */
 .tbl-wrap{background:white;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden;margin-bottom:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -329,18 +342,20 @@ tr:hover td{background:#fafafa}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
       <div class="card">
-        <div class="card-title">Produkter (lisenser)</div>
+        <div class="card-title">🏷️ Produkter (lisenser)</div>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:14px">Administrer produktkategoriene som brukes i lisensregistreringen.</p>
         <div class="settings-list" id="settings-prod-list"></div>
         <div class="settings-add">
-          <input type="text" id="new-prod-inp" placeholder="Nytt produkt…" onkeydown="if(event.key==='Enter')addProduct()"/>
+          <input type="text" id="new-prod-inp" placeholder="Legg til nytt produkt…" onkeydown="if(event.key==='Enter')addProduct()"/>
           <button class="prim" onclick="addProduct()">+ Legg til</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Kickback-kilder</div>
+        <div class="card-title">💳 Kickback-kilder</div>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:14px">Administrer kickback-kilder og fakturafrekvens.</p>
         <div class="settings-list" id="settings-src-list"></div>
         <div class="settings-add">
-          <input type="text" id="new-src-inp" placeholder="Ny kilde…" onkeydown="if(event.key==='Enter')addSource()"/>
+          <input type="text" id="new-src-inp" placeholder="Legg til ny kilde…" onkeydown="if(event.key==='Enter')addSource()"/>
           <select id="new-src-freq"><option value="monthly">Månedlig</option><option value="quarterly">Kvartalsvis</option></select>
           <button class="prim" onclick="addSource()">+ Legg til</button>
         </div>
@@ -822,7 +837,7 @@ function renderSettings(editProd=null,editSrc=null){
   }).join('')||'<p class="muted" style="padding:8px">Ingen produkter</p>';
   sl.innerHTML=sources.map(s=>{
     if(s.name===editSrc)return`<div class="settings-item"><span class="dot" style="background:${s.color}"></span><input class="inline-edit" id="edit-src-inp-${CSS.escape(s.name)}" value="${s.name}" onkeydown="if(event.key==='Enter')saveSource('${s.name.replace(/'/g,"\\'")}');if(event.key==='Escape')renderSettings()"/><button class="btn-icon" onclick="saveSource('${s.name.replace(/'/g,"\\'")}')">✓</button><button class="btn-icon" onclick="renderSettings()">✕</button></div>`;
-    return`<div class="settings-item"><span class="dot" style="background:${s.color}"></span><span class="item-name">${s.name}</span><button class="item-freq" onclick="toggleSourceFreq('${s.name}')" title="Klikk for å bytte">${s.freq==='monthly'?'Månedlig':'Kvartalsvis'}</button><button class="btn-icon" onclick="startEditSource('${s.name.replace(/'/g,"\\'")}')">✎</button><button class="btn-icon del" onclick="deleteSource('${s.name.replace(/'/g,"\\'")}')">✕</button></div>`;
+    return`<div class="settings-item"><span class="dot" style="background:${s.color}"></span><span class="item-name">${s.name}</span><button class="item-freq${s.freq==='quarterly'?' quarterly':''}" onclick="toggleSourceFreq('${s.name}')" title="Klikk for å bytte">${s.freq==='monthly'?'Månedlig':'Kvartalsvis'}</button><button class="btn-icon" onclick="startEditSource('${s.name.replace(/'/g,"\\'")}')">✎</button><button class="btn-icon del" onclick="deleteSource('${s.name.replace(/'/g,"\\'")}')">✕</button></div>`;
   }).join('')||'<p class="muted" style="padding:8px">Ingen kilder</p>';
 }
 
