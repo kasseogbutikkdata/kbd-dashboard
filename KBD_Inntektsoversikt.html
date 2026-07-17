@@ -937,7 +937,7 @@ function renderLicChart(){
   });
   document.getElementById('lic-filters').innerHTML=`<span class="filter-lbl">Vis:</span>`+pills.join('')+`<button class="fpill" style="${licFilters.size===0?'border-color:#1A3A6B':''}" onclick="licFilters=new Set();renderLicChart();renderLicTable()"><span style="font-weight:600;color:${licFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`+yearOpts('lic-year-sel',licYearFilter,"licYearFilter=this.value;renderLicChart();renderLicTable()");
   // Yearly summary
-  const licYearData=activeProd.flatMap(p=>lic.filter(l=>activeProd.includes(l.product)&&(licYearFilter==='alle'||l.year==licYearFilter)).map(l=>({year:l.year,amount:l.amount})));
+  const licYearData=lic.filter(l=>activeProd.includes(l.product)&&(licYearFilter==='alle'||l.year==licYearFilter)).map(l=>({year:l.year,amount:l.amount}));
   renderYearlySummary('lic-yearly',licYearData,'year');
 }
 
@@ -957,7 +957,7 @@ function renderKickChart(){
   });
   document.getElementById('kick-filters').innerHTML=`<span class="filter-lbl">Vis:</span>`+pills.join('')+`<button class="fpill" style="${kickFilters.size===0?'border-color:#1A3A6B':''}" onclick="kickFilters=new Set();renderKickChart();renderKickTable()"><span style="font-weight:600;color:${kickFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`+yearOpts('kick-year-sel',kickYearFilter,"kickYearFilter=this.value;renderKickChart();renderKickTable()");
   // Yearly summary
-  const kickYearData=activeSrc.flatMap(s=>kick.filter(k=>activeSrc.includes(k.source)&&(kickYearFilter==='alle'||k.year==kickYearFilter)).map(k=>({year:k.year,amount:k.amount})));
+  const kickYearData=kick.filter(k=>activeSrc.includes(k.source)&&(kickYearFilter==='alle'||k.year==kickYearFilter)).map(k=>({year:k.year,amount:k.amount}));
   renderYearlySummary('kick-yearly',kickYearData,'year');
 }
 
