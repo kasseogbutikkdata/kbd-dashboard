@@ -914,7 +914,7 @@ function renderLicChart(){
     const borderStyle=on?`border-color:${c}`:'';
     return`<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${borderStyle}" onclick="toggleLicFilter('${p.replace(/'/g,"\\'")}')"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${p}</button>`;
   });
-  document.getElementById('lic-filters').innerHTML=`<span class="filter-lbl">Vis:</span>${pills.join('')}${yearOpts('lic-year-sel',licYearFilter,"licYearFilter=this.value;renderLicChart();renderLicTable()")}`;
+  document.getElementById('lic-filters').innerHTML=`<span class="filter-lbl">Vis:</span>`+pills.join('')+`<button class="fpill" style="${licFilters.size===0?'border-color:#1A3A6B':''}" onclick="licFilters=new Set();renderLicChart();renderLicTable()"><span style="font-weight:600;color:${licFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`+yearOpts('lic-year-sel',licYearFilter,"licYearFilter=this.value;renderLicChart();renderLicTable()");
 }
 
 function renderKickChart(){
@@ -931,7 +931,7 @@ function renderKickChart(){
     const borderStyle=on?`border-color:${c}`:'';
     return`<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${borderStyle}" onclick="toggleKickFilter('${s}')"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${s} <span style="font-size:11px;font-weight:400;color:${on?'#6b7280':'#d0d5dd'}">${isM(s)?'(mnd)':'(kvt)'}</span></button>`;
   });
-  document.getElementById('kick-filters').innerHTML=`<span class="filter-lbl">Vis:</span>${pills.join('')}${yearOpts('kick-year-sel',kickYearFilter,"kickYearFilter=this.value;renderKickChart();renderKickTable()")}`;
+  document.getElementById('kick-filters').innerHTML=`<span class="filter-lbl">Vis:</span>`+pills.join('')+`<button class="fpill" style="${kickFilters.size===0?'border-color:#1A3A6B':''}" onclick="kickFilters=new Set();renderKickChart();renderKickTable()"><span style="font-weight:600;color:${kickFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`+yearOpts('kick-year-sel',kickYearFilter,"kickYearFilter=this.value;renderKickChart();renderKickTable()");
 }
 
 // ===== KPI & TABELLER =====
@@ -1054,7 +1054,7 @@ function renderSammenligning(){
     const filtered=slicFilters.size>0;const on=!filtered||slicFilters.has(p);const c=prodColor(p);
     return`<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${on?`border-color:${c}`:''}" onclick="toggleSlicFilter('${p.replace(/'/g,"\\'")}')"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${p}</button>`;
   });
-  document.getElementById('slic-filters').innerHTML=`<span class="filter-lbl">Vis:</span>${slPills.join('')}`;
+  document.getElementById('slic-filters').innerHTML=`<span class="filter-lbl">Vis:</span>`+slPills.join('')+`<button class="fpill" style="${slicFilters.size===0?'border-color:#1A3A6B':''}" onclick="slicFilters=new Set();renderSammenligning()"><span style="font-weight:600;color:${slicFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`;
 
   // ---- YEARLY SUMMARY CARDS ----
   const yearlyTotals=years.map(y=>activeProd.reduce((s,p)=>s+lic.filter(l=>l.year===y&&l.product===p).reduce((s2,l)=>s2+l.amount,0),0));
@@ -1113,7 +1113,7 @@ function renderSammenligning(){
     const filtered=skickFilters.size>0;const on=!filtered||skickFilters.has(s);const c=sourceColor(s);
     return`<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${on?`border-color:${c}`:''}" onclick="toggleSkickFilter('${s}')"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${s} <span style="font-size:11px;font-weight:400;color:${on?'#6b7280':'#d0d5dd'}">${isM(s)?'(mnd)':'(kvt)'}</span></button>`;
   });
-  document.getElementById('skick-filters').innerHTML=`<span class="filter-lbl">Vis:</span>${skPills.join('')}`;
+  document.getElementById('skick-filters').innerHTML=`<span class="filter-lbl">Vis:</span>`+skPills.join('')+`<button class="fpill" style="${skickFilters.size===0?'border-color:#1A3A6B':''}" onclick="skickFilters=new Set();renderSammenligning()"><span style="font-weight:600;color:${skickFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`;
 
   // ---- KICKBACK YEARLY SUMMARY CARDS ----
   const kickYearlyTotals=years.map(y=>activeSrc.reduce((s,src)=>s+kick.filter(k=>k.year===y&&k.source===src).reduce((s2,k)=>s2+k.amount,0),0));
