@@ -263,7 +263,7 @@ tr:hover td{background:#fafafa}
     <div class="kpis" id="aging-kpis"></div>
 
     <p class="sec-title">Utvikling over tid</p>
-    <div id="aging-legend" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px"></div>
+    <div id="aging-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center"></div>
     <div class="chart-wrap"><canvas id="chart-aging" height="250"></canvas></div>
 
     <div class="card">
@@ -1025,6 +1025,7 @@ function renderAll(){
 // ===== ÅRSSAMMENLIGNING =====
 let slicFilters=new Set(); // active products in sammenligning
 let skickFilters=new Set(); // active sources in sammenligning
+let agingFilters=new Set(); // active aging buckets (empty = all)
 
 function toggleSlicFilter(p){if(slicFilters.has(p)){slicFilters.delete(p);}else{slicFilters.add(p);}renderSammenligning();}
 function toggleSkickFilter(s){if(skickFilters.has(s)){skickFilters.delete(s);}else{skickFilters.add(s);}renderSammenligning();}
@@ -1477,6 +1478,12 @@ function delAging(id){
   if(ae?.spId){setSPStatus('⏳ Sletter…');spDelete('Aldersfordelt',ae.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
 }
 
+function toggleAgingFilter(k){
+  if(agingFilters.has(k)){agingFilters.delete(k);}else{agingFilters.add(k);}
+  if(agingFilters.size===AGING_KEYS.length)agingFilters=new Set(); // alle = tomt sett
+  renderAging();
+}
+
 function renderAging(){
   const el=document.getElementById('tp-aldersfordelt');
   if(!el)return;
@@ -1522,32 +1529,64 @@ function renderAging(){
     }
   }
 
-  // --- Legend ---
-  document.getElementById('aging-legend').innerHTML=AGING_LABELS.map((l,i)=>
-    `<span class="li"><span class="ldot" style="background:${AGING_COLORS[i]}"></span>${l}</span>`
-  ).join('');
+  // --- Filter pills ---
+  const activeKeys=AGING_KEYS.filter(k=>agingFilters.size===0||agingFilters.has(k));
+  const filtered=agingFilters.size>0;
+  document.getElementById('aging-filters').innerHTML=
+    `<span class="filter-lbl">Vis:</span>`+
+    AGING_KEYS.map((k,i)=>{
+      const on=!filtered||agingFilters.has(k);
+      const c=AGING_COLORS[i];
+      return`<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${on?`border-color:${c}`:''}" onclick="toggleAgingFilter('${k}')">
+        <span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>
+        <span style="color:${on?c:'#9ca3af'};font-weight:600">${AGING_LABELS[i]}</span>
+      </button>`;
+    }).join('')+
+    `<button class="fpill" style="${!filtered?'border-color:#1A3A6B':''}" onclick="agingFilters=new Set();renderAging()">
+      <span style="font-weight:600;color:${!filtered?'#1A3A6B':'#9ca3af'}">Alle</span>
+    </button>`;
 
-  // --- Chart ---
+  // --- Chart with trend line ---
   dC('aging');
   const ctx=document.getElementById('chart-aging');
   if(sorted.length&&ctx){
+    const trendData=sorted.map(e=>activeKeys.reduce((s,k)=>s+(e[k]||0),0));
     charts['aging']=new Chart(ctx,{type:'bar',data:{
       labels:sorted.map(e=>fDateShort(e.date)),
-      datasets:AGING_KEYS.map((k,i)=>({
-        label:AGING_LABELS[i],
-        data:sorted.map(e=>e[k]||0),
-        backgroundColor:AGING_COLORS[i],
-        stack:'a',
-        borderRadius:i===AGING_KEYS.length-1?2:0
-      }))
+      datasets:[
+        ...activeKeys.map((k,idx)=>{
+          const i=AGING_KEYS.indexOf(k);
+          return{
+            label:AGING_LABELS[i],
+            data:sorted.map(e=>e[k]||0),
+            backgroundColor:AGING_COLORS[i],
+            stack:'a',
+            borderRadius:idx===activeKeys.length-1?2:0
+          };
+        }),
+        {
+          label:'Trend (total)',
+          data:trendData,
+          type:'line',
+          borderColor:'#1A3A6B',
+          backgroundColor:'transparent',
+          borderWidth:2,
+          pointRadius:0,
+          pointHoverRadius:4,
+          tension:0.4,
+          stack:undefined,
+          order:0
+        }
+      ]
     },options:{...bOpts,plugins:{...bOpts.plugins,tooltip:{
       backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',
       borderColor:'#e5e7eb',borderWidth:1,padding:10,
       callbacks:{
         label:c=>`${c.dataset.label}: ${fS(c.raw)}`,
         footer:items=>{
-          const tot=items.reduce((s,i)=>s+i.raw,0);
-          return `Total: ${fS(tot)}`;
+          const barItems=items.filter(i=>i.dataset.stack==='a');
+          const tot=barItems.reduce((s,i)=>s+i.raw,0);
+          return barItems.length>1?`Total: ${fS(tot)}`:'';
         }
       }
     }}}});
