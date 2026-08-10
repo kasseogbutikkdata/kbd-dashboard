@@ -313,6 +313,10 @@ tr:hover td{background:#fafafa}
       <button class="usnav-btn active" id="ubtn-kalender" onclick="showUtleieView('kalender',this)">📅 Kalender</button>
       <button class="usnav-btn" id="ubtn-liste" onclick="showUtleieView('liste',this)">📋 Utleieoversikt</button>
       <button class="usnav-btn" id="ubtn-enheter" onclick="showUtleieView('enheter',this)">🔧 Enheter</button>
+      <div style="width:1px;height:24px;background:#e5e7eb;margin:0 4px"></div>
+      <button class="fpill f-on" id="utype-alle" style="border-color:#1A3A6B" onclick="setUtleieType('alle')"><span style="font-weight:600;color:#1A3A6B">Alle</span></button>
+      <button class="fpill" id="utype-telpo" onclick="setUtleieType('Telpo M1')"><span class="fpill-dot" style="background:#2a78d6"></span>Telpo M1</button>
+      <button class="fpill" id="utype-term" onclick="setUtleieType('Betalingsterminal')"><span class="fpill-dot" style="background:#1baf7a"></span>Betalingsterminaler</button>
       <div style="flex:1"></div>
       <button class="prim" onclick="openNyUtleieModal()">+ Ny utleie</button>
     </div>
@@ -337,12 +341,14 @@ tr:hover td{background:#fafafa}
 
     <!-- LISTE -->
     <div id="utleie-liste" style="display:none">
-      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
-        <span class="filter-lbl">Status:</span>
+      <div id="utleie-kpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <span class="filter-lbl">Vis:</span>
         <button class="fpill f-on" id="uf-alle" style="border-color:#1A3A6B" onclick="setUtleieFilter('alle')"><span style="font-weight:600;color:#1A3A6B">Alle</span></button>
         <button class="fpill" id="uf-utleie" onclick="setUtleieFilter('utleie')"><span class="fpill-dot" style="background:#2a78d6"></span>På utleie</button>
-        <button class="fpill" id="uf-lager" onclick="setUtleieFilter('lager')"><span class="fpill-dot" style="background:#1baf7a"></span>På lager</button>
         <button class="fpill" id="uf-planlagt" onclick="setUtleieFilter('planlagt')"><span class="fpill-dot" style="background:#eda100"></span>Planlagt</button>
+        <button class="fpill" id="uf-forfalt" onclick="setUtleieFilter('forfalt')"><span class="fpill-dot" style="background:#dc2626"></span>Forfalt</button>
+        <button class="fpill" id="uf-lager" onclick="setUtleieFilter('lager')"><span class="fpill-dot" style="background:#1baf7a"></span>Returnert</button>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -627,7 +633,7 @@ const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34
 
 // ===== STATE =====
 let lic=[],kick=[],products=[],sources=[],aging=[],isSeed=false,charts={};
-let units=[],rentals=[],ganttStart=new Date(),utleieFilter='alle';
+let units=[],rentals=[],ganttStart=new Date(),utleieFilter='alle',utleieType='alle';
 let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
@@ -1897,7 +1903,7 @@ function showUtleieView(view,btn){
   document.querySelectorAll('.usnav-btn').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   if(view==='kalender')renderGantt();
-  if(view==='liste')renderUtleieListe();
+  if(view==='liste'){renderUtleieKPI();renderUtleieListe();}
   if(view==='enheter')renderEnheterListe();
 }
 
@@ -1906,26 +1912,39 @@ function ganttPrev(){ganttStart=new Date(ganttStart);ganttStart.setDate(ganttSta
 function ganttNext(){ganttStart=new Date(ganttStart);ganttStart.setDate(ganttStart.getDate()+14);renderGantt();}
 function ganttToday(){ganttStart=new Date();ganttStart.setHours(0,0,0,0);renderGantt();}
 
+function setUtleieType(t){
+  utleieType=t;
+  ['alle','Telpo M1','Betalingsterminal'].forEach(x=>{
+    const id='utype-'+(x==='alle'?'alle':x==='Telpo M1'?'telpo':'term');
+    const el=document.getElementById(id);
+    if(!el)return;
+    const on=t===x;
+    el.className='fpill'+(on?' f-on':'');
+    el.style.borderColor=on?'#1A3A6B':'';
+  });
+  renderGantt();renderUtleieListe();
+}
+
 function renderGantt(){
   const days=28;
   const start=new Date(ganttStart);start.setHours(0,0,0,0);
   const dates=Array.from({length:days},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d;});
   const today=new Date();today.setHours(0,0,0,0);
 
-  // Title
-  const opts={month:'long',year:'numeric'};
-  const t1=start.toLocaleDateString('nb-NO',opts);
-  const end=dates[dates.length-1];
-  const t2=end.toLocaleDateString('nb-NO',opts);
-  document.getElementById('gantt-title').textContent=t1===t2?t1:`${start.toLocaleDateString('nb-NO',{month:'short',day:'numeric'})} – ${end.toLocaleDateString('nb-NO',{month:'short',day:'numeric',year:'numeric'})}`;
+  const filteredUnits=units.filter(u=>utleieType==='alle'||u.type===utleieType);
 
-  if(!units.length){
-    document.getElementById('gantt-grid').innerHTML='<p class="empty" style="padding:32px;text-align:center;color:#9ca3af">Ingen enheter registrert ennå — legg til enheter under "Enheter"-fanen</p>';
+  const t1=start.toLocaleDateString('nb-NO',{month:'long',year:'numeric'});
+  const end=dates[dates.length-1];
+  document.getElementById('gantt-title').textContent=`${start.toLocaleDateString('nb-NO',{day:'numeric',month:'short'})} – ${end.toLocaleDateString('nb-NO',{day:'numeric',month:'short',year:'numeric'})}`;
+
+  if(!filteredUnits.length){
+    document.getElementById('gantt-grid').innerHTML='<p class="empty" style="padding:32px;text-align:center;color:#9ca3af">Ingen enheter å vise — legg til enheter under "Enheter"-fanen</p>';
     return;
   }
 
   const NO_DAYS=['Søn','Man','Tir','Ons','Tor','Fre','Lør'];
-  const NO_MONTHS=['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+  const TYPE_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
+  const TYPE_ICONS={'Telpo M1':'📱','Betalingsterminal':'💳','Kasse':'🖥️'};
 
   let html2='<table class="gantt-table"><thead><tr>';
   html2+=`<th class="gantt-th-unit">Enhet</th>`;
@@ -1936,46 +1955,57 @@ function renderGantt(){
   });
   html2+='</tr></thead><tbody>';
 
-  units.forEach(unit=>{
-    const color=ENHET_COLORS[unit.type]||'#888780';
-    const status=getUnitStatus(unit.id);
-    html2+=`<tr><td class="gantt-td-unit">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="utleie-stat ${status==='utleie'?'stat-utleie':'stat-lager'}" style="font-size:10px;padding:2px 7px">${status==='utleie'?'Utleie':'Lager'}</span>
-        <div>
-          <div>${unit.name}</div>
-          <div class="unit-type">${unit.type}${unit.serial?' · '+unit.serial:''}</div>
-        </div>
-      </div>
-    </td>`;
+  // Group by type
+  const types=[...new Set(filteredUnits.map(u=>u.type))];
+  types.forEach(type=>{
+    const typeUnits=filteredUnits.filter(u=>u.type===type);
+    const tcolor=TYPE_COLORS[type]||'#888';
+    const ticon=TYPE_ICONS[type]||'📦';
+    const cols=dates.length+1;
+    // Group header row
+    html2+=`<tr><td colspan="${cols}" style="padding:8px 14px;background:${tcolor}15;border-top:2px solid ${tcolor};border-bottom:1px solid ${tcolor}30">
+      <span style="font-size:12px;font-weight:700;color:${tcolor};display:flex;align-items:center;gap:6px">
+        ${ticon} ${type} <span style="font-weight:400;color:#9ca3af;font-size:11px">(${typeUnits.length} enheter)</span>
+      </span>
+    </td></tr>`;
 
-    dates.forEach((d,di)=>{
-      const isToday=d.getTime()===today.getTime();
-      const isWeekend=d.getDay()===0||d.getDay()===6;
-      // Find rental for this day
-      const rental=rentals.find(r=>{
-        if(r.unitId!==unit.id)return false;
-        const fra=parseLD(r.fromDate);
-        const til=parseLD(r.toDate);
-        return fra&&til&&d>=fra&&d<=til&&!r.returnDate;
+    typeUnits.forEach(unit=>{
+      const status=getUnitStatus(unit.id);
+      html2+=`<tr><td class="gantt-td-unit">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="utleie-stat ${status==='utleie'?'stat-utleie':'stat-lager'}" style="font-size:10px;padding:2px 7px">${status==='utleie'?'Utleie':'Lager'}</span>
+          <div>
+            <div style="font-weight:500;color:#111">${unit.name}</div>
+            ${unit.serial?`<div style="font-size:11px;color:#9ca3af;font-family:monospace">${unit.serial}</div>`:''}
+          </div>
+        </div>
+      </td>`;
+
+      dates.forEach((d,di)=>{
+        const isToday=d.getTime()===today.getTime();
+        const isWeekend=d.getDay()===0||d.getDay()===6;
+        const rental=rentals.find(r=>{
+          if(r.unitId!==unit.id)return false;
+          const fra=parseLD(r.fromDate);const til=parseLD(r.toDate);
+          return fra&&til&&d>=fra&&d<=til&&!r.returnDate;
+        });
+        let barHtml='';
+        if(rental){
+          const fra=parseLD(rental.fromDate);const til=parseLD(rental.toDate);
+          const rs=getRentalStatus(rental);
+          const bcolor=rs==='planlagt'?'#eda100':rs==='forfalt'?'#dc2626':tcolor;
+          const isStart=d.getTime()===fra.getTime();
+          const isEnd=d.getTime()===til.getTime();
+          const cls=isStart&&isEnd?'single':isStart?'start':isEnd?'end':'middle';
+          const label=isStart?`<span style="padding:0 4px;color:white;font-size:10px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:120px">${rental.customer}</span>`:'';
+          barHtml=`<div class="gantt-bar ${cls}" style="background:${bcolor};left:${isStart?'2px':'0'};right:${isEnd?'2px':'0'}" title="${rental.customer}${rental.orderNr?' ('+rental.orderNr+')':''}">${label}</div>`;
+        }
+        html2+=`<td class="gantt-td-day${isToday?' today':''}${isWeekend?' weekend':''}">${barHtml}</td>`;
       });
-      let barHtml='';
-      if(rental){
-        const fra=parseLD(rental.fromDate);
-        const til=parseLD(rental.toDate);
-        const status=getRentalStatus(rental);
-        const bcolor=status==='planlagt'?'#eda100':status==='forfalt'?'#dc2626':'#2a78d6';
-        const isStart=d.getTime()===fra.getTime();
-        const isEnd=d.getTime()===til.getTime();
-        const cls=isStart&&isEnd?'single':isStart?'start':isEnd?'end':'middle';
-        const left=isStart?'2px':'0';const right=isEnd?'2px':'0';
-        const label=isStart?`<span style="padding:0 4px;color:white;font-size:10px;font-weight:600;overflow:hidden;white-space:nowrap">${rental.customer}</span>`:'';
-        barHtml=`<div class="gantt-bar ${cls}" style="background:${bcolor};left:${left};right:${right}" title="${rental.customer} (${rental.orderNr})">${label}</div>`;
-      }
-      html2+=`<td class="gantt-td-day${isToday?' today':''}${isWeekend?' weekend':''}">${barHtml}</td>`;
+      html2+='</tr>';
     });
-    html2+='</tr>';
   });
+
   html2+='</tbody></table>';
   document.getElementById('gantt-grid').innerHTML=html2;
 }
@@ -1983,24 +2013,44 @@ function renderGantt(){
 // ---- UTLEIE LISTE ----
 function setUtleieFilter(f){
   utleieFilter=f;
-  ['alle','utleie','lager','planlagt'].forEach(x=>{
+  ['alle','utleie','planlagt','forfalt','lager'].forEach(x=>{
     const el=document.getElementById('uf-'+x);
-    if(el){el.className='fpill'+(f===x?' f-on':'');el.style.borderColor=f===x?'#1A3A6B':'';}
+    if(!el)return;
+    const on=f===x;
+    el.className='fpill'+(on?' f-on':'');
+    el.style.borderColor=on?'#1A3A6B':'';
   });
   renderUtleieListe();
 }
 
+function renderUtleieKPI(){
+  const el=document.getElementById('utleie-kpi');
+  if(!el)return;
+  const aktiv=rentals.filter(r=>getRentalStatus(r)==='utleie').length;
+  const planlagt=rentals.filter(r=>getRentalStatus(r)==='planlagt').length;
+  const forfalt=rentals.filter(r=>getRentalStatus(r)==='forfalt').length;
+  const ledig=units.filter(u=>getUnitStatus(u.id)==='lager').length;
+  el.innerHTML=[
+    {label:'På utleie',val:aktiv,color:'#2a78d6',bg:'#dbeafe'},
+    {label:'Ledige enheter',val:ledig,color:'#15803d',bg:'#dcfce7'},
+    {label:'Planlagt',val:planlagt,color:'#92400e',bg:'#fef3c7'},
+    {label:'Forfalt retur',val:forfalt,color:'#dc2626',bg:'#fee2e2'},
+  ].map(({label,val,color,bg})=>`<div style="background:${bg};border-radius:8px;padding:12px 16px;text-align:center">
+    <div style="font-size:11px;color:${color};font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${label}</div>
+    <div style="font-size:24px;font-weight:700;color:${color}">${val}</div>
+  </div>`).join('');
+}
+
 function renderUtleieListe(){
+  renderUtleieKPI();
+  const unit=id=>units.find(u=>u.id===id);
   const rows=rentals.filter(r=>{
+    const u=unit(r.unitId);
+    if(utleieType!=='alle'&&(!u||u.type!==utleieType))return false;
     if(utleieFilter==='alle')return true;
     const s=getRentalStatus(r);
-    if(utleieFilter==='lager')return s==='lager';
-    if(utleieFilter==='utleie')return s==='utleie';
-    if(utleieFilter==='planlagt')return s==='planlagt';
-    return true;
+    return s===utleieFilter;
   }).sort((a,b)=>new Date(b.fromDate)-new Date(a.fromDate));
-
-  const unit=id=>units.find(u=>u.id===id);
   const fmtDate=d=>d?new Date(d).toLocaleDateString('nb-NO'):'—';
 
   const statHtml=s=>{
@@ -2027,7 +2077,7 @@ function renderUtleieListe(){
         <button class="btn-icon del" onclick="deleteUtleie('${r.id}')" title="Slett">✕</button>
       </div></td>
     </tr>`;
-  }).join(''):'<tr><td colspan="9" class="empty">Ingen utleieregistreringer</td></tr>';
+  }).join(''):`<tr><td colspan="9" class="empty">Ingen ${utleieFilter==='alle'?'utleieregistreringer':utleieFilter==='utleie'?'aktive utleier':utleieFilter==='planlagt'?'planlagte utleier':utleieFilter==='forfalt'?'forfalte utleier':'returnerte enheter'}</td></tr>`;
 }
 
 // ---- ENHETER LISTE ----
@@ -2101,7 +2151,11 @@ function saveUtleie(){
   if(editId){const i=rentals.findIndex(r=>r.id===editId);if(i>=0)rentals[i]=entry;}
   else rentals.push(entry);
   saveUtleieData();closeUtleieModal();
-  renderGantt();renderUtleieListe();
+  // Bytt til kalender og vis oppdatert visning
+  const kBtn=document.getElementById('ubtn-kalender');
+  showUtleieView('kalender',kBtn);
+  if(kBtn)kBtn.classList.add('active');
+  document.querySelectorAll('.usnav-btn').forEach(b=>{if(b!==kBtn)b.classList.remove('active');});
 }
 
 function registerReturn(id){
