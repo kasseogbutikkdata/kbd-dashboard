@@ -126,6 +126,41 @@ tr:hover td{background:#fafafa}
 .modal h3{font-size:17px;font-weight:700;color:#111;margin-bottom:20px}
 .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid #f3f4f6}
 
+
+/* Utleie module */
+.utleie-subnav{display:flex;gap:8px;margin-bottom:20px;align-items:center;flex-wrap:wrap}
+.usnav-btn{padding:7px 16px;border-radius:6px;border:1.5px solid #e5e7eb;background:white;cursor:pointer;font-size:13px;font-weight:500;color:#374151;font-family:inherit}
+.usnav-btn.active{border-color:#1A3A6B;color:#1A3A6B;background:#f0f4ff}
+.usnav-btn:hover{border-color:#9ca3af}
+.gantt-wrap{overflow-x:auto;background:white;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:24px}
+.gantt-nav{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #f3f4f6}
+.gantt-nav-title{font-size:15px;font-weight:600;color:#111;flex:1;text-align:center}
+.gantt-nav-btn{padding:5px 12px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer;font-size:13px;font-family:inherit}
+.gantt-nav-btn:hover{background:#f9fafb}
+.gantt-scroll{overflow-x:auto}
+.gantt-table{border-collapse:collapse;font-size:12px;white-space:nowrap}
+.gantt-th-unit{padding:8px 14px;text-align:left;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;min-width:200px;position:sticky;left:0;background:white;z-index:1}
+.gantt-th-day{padding:8px 2px;text-align:center;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;min-width:34px}
+.gantt-th-day.today{color:#1A3A6B;font-weight:700}
+.gantt-th-day.weekend{color:#d1d5db}
+.gantt-td-unit{padding:8px 14px;font-weight:500;color:#111;border-bottom:1px solid #f9fafb;position:sticky;left:0;background:white;z-index:1;min-width:200px}
+.gantt-td-unit .unit-type{font-size:11px;color:#9ca3af;font-weight:400}
+.gantt-td-day{border-bottom:1px solid #f9fafb;border-right:1px solid #f9fafb;position:relative;height:38px;min-width:34px}
+.gantt-td-day.today{background:#eff6ff}
+.gantt-td-day.weekend{background:#fafafa}
+.gantt-bar{position:absolute;top:6px;bottom:6px;border-radius:4px;cursor:pointer;transition:opacity .15s}
+.gantt-bar:hover{opacity:.85}
+.gantt-bar.start{border-radius:4px 0 0 4px}
+.gantt-bar.end{border-radius:0 4px 4px 0}
+.gantt-bar.single{border-radius:4px}
+.gantt-bar.middle{border-radius:0}
+.utleie-stat{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.stat-lager{background:#dcfce7;color:#15803d}
+.stat-utleie{background:#dbeafe;color:#1d4ed8}
+.stat-planlagt{background:#fef3c7;color:#92400e}
+.stat-forfalt{background:#fee2e2;color:#dc2626}
+.enhet-icon{font-size:16px;margin-right:6px}
+
 /* Auth styles */
 .login-screen{position:fixed;inset:0;background:linear-gradient(160deg,#0d1f3c 0%,#1A3A6B 60%,#2E86C1 100%);display:flex;align-items:center;justify-content:center;z-index:9999}
 .login-box{background:white;border-radius:16px;padding:40px 48px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.35)}
@@ -202,6 +237,7 @@ tr:hover td{background:#fafafa}
     <button class="tab" onclick="showTab('kickback',this)">Kickback</button>
     <button class="tab" onclick="showTab('sammenligning',this)">Årssammenligning</button>
     <button class="tab" onclick="showTab('aldersfordelt',this)">Aldersfordelt</button>
+    <button class="tab" onclick="showTab('utleie',this)">📦 Utleie</button>
     <button class="tab" onclick="showTab('innstillinger',this)">⚙ Innstillinger</button>
   </div>
 
@@ -267,6 +303,102 @@ tr:hover td{background:#fafafa}
         <thead><tr><th>År</th><th>Periode</th><th>Kilde</th><th style="text-align:right">Beløp</th><th style="text-align:right">vs. i fjor</th><th>Notat</th><th></th></tr></thead>
         <tbody id="kick-body"></tbody>
       </table>
+    </div>
+  </div>
+
+
+  <!-- UTLEIE -->
+  <div id="tp-utleie" class="tp">
+    <div class="utleie-subnav">
+      <button class="usnav-btn active" id="ubtn-kalender" onclick="showUtleieView('kalender',this)">📅 Kalender</button>
+      <button class="usnav-btn" id="ubtn-liste" onclick="showUtleieView('liste',this)">📋 Utleieoversikt</button>
+      <button class="usnav-btn" id="ubtn-enheter" onclick="showUtleieView('enheter',this)">🔧 Enheter</button>
+      <div style="flex:1"></div>
+      <button class="prim" onclick="openNyUtleieModal()">+ Ny utleie</button>
+    </div>
+
+    <!-- KALENDER -->
+    <div id="utleie-kalender">
+      <div class="gantt-wrap">
+        <div class="gantt-nav">
+          <button class="gantt-nav-btn" onclick="ganttPrev()">◀</button>
+          <div class="gantt-nav-title" id="gantt-title"></div>
+          <button class="gantt-nav-btn" onclick="ganttToday()">I dag</button>
+          <button class="gantt-nav-btn" onclick="ganttNext()">▶</button>
+        </div>
+        <div class="gantt-scroll"><div id="gantt-grid"></div></div>
+      </div>
+      <div style="display:flex;gap:16px;margin-bottom:8px;font-size:12px;color:#6b7280">
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#2a78d6;margin-right:4px"></span>Aktiv utleie</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#eda100;margin-right:4px"></span>Planlagt</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#dc2626;margin-right:4px"></span>Forfalt retur</span>
+      </div>
+    </div>
+
+    <!-- LISTE -->
+    <div id="utleie-liste" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <span class="filter-lbl">Status:</span>
+        <button class="fpill f-on" id="uf-alle" style="border-color:#1A3A6B" onclick="setUtleieFilter('alle')"><span style="font-weight:600;color:#1A3A6B">Alle</span></button>
+        <button class="fpill" id="uf-utleie" onclick="setUtleieFilter('utleie')"><span class="fpill-dot" style="background:#2a78d6"></span>På utleie</button>
+        <button class="fpill" id="uf-lager" onclick="setUtleieFilter('lager')"><span class="fpill-dot" style="background:#1baf7a"></span>På lager</button>
+        <button class="fpill" id="uf-planlagt" onclick="setUtleieFilter('planlagt')"><span class="fpill-dot" style="background:#eda100"></span>Planlagt</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Enhet</th><th>Type</th><th>Kunde</th><th>OrdreNr</th>
+            <th>Fra dato</th><th>Til dato</th><th>Returdato</th>
+            <th style="text-align:center">Status</th><th></th>
+          </tr></thead>
+          <tbody id="utleie-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ENHETER -->
+    <div id="utleie-enheter" style="display:none">
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title">Legg til enhet</div>
+        <div class="fg" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:8px">
+          <div class="fgrp"><label>Navn/ID</label><input type="text" id="enhet-navn" placeholder="f.eks. Telpo M1 #3"/></div>
+          <div class="fgrp"><label>Type</label><select id="enhet-type"><option>Telpo M1</option><option>Betalingsterminal</option><option>Kasse</option></select></div>
+          <div class="fgrp"><label>Serienummer</label><input type="text" id="enhet-serial" placeholder="f.eks. SN-12345"/></div>
+        </div>
+        <div class="frow">
+          <input type="text" id="enhet-note" placeholder="Notat (valgfritt)" style="flex:1"/>
+          <button class="prim" onclick="saveEnhet()">+ Legg til enhet</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Navn/ID</th><th>Type</th><th>Serienummer</th><th style="text-align:center">Status</th><th>Notat</th><th></th></tr></thead>
+          <tbody id="enheter-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- NY UTLEIE MODAL -->
+  <div class="modal-overlay" id="utleie-modal" onclick="if(event.target===this)closeUtleieModal()">
+    <div class="modal" style="max-width:520px">
+      <h3 id="utleie-modal-title">Ny utleie</h3>
+      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>Enhet</label><select id="u-enhet" style="width:100%"></select></div>
+        <div class="fgrp"><label>OrdreNr</label><input type="text" id="u-ordre" placeholder="f.eks. ORD-2026-001"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Kunde</label><input type="text" id="u-kunde" placeholder="Kundenavn"/></div>
+      <div class="fg" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>Fra dato</label><input type="date" id="u-fra"/></div>
+        <div class="fgrp"><label>Til dato</label><input type="date" id="u-til"/></div>
+        <div class="fgrp"><label>Returdato</label><input type="date" id="u-retur"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:4px"><label>Notat</label><input type="text" id="u-note" placeholder="Valgfritt"/></div>
+      <input type="hidden" id="u-edit-id"/>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeUtleieModal()">Avbryt</button>
+        <button class="prim" onclick="saveUtleie()">Lagre</button>
+      </div>
     </div>
   </div>
 
@@ -495,6 +627,7 @@ const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34
 
 // ===== STATE =====
 let lic=[],kick=[],products=[],sources=[],aging=[],isSeed=false,charts={};
+let units=[],rentals=[],ganttStart=new Date(),utleieFilter='alle';
 let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
@@ -1728,11 +1861,550 @@ async function handleAgingFile(event){
   event.target.value='';
 }
 
+
+// ===== UTLEIE MODULE =====
+const ENHET_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
+
+function loadUtleieData(){
+  try{units=JSON.parse(localStorage.getItem('kbd-units')||'[]');rentals=JSON.parse(localStorage.getItem('kbd-rentals')||'[]');}
+  catch{units=[];rentals=[];}
+}
+function saveUtleieData(){
+  try{localStorage.setItem('kbd-units',JSON.stringify(units));localStorage.setItem('kbd-rentals',JSON.stringify(rentals));}catch{}
+}
+
+function getRentalStatus(r){
+  const today=new Date();today.setHours(0,0,0,0);
+  const fra=new Date(r.fromDate);const til=new Date(r.toDate);
+  if(fra>today)return'planlagt';
+  if(til<today&&!r.returnDate)return'forfalt';
+  if(r.returnDate)return'lager';
+  return'utleie';
+}
+
+function getUnitStatus(unitId){
+  const active=rentals.filter(r=>r.unitId===unitId&&getRentalStatus(r)==='utleie');
+  return active.length>0?'utleie':'lager';
+}
+
+function showUtleieView(view,btn){
+  ['kalender','liste','enheter'].forEach(v=>{
+    document.getElementById('utleie-'+v).style.display=v===view?'':'none';
+  });
+  document.querySelectorAll('.usnav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  if(view==='kalender')renderGantt();
+  if(view==='liste')renderUtleieListe();
+  if(view==='enheter')renderEnheterListe();
+}
+
+// ---- GANTT CALENDAR ----
+function ganttPrev(){ganttStart=new Date(ganttStart);ganttStart.setDate(ganttStart.getDate()-14);renderGantt();}
+function ganttNext(){ganttStart=new Date(ganttStart);ganttStart.setDate(ganttStart.getDate()+14);renderGantt();}
+function ganttToday(){ganttStart=new Date();ganttStart.setHours(0,0,0,0);renderGantt();}
+
+function renderGantt(){
+  const days=28;
+  const start=new Date(ganttStart);start.setHours(0,0,0,0);
+  const dates=Array.from({length:days},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d;});
+  const today=new Date();today.setHours(0,0,0,0);
+
+  // Title
+  const opts={month:'long',year:'numeric'};
+  const t1=start.toLocaleDateString('nb-NO',opts);
+  const end=dates[dates.length-1];
+  const t2=end.toLocaleDateString('nb-NO',opts);
+  document.getElementById('gantt-title').textContent=t1===t2?t1:`${start.toLocaleDateString('nb-NO',{month:'short',day:'numeric'})} – ${end.toLocaleDateString('nb-NO',{month:'short',day:'numeric',year:'numeric'})}`;
+
+  if(!units.length){
+    document.getElementById('gantt-grid').innerHTML='<p class="empty" style="padding:32px;text-align:center;color:#9ca3af">Ingen enheter registrert ennå — legg til enheter under "Enheter"-fanen</p>';
+    return;
+  }
+
+  const NO_DAYS=['Søn','Man','Tir','Ons','Tor','Fre','Lør'];
+  const NO_MONTHS=['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+
+  let html2='<table class="gantt-table"><thead><tr>';
+  html2+=`<th class="gantt-th-unit">Enhet</th>`;
+  dates.forEach(d=>{
+    const isToday=d.getTime()===today.getTime();
+    const isWeekend=d.getDay()===0||d.getDay()===6;
+    html2+=`<th class="gantt-th-day${isToday?' today':''}${isWeekend?' weekend':''}">${d.getDate()}<br><span style="font-size:9px;font-weight:400">${NO_DAYS[d.getDay()]}</span></th>`;
+  });
+  html2+='</tr></thead><tbody>';
+
+  units.forEach(unit=>{
+    const color=ENHET_COLORS[unit.type]||'#888780';
+    const status=getUnitStatus(unit.id);
+    html2+=`<tr><td class="gantt-td-unit">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="utleie-stat ${status==='utleie'?'stat-utleie':'stat-lager'}" style="font-size:10px;padding:2px 7px">${status==='utleie'?'Utleie':'Lager'}</span>
+        <div>
+          <div>${unit.name}</div>
+          <div class="unit-type">${unit.type}${unit.serial?' · '+unit.serial:''}</div>
+        </div>
+      </div>
+    </td>`;
+
+    dates.forEach((d,di)=>{
+      const isToday=d.getTime()===today.getTime();
+      const isWeekend=d.getDay()===0||d.getDay()===6;
+      // Find rental for this day
+      const rental=rentals.find(r=>{
+        if(r.unitId!==unit.id)return false;
+        const fra=new Date(r.fromDate);fra.setHours(0,0,0,0);
+        const til=new Date(r.toDate);til.setHours(0,0,0,0);
+        return d>=fra&&d<=til&&!r.returnDate;
+      });
+      let barHtml='';
+      if(rental){
+        const fra=new Date(rental.fromDate);fra.setHours(0,0,0,0);
+        const til=new Date(rental.toDate);til.setHours(0,0,0,0);
+        const status=getRentalStatus(rental);
+        const bcolor=status==='planlagt'?'#eda100':status==='forfalt'?'#dc2626':'#2a78d6';
+        const isStart=d.getTime()===fra.getTime();
+        const isEnd=d.getTime()===til.getTime();
+        const cls=isStart&&isEnd?'single':isStart?'start':isEnd?'end':'middle';
+        const left=isStart?'2px':'0';const right=isEnd?'2px':'0';
+        const label=isStart?`<span style="padding:0 4px;color:white;font-size:10px;font-weight:600;overflow:hidden;white-space:nowrap">${rental.customer}</span>`:'';
+        barHtml=`<div class="gantt-bar ${cls}" style="background:${bcolor};left:${left};right:${right}" title="${rental.customer} (${rental.orderNr})">${label}</div>`;
+      }
+      html2+=`<td class="gantt-td-day${isToday?' today':''}${isWeekend?' weekend':''}">${barHtml}</td>`;
+    });
+    html2+='</tr>';
+  });
+  html2+='</tbody></table>';
+  document.getElementById('gantt-grid').innerHTML=html2;
+}
+
+// ---- UTLEIE LISTE ----
+function setUtleieFilter(f){
+  utleieFilter=f;
+  ['alle','utleie','lager','planlagt'].forEach(x=>{
+    const el=document.getElementById('uf-'+x);
+    if(el){el.className='fpill'+(f===x?' f-on':'');el.style.borderColor=f===x?'#1A3A6B':'';}
+  });
+  renderUtleieListe();
+}
+
+function renderUtleieListe(){
+  const rows=rentals.filter(r=>{
+    if(utleieFilter==='alle')return true;
+    const s=getRentalStatus(r);
+    if(utleieFilter==='lager')return s==='lager';
+    if(utleieFilter==='utleie')return s==='utleie';
+    if(utleieFilter==='planlagt')return s==='planlagt';
+    return true;
+  }).sort((a,b)=>new Date(b.fromDate)-new Date(a.fromDate));
+
+  const unit=id=>units.find(u=>u.id===id);
+  const fmtDate=d=>d?new Date(d).toLocaleDateString('nb-NO'):'—';
+
+  const statHtml=s=>{
+    const map={utleie:'stat-utleie',lager:'stat-lager',planlagt:'stat-planlagt',forfalt:'stat-forfalt'};
+    const lbl={utleie:'På utleie',lager:'Returnert',planlagt:'Planlagt',forfalt:'Forfalt'};
+    return`<span class="utleie-stat ${map[s]||''}">${lbl[s]||s}</span>`;
+  };
+
+  document.getElementById('utleie-tbody').innerHTML=rows.length?rows.map(r=>{
+    const u=unit(r.unitId);
+    const s=getRentalStatus(r);
+    return`<tr>
+      <td><strong>${u?u.name:'Ukjent'}</strong></td>
+      <td><span style="color:#6b7280;font-size:12px">${u?u.type:''}</span></td>
+      <td>${r.customer}</td>
+      <td style="font-family:monospace;font-size:12px">${r.orderNr||'—'}</td>
+      <td>${fmtDate(r.fromDate)}</td>
+      <td>${fmtDate(r.toDate)}</td>
+      <td>${fmtDate(r.returnDate)}</td>
+      <td style="text-align:center">${statHtml(s)}</td>
+      <td><div class="action-btns">
+        ${s==='utleie'?`<button class="btn-icon" onclick="registerReturn('${r.id}')" title="Registrer retur" style="color:#16a34a">↩</button>`:''}
+        <button class="btn-icon" onclick="editUtleie('${r.id}')" title="Rediger">✎</button>
+        <button class="btn-icon del" onclick="deleteUtleie('${r.id}')" title="Slett">✕</button>
+      </div></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="9" class="empty">Ingen utleieregistreringer</td></tr>';
+}
+
+// ---- ENHETER LISTE ----
+function renderEnheterListe(){
+  document.getElementById('enheter-tbody').innerHTML=units.length?units.map(u=>{
+    const s=getUnitStatus(u.id);
+    const color=ENHET_COLORS[u.type]||'#888';
+    return`<tr>
+      <td><strong>${u.name}</strong></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${color}"></span>${u.type}</span></td>
+      <td style="font-family:monospace;font-size:12px;color:#6b7280">${u.serial||'—'}</td>
+      <td style="text-align:center"><span class="utleie-stat ${s==='utleie'?'stat-utleie':'stat-lager'}">${s==='utleie'?'På utleie':'På lager'}</span></td>
+      <td class="muted">${u.note||''}</td>
+      <td><div class="action-btns">
+        <button class="btn-icon del" onclick="deleteEnhet('${u.id}')" title="Slett">✕</button>
+      </div></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="6" class="empty">Ingen enheter registrert ennå</td></tr>';
+}
+
+// ---- FORMS ----
+function refreshEnhetSelect(){
+  const sel=document.getElementById('u-enhet');
+  if(sel)sel.innerHTML=units.map(u=>`<option value="${u.id}">${u.name} (${u.type})</option>`).join('');
+}
+
+function openNyUtleieModal(){
+  document.getElementById('utleie-modal-title').textContent='Ny utleie';
+  document.getElementById('u-edit-id').value='';
+  document.getElementById('u-kunde').value='';
+  document.getElementById('u-ordre').value='';
+  document.getElementById('u-fra').value=new Date().toISOString().slice(0,10);
+  document.getElementById('u-til').value='';
+  document.getElementById('u-retur').value='';
+  document.getElementById('u-note').value='';
+  refreshEnhetSelect();
+  document.getElementById('utleie-modal').classList.add('open');
+}
+
+function editUtleie(id){
+  const r=rentals.find(x=>x.id===id);if(!r)return;
+  document.getElementById('utleie-modal-title').textContent='Rediger utleie';
+  document.getElementById('u-edit-id').value=id;
+  document.getElementById('u-kunde').value=r.customer;
+  document.getElementById('u-ordre').value=r.orderNr||'';
+  document.getElementById('u-fra').value=r.fromDate;
+  document.getElementById('u-til').value=r.toDate;
+  document.getElementById('u-retur').value=r.returnDate||'';
+  document.getElementById('u-note').value=r.note||'';
+  refreshEnhetSelect();
+  document.getElementById('u-enhet').value=r.unitId;
+  document.getElementById('utleie-modal').classList.add('open');
+}
+
+function closeUtleieModal(){document.getElementById('utleie-modal').classList.remove('open');}
+
+function saveUtleie(){
+  const unitId=document.getElementById('u-enhet').value;
+  const customer=document.getElementById('u-kunde').value.trim();
+  const fromDate=document.getElementById('u-fra').value;
+  const toDate=document.getElementById('u-til').value;
+  if(!unitId||!customer||!fromDate||!toDate){alert('Fyll inn enhet, kunde og datoer');return;}
+  const editId=document.getElementById('u-edit-id').value;
+  const entry={
+    id:editId||uid(),unitId,customer,
+    orderNr:document.getElementById('u-ordre').value.trim(),
+    fromDate,toDate,
+    returnDate:document.getElementById('u-retur').value||null,
+    note:document.getElementById('u-note').value.trim()
+  };
+  if(editId){const i=rentals.findIndex(r=>r.id===editId);if(i>=0)rentals[i]=entry;}
+  else rentals.push(entry);
+  saveUtleieData();closeUtleieModal();
+  renderGantt();renderUtleieListe();
+}
+
+function registerReturn(id){
+  const r=rentals.find(x=>x.id===id);if(!r)return;
+  const d=prompt('Returdato (ÅÅÅÅ-MM-DD):',new Date().toISOString().slice(0,10));
+  if(!d)return;
+  r.returnDate=d;
+  saveUtleieData();renderGantt();renderUtleieListe();
+}
+
+function deleteUtleie(id){
+  if(!confirm('Slette denne utleieregistreringen?'))return;
+  rentals=rentals.filter(r=>r.id!==id);
+  saveUtleieData();renderGantt();renderUtleieListe();
+}
+
+function saveEnhet(){
+  const name=document.getElementById('enhet-navn').value.trim();
+  if(!name){alert('Skriv inn navn/ID');return;}
+  units.push({id:uid(),name,type:document.getElementById('enhet-type').value,serial:document.getElementById('enhet-serial').value.trim(),note:document.getElementById('enhet-note').value.trim()});
+  document.getElementById('enhet-navn').value='';document.getElementById('enhet-serial').value='';document.getElementById('enhet-note').value='';
+  saveUtleieData();renderEnheterListe();refreshEnhetSelect();
+}
+
+function deleteEnhet(id){
+  const inUse=rentals.some(r=>r.unitId===id&&getRentalStatus(r)==='utleie');
+  if(inUse&&!confirm('Enheten er på utleie. Slett likevel?'))return;
+  units=units.filter(u=>u.id!==id);
+  saveUtleieData();renderEnheterListe();
+}
+
 // ===== INIT =====
+
+// ===== UTLEIE MODULE =====
+const ENHET_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
+
+function loadUtleieData(){
+  try{units=JSON.parse(localStorage.getItem('kbd-units')||'[]');rentals=JSON.parse(localStorage.getItem('kbd-rentals')||'[]');}
+  catch{units=[];rentals=[];}
+}
+function saveUtleieData(){
+  try{localStorage.setItem('kbd-units',JSON.stringify(units));localStorage.setItem('kbd-rentals',JSON.stringify(rentals));}catch{}
+}
+
+function getRentalStatus(r){
+  const today=new Date();today.setHours(0,0,0,0);
+  const fra=new Date(r.fromDate);const til=new Date(r.toDate);
+  if(fra>today)return'planlagt';
+  if(til<today&&!r.returnDate)return'forfalt';
+  if(r.returnDate)return'lager';
+  return'utleie';
+}
+
+function getUnitStatus(unitId){
+  const active=rentals.filter(r=>r.unitId===unitId&&getRentalStatus(r)==='utleie');
+  return active.length>0?'utleie':'lager';
+}
+
+function showUtleieView(view,btn){
+  ['kalender','liste','enheter'].forEach(v=>{
+    document.getElementById('utleie-'+v).style.display=v===view?'':'none';
+  });
+  document.querySelectorAll('.usnav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  if(view==='kalender')renderGantt();
+  if(view==='liste')renderUtleieListe();
+  if(view==='enheter')renderEnheterListe();
+}
+
+// ---- GANTT CALENDAR ----
+function ganttPrev(){ganttStart=new Date(ganttStart);ganttStart.setDate(ganttStart.getDate()-14);renderGantt();}
+function ganttNext(){ganttStart=new Date(ganttStart);ganttStart.setDate(ganttStart.getDate()+14);renderGantt();}
+function ganttToday(){ganttStart=new Date();ganttStart.setHours(0,0,0,0);renderGantt();}
+
+function renderGantt(){
+  const days=28;
+  const start=new Date(ganttStart);start.setHours(0,0,0,0);
+  const dates=Array.from({length:days},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d;});
+  const today=new Date();today.setHours(0,0,0,0);
+
+  // Title
+  const opts={month:'long',year:'numeric'};
+  const t1=start.toLocaleDateString('nb-NO',opts);
+  const end=dates[dates.length-1];
+  const t2=end.toLocaleDateString('nb-NO',opts);
+  document.getElementById('gantt-title').textContent=t1===t2?t1:`${start.toLocaleDateString('nb-NO',{month:'short',day:'numeric'})} – ${end.toLocaleDateString('nb-NO',{month:'short',day:'numeric',year:'numeric'})}`;
+
+  if(!units.length){
+    document.getElementById('gantt-grid').innerHTML='<p class="empty" style="padding:32px;text-align:center;color:#9ca3af">Ingen enheter registrert ennå — legg til enheter under "Enheter"-fanen</p>';
+    return;
+  }
+
+  const NO_DAYS=['Søn','Man','Tir','Ons','Tor','Fre','Lør'];
+  const NO_MONTHS=['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+
+  let html2='<table class="gantt-table"><thead><tr>';
+  html2+=`<th class="gantt-th-unit">Enhet</th>`;
+  dates.forEach(d=>{
+    const isToday=d.getTime()===today.getTime();
+    const isWeekend=d.getDay()===0||d.getDay()===6;
+    html2+=`<th class="gantt-th-day${isToday?' today':''}${isWeekend?' weekend':''}">${d.getDate()}<br><span style="font-size:9px;font-weight:400">${NO_DAYS[d.getDay()]}</span></th>`;
+  });
+  html2+='</tr></thead><tbody>';
+
+  units.forEach(unit=>{
+    const color=ENHET_COLORS[unit.type]||'#888780';
+    const status=getUnitStatus(unit.id);
+    html2+=`<tr><td class="gantt-td-unit">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="utleie-stat ${status==='utleie'?'stat-utleie':'stat-lager'}" style="font-size:10px;padding:2px 7px">${status==='utleie'?'Utleie':'Lager'}</span>
+        <div>
+          <div>${unit.name}</div>
+          <div class="unit-type">${unit.type}${unit.serial?' · '+unit.serial:''}</div>
+        </div>
+      </div>
+    </td>`;
+
+    dates.forEach((d,di)=>{
+      const isToday=d.getTime()===today.getTime();
+      const isWeekend=d.getDay()===0||d.getDay()===6;
+      // Find rental for this day
+      const rental=rentals.find(r=>{
+        if(r.unitId!==unit.id)return false;
+        const fra=new Date(r.fromDate);fra.setHours(0,0,0,0);
+        const til=new Date(r.toDate);til.setHours(0,0,0,0);
+        return d>=fra&&d<=til&&!r.returnDate;
+      });
+      let barHtml='';
+      if(rental){
+        const fra=new Date(rental.fromDate);fra.setHours(0,0,0,0);
+        const til=new Date(rental.toDate);til.setHours(0,0,0,0);
+        const status=getRentalStatus(rental);
+        const bcolor=status==='planlagt'?'#eda100':status==='forfalt'?'#dc2626':'#2a78d6';
+        const isStart=d.getTime()===fra.getTime();
+        const isEnd=d.getTime()===til.getTime();
+        const cls=isStart&&isEnd?'single':isStart?'start':isEnd?'end':'middle';
+        const left=isStart?'2px':'0';const right=isEnd?'2px':'0';
+        const label=isStart?`<span style="padding:0 4px;color:white;font-size:10px;font-weight:600;overflow:hidden;white-space:nowrap">${rental.customer}</span>`:'';
+        barHtml=`<div class="gantt-bar ${cls}" style="background:${bcolor};left:${left};right:${right}" title="${rental.customer} (${rental.orderNr})">${label}</div>`;
+      }
+      html2+=`<td class="gantt-td-day${isToday?' today':''}${isWeekend?' weekend':''}">${barHtml}</td>`;
+    });
+    html2+='</tr>';
+  });
+  html2+='</tbody></table>';
+  document.getElementById('gantt-grid').innerHTML=html2;
+}
+
+// ---- UTLEIE LISTE ----
+function setUtleieFilter(f){
+  utleieFilter=f;
+  ['alle','utleie','lager','planlagt'].forEach(x=>{
+    const el=document.getElementById('uf-'+x);
+    if(el){el.className='fpill'+(f===x?' f-on':'');el.style.borderColor=f===x?'#1A3A6B':'';}
+  });
+  renderUtleieListe();
+}
+
+function renderUtleieListe(){
+  const rows=rentals.filter(r=>{
+    if(utleieFilter==='alle')return true;
+    const s=getRentalStatus(r);
+    if(utleieFilter==='lager')return s==='lager';
+    if(utleieFilter==='utleie')return s==='utleie';
+    if(utleieFilter==='planlagt')return s==='planlagt';
+    return true;
+  }).sort((a,b)=>new Date(b.fromDate)-new Date(a.fromDate));
+
+  const unit=id=>units.find(u=>u.id===id);
+  const fmtDate=d=>d?new Date(d).toLocaleDateString('nb-NO'):'—';
+
+  const statHtml=s=>{
+    const map={utleie:'stat-utleie',lager:'stat-lager',planlagt:'stat-planlagt',forfalt:'stat-forfalt'};
+    const lbl={utleie:'På utleie',lager:'Returnert',planlagt:'Planlagt',forfalt:'Forfalt'};
+    return`<span class="utleie-stat ${map[s]||''}">${lbl[s]||s}</span>`;
+  };
+
+  document.getElementById('utleie-tbody').innerHTML=rows.length?rows.map(r=>{
+    const u=unit(r.unitId);
+    const s=getRentalStatus(r);
+    return`<tr>
+      <td><strong>${u?u.name:'Ukjent'}</strong></td>
+      <td><span style="color:#6b7280;font-size:12px">${u?u.type:''}</span></td>
+      <td>${r.customer}</td>
+      <td style="font-family:monospace;font-size:12px">${r.orderNr||'—'}</td>
+      <td>${fmtDate(r.fromDate)}</td>
+      <td>${fmtDate(r.toDate)}</td>
+      <td>${fmtDate(r.returnDate)}</td>
+      <td style="text-align:center">${statHtml(s)}</td>
+      <td><div class="action-btns">
+        ${s==='utleie'?`<button class="btn-icon" onclick="registerReturn('${r.id}')" title="Registrer retur" style="color:#16a34a">↩</button>`:''}
+        <button class="btn-icon" onclick="editUtleie('${r.id}')" title="Rediger">✎</button>
+        <button class="btn-icon del" onclick="deleteUtleie('${r.id}')" title="Slett">✕</button>
+      </div></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="9" class="empty">Ingen utleieregistreringer</td></tr>';
+}
+
+// ---- ENHETER LISTE ----
+function renderEnheterListe(){
+  document.getElementById('enheter-tbody').innerHTML=units.length?units.map(u=>{
+    const s=getUnitStatus(u.id);
+    const color=ENHET_COLORS[u.type]||'#888';
+    return`<tr>
+      <td><strong>${u.name}</strong></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${color}"></span>${u.type}</span></td>
+      <td style="font-family:monospace;font-size:12px;color:#6b7280">${u.serial||'—'}</td>
+      <td style="text-align:center"><span class="utleie-stat ${s==='utleie'?'stat-utleie':'stat-lager'}">${s==='utleie'?'På utleie':'På lager'}</span></td>
+      <td class="muted">${u.note||''}</td>
+      <td><div class="action-btns">
+        <button class="btn-icon del" onclick="deleteEnhet('${u.id}')" title="Slett">✕</button>
+      </div></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="6" class="empty">Ingen enheter registrert ennå</td></tr>';
+}
+
+// ---- FORMS ----
+function refreshEnhetSelect(){
+  const sel=document.getElementById('u-enhet');
+  if(sel)sel.innerHTML=units.map(u=>`<option value="${u.id}">${u.name} (${u.type})</option>`).join('');
+}
+
+function openNyUtleieModal(){
+  document.getElementById('utleie-modal-title').textContent='Ny utleie';
+  document.getElementById('u-edit-id').value='';
+  document.getElementById('u-kunde').value='';
+  document.getElementById('u-ordre').value='';
+  document.getElementById('u-fra').value=new Date().toISOString().slice(0,10);
+  document.getElementById('u-til').value='';
+  document.getElementById('u-retur').value='';
+  document.getElementById('u-note').value='';
+  refreshEnhetSelect();
+  document.getElementById('utleie-modal').classList.add('open');
+}
+
+function editUtleie(id){
+  const r=rentals.find(x=>x.id===id);if(!r)return;
+  document.getElementById('utleie-modal-title').textContent='Rediger utleie';
+  document.getElementById('u-edit-id').value=id;
+  document.getElementById('u-kunde').value=r.customer;
+  document.getElementById('u-ordre').value=r.orderNr||'';
+  document.getElementById('u-fra').value=r.fromDate;
+  document.getElementById('u-til').value=r.toDate;
+  document.getElementById('u-retur').value=r.returnDate||'';
+  document.getElementById('u-note').value=r.note||'';
+  refreshEnhetSelect();
+  document.getElementById('u-enhet').value=r.unitId;
+  document.getElementById('utleie-modal').classList.add('open');
+}
+
+function closeUtleieModal(){document.getElementById('utleie-modal').classList.remove('open');}
+
+function saveUtleie(){
+  const unitId=document.getElementById('u-enhet').value;
+  const customer=document.getElementById('u-kunde').value.trim();
+  const fromDate=document.getElementById('u-fra').value;
+  const toDate=document.getElementById('u-til').value;
+  if(!unitId||!customer||!fromDate||!toDate){alert('Fyll inn enhet, kunde og datoer');return;}
+  const editId=document.getElementById('u-edit-id').value;
+  const entry={
+    id:editId||uid(),unitId,customer,
+    orderNr:document.getElementById('u-ordre').value.trim(),
+    fromDate,toDate,
+    returnDate:document.getElementById('u-retur').value||null,
+    note:document.getElementById('u-note').value.trim()
+  };
+  if(editId){const i=rentals.findIndex(r=>r.id===editId);if(i>=0)rentals[i]=entry;}
+  else rentals.push(entry);
+  saveUtleieData();closeUtleieModal();
+  renderGantt();renderUtleieListe();
+}
+
+function registerReturn(id){
+  const r=rentals.find(x=>x.id===id);if(!r)return;
+  const d=prompt('Returdato (ÅÅÅÅ-MM-DD):',new Date().toISOString().slice(0,10));
+  if(!d)return;
+  r.returnDate=d;
+  saveUtleieData();renderGantt();renderUtleieListe();
+}
+
+function deleteUtleie(id){
+  if(!confirm('Slette denne utleieregistreringen?'))return;
+  rentals=rentals.filter(r=>r.id!==id);
+  saveUtleieData();renderGantt();renderUtleieListe();
+}
+
+function saveEnhet(){
+  const name=document.getElementById('enhet-navn').value.trim();
+  if(!name){alert('Skriv inn navn/ID');return;}
+  units.push({id:uid(),name,type:document.getElementById('enhet-type').value,serial:document.getElementById('enhet-serial').value.trim(),note:document.getElementById('enhet-note').value.trim()});
+  document.getElementById('enhet-navn').value='';document.getElementById('enhet-serial').value='';document.getElementById('enhet-note').value='';
+  saveUtleieData();renderEnheterListe();refreshEnhetSelect();
+}
+
+function deleteEnhet(id){
+  const inUse=rentals.some(r=>r.unitId===id&&getRentalStatus(r)==='utleie');
+  if(inUse&&!confirm('Enheten er på utleie. Slett likevel?'))return;
+  units=units.filter(u=>u.id!==id);
+  saveUtleieData();renderEnheterListe();
+}
+
 // ===== INIT =====
+loadUtleieData();
 initAuth();
 
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();}});
 </script>
 </body>
 </html>
