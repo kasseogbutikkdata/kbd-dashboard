@@ -10,7 +10,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#111;font-size:15px;padding:24px}
-.container{max-width:980px;margin:0 auto}
+.container{max-width:1200px;margin:0 auto}
 
 /* Header */
 .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
@@ -138,14 +138,14 @@ tr:hover td{background:#fafafa}
 .gantt-nav-btn{padding:5px 12px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer;font-size:13px;font-family:inherit}
 .gantt-nav-btn:hover{background:#f9fafb}
 .gantt-scroll{overflow-x:auto}
-.gantt-table{border-collapse:collapse;font-size:12px;white-space:nowrap}
-.gantt-th-unit{padding:8px 14px;text-align:left;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;min-width:200px;position:sticky;left:0;background:white;z-index:1}
-.gantt-th-day{padding:8px 2px;text-align:center;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;min-width:34px}
+.gantt-table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:100%;table-layout:fixed}
+.gantt-th-unit{padding:8px 12px;text-align:left;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;width:180px;position:sticky;left:0;background:white;z-index:2}
+.gantt-th-day{padding:6px 2px;text-align:center;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;font-size:11px}
 .gantt-th-day.today{color:#1A3A6B;font-weight:700}
 .gantt-th-day.weekend{color:#d1d5db}
-.gantt-td-unit{padding:8px 14px;font-weight:500;color:#111;border-bottom:1px solid #f9fafb;position:sticky;left:0;background:white;z-index:1;min-width:200px}
+.gantt-td-unit{padding:6px 12px;font-weight:500;color:#111;border-bottom:1px solid #f9fafb;position:sticky;left:0;background:white;z-index:1;width:180px}
 .gantt-td-unit .unit-type{font-size:11px;color:#9ca3af;font-weight:400}
-.gantt-td-day{border-bottom:1px solid #f9fafb;border-right:1px solid #f9fafb;position:relative;height:38px;min-width:34px}
+.gantt-td-day{border-bottom:1px solid #f9fafb;border-right:1px solid #f9fafb;position:relative;height:36px}
 .gantt-td-day.today{background:#eff6ff}
 .gantt-td-day.weekend{background:#fafafa}
 .gantt-bar{position:absolute;top:6px;bottom:6px;border-radius:4px;cursor:pointer;transition:opacity .15s}
