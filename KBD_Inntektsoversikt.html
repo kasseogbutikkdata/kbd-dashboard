@@ -353,9 +353,15 @@ tr:hover td{background:#fafafa}
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Enhet</th><th>Type</th><th>Kunde</th><th>OrdreNr</th>
-            <th>Fra dato</th><th>Til dato</th><th>Returdato</th>
-            <th style="text-align:center">Status</th><th></th>
+            <th style="cursor:pointer" onclick="sortUtleieBy('enhet')">Enhet <span id="sh-enhet"></span></th>
+            <th style="cursor:pointer" onclick="sortUtleieBy('type')">Type <span id="sh-type"></span></th>
+            <th style="cursor:pointer" onclick="sortUtleieBy('kunde')">Kunde <span id="sh-kunde"></span></th>
+            <th style="cursor:pointer" onclick="sortUtleieBy('ordre')">OrdreNr <span id="sh-ordre"></span></th>
+            <th style="cursor:pointer" onclick="sortUtleieBy('fra')">Fra dato <span id="sh-fra"></span></th>
+            <th style="cursor:pointer" onclick="sortUtleieBy('til')">Til dato <span id="sh-til"></span></th>
+            <th style="cursor:pointer" onclick="sortUtleieBy('retur')">Returdato <span id="sh-retur"></span></th>
+            <th style="text-align:center;cursor:pointer" onclick="sortUtleieBy('status')">Status <span id="sh-status"></span></th>
+            <th></th>
           </tr></thead>
           <tbody id="utleie-tbody"></tbody>
         </table>
@@ -378,7 +384,13 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Navn/ID</th><th>Type</th><th>Serienummer</th><th style="text-align:center">Status</th><th>Notat</th><th></th></tr></thead>
+          <thead><tr>
+            <th style="cursor:pointer" onclick="sortEnheterBy('navn')">Navn/ID <span id="eh-navn"></span></th>
+            <th style="cursor:pointer" onclick="sortEnheterBy('type')">Type <span id="eh-type"></span></th>
+            <th style="cursor:pointer" onclick="sortEnheterBy('serial')">Serienummer <span id="eh-serial"></span></th>
+            <th style="text-align:center;cursor:pointer" onclick="sortEnheterBy('status')">Status <span id="eh-status"></span></th>
+            <th>Notat</th><th></th>
+          </tr></thead>
           <tbody id="enheter-tbody"></tbody>
         </table>
       </div>
@@ -633,7 +645,8 @@ const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34
 
 // ===== STATE =====
 let lic=[],kick=[],products=[],sources=[],aging=[],isSeed=false,charts={};
-let units=[],rentals=[],ganttStart=new Date(),utleieFilter='alle',utleieType='alle';
+let units=[],rentals=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle';
+let utleieSort={col:null,dir:'asc'};
 let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
@@ -1908,9 +1921,9 @@ function showUtleieView(view,btn){
 }
 
 // ---- GANTT CALENDAR ----
-function ganttPrev(){ganttStart=new Date(ganttStart);ganttStart.setDate(ganttStart.getDate()-14);renderGantt();}
-function ganttNext(){ganttStart=new Date(ganttStart);ganttStart.setDate(ganttStart.getDate()+14);renderGantt();}
-function ganttToday(){ganttStart=new Date();ganttStart.setHours(0,0,0,0);renderGantt();}
+function ganttPrev(){ganttStart=new Date(ganttStart.getFullYear(),ganttStart.getMonth()-1,1);renderGantt();}
+function ganttNext(){ganttStart=new Date(ganttStart.getFullYear(),ganttStart.getMonth()+1,1);renderGantt();}
+function ganttToday(){const d=new Date();ganttStart=new Date(d.getFullYear(),d.getMonth(),1);renderGantt();}
 
 function setUtleieType(t){
   utleieType=t;
@@ -1926,16 +1939,15 @@ function setUtleieType(t){
 }
 
 function renderGantt(){
-  const days=28;
-  const start=new Date(ganttStart);start.setHours(0,0,0,0);
-  const dates=Array.from({length:days},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d;});
+  const start=new Date(ganttStart.getFullYear(),ganttStart.getMonth(),1);
+  const daysInMonth=new Date(ganttStart.getFullYear(),ganttStart.getMonth()+1,0).getDate();
+  const dates=Array.from({length:daysInMonth},(_,i)=>{const d=new Date(start);d.setDate(i+1);return d;});
   const today=new Date();today.setHours(0,0,0,0);
 
   const filteredUnits=units.filter(u=>utleieType==='alle'||u.type===utleieType);
 
-  const t1=start.toLocaleDateString('nb-NO',{month:'long',year:'numeric'});
-  const end=dates[dates.length-1];
-  document.getElementById('gantt-title').textContent=`${start.toLocaleDateString('nb-NO',{day:'numeric',month:'short'})} – ${end.toLocaleDateString('nb-NO',{day:'numeric',month:'short',year:'numeric'})}`;
+  const NO_MONTHS_FULL=['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
+  document.getElementById('gantt-title').textContent=`${NO_MONTHS_FULL[start.getMonth()]} ${start.getFullYear()}`;
 
   if(!filteredUnits.length){
     document.getElementById('gantt-grid').innerHTML='<p class="empty" style="padding:32px;text-align:center;color:#9ca3af">Ingen enheter å vise — legg til enheter under "Enheter"-fanen</p>';
@@ -2041,6 +2053,16 @@ function renderUtleieKPI(){
   </div>`).join('');
 }
 
+
+function sortUtleieBy(col){
+  if(utleieSort.col===col){utleieSort.dir=utleieSort.dir==='asc'?'desc':'asc';}
+  else{utleieSort.col=col;utleieSort.dir='asc';}
+  renderUtleieListe();
+}
+function sortIcon(col){
+  if(utleieSort.col!==col)return'<span style="color:#d1d5db;font-size:10px">↕</span>';
+  return utleieSort.dir==='asc'?'<span style="color:#1A3A6B;font-size:10px">↑</span>':'<span style="color:#1A3A6B;font-size:10px">↓</span>';
+}
 function renderUtleieListe(){
   renderUtleieKPI();
   const unit=id=>units.find(u=>u.id===id);
@@ -2050,7 +2072,27 @@ function renderUtleieListe(){
     if(utleieFilter==='alle')return true;
     const s=getRentalStatus(r);
     return s===utleieFilter;
-  }).sort((a,b)=>new Date(b.fromDate)-new Date(a.fromDate));
+  }).sort((a,b)=>{
+    const u=id=>units.find(x=>x.id===id);
+    const dir=utleieSort.dir==='asc'?1:-1;
+    const sa=getRentalStatus(a),sb=getRentalStatus(b);
+    switch(utleieSort.col){
+      case 'enhet': return dir*((u(a.unitId)?.name||'').localeCompare(u(b.unitId)?.name||''));
+      case 'type': return dir*((u(a.unitId)?.type||'').localeCompare(u(b.unitId)?.type||''));
+      case 'kunde': return dir*(a.customer||'').localeCompare(b.customer||'');
+      case 'ordre': return dir*(a.orderNr||'').localeCompare(b.orderNr||'');
+      case 'fra': return dir*(new Date(a.fromDate)-new Date(b.fromDate));
+      case 'til': return dir*(new Date(a.toDate)-new Date(b.toDate));
+      case 'retur': return dir*((a.returnDate||'9999').localeCompare(b.returnDate||'9999'));
+      case 'status': return dir*(sa.localeCompare(sb));
+      default: return new Date(b.fromDate)-new Date(a.fromDate);
+    }
+  });
+  // Update sort icons
+  ['enhet','type','kunde','ordre','fra','til','retur','status'].forEach(c=>{
+    const el=document.getElementById('sh-'+c);
+    if(el)el.innerHTML=sortIcon(c);
+  });
   const fmtDate=d=>d?new Date(d).toLocaleDateString('nb-NO'):'—';
 
   const statHtml=s=>{
@@ -2081,6 +2123,13 @@ function renderUtleieListe(){
 }
 
 // ---- ENHETER LISTE ----
+
+let enheterSort={col:'type',dir:'asc'};
+function sortEnheterBy(col){
+  if(enheterSort.col===col){enheterSort.dir=enheterSort.dir==='asc'?'desc':'asc';}
+  else{enheterSort.col=col;enheterSort.dir='asc';}
+  renderEnheterListe();
+}
 function renderEnheterListe(){
   document.getElementById('enheter-tbody').innerHTML=units.length?units.map(u=>{
     const s=getUnitStatus(u.id);
