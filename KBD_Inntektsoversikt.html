@@ -1892,7 +1892,7 @@ function getRentalStatus(r){
 }
 
 function getUnitStatus(unitId){
-  const active=rentals.filter(r=>r.unitId===unitId&&getRentalStatus(r)==='utleie');
+  const active=rentals.filter(r=>r.unitId===unitId&&['utleie','forfalt'].includes(getRentalStatus(r)));
   return active.length>0?'utleie':'lager';
 }
 
