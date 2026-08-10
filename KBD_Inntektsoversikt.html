@@ -1873,12 +1873,15 @@ function saveUtleieData(){
   try{localStorage.setItem('kbd-units',JSON.stringify(units));localStorage.setItem('kbd-rentals',JSON.stringify(rentals));}catch{}
 }
 
+function parseLD(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+
 function getRentalStatus(r){
   const today=new Date();today.setHours(0,0,0,0);
-  const fra=new Date(r.fromDate);const til=new Date(r.toDate);
+  const fra=parseLD(r.fromDate);const til=parseLD(r.toDate);
+  if(!fra||!til)return'lager';
   if(fra>today)return'planlagt';
-  if(til<today&&!r.returnDate)return'forfalt';
   if(r.returnDate)return'lager';
+  if(til<today)return'forfalt';
   return'utleie';
 }
 
@@ -1952,14 +1955,14 @@ function renderGantt(){
       // Find rental for this day
       const rental=rentals.find(r=>{
         if(r.unitId!==unit.id)return false;
-        const fra=new Date(r.fromDate);fra.setHours(0,0,0,0);
-        const til=new Date(r.toDate);til.setHours(0,0,0,0);
-        return d>=fra&&d<=til&&!r.returnDate;
+        const fra=parseLD(r.fromDate);
+        const til=parseLD(r.toDate);
+        return fra&&til&&d>=fra&&d<=til&&!r.returnDate;
       });
       let barHtml='';
       if(rental){
-        const fra=new Date(rental.fromDate);fra.setHours(0,0,0,0);
-        const til=new Date(rental.toDate);til.setHours(0,0,0,0);
+        const fra=parseLD(rental.fromDate);
+        const til=parseLD(rental.toDate);
         const status=getRentalStatus(rental);
         const bcolor=status==='planlagt'?'#eda100':status==='forfalt'?'#dc2626':'#2a78d6';
         const isStart=d.getTime()===fra.getTime();
