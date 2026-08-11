@@ -2118,6 +2118,21 @@ function renderUtleieKPI(){
 }
 
 
+function relinkUnit(rentalId, newUnitId){
+  if(!newUnitId)return;
+  const r=rentals.find(x=>x.id===rentalId);
+  if(!r)return;
+  r.unitId=newUnitId;
+  renderGantt();renderUtleieListe();
+  // Oppdater i SharePoint
+  if(r.spId){
+    setSPStatus('⏳ Oppdaterer kobling…');
+    spUpdate('Utleie',r.spId,{EnhetId:newUnitId}).then(()=>{
+      setSPStatus('✅ Enhet koblet');setTimeout(()=>setSPStatus(''),3000);
+    }).catch(e=>setSPStatus('❌ '+e.message,false));
+  }
+}
+
 function sortUtleieBy(col){
   if(utleieSort.col===col){utleieSort.dir=utleieSort.dir==='asc'?'desc':'asc';}
   else{utleieSort.col=col;utleieSort.dir='asc';}
@@ -2169,7 +2184,11 @@ function renderUtleieListe(){
     const u=unit(r.unitId);
     const s=getRentalStatus(r);
     return`<tr>
-      <td><strong>${u?u.name:'Ukjent'}</strong></td>
+      <td>${u?`<strong>${u.name}</strong>`:
+        `<select style="font-size:12px;padding:3px 6px;border:1.5px solid #f59e0b;border-radius:5px;background:#fffbeb" onchange="relinkUnit('${r.id}',this.value)">
+          <option value="">⚠️ Velg enhet…</option>
+          ${units.map(x=>`<option value="${x.id}">${x.name} (${x.type})</option>`).join('')}
+        </select>`}</td>
       <td><span style="color:#6b7280;font-size:12px">${u?u.type:''}</span></td>
       <td>${r.customer}</td>
       <td style="font-family:monospace;font-size:12px">${r.orderNr||'—'}</td>
