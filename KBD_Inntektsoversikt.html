@@ -1372,7 +1372,7 @@ function showUtleieView(view,btn){
   if(view==='enheter')renderEnheterListe();
 }
 
-if(slicFilters.has(p)){slicFilters.delete(p);}else{slicFilters.add(p);}renderLicSammenligning();}
+function toggleSlicFilter(p){if(slicFilters.has(p)){slicFilters.delete(p);}else{slicFilters.add(p);}renderLicSammenligning();}
 function toggleSkickFilter(s){if(skickFilters.has(s)){skickFilters.delete(s);}else{skickFilters.add(s);}renderKickSammenligning();}
 
 function renderLicSammenligning(){
