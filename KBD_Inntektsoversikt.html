@@ -1803,7 +1803,32 @@ function renderUtleieListe(){
     return`<span class="utleie-stat ${map[s]||''}">${lbl[s]||s}</span>`;
   };
   const tbody=document.getElementById('utleie-tbody');if(!tbody)return;
-  tbody.innerHTML=rows.length?rows.map(r=>{
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="9" class="empty">Ingen ${utleieFilter==='alle'?'utleieregistreringer':utleieFilter==='utleie'?'aktive utleier':utleieFilter==='planlagt'?'planlagte utleier':utleieFilter==='forfalt'?'forfalte utleier':'returnerte enheter'}</td></tr>`;
+    return;
+  }
+  // Group by unit type if not sorted by something else
+  const TYPE_COLORS_L={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
+  const TYPE_ICONS_L={'Telpo M1':'📱','Betalingsterminal':'💳','Kasse':'🖥️'};
+  const shouldGroup=utleieType==='alle'&&(utleieSort.col===null||utleieSort.col==='enhet'||utleieSort.col==='type');
+  let html3='';
+  if(shouldGroup){
+    const types=[...new Set(rows.map(r=>{const u=unit(r.unitId);return u?u.type:'Ukjent';}))].sort();
+    types.forEach(type=>{
+      const tcolor=TYPE_COLORS_L[type]||'#888';
+      const ticon=TYPE_ICONS_L[type]||'📦';
+      const typeRows=rows.filter(r=>{const u=unit(r.unitId);return(u?u.type:'Ukjent')===type;});
+      html3+=`<tr><td colspan="9" style="padding:8px 14px;background:${tcolor}15;border-top:2px solid ${tcolor};border-bottom:1px solid ${tcolor}30">
+        <span style="font-size:12px;font-weight:700;color:${tcolor}">${ticon} ${type} <span style="font-weight:400;color:#9ca3af;font-size:11px">(${typeRows.length})</span></span>
+      </td></tr>`;
+      typeRows.forEach(r=>{html3+=rowHtml(r,unit,statHtml);});
+    });
+  } else {
+    rows.forEach(r=>{html3+=rowHtml(r,unit,statHtml);});
+  }
+  tbody.innerHTML=html3;
+
+  function rowHtml(r,unit,statHtml){
     const u=unit(r.unitId);const s=getRentalStatus(r);
     const enhetCell=u?`<strong>${u.name}</strong>`:`<select style="font-size:12px;padding:3px 6px;border:1.5px solid #f59e0b;border-radius:5px;background:#fffbeb" onchange="relinkUnit('${r.id}',this.value)"><option value="">⚠️ Velg enhet…</option>${units.map(x=>`<option value="${x.id}">${x.name} (${x.type})</option>`).join('')}</select>`;
     return`<tr>
@@ -1819,7 +1844,7 @@ function renderUtleieListe(){
         <button class="btn-icon del" onclick="deleteUtleie('${r.id}')" title="Slett">✕</button>
       </div></td>
     </tr>`;
-  }).join(''):`<tr><td colspan="9" class="empty">Ingen ${utleieFilter==='alle'?'utleieregistreringer':utleieFilter==='utleie'?'aktive utleier':utleieFilter==='planlagt'?'planlagte utleier':utleieFilter==='forfalt'?'forfalte utleier':'returnerte enheter'}</td></tr>`;
+  }
 
   // Sort icons
   ['enhet','type','kunde','ordre','fra','til','retur','status'].forEach(c=>{
@@ -1827,6 +1852,8 @@ function renderUtleieListe(){
     if(el)el.innerHTML=utleieSort.col===c?(utleieSort.dir==='asc'?'↑':'↓'):'↕';
   });
 }
+
+let enheterSort={col:'type',dir:'asc'};
 
 function renderEnheterListe(){
   const TYPE_COLORS_E={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
@@ -1859,7 +1886,6 @@ function sortUtleieBy(col){
   renderUtleieListe();
 }
 
-let enheterSort={col:'type',dir:'asc'};
 function sortEnheterBy(col){
   if(enheterSort.col===col){enheterSort.dir=enheterSort.dir==='asc'?'desc':'asc';}else{enheterSort.col=col;enheterSort.dir='asc';}
   renderEnheterListe();
