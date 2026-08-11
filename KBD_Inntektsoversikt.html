@@ -1481,6 +1481,238 @@ async function migrateUtleieToSP(){
 
 function renderSammenligning(){renderLicSammenligning();renderKickSammenligning();}
 
+// ===== SKJEMA & CRUD =====
+function onSrcChange(){
+  const src=document.getElementById('kf-src').value;
+  const s=sources.find(x=>x.name===src);
+  const monthly=s?s.freq!=='quarterly':true;
+  document.getElementById('kf-per').innerHTML=(monthly?MONTHS:QUARTERS).map((p,i)=>`<option${i===(monthly?5:1)?' selected':''}>${p}</option>`).join('');
+  const hint=document.getElementById('kf-hint');
+  if(hint)hint.textContent=monthly?'(månedlig)':'(kvartalsvis)';
+}
+function onEditSrcChange(){
+  const src=document.getElementById('ek-src').value;
+  const s=sources.find(x=>x.name===src);
+  const monthly=s?s.freq!=='quarterly':true;
+  document.getElementById('ek-per').innerHTML=(monthly?MONTHS:QUARTERS).map((p,i)=>`<option${i===(monthly?5:1)?' selected':''}>${p}</option>`).join('');
+}
+
+function addLic(){
+  const amt=Number(document.getElementById('lf-amt').value);
+  const yr=Number(document.getElementById('lf-year').value);
+  if(!amt||!yr)return;
+  const entry={id:uid(),spId:null,year:yr,period:document.getElementById('lf-m').value,product:document.getElementById('lf-prod').value,amount:amt,note:document.getElementById('lf-note').value.trim()};
+  lic.push(entry);
+  document.getElementById('lf-amt').value='';document.getElementById('lf-note').value='';
+  isSeed=false;renderAll();
+  spSyncLic(entry,true);
+}
+function addKick(){
+  const amt=Number(document.getElementById('kf-amt').value);
+  const yr=Number(document.getElementById('kf-year').value);
+  if(!amt||!yr)return;
+  const entry={id:uid(),spId:null,year:yr,period:document.getElementById('kf-per').value,source:document.getElementById('kf-src').value,amount:amt,note:document.getElementById('kf-note').value.trim()};
+  kick.push(entry);
+  document.getElementById('kf-amt').value='';document.getElementById('kf-note').value='';
+  isSeed=false;renderAll();
+  spSyncKick(entry,true);
+}
+function delLic(id){
+  if(!confirm('Slette denne raden?'))return;
+  const entry=lic.find(l=>l.id===id);
+  lic=lic.filter(l=>l.id!==id);
+  renderAll();
+  if(entry?.spId){setSPStatus('⏳ Sletter…');spDelete('Lisenser',entry.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+}
+function delKick(id){
+  if(!confirm('Slette denne raden?'))return;
+  const entry=kick.find(k=>k.id===id);
+  kick=kick.filter(k=>k.id!==id);
+  renderAll();
+  if(entry?.spId){setSPStatus('⏳ Sletter…');spDelete('Kickback',entry.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+}
+
+// ===== MODAL =====
+function openEdit(type,id){
+  editType=type;editId=id;
+  const mLic=document.getElementById('modal-lic-fields');
+  const mKick=document.getElementById('modal-kick-fields');
+  if(mLic)mLic.style.display=type==='lic'?'':'none';
+  if(mKick)mKick.style.display=type==='kick'?'':'none';
+  const title=document.getElementById('modal-title');
+  if(title)title.textContent=type==='lic'?'Rediger lisensregistrering':'Rediger kickback';
+  if(type==='lic'){
+    const e=lic.find(l=>l.id===id);if(!e)return;
+    document.getElementById('e-year').value=e.year;
+    const ep=document.getElementById('e-period');if(ep)ep.value=e.period||e.quarter||'';
+    document.getElementById('e-prod').value=e.product;
+    document.getElementById('e-amt').value=e.amount;
+    document.getElementById('e-note').value=e.note||'';
+  } else {
+    const e=kick.find(k=>k.id===id);if(!e)return;
+    document.getElementById('ek-year').value=e.year;
+    refreshSrcDropdowns();
+    document.getElementById('ek-src').value=e.source;
+    const monthly=sources.find(s=>s.name===e.source)?.freq!=='quarterly';
+    document.getElementById('ek-per').innerHTML=(monthly?MONTHS:QUARTERS).map(p=>`<option${p===e.period?' selected':''}>${p}</option>`).join('');
+    document.getElementById('ek-amt').value=e.amount;
+    document.getElementById('ek-note').value=e.note||'';
+  }
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){const m=document.getElementById('modal');if(m)m.classList.remove('open');}
+function saveEdit(){
+  if(editType==='lic'){
+    const e=lic.find(l=>l.id===editId);if(!e)return;
+    e.year=Number(document.getElementById('e-year').value);
+    const p=document.getElementById('e-period');
+    const pval=p?p.value:(document.getElementById('e-q')||{}).value||'';
+    if(QUARTERS.includes(pval)){e.quarter=pval;delete e.period;}else{e.period=pval;delete e.quarter;}
+    e.product=document.getElementById('e-prod').value;
+    e.amount=Number(document.getElementById('e-amt').value);
+    e.note=document.getElementById('e-note').value.trim();
+    closeModal();renderAll();spSyncLic(e,false);
+  } else {
+    const e=kick.find(k=>k.id===editId);if(!e)return;
+    e.year=Number(document.getElementById('ek-year').value);
+    e.source=document.getElementById('ek-src').value;
+    e.period=document.getElementById('ek-per').value;
+    e.amount=Number(document.getElementById('ek-amt').value);
+    e.note=document.getElementById('ek-note').value.trim();
+    closeModal();renderAll();spSyncKick(e,false);
+  }
+}
+
+// ===== IMPORT =====
+function openImport(){
+  const s=document.getElementById('import-status');if(s)s.textContent='';
+  const f=document.getElementById('excel-file-input');if(f)f.value='';
+  document.getElementById('import-modal').classList.add('open');
+}
+function closeImport(){const m=document.getElementById('import-modal');if(m)m.classList.remove('open');}
+function triggerFilePicker(){const f=document.getElementById('excel-file-input');if(f)f.click();}
+async function handleExcelFile(event){
+  const file=event.target.files[0];if(!file)return;
+  const status=document.getElementById('import-status');
+  if(status)status.innerHTML='<span style="color:#2E86C1">⏳ Leser fil…</span>';
+  try{
+    const result=await parseExcelFile(file);
+    await doImport(result.licEntries,result.kickEntries,result.newProds);
+    if(status)status.innerHTML=`<span style="color:#16a34a">✅ Importert: ${result.licEntries.length} lisensrader og ${result.kickEntries.length} kickback-rader</span>`;
+    setTimeout(closeImport,2000);
+  }catch(e){
+    if(status)status.innerHTML=`<span style="color:#dc2626">❌ Feil: ${e.message}</span>`;
+    console.error(e);
+  }
+}
+async function parseExcelFile(file){
+  const LABEL_MAP={'ANDRE LISENSER':'Andre lisenser','BETALINGSTERMIN':'Betalingsterm. (lisens)','CASIO SAF T':'Casio SAF-T','ETB':'ETB','SALESBO':'Salesbo','SUSOFT LISENS':'SuSoft lisenser','VR LISENS':'VR lisens'};
+  const M2QN=[1,1,1,2,2,2,3,3,3,4,4,4];
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array',cellDates:true});
+  const ws1=wb.Sheets['Lisensoversikt total'];
+  if(!ws1)throw new Error('Fant ikke arket "Lisensoversikt total"');
+  const rows1=XLSX.utils.sheet_to_json(ws1,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+  let hdrIdx=-1;
+  for(let i=0;i<Math.min(10,rows1.length);i++){if(rows1[i].filter(v=>v&&/^\d{4}-\d{2}-\d{2}$/.test(String(v))).length>10){hdrIdx=i;break;}}
+  if(hdrIdx<0)throw new Error('Fant ikke datokolonner i "Lisensoversikt total"');
+  const mCols={};
+  rows1[hdrIdx].forEach((v,i)=>{if(v&&/^\d{4}-\d{2}-\d{2}$/.test(String(v)))mCols[i]=String(v).slice(0,7);});
+  const licTypes={};
+  for(let r=hdrIdx+1;r<rows1.length;r++){
+    const mapped=LABEL_MAP[String(rows1[r][0]||'').trim()];
+    if(!mapped)continue;if(!licTypes[mapped])licTypes[mapped]={};
+    Object.entries(mCols).forEach(([i,ym])=>{const v=parseFloat(rows1[r][i]);if(!isNaN(v)&&v!==0)licTypes[mapped][ym]=(licTypes[mapped][ym]||0)+v;});
+  }
+  const licEntries=[],newProds=[];
+  Object.entries(licTypes).forEach(([product,months])=>{
+    if(!products.includes(product))newProds.push(product);
+    const qMap={};
+    Object.entries(months).forEach(([ym,amt])=>{const[y,m]=ym.split('-').map(Number);const q=`Q${M2QN[m-1]}`;const key=`${y}_${q}`;if(!qMap[key])qMap[key]={year:y,quarter:q,product,amount:0};qMap[key].amount+=amt;});
+    Object.values(qMap).forEach(e=>{if(e.amount>0)licEntries.push({...e,amount:Math.round(e.amount),id:uid(),note:'Import Excel'});});
+  });
+  const kickEntries=[];
+  const wsEl=wb.Sheets['Elavon'];if(wsEl)XLSX.utils.sheet_to_json(wsEl,{header:1,raw:false,dateNF:'yyyy-mm-dd'}).forEach(row=>{const dt=String(row[0]||''),amt=parseFloat(row[1]);if(/^\d{4}-\d{2}-\d{2}$/.test(dt)&&!isNaN(amt)&&amt>0){const[y,m]=dt.split('-').map(Number);kickEntries.push({id:uid(),year:y,period:MONTHS[m-1],source:'Elavon',amount:Math.round(amt),note:'Import Excel'});}});
+  const wsNets=wb.Sheets['Nets DCC'];if(wsNets)XLSX.utils.sheet_to_json(wsNets,{header:1}).forEach(row=>{const label=String(row[0]||'').trim(),amt=parseFloat(row[1]);if(/Q[1-4]\s+\d{4}/.test(label)&&!isNaN(amt)&&amt>0){const p=label.split(/\s+/);kickEntries.push({id:uid(),year:parseInt(p[1]),period:p[0],source:'Nets',amount:Math.round(amt),note:'Import Excel'});}});
+  const wsVeri=wb.Sheets['VerifonePay'];if(wsVeri)XLSX.utils.sheet_to_json(wsVeri,{header:1,raw:false,dateNF:'yyyy-mm-dd'}).forEach(row=>{const dt=String(row[0]||''),amt=parseFloat(row[1]);if(/^\d{4}-\d{2}-\d{2}$/.test(dt)&&!isNaN(amt)&&amt>0){const[y,m]=dt.split('-').map(Number);kickEntries.push({id:uid(),year:y,period:MONTHS[m-1],source:'Verifone',amount:Math.round(amt),note:'Import Excel'});}});
+  return{licEntries,kickEntries,newProds};
+}
+function importBuiltin(){
+  const d=EXCEL_IMPORT;
+  if(!confirm(`Importer innebygd data:\n\n• ${d.lisenser.length} lisensrader (2022 Q1 – 2026 Q2)\n• ${d.kickback.length} kickback-rader\n\nEksisterende data beholdes.`))return;
+  doImport(d.lisenser,d.kickback,d.products||[]);closeImport();
+}
+async function importLocalBackup(event){
+  const file=event.target.files[0];if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());
+    if(!confirm(`Importer backup:\n\n• ${(data.lic||[]).length} lisensrader\n• ${(data.kick||[]).length} kickback-rader`))return;
+    await doImport(data.lic||[],data.kick||[],data.products||[]);
+    alert('✅ Ferdig!');
+  }catch(e){alert('Feil: '+e.message);}
+  event.target.value='';
+}
+
+// ===== CONFIRM/CLEAR MODALS =====
+function clearAll(){
+  const inp=document.getElementById('clear-input');if(inp)inp.value='';
+  const btn=document.getElementById('clear-ok-btn');if(btn){btn.disabled=true;btn.style.opacity='.4';}
+  document.getElementById('clear-modal').classList.add('open');
+  setTimeout(()=>{const i=document.getElementById('clear-input');if(i)i.focus();},100);
+}
+function checkClearInput(){
+  const ok=document.getElementById('clear-input').value.trim().toUpperCase()==='BEKREFT';
+  const btn=document.getElementById('clear-ok-btn');
+  if(btn){btn.disabled=!ok;btn.style.opacity=ok?'1':'.4';btn.style.cursor=ok?'pointer':'not-allowed';}
+}
+function closeClear(){const m=document.getElementById('clear-modal');if(m)m.classList.remove('open');}
+async function doClearAll(){
+  showLoading('Sletter alle data fra SharePoint…');
+  try{
+    await Promise.all([...lic.filter(l=>l.spId).map(l=>spDelete('Lisenser',l.spId)),...kick.filter(k=>k.spId).map(k=>spDelete('Kickback',k.spId)),...aging.filter(a=>a.spId).map(a=>spDelete('Aldersfordelt',a.spId))]);
+    lic=[];kick=[];aging=[];isSeed=false;hideLoading();renderAll();
+  }catch(err){hideLoading();alert('Feil: '+err.message);}
+  closeClear();
+}
+function resetSeed(){
+  const inp=document.getElementById('confirm-input');if(inp)inp.value='';
+  const btn=document.getElementById('confirm-ok-btn');if(btn){btn.disabled=true;btn.style.opacity='.4';}
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function checkConfirmInput(){
+  const ok=document.getElementById('confirm-input').value.trim().toUpperCase()==='BEKREFT';
+  const btn=document.getElementById('confirm-ok-btn');
+  if(btn){btn.disabled=!ok;btn.style.opacity=ok?'1':'.4';btn.style.cursor=ok?'pointer':'not-allowed';}
+}
+function closeConfirm(){const m=document.getElementById('confirm-modal');if(m)m.classList.remove('open');}
+function doResetSeed(){
+  alert('Eksempeldata er ikke tilgjengelig i skyversjonen.');closeConfirm();
+}
+
+// ===== AGING CRUD =====
+function addAging(){
+  const date=document.getElementById('ag-date').value;
+  if(!date){alert('Velg en dato');return;}
+  const vals=AGING_KEYS.map(k=>Number(document.getElementById(`ag-${k}`).value)||0);
+  if(vals.every(v=>v===0)){alert('Fyll inn minst ett beløp');return;}
+  const entry={id:uid(),spId:null,date};
+  AGING_KEYS.forEach((k,i)=>entry[k]=vals[i]);
+  entry.note=document.getElementById('ag-note').value.trim();
+  aging.push(entry);
+  AGING_KEYS.forEach(k=>{document.getElementById(`ag-${k}`).value='';});
+  document.getElementById('ag-note').value='';
+  renderAging();
+  setSPStatus('⏳ Synkroniserer…');
+  spCreate('Aldersfordelt',{Title:entry.date,Dato:entry.date,D1_30:entry['d1_30']||0,D31_60:entry['d31_60']||0,D61_90:entry['d61_90']||0,D90plus:entry['d90plus']||0,Note:entry.note||''}).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);});
+}
+
+function relinkUnit(rentalId,newUnitId){
+  if(!newUnitId)return;
+  const r=rentals.find(x=>x.id===rentalId);if(!r)return;
+  r.unitId=newUnitId;renderGantt();renderUtleieListe();
+  if(r.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Utleie',r.spId,{EnhetId:newUnitId}).then(()=>{setSPStatus('✅ Koblet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+}
+
 // ===== INIT =====
 initAuth();
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();}});
