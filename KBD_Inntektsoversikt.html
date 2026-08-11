@@ -329,6 +329,10 @@ tr:hover td{background:#fafafa}
           <div class="gantt-nav-title" id="gantt-title"></div>
           <button class="gantt-nav-btn" onclick="ganttToday()">I dag</button>
           <button class="gantt-nav-btn" onclick="ganttNext()">▶</button>
+          <div style="width:1px;height:20px;background:#e5e7eb"></div>
+          <span style="font-size:11px;color:#9ca3af;font-weight:600">Sorter:</span>
+          <button class="gantt-nav-btn" id="gsort-enhet" onclick="setGanttSort('enhet')" style="font-size:12px">Enhet ↕</button>
+          <button class="gantt-nav-btn" id="gsort-kunde" onclick="setGanttSort('kunde')" style="font-size:12px">Kunde ↕</button>
         </div>
         <div class="gantt-scroll"><div id="gantt-grid"></div></div>
       </div>
@@ -647,6 +651,7 @@ const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34
 let lic=[],kick=[],products=[],sources=[],aging=[],isSeed=false,charts={};
 let units=[],rentals=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle';
 let utleieSort={col:null,dir:'asc'};
+let ganttSort={col:'enhet',dir:'asc'};
 let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
@@ -2002,6 +2007,38 @@ function setUtleieType(t){
   renderGantt();renderUtleieListe();
 }
 
+function setGanttSort(col){
+  if(ganttSort.col===col){ganttSort.dir=ganttSort.dir==='asc'?'desc':'asc';}
+  else{ganttSort.col=col;ganttSort.dir='asc';}
+  renderGantt();
+}
+
+function getUnitNumber(name){
+  const m=name.match(/(\d+)\s*$/);
+  return m?parseInt(m[1]):0;
+}
+
+function getActiveKunde(unitId){
+  const r=rentals.find(x=>x.unitId===unitId&&['utleie','planlagt'].includes(getRentalStatus(x)));
+  return r?r.customer:'';
+}
+
+function sortUnits(arr){
+  return [...arr].sort((a,b)=>{
+    const dir=ganttSort.dir==='asc'?1:-1;
+    if(ganttSort.col==='kunde'){
+      const ka=getActiveKunde(a.id)||'';
+      const kb=getActiveKunde(b.id)||'';
+      const cmp=ka.localeCompare(kb,'nb');
+      return cmp!==0?dir*cmp:getUnitNumber(a.name)-getUnitNumber(b.name);
+    }
+    // Numerisk på enhetsnavn
+    const na=getUnitNumber(a.name);const nb=getUnitNumber(b.name);
+    if(na!==nb)return dir*(na-nb);
+    return dir*a.name.localeCompare(b.name,'nb');
+  });
+}
+
 function renderGantt(){
   const start=new Date(ganttStart.getFullYear(),ganttStart.getMonth(),1);
   const daysInMonth=new Date(ganttStart.getFullYear(),ganttStart.getMonth()+1,0).getDate();
@@ -2031,10 +2068,15 @@ function renderGantt(){
   });
   html2+='</tr></thead><tbody>';
 
-  // Group by type
+  // Update sort button labels
+  const sIcon=col=>ganttSort.col===col?(ganttSort.dir==='asc'?'↑':'↓'):'↕';
+  const gb1=document.getElementById('gsort-enhet');if(gb1)gb1.textContent=`Enhet ${sIcon('enhet')}`;
+  const gb2=document.getElementById('gsort-kunde');if(gb2)gb2.textContent=`Kunde ${sIcon('kunde')}`;
+
+  // Group by type, sort within each group
   const types=[...new Set(filteredUnits.map(u=>u.type))];
   types.forEach(type=>{
-    const typeUnits=filteredUnits.filter(u=>u.type===type);
+    const typeUnits=sortUnits(filteredUnits.filter(u=>u.type===type));
     const tcolor=TYPE_COLORS[type]||'#888';
     const ticon=TYPE_ICONS[type]||'📦';
     const cols=dates.length+1;
@@ -2049,10 +2091,11 @@ function renderGantt(){
       const status=getUnitStatus(unit.id);
       html2+=`<tr><td class="gantt-td-unit">
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="utleie-stat ${status==='utleie'?'stat-utleie':'stat-lager'}" style="font-size:10px;padding:2px 7px">${status==='utleie'?'Utleie':'Lager'}</span>
-          <div>
-            <div style="font-weight:500;color:#111">${unit.name}</div>
-            ${unit.serial?`<div style="font-size:11px;color:#9ca3af;font-family:monospace">${unit.serial}</div>`:''}
+          <span class="utleie-stat ${status==='utleie'?'stat-utleie':'stat-lager'}" style="font-size:10px;padding:2px 7px;flex-shrink:0">${status==='utleie'?'Utleie':'Lager'}</span>
+          <div style="min-width:0">
+            <div style="font-weight:600;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${unit.name}</div>
+            ${unit.serial?`<div style="font-size:10px;color:#9ca3af;font-family:monospace">${unit.serial}</div>`:''}
+            ${getActiveKunde(unit.id)?`<div style="font-size:11px;color:#2a78d6;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${getActiveKunde(unit.id)}</div>`:''}
           </div>
         </div>
       </td>`;
