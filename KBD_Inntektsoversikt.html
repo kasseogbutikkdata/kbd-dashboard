@@ -1889,11 +1889,58 @@ const ENHET_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'
 async function loadUtleieData(){
   try{
     const[uItems,rItems]=await Promise.all([spGetItems('Enheter'),spGetItems('Utleie')]);
-    units=uItems.map(i=>({id:`sp${i.id}`,spId:i.id,name:i.fields.Title||'',type:i.fields.EnhetType||'',serial:i.fields.Serienr||'',note:i.fields.Note||''}));
-    rentals=rItems.map(i=>({id:`sp${i.id}`,spId:i.id,unitId:i.fields.EnhetId||'',customer:i.fields.Kunde||'',orderNr:i.fields.OrdreNr||'',fromDate:i.fields.FraDato||'',toDate:i.fields.TilDato||'',returnDate:i.fields.Returdato||null,note:i.fields.Note||''}));
-  }catch(e){console.error('Feil ved lasting av utleie-data:',e);units=[];rentals=[];}
+    if(uItems.length>0||rItems.length>0){
+      // Data finnes i SharePoint — bruk det
+      units=uItems.map(i=>({id:`sp${i.id}`,spId:i.id,name:i.fields.Title||'',type:i.fields.EnhetType||'',serial:i.fields.Serienr||'',note:i.fields.Note||''}));
+      rentals=rItems.map(i=>({id:`sp${i.id}`,spId:i.id,unitId:i.fields.EnhetId||'',customer:i.fields.Kunde||'',orderNr:i.fields.OrdreNr||'',fromDate:i.fields.FraDato||'',toDate:i.fields.TilDato||'',returnDate:i.fields.Returdato||null,note:i.fields.Note||''}));
+    } else {
+      // SP tom — prøv localStorage som fallback
+      const lu=localStorage.getItem('kbd-units');
+      const lr=localStorage.getItem('kbd-rentals');
+      units=lu?JSON.parse(lu):[];
+      rentals=lr?JSON.parse(lr):[];
+      if(units.length>0||rentals.length>0){
+        // Vis migreringsvarsel
+        setTimeout(()=>{
+          if(confirm(`Fant ${units.length} enheter og ${rentals.length} utleier lokalt som ikke er overført til SharePoint.\n\nOverfør til SharePoint nå?`)){
+            migrateUtleieToSP();
+          }
+        },1000);
+      }
+    }
+  }catch(e){
+    console.error('Feil ved lasting av utleie-data:',e);
+    // Fallback til localStorage ved feil
+    try{units=JSON.parse(localStorage.getItem('kbd-units')||'[]');rentals=JSON.parse(localStorage.getItem('kbd-rentals')||'[]');}
+    catch{units=[];rentals=[];}
+  }
 }
-function saveUtleieData(){/* Data lagres direkte til SP på hvert enkelt kall */}
+
+async function migrateUtleieToSP(){
+  showLoading('Overfører enheter til SharePoint…');
+  try{
+    for(let i=0;i<units.length;i++){
+      const u=units[i];
+      if(!u.spId){
+        const r=await spCreate('Enheter',{Title:u.name,EnhetType:u.type,Serienr:u.serial||'',Note:u.note||''});
+        u.spId=r.id;u.id=`sp${r.id}`;
+      }
+    }
+    showLoading('Overfører utleier til SharePoint…');
+    for(let i=0;i<rentals.length;i++){
+      const r=rentals[i];
+      if(!r.spId){
+        const res=await spCreate('Utleie',{Title:r.customer+' '+r.fromDate,EnhetId:r.unitId,Kunde:r.customer,OrdreNr:r.orderNr||'',FraDato:r.fromDate,TilDato:r.toDate,Returdato:r.returnDate||'',Note:r.note||''});
+        r.spId=res.id;r.id=`sp${res.id}`;
+      }
+    }
+    hideLoading();
+    alert(`✅ Ferdig! ${units.length} enheter og ${rentals.length} utleier er nå i SharePoint.`);
+    renderGantt();renderUtleieListe();renderEnheterListe();
+  }catch(e){hideLoading();alert('Feil ved overføring: '+e.message);console.error(e);}
+}
+
+function saveUtleieData(){/* Data lagres direkte til SP */}
 
 function parseLD(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 
