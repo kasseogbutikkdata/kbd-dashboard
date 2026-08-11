@@ -1514,6 +1514,217 @@ function showKickbackView(view){
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
+// ===== UTLEIE RENDER =====
+const ENHET_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
+const TYPE_ICONS={'Telpo M1':'📱','Betalingsterminal':'💳','Kasse':'🖥️'};
+
+function getRentalStatus(r){
+  const today=new Date();today.setHours(0,0,0,0);
+  const fra=parseLD(r.fromDate);const til=parseLD(r.toDate);
+  if(!fra||!til)return'lager';
+  if(fra>today)return'planlagt';
+  if(r.returnDate)return'lager';
+  if(til<today)return'forfalt';
+  return'utleie';
+}
+function getUnitStatus(unitId){
+  return rentals.some(r=>r.unitId===unitId&&['utleie','forfalt'].includes(getRentalStatus(r)))?'utleie':'lager';
+}
+function getActiveKunde(unitId){
+  const r=rentals.find(x=>x.unitId===unitId&&['utleie','planlagt','forfalt'].includes(getRentalStatus(x)));
+  return r?r.customer:'';
+}
+function getUnitNumber(name){const m=name.match(/(\d+)\s*$/);return m?parseInt(m[1]):0;}
+function sortUnitsGantt(arr){
+  return[...arr].sort((a,b)=>{
+    const dir=ganttSort.dir==='asc'?1:-1;
+    if(ganttSort.col==='kunde'){const ka=getActiveKunde(a.id)||'';const kb=getActiveKunde(b.id)||'';const cmp=ka.localeCompare(kb,'nb');return cmp!==0?dir*cmp:getUnitNumber(a.name)-getUnitNumber(b.name);}
+    const na=getUnitNumber(a.name);const nb=getUnitNumber(b.name);
+    if(na!==nb)return dir*(na-nb);
+    return dir*a.name.localeCompare(b.name,'nb');
+  });
+}
+function setGanttSort(col){
+  if(ganttSort.col===col){ganttSort.dir=ganttSort.dir==='asc'?'desc':'asc';}else{ganttSort.col=col;ganttSort.dir='asc';}
+  renderGantt();
+}
+
+function renderGantt(){
+  const start=new Date(ganttStart.getFullYear(),ganttStart.getMonth(),1);
+  const daysInMonth=new Date(ganttStart.getFullYear(),ganttStart.getMonth()+1,0).getDate();
+  const dates=Array.from({length:daysInMonth},(_,i)=>{const d=new Date(start);d.setDate(i+1);return d;});
+  const today=new Date();today.setHours(0,0,0,0);
+  const NO_MONTHS_FULL=['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
+  const NO_DAYS=['Søn','Man','Tir','Ons','Tor','Fre','Lør'];
+  const titleEl=document.getElementById('gantt-title');
+  if(titleEl)titleEl.textContent=`${NO_MONTHS_FULL[start.getMonth()]} ${start.getFullYear()}`;
+  const filteredUnits=units.filter(u=>utleieType==='alle'||u.type===utleieType);
+  const gridEl=document.getElementById('gantt-grid');
+  if(!gridEl)return;
+  if(!filteredUnits.length){gridEl.innerHTML='<p class="empty" style="padding:32px;text-align:center;color:#9ca3af">Ingen enheter — legg til enheter under "Enheter"-fanen</p>';return;}
+  const sIcon=col=>ganttSort.col===col?(ganttSort.dir==='asc'?'↑':'↓'):'↕';
+  const gb1=document.getElementById('gsort-enhet');if(gb1)gb1.textContent=`Enhet ${sIcon('enhet')}`;
+  const gb2=document.getElementById('gsort-kunde');if(gb2)gb2.textContent=`Kunde ${sIcon('kunde')}`;
+  const types=[...new Set(filteredUnits.map(u=>u.type))];
+  let html2='<table class="gantt-table"><thead><tr>';
+  html2+=`<th class="gantt-th-unit">Enhet</th>`;
+  dates.forEach(d=>{
+    const isToday=d.getTime()===today.getTime();
+    const isWeekend=d.getDay()===0||d.getDay()===6;
+    html2+=`<th class="gantt-th-day${isToday?' today':''}${isWeekend?' weekend':''}">${d.getDate()}<br><span style="font-size:9px;font-weight:400">${NO_DAYS[d.getDay()]}</span></th>`;
+  });
+  html2+='</tr></thead><tbody>';
+  types.forEach(type=>{
+    const tcolor=ENHET_COLORS[type]||'#888';
+    const ticon=TYPE_ICONS[type]||'📦';
+    const typeUnits=sortUnitsGantt(filteredUnits.filter(u=>u.type===type));
+    html2+=`<tr><td colspan="${dates.length+1}" style="padding:8px 14px;background:${tcolor}15;border-top:2px solid ${tcolor};border-bottom:1px solid ${tcolor}30">
+      <span style="font-size:12px;font-weight:700;color:${tcolor}">${ticon} ${type} <span style="font-weight:400;color:#9ca3af;font-size:11px">(${typeUnits.length} enheter)</span></span>
+    </td></tr>`;
+    typeUnits.forEach(unit=>{
+      const status=getUnitStatus(unit.id);
+      const kunde=getActiveKunde(unit.id);
+      html2+=`<tr><td class="gantt-td-unit">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="utleie-stat ${status==='utleie'?'stat-utleie':'stat-lager'}" style="font-size:10px;padding:2px 7px;flex-shrink:0">${status==='utleie'?'Utleie':'Lager'}</span>
+          <div style="min-width:0">
+            <div style="font-weight:600;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${unit.name}</div>
+            ${unit.serial?`<div style="font-size:10px;color:#9ca3af;font-family:monospace">${unit.serial}</div>`:''}
+            ${kunde?`<div style="font-size:11px;color:#2a78d6;font-weight:500">${kunde}</div>`:''}
+          </div>
+        </div>
+      </td>`;
+      dates.forEach(d=>{
+        const isToday=d.getTime()===today.getTime();
+        const isWeekend=d.getDay()===0||d.getDay()===6;
+        const rental=rentals.find(r=>{
+          if(r.unitId!==unit.id)return false;
+          const fra=parseLD(r.fromDate);const til=parseLD(r.toDate);
+          return fra&&til&&d>=fra&&d<=til&&!r.returnDate;
+        });
+        let barHtml='';
+        if(rental){
+          const fra=parseLD(rental.fromDate);const til=parseLD(rental.toDate);
+          const rs=getRentalStatus(rental);
+          const bcolor=rs==='planlagt'?'#eda100':rs==='forfalt'?'#dc2626':tcolor;
+          const isStart=d.getTime()===fra.getTime();const isEnd=d.getTime()===til.getTime();
+          const cls=isStart&&isEnd?'single':isStart?'start':isEnd?'end':'middle';
+          const label=isStart?`<span style="padding:0 4px;color:white;font-size:10px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:120px">${rental.customer}</span>`:'';
+          barHtml=`<div class="gantt-bar ${cls}" style="background:${bcolor};left:${isStart?'2px':'0'};right:${isEnd?'2px':'0'}" title="${rental.customer}${rental.orderNr?' ('+rental.orderNr+')':''}">${label}</div>`;
+        }
+        html2+=`<td class="gantt-td-day${isToday?' today':''}${isWeekend?' weekend':''}">${barHtml}</td>`;
+      });
+      html2+='</tr>';
+    });
+  });
+  html2+='</tbody></table>';
+  gridEl.innerHTML=html2;
+}
+
+function renderUtleieKPI(){
+  const el=document.getElementById('utleie-kpi');if(!el)return;
+  const aktiv=rentals.filter(r=>getRentalStatus(r)==='utleie').length;
+  const planlagt=rentals.filter(r=>getRentalStatus(r)==='planlagt').length;
+  const forfalt=rentals.filter(r=>getRentalStatus(r)==='forfalt').length;
+  const ledig=units.filter(u=>getUnitStatus(u.id)==='lager').length;
+  el.innerHTML=[
+    {label:'På utleie',val:aktiv,color:'#2a78d6',bg:'#dbeafe'},
+    {label:'Ledige enheter',val:ledig,color:'#15803d',bg:'#dcfce7'},
+    {label:'Planlagt',val:planlagt,color:'#92400e',bg:'#fef3c7'},
+    {label:'Forfalt retur',val:forfalt,color:'#dc2626',bg:'#fee2e2'},
+  ].map(({label,val,color,bg})=>`<div style="background:${bg};border-radius:8px;padding:12px 16px;text-align:center">
+    <div style="font-size:11px;color:${color};font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${label}</div>
+    <div style="font-size:24px;font-weight:700;color:${color}">${val}</div>
+  </div>`).join('');
+}
+
+function setUtleieFilter(f){
+  utleieFilter=f;
+  ['alle','utleie','planlagt','forfalt','lager'].forEach(x=>{
+    const el=document.getElementById('uf-'+x);if(!el)return;
+    el.className='fpill'+(f===x?' f-on':'');el.style.borderColor=f===x?'#1A3A6B':'';
+  });
+  renderUtleieListe();
+}
+
+function setUtleieType(t){
+  utleieType=t;
+  ['alle','Telpo M1','Betalingsterminal'].forEach(x=>{
+    const id='utype-'+(x==='alle'?'alle':x==='Telpo M1'?'telpo':'term');
+    const el=document.getElementById(id);if(!el)return;
+    const on=t===x;el.className='fpill'+(on?' f-on':'');el.style.borderColor=on?'#1A3A6B':'';
+  });
+  renderGantt();renderUtleieListe();
+}
+
+function renderUtleieListe(){
+  renderUtleieKPI();
+  const unit=id=>units.find(u=>u.id===id);
+  const rows=rentals.filter(r=>{
+    const u=unit(r.unitId);
+    if(utleieType!=='alle'&&(!u||u.type!==utleieType))return false;
+    if(utleieFilter==='alle')return true;
+    return getRentalStatus(r)===utleieFilter;
+  }).sort((a,b)=>new Date(b.fromDate)-new Date(a.fromDate));
+  const fmtDate=d=>{if(!d)return'—';const dt=parseLD(d);return dt?`${dt.getDate().toString().padStart(2,'0')}.${(dt.getMonth()+1).toString().padStart(2,'0')}.${dt.getFullYear()}`:'—';};
+  const statHtml=s=>{
+    const map={utleie:'stat-utleie',lager:'stat-lager',planlagt:'stat-planlagt',forfalt:'stat-forfalt'};
+    const lbl={utleie:'På utleie',lager:'Returnert',planlagt:'Planlagt',forfalt:'Forfalt'};
+    return`<span class="utleie-stat ${map[s]||''}">${lbl[s]||s}</span>`;
+  };
+  const tbody=document.getElementById('utleie-tbody');if(!tbody)return;
+  tbody.innerHTML=rows.length?rows.map(r=>{
+    const u=unit(r.unitId);const s=getRentalStatus(r);
+    const enhetCell=u?`<strong>${u.name}</strong>`:`<select style="font-size:12px;padding:3px 6px;border:1.5px solid #f59e0b;border-radius:5px;background:#fffbeb" onchange="relinkUnit('${r.id}',this.value)"><option value="">⚠️ Velg enhet…</option>${units.map(x=>`<option value="${x.id}">${x.name} (${x.type})</option>`).join('')}</select>`;
+    return`<tr>
+      <td>${enhetCell}</td>
+      <td><span style="color:#6b7280;font-size:12px">${u?u.type:''}</span></td>
+      <td>${r.customer}</td>
+      <td style="font-family:monospace;font-size:12px">${r.orderNr||'—'}</td>
+      <td>${fmtDate(r.fromDate)}</td><td>${fmtDate(r.toDate)}</td><td>${fmtDate(r.returnDate)}</td>
+      <td style="text-align:center">${statHtml(s)}</td>
+      <td><div class="action-btns">
+        ${s==='utleie'?`<button class="btn-icon" onclick="registerReturn('${r.id}')" title="Registrer retur" style="color:#16a34a">↩</button>`:''}
+        <button class="btn-icon" onclick="editUtleie('${r.id}')" title="Rediger">✎</button>
+        <button class="btn-icon del" onclick="deleteUtleie('${r.id}')" title="Slett">✕</button>
+      </div></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="9" class="empty">Ingen ${utleieFilter==='alle'?'utleieregistreringer':utleieFilter==='utleie'?'aktive utleier':utleieFilter==='planlagt'?'planlagte utleier':utleieFilter==='forfalt'?'forfalte utleier':'returnerte enheter'}</td></tr>`;
+
+  // Sort icons
+  ['enhet','type','kunde','ordre','fra','til','retur','status'].forEach(c=>{
+    const el=document.getElementById('sh-'+c);
+    if(el)el.innerHTML=utleieSort.col===c?(utleieSort.dir==='asc'?'↑':'↓'):'↕';
+  });
+}
+
+function renderEnheterListe(){
+  const TYPE_COLORS_E={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
+  let enheterSort2=window._enheterSort||{col:'type',dir:'asc'};
+  const sortedUnits=[...units].sort((a,b)=>{
+    const dir=enheterSort2.dir==='asc'?1:-1;
+    const sa=getUnitStatus(a.id),sb=getUnitStatus(b.id);
+    switch(enheterSort2.col){case 'navn':return dir*(a.name||'').localeCompare(b.name||'');case 'type':return dir*(a.type||'').localeCompare(b.type||'');case 'serial':return dir*(a.serial||'').localeCompare(b.serial||'');case 'status':return dir*(sa.localeCompare(sb));default:return 0;}
+  });
+  const tbody=document.getElementById('enheter-tbody');if(!tbody)return;
+  tbody.innerHTML=sortedUnits.length?sortedUnits.map(u=>{
+    const s=getUnitStatus(u.id);const color=TYPE_COLORS_E[u.type]||'#888';
+    return`<tr>
+      <td><strong>${u.name}</strong></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${color}"></span>${u.type}</span></td>
+      <td style="font-family:monospace;font-size:12px;color:#6b7280">${u.serial||'—'}</td>
+      <td style="text-align:center"><span class="utleie-stat ${s==='utleie'?'stat-utleie':'stat-lager'}">${s==='utleie'?'På utleie':'På lager'}</span></td>
+      <td class="muted">${u.note||''}</td>
+      <td><div class="action-btns"><button class="btn-icon del" onclick="deleteEnhet('${u.id}')">✕</button></div></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="6" class="empty">Ingen enheter registrert ennå</td></tr>`;
+}
+
+function sortUtleieBy(col){
+  if(utleieSort.col===col){utleieSort.dir=utleieSort.dir==='asc'?'desc':'asc';}else{utleieSort.col=col;utleieSort.dir='asc';}
+  renderUtleieListe();
+}
+
 function showUtleieView(view,btn){
   ['kalender','liste','enheter'].forEach(v=>{
     const el=document.getElementById('utleie-'+v);
