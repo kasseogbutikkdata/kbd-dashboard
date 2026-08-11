@@ -713,6 +713,7 @@ let lic=[],kick=[],products=[],sources=[],aging=[],isSeed=false,charts={};
 let units=[],rentals=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle';
 let utleieSort={col:null,dir:'asc'};
 let ganttSort={col:'enhet',dir:'asc'};
+let enheterSort={col:'type',dir:'asc'};
 let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
@@ -1852,8 +1853,6 @@ function renderUtleieListe(){
     if(el)el.innerHTML=utleieSort.col===c?(utleieSort.dir==='asc'?'↑':'↓'):'↕';
   });
 }
-
-let enheterSort={col:'type',dir:'asc'};
 
 function renderEnheterListe(){
   const TYPE_COLORS_E={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
