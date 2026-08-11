@@ -1886,8 +1886,11 @@ function sortUtleieBy(col){
 }
 
 function sortEnheterBy(col){
+  console.log('sortEnheterBy kalt med:', col, 'enheterSort:', JSON.stringify(enheterSort));
   if(enheterSort.col===col){enheterSort.dir=enheterSort.dir==='asc'?'desc':'asc';}else{enheterSort.col=col;enheterSort.dir='asc';}
+  console.log('enheterSort etter endring:', JSON.stringify(enheterSort));
   renderEnheterListe();
+  console.log('renderEnheterListe ferdig');
 }
 
 function showUtleieView(view,btn){
