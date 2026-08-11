@@ -1890,17 +1890,25 @@ async function loadUtleieData(){
   try{
     const[uItems,rItems]=await Promise.all([spGetItems('Enheter'),spGetItems('Utleie')]);
     if(uItems.length>0||rItems.length>0){
-      // Data finnes i SharePoint — bruk det
       units=uItems.map(i=>({id:`sp${i.id}`,spId:i.id,name:i.fields.Title||'',type:i.fields.EnhetType||'',serial:i.fields.Serienr||'',note:i.fields.Note||''}));
-      rentals=rItems.map(i=>({id:`sp${i.id}`,spId:i.id,unitId:i.fields.EnhetId||'',customer:i.fields.Kunde||'',orderNr:i.fields.OrdreNr||'',fromDate:i.fields.FraDato||'',toDate:i.fields.TilDato||'',returnDate:i.fields.Returdato||null,note:i.fields.Note||''}));
+      // Bygg oppslagstabell: EnhetId-verdi → unit.id
+      const unitIdSet=new Set(units.map(u=>u.id));
+      rentals=rItems.map(i=>{
+        let unitId=i.fields.EnhetId||'';
+        // Hvis EnhetId ikke matcher noen kjent unit.id, prøv sp-prefix
+        if(!unitIdSet.has(unitId)&&unitId&&!unitId.startsWith('sp')){
+          // Prøv direkte som spId
+          const match=units.find(u=>String(u.spId)===unitId);
+          if(match)unitId=match.id;
+        }
+        return{id:`sp${i.id}`,spId:i.id,unitId,customer:i.fields.Kunde||'',orderNr:i.fields.OrdreNr||'',fromDate:i.fields.FraDato||'',toDate:i.fields.TilDato||'',returnDate:i.fields.Returdato||null,note:i.fields.Note||''};
+      });
     } else {
-      // SP tom — prøv localStorage som fallback
       const lu=localStorage.getItem('kbd-units');
       const lr=localStorage.getItem('kbd-rentals');
       units=lu?JSON.parse(lu):[];
       rentals=lr?JSON.parse(lr):[];
       if(units.length>0||rentals.length>0){
-        // Vis migreringsvarsel
         setTimeout(()=>{
           if(confirm(`Fant ${units.length} enheter og ${rentals.length} utleier lokalt som ikke er overført til SharePoint.\n\nOverfør til SharePoint nå?`)){
             migrateUtleieToSP();
@@ -1910,7 +1918,6 @@ async function loadUtleieData(){
     }
   }catch(e){
     console.error('Feil ved lasting av utleie-data:',e);
-    // Fallback til localStorage ved feil
     try{units=JSON.parse(localStorage.getItem('kbd-units')||'[]');rentals=JSON.parse(localStorage.getItem('kbd-rentals')||'[]');}
     catch{units=[];rentals=[];}
   }
@@ -1919,13 +1926,20 @@ async function loadUtleieData(){
 async function migrateUtleieToSP(){
   showLoading('Overfører enheter til SharePoint…');
   try{
+    // Bygg ID-mapping: gammel lokal id → ny SP id
+    const idMap={};
     for(let i=0;i<units.length;i++){
       const u=units[i];
+      const oldId=u.id;
       if(!u.spId){
         const r=await spCreate('Enheter',{Title:u.name,EnhetType:u.type,Serienr:u.serial||'',Note:u.note||''});
         u.spId=r.id;u.id=`sp${r.id}`;
       }
+      idMap[oldId]=u.id; // gammel → ny
     }
+    // Oppdater rentals med ny unitId
+    rentals.forEach(r=>{if(idMap[r.unitId])r.unitId=idMap[r.unitId];});
+
     showLoading('Overfører utleier til SharePoint…');
     for(let i=0;i<rentals.length;i++){
       const r=rentals[i];
