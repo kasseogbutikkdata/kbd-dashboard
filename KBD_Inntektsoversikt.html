@@ -847,6 +847,8 @@ async function loadDataFromSP(){
   isSeed=false;
   if(prodItems.length===0)await seedProductsToSP();
   if(srcItems.length===0)await seedSourcesToSP();
+  // Load utleie data from SP
+  await loadUtleieData();
 }
 
 async function seedProductsToSP(){
@@ -1884,13 +1886,14 @@ async function handleAgingFile(event){
 // ===== UTLEIE MODULE =====
 const ENHET_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
 
-function loadUtleieData(){
-  try{units=JSON.parse(localStorage.getItem('kbd-units')||'[]');rentals=JSON.parse(localStorage.getItem('kbd-rentals')||'[]');}
-  catch{units=[];rentals=[];}
+async function loadUtleieData(){
+  try{
+    const[uItems,rItems]=await Promise.all([spGetItems('Enheter'),spGetItems('Utleie')]);
+    units=uItems.map(i=>({id:`sp${i.id}`,spId:i.id,name:i.fields.Title||'',type:i.fields.EnhetType||'',serial:i.fields.Serienr||'',note:i.fields.Note||''}));
+    rentals=rItems.map(i=>({id:`sp${i.id}`,spId:i.id,unitId:i.fields.EnhetId||'',customer:i.fields.Kunde||'',orderNr:i.fields.OrdreNr||'',fromDate:i.fields.FraDato||'',toDate:i.fields.TilDato||'',returnDate:i.fields.Returdato||null,note:i.fields.Note||''}));
+  }catch(e){console.error('Feil ved lasting av utleie-data:',e);units=[];rentals=[];}
 }
-function saveUtleieData(){
-  try{localStorage.setItem('kbd-units',JSON.stringify(units));localStorage.setItem('kbd-rentals',JSON.stringify(rentals));}catch{}
-}
+function saveUtleieData(){/* Data lagres direkte til SP på hvert enkelt kall */}
 
 function parseLD(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 
@@ -2197,10 +2200,17 @@ function saveUtleie(){
     returnDate:document.getElementById('u-retur').value||null,
     note:document.getElementById('u-note').value.trim()
   };
-  if(editId){const i=rentals.findIndex(r=>r.id===editId);if(i>=0)rentals[i]=entry;}
-  else rentals.push(entry);
-  saveUtleieData();closeUtleieModal();
-  // Bytt til kalender og vis oppdatert visning
+  const spFields={Title:entry.customer+' '+entry.fromDate,EnhetId:entry.unitId,Kunde:entry.customer,OrdreNr:entry.orderNr||'',FraDato:entry.fromDate,TilDato:entry.toDate,Returdato:entry.returnDate||'',Note:entry.note||''};
+  closeUtleieModal();
+  if(editId){
+    const i=rentals.findIndex(r=>r.id===editId);
+    if(i>=0){rentals[i]=entry;}
+    if(entry.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Utleie',entry.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+  } else {
+    rentals.push(entry);
+    setSPStatus('⏳ Lagrer utleie…');
+    spCreate('Utleie',spFields).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
+  }
   const kBtn=document.getElementById('ubtn-kalender');
   showUtleieView('kalender',kBtn);
   if(kBtn)kBtn.classList.add('active');
@@ -2212,34 +2222,41 @@ function registerReturn(id){
   const d=prompt('Returdato (ÅÅÅÅ-MM-DD):',new Date().toISOString().slice(0,10));
   if(!d)return;
   r.returnDate=d;
-  saveUtleieData();renderGantt();renderUtleieListe();
+  renderGantt();renderUtleieListe();
+  if(r.spId){setSPStatus('⏳ Registrerer retur…');spUpdate('Utleie',r.spId,{Returdato:d}).then(()=>{setSPStatus('✅ Retur registrert');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
 }
 
 function deleteUtleie(id){
   if(!confirm('Slette denne utleieregistreringen?'))return;
+  const delR=rentals.find(r=>r.id===id);
   rentals=rentals.filter(r=>r.id!==id);
-  saveUtleieData();renderGantt();renderUtleieListe();
+  renderGantt();renderUtleieListe();
+  if(delR?.spId){setSPStatus('⏳ Sletter…');spDelete('Utleie',delR.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
 }
 
 function saveEnhet(){
   const name=document.getElementById('enhet-navn').value.trim();
   if(!name){alert('Skriv inn navn/ID');return;}
-  units.push({id:uid(),name,type:document.getElementById('enhet-type').value,serial:document.getElementById('enhet-serial').value.trim(),note:document.getElementById('enhet-note').value.trim()});
+  const newUnit={id:uid(),spId:null,name,type:document.getElementById('enhet-type').value,serial:document.getElementById('enhet-serial').value.trim(),note:document.getElementById('enhet-note').value.trim()};
+  units.push(newUnit);
   document.getElementById('enhet-navn').value='';document.getElementById('enhet-serial').value='';document.getElementById('enhet-note').value='';
-  saveUtleieData();renderEnheterListe();refreshEnhetSelect();
+  renderEnheterListe();refreshEnhetSelect();
+  setSPStatus('⏳ Lagrer enhet…');
+  spCreate('Enheter',{Title:newUnit.name,EnhetType:newUnit.type,Serienr:newUnit.serial,Note:newUnit.note}).then(r=>{newUnit.spId=r.id;newUnit.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);refreshEnhetSelect();}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
 }
 
 function deleteEnhet(id){
   const inUse=rentals.some(r=>r.unitId===id&&getRentalStatus(r)==='utleie');
   if(inUse&&!confirm('Enheten er på utleie. Slett likevel?'))return;
+  const delUnit=units.find(u=>u.id===id);
   units=units.filter(u=>u.id!==id);
-  saveUtleieData();renderEnheterListe();
+  renderEnheterListe();
+  if(delUnit?.spId){setSPStatus('⏳ Sletter…');spDelete('Enheter',delUnit.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
 }
 
 // ===== INIT =====
 
 // ===== INIT =====
-loadUtleieData();
 initAuth();
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();}});
