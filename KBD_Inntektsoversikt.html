@@ -1532,8 +1532,13 @@ function showTab(name,btn){
   toggleUtleieSub(name==='utleie');
   // Show lisenser sub-nav when lisenser or sammenligning is active
   toggleLisenserSub(name==='lisenser'||name==='sammenligning');
-  if(name==='sammenligning')setLisenserSubActive('sammenligning');
-  if(name==='lisenser')setLisenserSubActive('lisenser');
+  if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderSammenligning();}
+  if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
+  if(name==='kickback'){renderKickChart();renderKickTable();}
+  if(name==='oversikt'){renderTrend();renderKPIs();}
+  if(name==='aldersfordelt')renderAging();
+  // Resize all charts in active tab
+  setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
 function toggleLisenserSub(open){
