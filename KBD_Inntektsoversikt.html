@@ -2019,7 +2019,7 @@ function getUnitNumber(name){
 }
 
 function getActiveKunde(unitId){
-  const r=rentals.find(x=>x.unitId===unitId&&['utleie','planlagt'].includes(getRentalStatus(x)));
+  const r=rentals.find(x=>x.unitId===unitId&&['utleie','planlagt','forfalt'].includes(getRentalStatus(x)));
   return r?r.customer:'';
 }
 
