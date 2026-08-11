@@ -1781,7 +1781,21 @@ function renderUtleieListe(){
     if(utleieType!=='alle'&&(!u||u.type!==utleieType))return false;
     if(utleieFilter==='alle')return true;
     return getRentalStatus(r)===utleieFilter;
-  }).sort((a,b)=>new Date(b.fromDate)-new Date(a.fromDate));
+  }).sort((a,b)=>{
+    const u=id=>units.find(x=>x.id===id);
+    const dir=utleieSort.dir==='asc'?1:-1;
+    switch(utleieSort.col){
+      case 'enhet': return dir*((u(a.unitId)?.name||'').localeCompare(u(b.unitId)?.name||''));
+      case 'type': return dir*((u(a.unitId)?.type||'').localeCompare(u(b.unitId)?.type||''));
+      case 'kunde': return dir*(a.customer||'').localeCompare(b.customer||'');
+      case 'ordre': return dir*(a.orderNr||'').localeCompare(b.orderNr||'');
+      case 'fra': return dir*(new Date(a.fromDate||0)-new Date(b.fromDate||0));
+      case 'til': return dir*(new Date(a.toDate||0)-new Date(b.toDate||0));
+      case 'retur': return dir*((a.returnDate||'9999').localeCompare(b.returnDate||'9999'));
+      case 'status': return dir*(getRentalStatus(a).localeCompare(getRentalStatus(b)));
+      default: return new Date(b.fromDate||0)-new Date(a.fromDate||0);
+    }
+  });
   const fmtDate=d=>{if(!d)return'—';const dt=parseLD(d);return dt?`${dt.getDate().toString().padStart(2,'0')}.${(dt.getMonth()+1).toString().padStart(2,'0')}.${dt.getFullYear()}`:'—';};
   const statHtml=s=>{
     const map={utleie:'stat-utleie',lager:'stat-lager',planlagt:'stat-planlagt',forfalt:'stat-forfalt'};
@@ -1816,11 +1830,15 @@ function renderUtleieListe(){
 
 function renderEnheterListe(){
   const TYPE_COLORS_E={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
-  let enheterSort2=window._enheterSort||{col:'type',dir:'asc'};
   const sortedUnits=[...units].sort((a,b)=>{
-    const dir=enheterSort2.dir==='asc'?1:-1;
+    const dir=enheterSort.dir==='asc'?1:-1;
     const sa=getUnitStatus(a.id),sb=getUnitStatus(b.id);
-    switch(enheterSort2.col){case 'navn':return dir*(a.name||'').localeCompare(b.name||'');case 'type':return dir*(a.type||'').localeCompare(b.type||'');case 'serial':return dir*(a.serial||'').localeCompare(b.serial||'');case 'status':return dir*(sa.localeCompare(sb));default:return 0;}
+    switch(enheterSort.col){case 'navn':return dir*(a.name||'').localeCompare(b.name||'');case 'type':return dir*(a.type||'').localeCompare(b.type||'');case 'serial':return dir*(a.serial||'').localeCompare(b.serial||'');case 'status':return dir*(sa.localeCompare(sb));default:return 0;}
+  });
+  // Update sort icons
+  ['navn','type','serial','status'].forEach(c=>{
+    const el=document.getElementById('eh-'+c);
+    if(el)el.innerHTML=enheterSort.col===c?(enheterSort.dir==='asc'?'↑':'↓'):'↕';
   });
   const tbody=document.getElementById('enheter-tbody');if(!tbody)return;
   tbody.innerHTML=sortedUnits.length?sortedUnits.map(u=>{
@@ -1839,6 +1857,12 @@ function renderEnheterListe(){
 function sortUtleieBy(col){
   if(utleieSort.col===col){utleieSort.dir=utleieSort.dir==='asc'?'desc':'asc';}else{utleieSort.col=col;utleieSort.dir='asc';}
   renderUtleieListe();
+}
+
+let enheterSort={col:'type',dir:'asc'};
+function sortEnheterBy(col){
+  if(enheterSort.col===col){enheterSort.dir=enheterSort.dir==='asc'?'desc':'asc';}else{enheterSort.col=col;enheterSort.dir='asc';}
+  renderEnheterListe();
 }
 
 function showUtleieView(view,btn){
