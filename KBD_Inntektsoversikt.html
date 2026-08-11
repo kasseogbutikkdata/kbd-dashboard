@@ -1302,6 +1302,161 @@ let slicFilters=new Set(); // active products in sammenligning
 let skickFilters=new Set(); // active sources in sammenligning
 let agingFilters=new Set(); // active aging buckets (empty = all)
 
+// ===== ALDERSFORDELT =====
+const AGING_KEYS=['d1_30','d31_60','d61_90','d90plus'];
+const AGING_LABELS=['1–30 dager','31–60 dager','61–90 dager','Over 90 dager'];
+const AGING_COLORS=['#1baf7a','#eda100','#eb6834','#dc2626'];
+
+function parseLD(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function fDateShort(s){if(!s)return'';const d=parseLD(s);return d?`${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`:''}
+
+function toggleAgingFilter(k){
+  if(agingFilters.has(k)){agingFilters.delete(k);}else{agingFilters.add(k);}
+  if(agingFilters.size===AGING_KEYS.length)agingFilters=new Set();
+  renderAging();
+}
+
+function renderAging(){
+  // KPI cards
+  const kpiEl=document.getElementById('aging-kpis');
+  const sorted=[...aging].filter(e=>e.date).sort((a,b)=>parseLD(a.date)-parseLD(b.date));
+  if(kpiEl){
+    if(!sorted.length){
+      kpiEl.innerHTML=`
+        <div class="kpi"><div class="kpi-lbl">Total utestående (siste)</div><div style="font-size:24px;font-weight:700;color:#d0d5dd">—</div><div class="kpi-sub">Ingen data</div></div>
+        <div class="kpi"><div class="kpi-lbl">Andel over 90 dager</div><div style="font-size:24px;font-weight:700;color:#1baf7a">—</div></div>
+        <div class="kpi"><div class="kpi-lbl">Endring fra forrige</div><div style="font-size:24px;font-weight:700;color:#d0d5dd">—</div><div class="kpi-sub">Ingen tidligere data</div></div>`;
+    } else {
+      const last=sorted[sorted.length-1];
+      const tot=AGING_KEYS.reduce((s,k)=>s+(last[k]||0),0);
+      const over90=last.d90plus||0;
+      const pct90=tot>0?((over90/tot)*100).toFixed(1):0;
+      const prev=sorted.length>1?sorted[sorted.length-2]:null;
+      const prevTot=prev?AGING_KEYS.reduce((s,k)=>s+(prev[k]||0),0):null;
+      const delta=prevTot!=null&&prevTot>0?((tot-prevTot)/prevTot*100):null;
+      const deltaHtml=delta!=null?`<div style="font-size:22px;font-weight:700;color:${delta>=0?'#dc2626':'#1baf7a'}">${delta>=0?'▲':'▼'}${Math.abs(delta).toFixed(1)}%</div><div class="kpi-sub">${fS(prevTot)} (${fDateShort(prev.date)})</div>`:`<div style="font-size:22px;font-weight:700;color:#d0d5dd">—</div><div class="kpi-sub">Ingen tidligere data</div>`;
+      kpiEl.innerHTML=`
+        <div class="kpi accent"><div class="kpi-lbl">Total utestående (siste)</div><div style="font-size:24px;font-weight:700;color:#1A3A6B">${fS(tot)}</div><div class="kpi-sub">${fDateShort(last.date)}</div></div>
+        <div class="kpi" style="border-left:4px solid ${Number(pct90)>25?'#dc2626':'#1baf7a'}"><div class="kpi-lbl">Andel over 90 dager</div><div style="font-size:24px;font-weight:700;color:${Number(pct90)>25?'#dc2626':'#1baf7a'}">${pct90}%</div><div class="kpi-sub">${fS(over90)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Endring fra forrige</div>${deltaHtml}</div>`;
+    }
+  }
+
+  // Filter pills
+  const activeKeys=AGING_KEYS.filter(k=>agingFilters.size===0||agingFilters.has(k));
+  const filtered=agingFilters.size>0;
+  const filtersEl=document.getElementById('aging-filters');
+  if(filtersEl) filtersEl.innerHTML=
+    `<span class="filter-lbl">Vis:</span>`+
+    AGING_KEYS.map((k,i)=>{
+      const on=!filtered||agingFilters.has(k);
+      const c=AGING_COLORS[i];
+      return`<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${on?`border-color:${c}`:''}" onclick="toggleAgingFilter('${k}')">
+        <span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>
+        <span style="color:${on?c:'#9ca3af'};font-weight:600">${AGING_LABELS[i]}</span>
+      </button>`;
+    }).join('')+
+    `<button class="fpill" style="${!filtered?'border-color:#1A3A6B':''}" onclick="agingFilters=new Set();renderAging()">
+      <span style="font-weight:600;color:${!filtered?'#1A3A6B':'#9ca3af'}">Alle</span>
+    </button>`;
+
+  // Chart
+  dC('aging');
+  const ctx=document.getElementById('chart-aging');
+  if(sorted.length&&ctx){
+    const trendData=sorted.map(e=>activeKeys.reduce((s,k)=>s+(e[k]||0),0));
+    charts['aging']=new Chart(ctx,{type:'bar',data:{
+      labels:sorted.map(e=>fDateShort(e.date)),
+      datasets:[
+        ...activeKeys.map((k,idx)=>{
+          const i=AGING_KEYS.indexOf(k);
+          return{label:AGING_LABELS[i],data:sorted.map(e=>e[k]||0),backgroundColor:AGING_COLORS[i],stack:'a',borderRadius:idx===activeKeys.length-1?2:0};
+        }),
+        {label:'Trend (total)',data:trendData,type:'line',borderColor:'#1A3A6B',backgroundColor:'transparent',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.4,stack:undefined,order:0}
+      ]
+    },options:{...bOpts,plugins:{...bOpts.plugins,tooltip:{
+      backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',borderColor:'#e5e7eb',borderWidth:1,padding:10,
+      callbacks:{
+        label:c=>`${c.dataset.label}: ${fS(c.raw)}`,
+        footer:items=>{const barItems=items.filter(i=>i.dataset.stack==='a');const tot=barItems.reduce((s,i)=>s+i.raw,0);return barItems.length>1?`Total: ${fS(tot)}`:''}
+      }
+    }}}});
+  }
+
+  // Table
+  const tbody=document.getElementById('aging-body');
+  if(tbody) tbody.innerHTML=sorted.length?[...sorted].reverse().map(e=>{
+    const tot=AGING_KEYS.reduce((s,k)=>s+(e[k]||0),0);
+    const pct=tot>0?((e.d90plus||0)/tot*100).toFixed(0):0;
+    return`<tr>
+      <td style="font-weight:500">${fDateShort(e.date)}</td>
+      <td class="tr" style="color:${AGING_COLORS[0]}">${fF(e.d1_30||0)}</td>
+      <td class="tr" style="color:${AGING_COLORS[1]}">${fF(e.d31_60||0)}</td>
+      <td class="tr" style="color:${AGING_COLORS[2]}">${fF(e.d61_90||0)}</td>
+      <td class="tr" style="color:${AGING_COLORS[3]};font-weight:600">${fF(e.d90plus||0)}</td>
+      <td class="tr" style="font-weight:600">${fF(tot)}</td>
+      <td class="tr" style="color:${Number(pct)>25?'#dc2626':'#6b7280'}">${pct}%</td>
+      <td class="muted">${e.note||''}</td>
+      <td><div class="action-btns">
+        <button class="btn-icon del" onclick="delAging('${e.id}')">✕</button>
+      </div></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="9" class="empty">Ingen registreringer ennå — legg til første saldo over</td></tr>`;
+}
+
+function delAging(id){
+  if(!confirm('Slette denne raden?'))return;
+  const ae=aging.find(a=>a.id===id);
+  aging=aging.filter(a=>a.id!==id);
+  renderAging();
+  if(ae?.spId){spDelete('Aldersfordelt',ae.spId).catch(e=>console.error(e));}
+}
+
+async function importAgingBuiltin(){
+  if(!confirm('Importer innebygd historikk (okt 2024 – jun 2026)?\n\nEksisterende data beholdes.'))return;
+  const ts=Date.now();
+  const existing=new Set(aging.map(a=>a.date));
+  const newEntries=AGING_IMPORT.filter(e=>!existing.has(e.date));
+  showLoading(`Importerer aldersfordelt historikk…`);
+  for(let i=0;i<newEntries.length;i++){
+    const e={...newEntries[i],spId:null,id:`agbl${ts}_${i}`};
+    aging.push(e);
+    const r=await spCreate('Aldersfordelt',{Title:e.date,Dato:e.date,D1_30:e.d1_30||0,D31_60:e.d31_60||0,D61_90:e.d61_90||0,D90plus:e.d90plus||0,Note:e.note||''}).catch(()=>null);
+    if(r){e.spId=r.id;e.id=`sp${r.id}`;}
+    if(i%10===0)showLoading(`Importerer aldersfordelt… ${i+1}/${newEntries.length}`);
+  }
+  hideLoading();renderAging();
+  alert(`✅ Importert ${newEntries.length} rader.`);
+}
+
+async function handleAgingFile(event){
+  const file=event.target.files[0];if(!file)return;
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+    const existing=new Set(aging.map(a=>a.date));
+    const newEntries=[];
+    rows.forEach(row=>{
+      const dt=String(row[0]||'').trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(dt))return;
+      if(existing.has(dt))return;
+      const e={id:uid(),spId:null,date:dt,d1_30:parseFloat(row[1])||0,d31_60:parseFloat(row[2])||0,d61_90:parseFloat(row[3])||0,d90plus:parseFloat(row[4])||0,note:String(row[5]||'')};
+      newEntries.push(e);
+    });
+    if(!newEntries.length){alert('Ingen nye datoer funnet i filen.');return;}
+    showLoading(`Importerer ${newEntries.length} rader…`);
+    for(let i=0;i<newEntries.length;i++){
+      const e=newEntries[i];aging.push(e);
+      const r=await spCreate('Aldersfordelt',{Title:e.date,Dato:e.date,D1_30:e.d1_30,D31_60:e.d31_60,D61_90:e.d61_90,D90plus:e.d90plus,Note:e.note}).catch(()=>null);
+      if(r){e.spId=r.id;e.id=`sp${r.id}`;}
+    }
+    hideLoading();renderAging();alert(`✅ Importert ${newEntries.length} rader.`);
+  }catch(err){hideLoading();alert('Feil: '+err.message);}
+  event.target.value='';
+}
+
 function showTab(name,btn){
   document.querySelectorAll('.tp').forEach(t=>{t.classList.remove('active');t.style.display='none';});
   const tp=document.getElementById('tp-'+name);
