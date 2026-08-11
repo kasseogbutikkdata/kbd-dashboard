@@ -129,12 +129,12 @@ tr:hover td{background:#fafafa}
 
 /* Global sidebar layout */
 .app-layout{display:flex;gap:0;min-height:100vh}
-.global-sidebar{width:200px;flex-shrink:0;background:white;box-shadow:1px 0 0 #e5e7eb;display:flex;flex-direction:column;position:sticky;top:0;height:calc(100vh - 48px);overflow-y:auto}
+.global-sidebar{width:220px;flex-shrink:0;background:white;box-shadow:1px 0 0 #e5e7eb;display:flex;flex-direction:column;position:sticky;top:0;height:calc(100vh - 48px);overflow-y:auto}
 .sidebar-logo{padding:20px 16px 12px;border-bottom:1px solid #f3f4f6}
 .sidebar-logo-title{font-size:15px;font-weight:700;color:#1A3A6B;margin-top:10px}
 .sidebar-logo-sub{font-size:11px;color:#9ca3af;margin-top:2px}
 .sidebar-nav{flex:1;padding:8px 0}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;font-weight:500;color:#374151;border-left:3px solid transparent;transition:all .1s;user-select:none}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;font-weight:500;color:#374151;border-left:3px solid transparent;transition:all .1s;user-select:none;white-space:nowrap;overflow:hidden}
 .nav-item:hover{background:#f9fafb;color:#111}
 .nav-item.active{background:#eff4ff;color:#1A3A6B;border-left-color:#1A3A6B;font-weight:600}
 .nav-item-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0;opacity:.7}
@@ -263,16 +263,17 @@ tr:hover td{background:#fafafa}
       <div class="nav-item active" id="tab-oversikt" onclick="showTab('oversikt',this)">
         <span class="nav-item-icon">📊</span>Oversikt
       </div>
-      <div class="nav-item" id="tab-lisenser" onclick="showTab('lisenser',this)">
+      <div class="nav-item" id="tab-lisenser" onclick="showTab('lisenser',this);toggleLisenserSub(true)">
         <span class="nav-item-icon">📋</span>Lisenser
+      </div>
+      <div class="nav-sub" id="lisenser-sub-nav">
+        <div class="nav-sub-item active" id="lsub-lisenser" onclick="showTab('lisenser',document.getElementById('tab-lisenser'));setLisenserSubActive('lisenser')">📋 Registreringer</div>
+        <div class="nav-sub-item" id="lsub-sammenligning" onclick="showTab('sammenligning',document.getElementById('tab-lisenser'));setLisenserSubActive('sammenligning')">📈 Årssammenligning</div>
       </div>
       <div class="nav-item" id="tab-kickback" onclick="showTab('kickback',this)">
         <span class="nav-item-icon">💰</span>Kickback
       </div>
-      <div class="nav-item" id="tab-sammenligning" onclick="showTab('sammenligning',this)">
-        <span class="nav-item-icon">📈</span>Årssammenligning
-      </div>
-      <div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this)">
+<div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this)">
         <span class="nav-item-icon">⏱️</span>Aldersfordelt
       </div>
       <div class="sidebar-divider"></div>
@@ -1523,10 +1524,25 @@ function showTab(name,btn){
   document.querySelectorAll('.tp').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
   document.getElementById('tp-'+name).classList.add('active');
-  const navBtn=document.getElementById('tab-'+name);
+  const effectiveTab=name==='sammenligning'?'lisenser':name;
+  const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   // Show/hide utleie sub-nav
   toggleUtleieSub(name==='utleie');
+  // Show lisenser sub-nav when lisenser or sammenligning is active
+  toggleLisenserSub(name==='lisenser'||name==='sammenligning');
+  if(name==='sammenligning')setLisenserSubActive('sammenligning');
+  if(name==='lisenser')setLisenserSubActive('lisenser');
+}
+
+function toggleLisenserSub(open){
+  const sub=document.getElementById('lisenser-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+function setLisenserSubActive(view){
+  document.querySelectorAll('#lisenser-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById('lsub-'+view);
+  if(el)el.classList.add('active');
 }
 
 function toggleUtleieSub(open){
