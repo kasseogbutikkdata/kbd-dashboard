@@ -581,7 +581,15 @@ tr:hover td{background:#fafafa}
     <div id="slic-yearly" style="display:grid;gap:10px;margin-bottom:16px"></div>
     <div class="tbl-wrap" style="margin-bottom:28px"><table id="tbl-slic"></table></div>
   </div>
-</div>
+
+  <!-- KICKBACK ÅRSSAMMENLIGNING -->
+  <div id="tp-kicksammenligning" class="tp">
+    <p class="sec-title">Kickback per år — fordelt på kilde</p>
+    <div class="filters" id="skick-filters"></div>
+    <div class="chart-wrap"><canvas id="chart-skick" height="200"></canvas></div>
+    <div id="skick-yearly" style="display:grid;gap:10px;margin-bottom:16px"></div>
+    <div class="tbl-wrap"><table id="tbl-skick"></table></div>
+  </div>
 
 <!-- IMPORT MODAL -->
 <div class="modal-overlay" id="import-modal" onclick="if(event.target===this)closeImport()">
@@ -681,14 +689,6 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
-  <!-- KICKBACK ÅRSSAMMENLIGNING -->
-  <div id="tp-kicksammenligning" class="tp">
-    <p class="sec-title">Kickback per år — fordelt på kilde</p>
-    <div class="filters" id="skick-filters"></div>
-    <div class="chart-wrap"><canvas id="chart-skick" height="200"></canvas></div>
-    <div id="skick-yearly" style="display:grid;gap:10px;margin-bottom:16px"></div>
-    <div class="tbl-wrap"><table id="tbl-skick"></table></div>
-  </div>
   </div><!-- /main-content -->
   </div><!-- /app-layout -->
 </div><!-- /app -->
