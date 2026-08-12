@@ -1145,6 +1145,12 @@ function renderSettings(editProd=null,editSrc=null){
   const pl=document.getElementById('settings-prod-list');
   const sl=document.getElementById('settings-src-list');
   if(!pl||!sl)return;
+  // Vis brukerkort for admin
+  if(userRole==='admin'){
+    const bc=document.getElementById('brukere-card');
+    if(bc)bc.style.display='';
+    renderBrukere();
+  }
   pl.innerHTML=products.map(p=>{
     const c=prodColor(p);
     if(p===editProd)return`<div class="settings-item"><span class="dot" style="background:${c}"></span><input class="inline-edit" id="edit-prod-inp-${CSS.escape(p)}" value="${p}" onkeydown="if(event.key==='Enter')saveProduct('${p.replace(/'/g,"\\'")}');if(event.key==='Escape')renderSettings()"/><button class="btn-icon" onclick="saveProduct('${p.replace(/'/g,"\\'")}')">✓</button><button class="btn-icon" onclick="renderSettings()">✕</button></div>`;
@@ -1567,6 +1573,7 @@ function showTab(name,btn){
   if(name==='kicksammenligning'){renderKickSammenligning();}
   if(name==='oversikt'){renderTrend();renderKPIs();}
   if(name==='aldersfordelt')renderAging();
+  if(name==='innstillinger')renderSettings();
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
