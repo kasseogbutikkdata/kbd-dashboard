@@ -2266,13 +2266,13 @@ async function saveBruker(){
     const b=brukere.find(x=>x.id===editId);if(!b)return;
     b.navn=navn;b.epost=epost;b.tilgang=tilgang;
     renderBrukere();
-    if(b.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Brukere',b.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+    if(b.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Brukere',b.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Tilgang endret for ${navn} (${epost})`);}).catch(e=>setSPStatus('❌ '+e.message,false));}
   } else {
     const newB={id:uid(),spId:null,navn,epost,azureId:'',tilgang};
     brukere.push(newB);
     renderBrukere();
     setSPStatus('⏳ Lagrer…');
-    spCreate('Brukere',spFields).then(r=>{newB.spId=r.id;newB.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));
+    spCreate('Brukere',spFields).then(r=>{newB.spId=r.id;newB.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('opprettet',`Ny bruker lagt til: ${navn} (${epost})`);}).catch(e=>setSPStatus('❌ '+e.message,false));
   }
 }
 
@@ -2281,7 +2281,7 @@ async function deleteBruker(id){
   const b=brukere.find(x=>x.id===id);
   brukere=brukere.filter(x=>x.id!==id);
   renderBrukere();
-  if(b?.spId){setSPStatus('⏳ Sletter…');spDelete('Brukere',b.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+  if(b?.spId){setSPStatus('⏳ Sletter…');spDelete('Brukere',b.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);loggAction('slettet',`Bruker fjernet: ${b.navn} (${b.epost})`);}).catch(e=>setSPStatus('❌ '+e.message,false));}
 }
 
 // ===== UTLEIE DATA =====
