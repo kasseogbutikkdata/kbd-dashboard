@@ -419,6 +419,7 @@ tr:hover td{background:#fafafa}
             <th style="cursor:pointer" onclick="sortUtleieBy('til')">Til dato <span id="sh-til"></span></th>
             <th style="cursor:pointer" onclick="sortUtleieBy('retur')">Returdato <span id="sh-retur"></span></th>
             <th style="text-align:center;cursor:pointer" onclick="sortUtleieBy('status')">Status <span id="sh-status"></span></th>
+            <th>Notat</th>
             <th></th>
           </tr></thead>
           <tbody id="utleie-tbody"></tbody>
@@ -1888,7 +1889,7 @@ function renderUtleieListe(){
   };
   const tbody=document.getElementById('utleie-tbody');if(!tbody)return;
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="9" class="empty">Ingen ${utleieFilter==='alle'?'utleieregistreringer':utleieFilter==='utleie'?'aktive utleier':utleieFilter==='planlagt'?'planlagte utleier':utleieFilter==='forfalt'?'forfalte utleier':'returnerte enheter'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="10" class="empty">Ingen ${utleieFilter==='alle'?'utleieregistreringer':utleieFilter==='utleie'?'aktive utleier':utleieFilter==='planlagt'?'planlagte utleier':utleieFilter==='forfalt'?'forfalte utleier':'returnerte enheter'}</td></tr>`;
     return;
   }
   // Group by unit type if not sorted by something else
@@ -1902,7 +1903,7 @@ function renderUtleieListe(){
       const tcolor=TYPE_COLORS_L[type]||'#888';
       const ticon=TYPE_ICONS_L[type]||'📦';
       const typeRows=rows.filter(r=>{const u=unit(r.unitId);return(u?u.type:'Ukjent')===type;});
-      html3+=`<tr><td colspan="9" style="padding:8px 14px;background:${tcolor}15;border-top:2px solid ${tcolor};border-bottom:1px solid ${tcolor}30">
+      html3+=`<tr><td colspan="10" style="padding:8px 14px;background:${tcolor}15;border-top:2px solid ${tcolor};border-bottom:1px solid ${tcolor}30">
         <span style="font-size:12px;font-weight:700;color:${tcolor}">${ticon} ${type} <span style="font-weight:400;color:#9ca3af;font-size:11px">(${typeRows.length})</span></span>
       </td></tr>`;
       typeRows.forEach(r=>{html3+=rowHtml(r,unit,statHtml);});
@@ -1922,6 +1923,7 @@ function renderUtleieListe(){
       <td style="font-family:monospace;font-size:12px">${r.orderNr||'—'}</td>
       <td>${fmtDate(r.fromDate)}</td><td>${fmtDate(r.toDate)}</td><td>${fmtDate(r.returnDate)}</td>
       <td style="text-align:center">${statHtml(s)}</td>
+      <td class="muted" style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.note||''}">${r.note||'—'}</td>
       <td><div class="action-btns">
         ${(s==='utleie'||s==='forfalt')?`<button class="btn-icon" onclick="registerReturn('${r.id}')" title="Registrer retur" style="color:#16a34a">↩</button>`:''}
         <button class="btn-icon" onclick="editUtleie('${r.id}')" title="Rediger">✎</button>
