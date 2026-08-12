@@ -830,7 +830,7 @@ async function initAuth(){
       return;
     }
     const redirectUri=window.location.protocol==='file:'?'http://localhost:8080':window.location.origin;
-    const cfg={auth:{clientId:CLIENT_ID,authority:`https://login.microsoftonline.com/${TENANT_ID}`,redirectUri},cache:{cacheLocation:"localStorage",storeAuthStateInCookie:true}};
+    const cfg={auth:{clientId:CLIENT_ID,authority:`https://login.microsoftonline.com/KBD1.onmicrosoft.com`,redirectUri},cache:{cacheLocation:"localStorage",storeAuthStateInCookie:true}};
     msalInstance=new msal.PublicClientApplication(cfg);
     await msalInstance.initialize();
     try{ await msalInstance.handleRedirectPromise(); }catch(e){}
