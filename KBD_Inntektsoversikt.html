@@ -371,6 +371,7 @@ tr:hover td{background:#fafafa}
             <button class="fpill f-on" id="utype-alle" style="border-color:#1A3A6B" onclick="setUtleieType('alle')"><span style="font-weight:600;color:#1A3A6B">Alle</span></button>
             <button class="fpill" id="utype-telpo" onclick="setUtleieType('Telpo M1')"><span class="fpill-dot" style="background:#2a78d6"></span>Telpo M1</button>
             <button class="fpill" id="utype-term" onclick="setUtleieType('Betalingsterminal')"><span class="fpill-dot" style="background:#1baf7a"></span>Betalingsterminaler</button>
+            <button class="fpill" id="utype-service" onclick="setUtleieType('Service/Rep')"><span class="fpill-dot" style="background:#4a3aa7"></span>Service/Rep</button>
           </div>
           <button class="prim" onclick="openNyUtleieModal()">+ Ny utleie</button>
         </div>
@@ -1928,8 +1929,8 @@ function setUtleieFilter(f){
 
 function setUtleieType(t){
   utleieType=t;
-  ['alle','Telpo M1','Betalingsterminal'].forEach(x=>{
-    const id='utype-'+(x==='alle'?'alle':x==='Telpo M1'?'telpo':'term');
+  ['alle','Telpo M1','Betalingsterminal','Service/Rep'].forEach(x=>{
+    const id='utype-'+(x==='alle'?'alle':x==='Telpo M1'?'telpo':x==='Betalingsterminal'?'term':'service');
     const el=document.getElementById(id);if(!el)return;
     const on=t===x;el.className='fpill'+(on?' f-on':'');el.style.borderColor=on?'#1A3A6B':'';
   });
