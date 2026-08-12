@@ -830,7 +830,7 @@ async function initAuth(){
       return;
     }
     const redirectUri=window.location.protocol==='file:'?'http://localhost:8080':window.location.origin;
-    const cfg={auth:{clientId:CLIENT_ID,authority:`https://login.microsoftonline.com/${TENANT_ID}`,redirectUri},cache:{cacheLocation:"localStorage",storeAuthStateInCookie:true}};
+    const cfg={auth:{clientId:CLIENT_ID,authority:`https://login.microsoftonline.com/common`,redirectUri},cache:{cacheLocation:"localStorage",storeAuthStateInCookie:true}};
     msalInstance=new msal.PublicClientApplication(cfg);
     await msalInstance.initialize();
     try{ await msalInstance.handleRedirectPromise(); }catch(e){}
@@ -873,6 +873,12 @@ async function getToken(){
 async function afterLogin(account){
   showLoading('Sjekker tilganger…');
   currentUser=account;
+  // Valider at brukeren tilhører riktig tenant
+  if(account.tenantId && account.tenantId !== TENANT_ID){
+    hideLoading();showLoginScreen();
+    document.getElementById('login-error').textContent='Feil: Denne kontoen tilhører ikke KBD. Logg inn med din @kbd.as konto.';
+    return;
+  }
   try{
     const token=await getToken();
     // Check group membership
