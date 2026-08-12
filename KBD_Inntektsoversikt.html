@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
         <button class="fpill" id="uf-forfalt" onclick="setUtleieFilter('forfalt')"><span class="fpill-dot" style="background:#dc2626"></span>Forfalt</button>
         <button class="fpill" id="uf-lager" onclick="setUtleieFilter('lager')"><span class="fpill-dot" style="background:#1baf7a"></span>Returnert</button>
       </div>
-      <div class="tbl-wrap">
+      <div class="tbl-wrap" style="margin-bottom:24px">
         <table>
           <thead><tr>
             <th style="cursor:pointer" onclick="sortUtleieBy('enhet')">Enhet <span id="sh-enhet"></span></th>
@@ -424,6 +424,14 @@ tr:hover td{background:#fafafa}
           </tr></thead>
           <tbody id="utleie-tbody"></tbody>
         </table>
+      </div>
+
+      <!-- AKTIVITETSLOGG -->
+      <div style="margin-top:8px">
+        <div style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📋 Aktivitetslogg</div>
+        <div id="utleie-logg" style="background:white;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden">
+          <p style="padding:20px;color:#9ca3af;font-size:13px;text-align:center">Laster logg…</p>
+        </div>
       </div>
     </div>
 
@@ -602,7 +610,7 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
       <!-- BRUKERTILGANG (kun admin) -->
-      <div class="card admin-only" style="grid-column:1/-1;margin-bottom:0" id="brukere-card">
+      <div class="card admin-only" style="grid-column:1/-1;margin-bottom:0;display:none" id="brukere-card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="card-title" style="margin:0">👥 Brukertilgang</div>
           <button class="prim" onclick="openNyBruker()" style="font-size:13px">+ Legg til bruker</button>
@@ -988,6 +996,16 @@ async function loadDataFromSP(){
   // Load utleie data from SP
   await loadUtleieData();
   await loadBrukere();
+  // Last logg fra SharePoint
+  try{
+    const loggItems=await spGetItems('Logg');
+    utleieLogg=loggItems.map(i=>({
+      tid:i.fields.Tid||i.fields.Created||'',
+      bruker:i.fields.Bruker||'',
+      type:i.fields.LoggType||'',
+      tekst:i.fields.Title||''
+    })).sort((a,b)=>new Date(b.tid)-new Date(a.tid));
+  }catch(e){console.error('Feil ved lasting av logg:',e);}
   applyAccessControl();
   if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';}
 }
@@ -1647,12 +1665,12 @@ function saveUtleie(){
   closeUtleieModal();
   if(editId){
     const i=rentals.findIndex(r=>r.id===editId);if(i>=0)rentals[i]=entry;
-    if(entry.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Utleie',entry.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+    if(entry.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Utleie',entry.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Endret utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>setSPStatus('❌ '+e.message,false));}
   } else {
     entry.spId=null;
     rentals.push(entry);
     setSPStatus('⏳ Lagrer…');
-    spCreate('Utleie',spFields).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
+    spCreate('Utleie',spFields).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('opprettet',`Ny utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
   }
   // Switch to calendar and refresh
   const kBtn=document.getElementById('usub-kalender');
@@ -1685,7 +1703,7 @@ function confirmReturn(){
   r.returnDate=d;
   closeReturModal();
   renderGantt();renderUtleieListe();
-  if(r.spId){setSPStatus('⏳ Registrerer…');spUpdate('Utleie',r.spId,{Returdato:d}).then(()=>{setSPStatus('✅ Retur registrert');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+  if(r.spId){setSPStatus('⏳ Registrerer…');spUpdate('Utleie',r.spId,{Returdato:d}).then(()=>{setSPStatus('✅ Retur registrert');setTimeout(()=>setSPStatus(''),3000);loggAction('retur',`Retur registrert: ${r.customer} → ${units.find(u=>u.id===r.unitId)?.name||r.unitId} (${d})`);}).catch(e=>setSPStatus('❌ '+e.message,false));}
 }
 
 function deleteUtleie(id){
@@ -2027,6 +2045,37 @@ function sortEnheterBy(col){
   console.log('renderEnheterListe ferdig');
 }
 
+// ===== UTLEIE LOGG =====
+let utleieLogg=[];
+
+function loggAction(type, tekst){
+  const entry={
+    tid:new Date().toISOString(),
+    bruker:currentUser?.name||currentUser?.username||'Ukjent',
+    type, tekst
+  };
+  utleieLogg.unshift(entry);
+  renderUtleieLogg();
+  // Lagre til SP hvis ønsket (stille, ingen feilmelding til bruker)
+  spCreate('Logg',{Title:tekst,Bruker:entry.bruker,LoggType:type,Tid:entry.tid}).catch(()=>{});
+}
+
+function renderUtleieLogg(){
+  const el=document.getElementById('utleie-logg');if(!el)return;
+  const vis=utleieLogg.slice(0,20);
+  if(!vis.length){el.innerHTML='<p style="padding:16px;color:#9ca3af;font-size:13px;text-align:center">Ingen aktivitet registrert ennå</p>';return;}
+  const typeIcon={opprettet:'➕',endret:'✏️',retur:'↩',slettet:'🗑️'};
+  const typeFarge={opprettet:'#dcfce7',endret:'#dbeafe',retur:'#fef3c7',slettet:'#fee2e2'};
+  el.innerHTML=vis.map((e,i)=>`
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;${i<vis.length-1?'border-bottom:1px solid #f9fafb':''}">
+      <span style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:${typeFarge[e.type]||'#f3f4f6'};display:flex;align-items:center;justify-content:center;font-size:13px">${typeIcon[e.type]||'•'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:#111">${e.tekst}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px">${e.bruker} · ${new Date(e.tid).toLocaleString('nb-NO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    </div>`).join('');
+}
+
 function showUtleieView(view,btn){
   ['kalender','liste','enheter'].forEach(v=>{
     const el=document.getElementById('utleie-'+v);
@@ -2036,7 +2085,7 @@ function showUtleieView(view,btn){
   const subBtn2=document.getElementById('usub-'+view);
   if(subBtn2)subBtn2.classList.add('active');
   if(view==='kalender')renderGantt();
-  if(view==='liste'){renderUtleieKPI();renderUtleieListe();}
+  if(view==='liste'){renderUtleieKPI();renderUtleieListe();renderUtleieLogg();}
   if(view==='enheter')renderEnheterListe();
 }
 
