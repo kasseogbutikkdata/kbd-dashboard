@@ -2181,6 +2181,8 @@ function applyAccessControl(){
     b.azureId===currentUser?.localAccountId
   );
   const tilgang=me?.tilgang||{oversikt:true}; // Default: kun oversikt
+  // Sett redaktør-rolle basert på tilgang
+  if(tilgang.redaktor&&userRole!=='admin')userRole='editor';
   // Skjul/vis menypunkter
   MODULER.forEach(m=>{
     const navEl=document.getElementById('tab-'+m.id);
@@ -2220,6 +2222,7 @@ function renderBrukere(){
       <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">Navn</th>
       <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">E-post</th>
       ${MODULER.map(m=>`<th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px;max-width:60px">${m.label.split(' ')[1]}</th>`).join('')}
+      <th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px">Redigere</th>
       <th></th>
     </tr></thead>
     <tbody>${brukere.map(b=>`<tr style="border-bottom:1px solid #f9fafb">
@@ -2230,6 +2233,11 @@ function renderBrukere(){
           ${b.tilgang[m.id]?'<span style="color:#16a34a;font-size:13px">✓</span>':'<span style="color:#d1d5db;font-size:11px">—</span>'}
         </span>
       </td>`).join('')}
+      <td style="text-align:center;padding:10px 4px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${b.tilgang.redaktor?'#dbeafe':'#f3f4f6'}">
+          ${b.tilgang.redaktor?'<span style="color:#2a78d6;font-size:13px">✓</span>':'<span style="color:#d1d5db;font-size:11px">—</span>'}
+        </span>
+      </td>
       <td style="padding:10px 8px"><div class="action-btns">
         <button class="btn-icon" onclick="editBruker('${b.id}')" title="Rediger">✎</button>
         <button class="btn-icon del" onclick="deleteBruker('${b.id}')" title="Slett">✕</button>
@@ -2247,7 +2255,10 @@ function openNyBruker(){
   if(el)el.innerHTML=MODULER.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:13px">
     <input type="checkbox" id="bfm-${m.id}" style="width:16px;height:16px;cursor:pointer" checked/>
     <span>${m.label}</span>
-  </label>`).join('');
+  </label>`).join('')+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#eff6ff;border-radius:8px;border:1.5px solid #93c5fd;cursor:pointer;font-size:13px;font-weight:600">
+    <input type="checkbox" id="bfm-redaktor" style="width:16px;height:16px;cursor:pointer"/>
+    <span>✏️ Kan redigere data</span>
+  </label>`;
   document.getElementById('bruker-form').style.display='';
   document.getElementById('bf-navn').focus();
 }
@@ -2262,7 +2273,10 @@ function editBruker(id){
   if(el)el.innerHTML=MODULER.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:13px">
     <input type="checkbox" id="bfm-${m.id}" style="width:16px;height:16px;cursor:pointer" ${b.tilgang[m.id]!==false?'checked':''}/>
     <span>${m.label}</span>
-  </label>`).join('');
+  </label>`).join('')+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#eff6ff;border-radius:8px;border:1.5px solid #93c5fd;cursor:pointer;font-size:13px;font-weight:600">
+    <input type="checkbox" id="bfm-redaktor" style="width:16px;height:16px;cursor:pointer" ${b.tilgang.redaktor?'checked':''}/>
+    <span>✏️ Kan redigere data</span>
+  </label>`;
   document.getElementById('bruker-form').style.display='';
 }
 
@@ -2276,6 +2290,7 @@ async function saveBruker(){
   if(!navn||!epost){alert('Fyll inn navn og e-post');return;}
   const tilgang={};
   MODULER.forEach(m=>{tilgang[m.id]=document.getElementById('bfm-'+m.id)?.checked===true;});
+  tilgang.redaktor=document.getElementById('bfm-redaktor')?.checked===true;
   const editId=document.getElementById('bf-edit-id').value;
   const spFields={Title:navn,Epost:epost,Tilgang:JSON.stringify(tilgang)};
   closeBrukerForm();
