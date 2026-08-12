@@ -1740,10 +1740,16 @@ function renderGantt(){
 
 function renderUtleieKPI(){
   const el=document.getElementById('utleie-kpi');if(!el)return;
-  const aktiv=rentals.filter(r=>getRentalStatus(r)==='utleie').length;
-  const planlagt=rentals.filter(r=>getRentalStatus(r)==='planlagt').length;
-  const forfalt=rentals.filter(r=>getRentalStatus(r)==='forfalt').length;
-  const ledig=units.filter(u=>getUnitStatus(u.id)==='lager').length;
+  const filtRentals=rentals.filter(r=>{
+    if(utleieType==='alle')return true;
+    const u=units.find(x=>x.id===r.unitId);
+    return u&&u.type===utleieType;
+  });
+  const filtUnits=units.filter(u=>utleieType==='alle'||u.type===utleieType);
+  const aktiv=filtRentals.filter(r=>getRentalStatus(r)==='utleie').length;
+  const planlagt=filtRentals.filter(r=>getRentalStatus(r)==='planlagt').length;
+  const forfalt=filtRentals.filter(r=>getRentalStatus(r)==='forfalt').length;
+  const ledig=filtUnits.filter(u=>getUnitStatus(u.id)==='lager').length;
   el.innerHTML=[
     {label:'På utleie',val:aktiv,color:'#2a78d6',bg:'#dbeafe'},
     {label:'Ledige enheter',val:ledig,color:'#15803d',bg:'#dcfce7'},
@@ -1840,7 +1846,7 @@ function renderUtleieListe(){
       <td>${fmtDate(r.fromDate)}</td><td>${fmtDate(r.toDate)}</td><td>${fmtDate(r.returnDate)}</td>
       <td style="text-align:center">${statHtml(s)}</td>
       <td><div class="action-btns">
-        ${s==='utleie'?`<button class="btn-icon" onclick="registerReturn('${r.id}')" title="Registrer retur" style="color:#16a34a">↩</button>`:''}
+        ${(s==='utleie'||s==='forfalt')?`<button class="btn-icon" onclick="registerReturn('${r.id}')" title="Registrer retur" style="color:#16a34a">↩</button>`:''}
         <button class="btn-icon" onclick="editUtleie('${r.id}')" title="Rediger">✎</button>
         <button class="btn-icon del" onclick="deleteUtleie('${r.id}')" title="Slett">✕</button>
       </div></td>
