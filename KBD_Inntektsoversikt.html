@@ -830,7 +830,7 @@ async function initAuth(){
       return;
     }
     const redirectUri=window.location.protocol==='file:'?'http://localhost:8080':window.location.origin;
-    const cfg={auth:{clientId:CLIENT_ID,authority:`https://login.microsoftonline.com/common`,redirectUri},cache:{cacheLocation:"localStorage",storeAuthStateInCookie:true}};
+    const cfg={auth:{clientId:CLIENT_ID,authority:`https://login.microsoftonline.com/${TENANT_ID}`,redirectUri},cache:{cacheLocation:"localStorage",storeAuthStateInCookie:true}};
     msalInstance=new msal.PublicClientApplication(cfg);
     await msalInstance.initialize();
     try{ await msalInstance.handleRedirectPromise(); }catch(e){}
@@ -850,7 +850,7 @@ async function login(){
     return;
   }
   try{
-    const result=await msalInstance.loginPopup({scopes:SCOPES,prompt:"select_account"});
+    const result=await msalInstance.loginPopup({scopes:SCOPES,prompt:"select_account",domainHint:"kbd.as"});
     msalInstance.setActiveAccount(result.account);
     await afterLogin(result.account);
   }catch(err){
