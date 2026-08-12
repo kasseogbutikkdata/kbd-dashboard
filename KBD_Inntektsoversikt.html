@@ -443,11 +443,11 @@ tr:hover td{background:#fafafa}
           <div class="fgrp"><label>Navn/ID</label><input type="text" id="enhet-navn" placeholder="f.eks. Telpo M1 #3"/></div>
           <div class="fgrp"><label>Type</label><select id="enhet-type"><option>Telpo M1</option><option>Betalingsterminal</option><option>Kasse</option></select></div>
           <div class="fgrp"><label>Serienummer</label><input type="text" id="enhet-serial" placeholder="f.eks. SN-12345"/></div>
-          <div class="fgrp"><label>DID</label><input type="text" id="enhet-did" placeholder="f.eks. DID-001"/></div>
         </div>
-        <div class="frow">
-          <input type="text" id="enhet-note" placeholder="Notat (valgfritt)" style="flex:1"/>
-          <button class="prim" onclick="saveEnhet()">+ Legg til enhet</button>
+        <div class="fg" style="grid-template-columns:1fr 1fr auto;gap:12px;align-items:flex-end">
+          <div class="fgrp" style="margin:0"><label>DID</label><input type="text" id="enhet-did" placeholder="f.eks. DID-001"/></div>
+          <div class="fgrp" style="margin:0"><label>Notat</label><input type="text" id="enhet-note" placeholder="Valgfritt"/></div>
+          <button class="prim" onclick="saveEnhet()" style="height:38px;white-space:nowrap">+ Legg til enhet</button>
         </div>
       </div>
       <div class="tbl-wrap">
@@ -475,8 +475,10 @@ tr:hover td{background:#fafafa}
         <div class="fgrp"><label>Type</label><select id="em-type"><option>Telpo M1</option><option>Betalingsterminal</option><option>Kasse</option></select></div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Serienummer</label><input type="text" id="em-serial" placeholder="f.eks. SN-12345"/></div>
-      <div class="fgrp" style="margin-bottom:10px"><label>DID</label><input type="text" id="em-did" placeholder="f.eks. DID-001"/></div>
-      <div class="fgrp" style="margin-bottom:4px"><label>Notat</label><input type="text" id="em-note" placeholder="Valgfritt"/></div>
+      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:4px">
+        <div class="fgrp" style="margin:0"><label>DID</label><input type="text" id="em-did" placeholder="f.eks. DID-001"/></div>
+        <div class="fgrp" style="margin:0"><label>Notat</label><input type="text" id="em-note" placeholder="Valgfritt"/></div>
+      </div>
       <input type="hidden" id="em-edit-id"/>
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeEnhetModal()">Avbryt</button>
@@ -1731,6 +1733,7 @@ function saveEnhet(){
   units.push(newUnit);
   document.getElementById('enhet-navn').value='';
   document.getElementById('enhet-serial').value='';
+  const didEl=document.getElementById('enhet-did');if(didEl)didEl.value='';
   document.getElementById('enhet-note').value='';
   renderEnheterListe();refreshEnhetSelect();
   setSPStatus('⏳ Lagrer enhet…');
