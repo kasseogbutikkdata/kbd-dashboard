@@ -1771,7 +1771,7 @@ function setUtleieType(t){
     const el=document.getElementById(id);if(!el)return;
     const on=t===x;el.className='fpill'+(on?' f-on':'');el.style.borderColor=on?'#1A3A6B':'';
   });
-  renderGantt();renderUtleieListe();
+  renderGantt();renderUtleieListe();renderEnheterListe();
 }
 
 function renderUtleieListe(){
@@ -1856,7 +1856,8 @@ function renderUtleieListe(){
 
 function renderEnheterListe(){
   const TYPE_COLORS_E={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Kasse':'#4a3aa7'};
-  const sortedUnits=[...units].sort((a,b)=>{
+  const filtered=units.filter(u=>utleieType==='alle'||u.type===utleieType);
+  const sortedUnits=[...filtered].sort((a,b)=>{
     const dir=enheterSort.dir==='asc'?1:-1;
     const sa=getUnitStatus(a.id),sb=getUnitStatus(b.id);
     switch(enheterSort.col){case 'navn':return dir*(a.name||'').localeCompare(b.name||'');case 'type':return dir*(a.type||'').localeCompare(b.type||'');case 'serial':return dir*(a.serial||'').localeCompare(b.serial||'');case 'status':return dir*(sa.localeCompare(sb));default:return 0;}
