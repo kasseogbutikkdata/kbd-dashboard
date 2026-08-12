@@ -443,6 +443,7 @@ tr:hover td{background:#fafafa}
           <div class="fgrp"><label>Navn/ID</label><input type="text" id="enhet-navn" placeholder="f.eks. Telpo M1 #3"/></div>
           <div class="fgrp"><label>Type</label><select id="enhet-type"><option>Telpo M1</option><option>Betalingsterminal</option><option>Kasse</option></select></div>
           <div class="fgrp"><label>Serienummer</label><input type="text" id="enhet-serial" placeholder="f.eks. SN-12345"/></div>
+          <div class="fgrp"><label>DID</label><input type="text" id="enhet-did" placeholder="f.eks. DID-001"/></div>
         </div>
         <div class="frow">
           <input type="text" id="enhet-note" placeholder="Notat (valgfritt)" style="flex:1"/>
@@ -455,6 +456,7 @@ tr:hover td{background:#fafafa}
             <th style="cursor:pointer" onclick="sortEnheterBy('navn')">Navn/ID <span id="eh-navn"></span></th>
             <th style="cursor:pointer" onclick="sortEnheterBy('type')">Type <span id="eh-type"></span></th>
             <th style="cursor:pointer" onclick="sortEnheterBy('serial')">Serienummer <span id="eh-serial"></span></th>
+            <th style="cursor:pointer" onclick="sortEnheterBy('did')">DID <span id="eh-did"></span></th>
             <th style="text-align:center;cursor:pointer" onclick="sortEnheterBy('status')">Status <span id="eh-status"></span></th>
             <th>Notat</th><th></th>
           </tr></thead>
@@ -473,6 +475,7 @@ tr:hover td{background:#fafafa}
         <div class="fgrp"><label>Type</label><select id="em-type"><option>Telpo M1</option><option>Betalingsterminal</option><option>Kasse</option></select></div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Serienummer</label><input type="text" id="em-serial" placeholder="f.eks. SN-12345"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>DID</label><input type="text" id="em-did" placeholder="f.eks. DID-001"/></div>
       <div class="fgrp" style="margin-bottom:4px"><label>Notat</label><input type="text" id="em-note" placeholder="Valgfritt"/></div>
       <input type="hidden" id="em-edit-id"/>
       <div class="modal-footer">
@@ -1724,14 +1727,14 @@ function deleteUtleie(id){
 function saveEnhet(){
   const name=document.getElementById('enhet-navn').value.trim();
   if(!name){alert('Skriv inn navn/ID');return;}
-  const newUnit={id:uid(),spId:null,name,type:document.getElementById('enhet-type').value,serial:document.getElementById('enhet-serial').value.trim(),note:document.getElementById('enhet-note').value.trim()};
+  const newUnit={id:uid(),spId:null,name,type:document.getElementById('enhet-type').value,serial:document.getElementById('enhet-serial').value.trim(),did:document.getElementById('enhet-did')?.value.trim()||'',note:document.getElementById('enhet-note').value.trim()};
   units.push(newUnit);
   document.getElementById('enhet-navn').value='';
   document.getElementById('enhet-serial').value='';
   document.getElementById('enhet-note').value='';
   renderEnheterListe();refreshEnhetSelect();
   setSPStatus('⏳ Lagrer enhet…');
-  spCreate('Enheter',{Title:newUnit.name,EnhetType:newUnit.type,Serienr:newUnit.serial,Note:newUnit.note}).then(r=>{newUnit.spId=r.id;newUnit.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);refreshEnhetSelect();}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
+  spCreate('Enheter',{Title:newUnit.name,EnhetType:newUnit.type,Serienr:newUnit.serial,DID:newUnit.did||'',Note:newUnit.note}).then(r=>{newUnit.spId=r.id;newUnit.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);refreshEnhetSelect();}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
 }
 
 function editEnhet(id){
@@ -1740,6 +1743,7 @@ function editEnhet(id){
   document.getElementById('em-navn').value=u.name;
   document.getElementById('em-type').value=u.type;
   document.getElementById('em-serial').value=u.serial||'';
+  document.getElementById('em-did').value=u.did||'';
   document.getElementById('em-note').value=u.note||'';
   document.getElementById('enhet-modal').classList.add('open');
   setTimeout(()=>document.getElementById('em-navn').focus(),100);
@@ -1753,13 +1757,14 @@ function saveEnhetEdit(){
   u.name=document.getElementById('em-navn').value.trim();
   u.type=document.getElementById('em-type').value;
   u.serial=document.getElementById('em-serial').value.trim();
+  u.did=document.getElementById('em-did')?.value.trim()||'';
   u.note=document.getElementById('em-note').value.trim();
   if(!u.name){alert('Navn/ID kan ikke være tomt');return;}
   closeEnhetModal();
   renderEnheterListe();refreshEnhetSelect();
   if(u.spId){
     setSPStatus('⏳ Oppdaterer…');
-    spUpdate('Enheter',u.spId,{Title:u.name,EnhetType:u.type,Serienr:u.serial,Note:u.note}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));
+    spUpdate('Enheter',u.spId,{Title:u.name,EnhetType:u.type,Serienr:u.serial,DID:u.did||'',Note:u.note}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));
   }
 }
 
@@ -2015,10 +2020,10 @@ function renderEnheterListe(){
   const sortedUnits=[...filtered].sort((a,b)=>{
     const dir=enheterSort.dir==='asc'?1:-1;
     const sa=getUnitStatus(a.id),sb=getUnitStatus(b.id);
-    switch(enheterSort.col){case 'navn':return dir*(a.name||'').localeCompare(b.name||'');case 'type':return dir*(a.type||'').localeCompare(b.type||'');case 'serial':return dir*(a.serial||'').localeCompare(b.serial||'');case 'status':return dir*(sa.localeCompare(sb));default:return 0;}
+    switch(enheterSort.col){case 'navn':return dir*(a.name||'').localeCompare(b.name||'');case 'type':return dir*(a.type||'').localeCompare(b.type||'');case 'serial':return dir*(a.serial||'').localeCompare(b.serial||'');case 'did':return dir*(a.did||'').localeCompare(b.did||'');case 'status':return dir*(sa.localeCompare(sb));default:return 0;}
   });
   // Update sort icons
-  ['navn','type','serial','status'].forEach(c=>{
+  ['navn','type','serial','did','status'].forEach(c=>{
     const el=document.getElementById('eh-'+c);
     if(el)el.innerHTML=enheterSort.col===c?(enheterSort.dir==='asc'?'↑':'↓'):'↕';
   });
@@ -2029,6 +2034,7 @@ function renderEnheterListe(){
       <td><strong>${u.name}</strong></td>
       <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${color}"></span>${u.type}</span></td>
       <td style="font-family:monospace;font-size:12px;color:#6b7280">${u.serial||'—'}</td>
+      <td style="font-size:12px;color:#6b7280">${u.did||'—'}</td>
       <td style="text-align:center"><span class="utleie-stat ${s==='utleie'?'stat-utleie':'stat-lager'}">${s==='utleie'?'På utleie':'På lager'}</span></td>
       <td class="muted">${u.note||''}</td>
       <td><div class="action-btns">
@@ -2330,7 +2336,7 @@ async function migrateUtleieToSP(){
     const idMap={};
     for(let i=0;i<units.length;i++){
       const u=units[i];const oldId=u.id;
-      if(!u.spId){const r=await spCreate('Enheter',{Title:u.name,EnhetType:u.type,Serienr:u.serial||'',Note:u.note||''});u.spId=r.id;u.id=`sp${r.id}`;}
+      if(!u.spId){const r=await spCreate('Enheter',{Title:u.name,EnhetType:u.type,Serienr:u.serial||'',DID:u.did||'',Note:u.note||''});u.spId=r.id;u.id=`sp${r.id}`;}
       idMap[oldId]=u.id;
     }
     rentals.forEach(r=>{if(idMap[r.unitId])r.unitId=idMap[r.unitId];});
