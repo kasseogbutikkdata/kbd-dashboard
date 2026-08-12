@@ -456,7 +456,23 @@ tr:hover td{background:#fafafa}
     </div>
   </div><!-- /tp-utleie -->
 
-  <!-- RETUR MODAL -->
+  <!-- REDIGER ENHET MODAL -->
+  <div class="modal-overlay" id="enhet-modal" onclick="if(event.target===this)closeEnhetModal()">
+    <div class="modal" style="max-width:460px">
+      <h3 style="margin-bottom:16px">Rediger enhet</h3>
+      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>Navn/ID</label><input type="text" id="em-navn" placeholder="f.eks. Telpo M1 #3"/></div>
+        <div class="fgrp"><label>Type</label><select id="em-type"><option>Telpo M1</option><option>Betalingsterminal</option><option>Kasse</option></select></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Serienummer</label><input type="text" id="em-serial" placeholder="f.eks. SN-12345"/></div>
+      <div class="fgrp" style="margin-bottom:4px"><label>Notat</label><input type="text" id="em-note" placeholder="Valgfritt"/></div>
+      <input type="hidden" id="em-edit-id"/>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeEnhetModal()">Avbryt</button>
+        <button class="prim" onclick="saveEnhetEdit()">Lagre</button>
+      </div>
+    </div>
+  </div>
   <div class="modal-overlay" id="retur-modal" onclick="if(event.target===this)closeReturModal()">
     <div class="modal" style="max-width:380px">
       <h3 id="retur-modal-title" style="margin-bottom:16px">Registrer retur</h3>
@@ -1693,6 +1709,35 @@ function saveEnhet(){
   spCreate('Enheter',{Title:newUnit.name,EnhetType:newUnit.type,Serienr:newUnit.serial,Note:newUnit.note}).then(r=>{newUnit.spId=r.id;newUnit.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);refreshEnhetSelect();}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
 }
 
+function editEnhet(id){
+  const u=units.find(x=>x.id===id);if(!u)return;
+  document.getElementById('em-edit-id').value=id;
+  document.getElementById('em-navn').value=u.name;
+  document.getElementById('em-type').value=u.type;
+  document.getElementById('em-serial').value=u.serial||'';
+  document.getElementById('em-note').value=u.note||'';
+  document.getElementById('enhet-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('em-navn').focus(),100);
+}
+
+function closeEnhetModal(){document.getElementById('enhet-modal').classList.remove('open');}
+
+function saveEnhetEdit(){
+  const id=document.getElementById('em-edit-id').value;
+  const u=units.find(x=>x.id===id);if(!u)return;
+  u.name=document.getElementById('em-navn').value.trim();
+  u.type=document.getElementById('em-type').value;
+  u.serial=document.getElementById('em-serial').value.trim();
+  u.note=document.getElementById('em-note').value.trim();
+  if(!u.name){alert('Navn/ID kan ikke være tomt');return;}
+  closeEnhetModal();
+  renderEnheterListe();refreshEnhetSelect();
+  if(u.spId){
+    setSPStatus('⏳ Oppdaterer…');
+    spUpdate('Enheter',u.spId,{Title:u.name,EnhetType:u.type,Serienr:u.serial,Note:u.note}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));
+  }
+}
+
 function deleteEnhet(id){
   const inUse=rentals.some(r=>r.unitId===id&&['utleie','forfalt'].includes(getRentalStatus(r)));
   if(inUse&&!confirm('Enheten er på utleie. Slett likevel?'))return;
@@ -1961,7 +2006,10 @@ function renderEnheterListe(){
       <td style="font-family:monospace;font-size:12px;color:#6b7280">${u.serial||'—'}</td>
       <td style="text-align:center"><span class="utleie-stat ${s==='utleie'?'stat-utleie':'stat-lager'}">${s==='utleie'?'På utleie':'På lager'}</span></td>
       <td class="muted">${u.note||''}</td>
-      <td><div class="action-btns"><button class="btn-icon del" onclick="deleteEnhet('${u.id}')">✕</button></div></td>
+      <td><div class="action-btns">
+        <button class="btn-icon" onclick="editEnhet('${u.id}')" title="Rediger">✎</button>
+        <button class="btn-icon del" onclick="deleteEnhet('${u.id}')" title="Slett">✕</button>
+      </div></td>
     </tr>`;
   }).join(''):`<tr><td colspan="6" class="empty">Ingen enheter registrert ennå</td></tr>`;
 }
@@ -2476,7 +2524,7 @@ function relinkUnit(rentalId,newUnitId){
 
 // ===== INIT =====
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();}});
 
 </script>
 </body>
