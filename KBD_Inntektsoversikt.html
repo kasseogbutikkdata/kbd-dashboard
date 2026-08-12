@@ -584,6 +584,33 @@ tr:hover td{background:#fafafa}
           <input type="file" id="backup-input" accept=".json" style="display:none" onchange="importLocalBackup(event)"/>
         </div>
       </div>
+      <!-- BRUKERTILGANG (kun admin) -->
+      <div class="card admin-only" style="grid-column:1/-1;margin-bottom:0" id="brukere-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="card-title" style="margin:0">👥 Brukertilgang</div>
+          <button class="prim" onclick="openNyBruker()" style="font-size:13px">+ Legg til bruker</button>
+        </div>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:16px">Styr hvilke moduler hver bruker har tilgang til. Administratorer har alltid full tilgang.</p>
+        <div id="brukere-liste"></div>
+        <!-- NY/REDIGER BRUKER FORM -->
+        <div id="bruker-form" style="display:none;background:#f9fafb;border-radius:10px;padding:16px;margin-top:16px;border:1.5px solid #e5e7eb">
+          <div class="card-title" id="bruker-form-title" style="margin-bottom:12px">Legg til bruker</div>
+          <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+            <div class="fgrp"><label>Navn</label><input type="text" id="bf-navn" placeholder="Fullt navn"/></div>
+            <div class="fgrp"><label>E-post</label><input type="text" id="bf-epost" placeholder="bruker@kbd.as"/></div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:8px">Tilgang til moduler</label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="bf-moduler"></div>
+          </div>
+          <input type="hidden" id="bf-edit-id"/>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn-sm" onclick="closeBrukerForm()">Avbryt</button>
+            <button class="prim" onclick="saveBruker()">Lagre</button>
+          </div>
+        </div>
+      </div>
+
       <div class="card" style="border-left:3px solid #dc2626">
         <div class="card-title" style="color:#dc2626">⚠️ Farlige handlinger</div>
         <p style="font-size:13px;color:#6b7280;margin-bottom:12px">Disse handlingene kan ikke angres. Bruk med forsiktighet.</p>
@@ -736,6 +763,8 @@ let enheterSort={col:'type',dir:'asc'};
 let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
+let brukere=[];
+const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
 const CLIENT_ID="b0ff1861-62de-4ecc-8a13-fd463cb5af45";
 const TENANT_ID="c5f9c7ae-f91d-40e1-bbac-303409fa7a8d";
 const SP_SITE="kbd1.sharepoint.com:/sites/KBDDashboard";
@@ -935,6 +964,9 @@ async function loadDataFromSP(){
   if(srcItems.length===0)await seedSourcesToSP();
   // Load utleie data from SP
   await loadUtleieData();
+  await loadBrukere();
+  applyAccessControl();
+  if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';}
 }
 
 async function seedProductsToSP(){
@@ -2004,6 +2036,147 @@ function renderKickSammenligning(){
   const kickTotals=years.map(y=>kick.filter(k=>activeSrc.includes(k.source)&&k.year===y).reduce((s,k)=>s+k.amount,0));
   const ktotCells=kickTotals.map((v,i)=>{const prev=i>0?kickTotals[i-1]:null;const delta=(prev&&prev>0)?((v-prev)/prev*100):null;const dStr=delta!==null?`<div style="font-size:10px;color:${delta>=0?'#16a34a':'#dc2626'};margin-top:1px">${delta>=0?'▲':'▼'}${Math.abs(delta).toFixed(1)}%</div>`:'';return`<td class="tr" style="font-weight:600">${v>0?fS(v):'—'}${dStr}</td>`;});
   document.getElementById('tbl-skick').innerHTML=`<thead><tr><th>Kilde</th>${years.map(y=>`<th style="text-align:right">${y==2026?'2026 YTD':y}</th>`).join('')}</tr></thead><tbody>${kickRows.join('')}<tr style="border-top:2px solid #e5e7eb"><td style="font-weight:600;color:#111">Total</td>${ktotCells.join('')}</tr></tbody>`;
+}
+
+
+// ===== BRUKERTILGANG =====
+async function loadBrukere(){
+  try{
+    const items=await spGetItems('Brukere');
+    brukere=items.map(i=>{
+      let tilgang={};
+      try{tilgang=JSON.parse(i.fields.Tilgang||'{}');}catch{}
+      return{id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',epost:i.fields.Epost||'',azureId:i.fields.AzureId||'',tilgang};
+    });
+  }catch(e){console.error('Feil ved lasting av brukere:',e);brukere=[];}
+}
+
+function applyAccessControl(){
+  if(userRole==='admin')return; // Admin ser alt
+  // Finn bruker basert på e-post eller azure ID
+  const me=brukere.find(b=>
+    b.epost.toLowerCase()===currentUser?.username?.toLowerCase()||
+    b.azureId===currentUser?.localAccountId
+  );
+  const tilgang=me?.tilgang||{oversikt:true}; // Default: kun oversikt
+  // Skjul/vis menypunkter
+  MODULER.forEach(m=>{
+    const navEl=document.getElementById('tab-'+m.id);
+    const tpEl=document.getElementById('tp-'+m.id);
+    const har=tilgang[m.id]===true;
+    if(navEl)navEl.style.display=har?'':'none';
+    // Skjul sub-items for lisenser/kickback/utleie
+    if(m.id==='lisenser'){
+      const sub=document.getElementById('lisenser-sub-nav');
+      if(sub)sub.style.display=har?'':'none';
+    }
+    if(m.id==='kickback'){
+      const sub=document.getElementById('kickback-sub-nav');
+      if(sub)sub.style.display=har?'':'none';
+    }
+    if(m.id==='utleie'){
+      const sub=document.getElementById('utleie-sub-nav');
+      if(sub)sub.style.display=har?'':'none';
+    }
+  });
+  // Naviger til første tilgjengelige modul
+  const forste=MODULER.find(m=>tilgang[m.id]===true);
+  if(forste){
+    const btn=document.getElementById('tab-'+forste.id);
+    if(btn)showTab(forste.id,btn);
+  }
+}
+
+function renderBrukere(){
+  const el=document.getElementById('brukere-liste');if(!el)return;
+  if(!brukere.length){
+    el.innerHTML=`<p style="color:#9ca3af;font-size:13px;padding:12px 0">Ingen brukere registrert ennå. Legg til brukere for å styre tilgang.</p>`;
+    return;
+  }
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="border-bottom:2px solid #f3f4f6">
+      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">Navn</th>
+      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">E-post</th>
+      ${MODULER.map(m=>`<th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px;max-width:60px">${m.label.split(' ')[1]}</th>`).join('')}
+      <th></th>
+    </tr></thead>
+    <tbody>${brukere.map(b=>`<tr style="border-bottom:1px solid #f9fafb">
+      <td style="padding:10px 12px;font-weight:500">${b.navn}</td>
+      <td style="padding:10px 12px;color:#6b7280;font-size:12px">${b.epost}</td>
+      ${MODULER.map(m=>`<td style="text-align:center;padding:10px 4px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${b.tilgang[m.id]?'#dcfce7':'#f3f4f6'}">
+          ${b.tilgang[m.id]?'<span style="color:#16a34a;font-size:13px">✓</span>':'<span style="color:#d1d5db;font-size:11px">—</span>'}
+        </span>
+      </td>`).join('')}
+      <td style="padding:10px 8px"><div class="action-btns">
+        <button class="btn-icon" onclick="editBruker('${b.id}')" title="Rediger">✎</button>
+        <button class="btn-icon del" onclick="deleteBruker('${b.id}')" title="Slett">✕</button>
+      </div></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function openNyBruker(){
+  document.getElementById('bruker-form-title').textContent='Legg til bruker';
+  document.getElementById('bf-navn').value='';
+  document.getElementById('bf-epost').value='';
+  document.getElementById('bf-edit-id').value='';
+  const el=document.getElementById('bf-moduler');
+  if(el)el.innerHTML=MODULER.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:13px">
+    <input type="checkbox" id="bfm-${m.id}" style="width:16px;height:16px;cursor:pointer" checked/>
+    <span>${m.label}</span>
+  </label>`).join('');
+  document.getElementById('bruker-form').style.display='';
+  document.getElementById('bf-navn').focus();
+}
+
+function editBruker(id){
+  const b=brukere.find(x=>x.id===id);if(!b)return;
+  document.getElementById('bruker-form-title').textContent='Rediger bruker';
+  document.getElementById('bf-navn').value=b.navn;
+  document.getElementById('bf-epost').value=b.epost;
+  document.getElementById('bf-edit-id').value=id;
+  const el=document.getElementById('bf-moduler');
+  if(el)el.innerHTML=MODULER.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:13px">
+    <input type="checkbox" id="bfm-${m.id}" style="width:16px;height:16px;cursor:pointer" ${b.tilgang[m.id]!==false?'checked':''}/>
+    <span>${m.label}</span>
+  </label>`).join('');
+  document.getElementById('bruker-form').style.display='';
+}
+
+function closeBrukerForm(){
+  document.getElementById('bruker-form').style.display='none';
+}
+
+async function saveBruker(){
+  const navn=document.getElementById('bf-navn').value.trim();
+  const epost=document.getElementById('bf-epost').value.trim().toLowerCase();
+  if(!navn||!epost){alert('Fyll inn navn og e-post');return;}
+  const tilgang={};
+  MODULER.forEach(m=>{tilgang[m.id]=document.getElementById('bfm-'+m.id)?.checked===true;});
+  const editId=document.getElementById('bf-edit-id').value;
+  const spFields={Title:navn,Epost:epost,Tilgang:JSON.stringify(tilgang)};
+  closeBrukerForm();
+  if(editId){
+    const b=brukere.find(x=>x.id===editId);if(!b)return;
+    b.navn=navn;b.epost=epost;b.tilgang=tilgang;
+    renderBrukere();
+    if(b.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Brukere',b.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+  } else {
+    const newB={id:uid(),spId:null,navn,epost,azureId:'',tilgang};
+    brukere.push(newB);
+    renderBrukere();
+    setSPStatus('⏳ Lagrer…');
+    spCreate('Brukere',spFields).then(r=>{newB.spId=r.id;newB.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));
+  }
+}
+
+async function deleteBruker(id){
+  if(!confirm('Slette denne brukeren?'))return;
+  const b=brukere.find(x=>x.id===id);
+  brukere=brukere.filter(x=>x.id!==id);
+  renderBrukere();
+  if(b?.spId){setSPStatus('⏳ Sletter…');spDelete('Brukere',b.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
 }
 
 // ===== UTLEIE DATA =====
