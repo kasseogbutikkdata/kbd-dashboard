@@ -455,6 +455,25 @@ tr:hover td{background:#fafafa}
     </div>
   </div><!-- /tp-utleie -->
 
+  <!-- RETUR MODAL -->
+  <div class="modal-overlay" id="retur-modal" onclick="if(event.target===this)closeReturModal()">
+    <div class="modal" style="max-width:380px">
+      <h3 id="retur-modal-title" style="margin-bottom:16px">Registrer retur</h3>
+      <div style="background:#f9fafb;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#374151">
+        <div style="font-weight:600;color:#111;margin-bottom:4px" id="retur-enhet-navn"></div>
+        <div style="color:#6b7280" id="retur-kunde-info"></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:20px">
+        <label style="font-weight:600;margin-bottom:6px;display:block">Returdato</label>
+        <input type="date" id="retur-dato" style="width:100%;padding:10px 12px;border:1.5px solid #d0d5dd;border-radius:8px;font-size:15px;font-family:inherit"/>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeReturModal()">Avbryt</button>
+        <button class="prim" onclick="confirmReturn()" style="background:#16a34a;border-color:#16a34a">↩ Registrer retur</button>
+      </div>
+    </div>
+  </div>
+
   <!-- NY UTLEIE MODAL -->
   <div class="modal-overlay" id="utleie-modal" onclick="if(event.target===this)closeUtleieModal()">
     <div class="modal" style="max-width:520px">
@@ -1585,11 +1604,31 @@ function saveUtleie(){
   showUtleieView('kalender',kBtn);
 }
 
+let returRentalId=null;
+
 function registerReturn(id){
   const r=rentals.find(x=>x.id===id);if(!r)return;
-  const d=prompt('Returdato (ÅÅÅÅ-MM-DD):',new Date().toISOString().slice(0,10));
-  if(!d)return;
+  const u=units.find(x=>x.id===r.unitId);
+  returRentalId=id;
+  document.getElementById('retur-enhet-navn').textContent=u?`${u.name} (${u.type})`:'Ukjent enhet';
+  document.getElementById('retur-kunde-info').textContent=`Kunde: ${r.customer}${r.orderNr?' · Ordre: '+r.orderNr:''}`;
+  document.getElementById('retur-dato').value=new Date().toISOString().slice(0,10);
+  document.getElementById('retur-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('retur-dato').focus(),100);
+}
+
+function closeReturModal(){
+  document.getElementById('retur-modal').classList.remove('open');
+  returRentalId=null;
+}
+
+function confirmReturn(){
+  if(!returRentalId)return;
+  const d=document.getElementById('retur-dato').value;
+  if(!d){alert('Velg en returdato');return;}
+  const r=rentals.find(x=>x.id===returRentalId);if(!r)return;
   r.returnDate=d;
+  closeReturModal();
   renderGantt();renderUtleieListe();
   if(r.spId){setSPStatus('⏳ Registrerer…');spUpdate('Utleie',r.spId,{Returdato:d}).then(()=>{setSPStatus('✅ Retur registrert');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
 }
@@ -2256,7 +2295,7 @@ function relinkUnit(rentalId,newUnitId){
 
 // ===== INIT =====
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();}});
 
 </script>
 </body>
