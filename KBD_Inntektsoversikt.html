@@ -2297,9 +2297,15 @@ function saveReservasjon(){
   if(entry.note)spFields.Note=entry.note;
   closeResModal();
   if(editId){
-    const i=reservasjoner.findIndex(r=>r.id===editId);if(i>=0)reservasjoner[i]={...reservasjoner[i],...entry};
-    const existing=reservasjoner.find(r=>r.id===editId);
-    if(existing?.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Reservasjoner',existing.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+    const i=reservasjoner.findIndex(r=>r.id===editId);
+    const existing=reservasjoner[i];
+    if(i>=0)reservasjoner[i]={...existing,...entry,id:existing.id,spId:existing.spId};
+    if(existing?.spId){
+      setSPStatus('⏳ Oppdaterer…');
+      spUpdate('Reservasjoner',existing.spId,spFields).then(()=>{
+        setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+      }).catch(e=>setSPStatus('❌ '+e.message,false));
+    }
   } else {
     reservasjoner.push(entry);
     setSPStatus('⏳ Lagrer…');
