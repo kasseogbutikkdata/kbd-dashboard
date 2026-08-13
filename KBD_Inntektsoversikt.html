@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.4 · Oppdatert: 13. aug 2026 kl. 16:53</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.5 · Oppdatert: 13. aug 2026 kl. 17:00</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1094,6 +1094,9 @@ async function loadDataFromSP(){
     })).sort((a,b)=>new Date(b.tid)-new Date(a.tid));
   }catch(e){console.error('Feil ved lasting av logg:',e);}
   applyAccessControl();
+  // Oppdater rolle-badge etter tilgangsstyring
+  document.getElementById('user-role').textContent=userRole==='admin'?'👑 Administrator':userRole==='editor'?'✏️ Redaktør':'👁️ Leser';
+  applyRoleUI();
   startAutoRefresh();
   // Vis oppdateringstidspunkt umiddelbart
   const rsEl=document.getElementById('refresh-status');
