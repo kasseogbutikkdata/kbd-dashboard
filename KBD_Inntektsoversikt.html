@@ -2224,14 +2224,14 @@ function renderReservasjoner(){
     const tcolor=RES_COLORS[r.enhetType]||'#888';
     const canConvert=s==='aktiv'||s==='planlagt';
     return`<tr>
-      <td><strong>${r.kunde}</strong></td>
-      <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${tcolor}"></span>${r.enhetType}</span></td>
+      <td><strong style="white-space:nowrap">${r.kunde}</strong></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:${tcolor};flex-shrink:0"></span>${r.enhetType}</span></td>
       <td style="text-align:center;font-weight:700;font-size:16px;color:${tcolor}">${r.antall}</td>
-      <td style="font-family:monospace;font-size:12px">${r.orderNr||'—'}</td>
-      <td>${fmtDate(r.fromDate)}</td>
-      <td>${fmtDate(r.toDate)}</td>
-      <td style="text-align:center">${statHtml(s)}</td>
-      <td class="muted" style="font-size:12px">${r.note||'—'}</td>
+      <td style="font-family:monospace;font-size:12px;white-space:nowrap">${r.orderNr||'—'}</td>
+      <td style="white-space:nowrap">${fmtDate(r.fromDate)}</td>
+      <td style="white-space:nowrap">${fmtDate(r.toDate)}</td>
+      <td style="text-align:center;white-space:nowrap">${statHtml(s)}</td>
+      <td class="muted" style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.note||''}">${r.note||'—'}</td>
       <td><div class="action-btns">
         ${canConvert?`<button class="btn-icon" onclick="openKonverterModal('${r.id}')" title="Konverter til utleie" style="color:#16a34a;font-size:16px">⇄</button>`:''}
         <button class="btn-icon" onclick="editReservasjon('${r.id}')" title="Rediger">✎</button>
