@@ -301,6 +301,9 @@ tr:hover td{background:#fafafa}
         <span class="nav-item-icon">⚙️</span>Innstillinger
       </div>
     </div>
+    <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);margin-top:auto">
+      <span id="refresh-status" style="font-size:11px;color:rgba(255,255,255,.35);transition:opacity .5s" title="Sist oppdatert fra SharePoint">🔄 —</span>
+    </div>
   </nav>
   <!-- MAIN CONTENT -->
   <div class="main-content">
@@ -1088,6 +1091,7 @@ async function loadDataFromSP(){
     })).sort((a,b)=>new Date(b.tid)-new Date(a.tid));
   }catch(e){console.error('Feil ved lasting av logg:',e);}
   applyAccessControl();
+  startAutoRefresh();
   if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';}
 }
 
@@ -2926,6 +2930,34 @@ function relinkUnit(rentalId,newUnitId){
   const r=rentals.find(x=>x.id===rentalId);if(!r)return;
   r.unitId=newUnitId;renderGantt();renderUtleieListe();
   if(r.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Utleie',r.spId,{EnhetId:newUnitId}).then(()=>{setSPStatus('✅ Koblet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+}
+
+// ===== AUTO-REFRESH =====
+let autoRefreshInterval=null;
+
+async function refreshData(){
+  // Ikke refresh hvis bruker holder på med noe
+  if(document.querySelector('.modal-overlay.open'))return;
+  if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
+  if(document.hidden)return;
+  try{
+    await loadDataFromSP();
+    await loadReservasjoner();
+    renderAll();
+    // Oppdater refresh-indikator
+    const el=document.getElementById('refresh-status');
+    if(el){
+      const now=new Date();
+      el.textContent=`🔄 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+      el.style.opacity='1';
+      setTimeout(()=>{if(el)el.style.opacity='.5';},2000);
+    }
+  }catch(e){console.error('Auto-refresh feil:',e);}
+}
+
+function startAutoRefresh(){
+  if(autoRefreshInterval)clearInterval(autoRefreshInterval);
+  autoRefreshInterval=setInterval(refreshData,5*60*1000); // hvert 5. minutt
 }
 
 // ===== INIT =====
