@@ -472,6 +472,9 @@ tr:hover td{background:#fafafa}
 
     <!-- ENHETER -->
     <div id="utleie-enheter" style="display:none">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn-sm" onclick="loadUtleieData().then(()=>{renderEnheterListe();setSPStatus('✅ Data oppdatert');setTimeout(()=>setSPStatus(''),3000);})">🔄 Hent fra SharePoint</button>
+      </div>
       <div class="card" style="margin-bottom:20px">
         <div class="card-title">Legg til enhet</div>
         <div class="fg" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:8px">
@@ -2945,6 +2948,7 @@ async function refreshData(){
   if(document.hidden)return;
   try{
     await loadDataFromSP();
+    await loadUtleieData();
     await loadReservasjoner();
     renderAll();
     // Oppdater refresh-indikator
