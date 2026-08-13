@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.2 · Oppdatert: 13. aug 2026 kl. 16:27</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.4 · Oppdatert: 13. aug 2026 kl. 16:53</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1823,7 +1823,16 @@ function saveEnhet(){
   document.getElementById('enhet-note').value='';
   renderEnheterListe();refreshEnhetSelect();
   setSPStatus('⏳ Lagrer enhet…');
-  spCreate('Enheter',{Title:newUnit.name,EnhetType:newUnit.type,Serienr:newUnit.serial,DID:newUnit.did||'',Note:newUnit.note}).then(r=>{newUnit.spId=r.id;newUnit.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);refreshEnhetSelect();}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
+  spCreate('Enheter',{Title:newUnit.name,EnhetType:newUnit.type,Serienr:newUnit.serial||'',DID:newUnit.did||'',Note:newUnit.note||''}).then(r=>{
+    console.log('Enhet lagret til SP:', r);
+    newUnit.spId=r.id;newUnit.id=`sp${r.id}`;
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+    refreshEnhetSelect();
+  }).catch(e=>{
+    console.error('SP Enheter feil:',e);
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Enheten ble ikke lagret til SharePoint:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');
+  });
 }
 
 function editEnhet(id){
@@ -2655,6 +2664,7 @@ async function deleteBruker(id){
 async function loadUtleieData(){
   try{
     const[uItems,rItems]=await Promise.all([spGetItems('Enheter'),spGetItems('Utleie')]);
+    console.log(`SP Enheter: ${uItems.length} enheter, SP Utleie: ${rItems.length} utleier`);
     if(uItems.length>0||rItems.length>0){
       units=uItems.map(i=>({id:`sp${i.id}`,spId:i.id,name:i.fields.Title||'',type:i.fields.EnhetType||'',serial:i.fields.Serienr||'',note:i.fields.Note||''}));
       const unitIdSet=new Set(units.map(u=>u.id));
