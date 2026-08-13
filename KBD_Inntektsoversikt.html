@@ -2286,7 +2286,15 @@ function saveReservasjon(){
     note:document.getElementById('r-note').value.trim(),
     status:'aktiv'
   };
-  const spFields={Title:kunde,EnhetType:entry.enhetType,Antall:antall,OrdreNr:entry.orderNr,FraDato:fromDate,TilDato:toDate,Note:entry.note};
+  const spFields={
+    Title:kunde,
+    EnhetType:entry.enhetType,
+    Antall:Number(antall),
+    FraDato:fromDate,
+    TilDato:toDate
+  };
+  if(entry.orderNr)spFields.OrdreNr=entry.orderNr;
+  if(entry.note)spFields.Note=entry.note;
   closeResModal();
   if(editId){
     const i=reservasjoner.findIndex(r=>r.id===editId);if(i>=0)reservasjoner[i]={...reservasjoner[i],...entry};
