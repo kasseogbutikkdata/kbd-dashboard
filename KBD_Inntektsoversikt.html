@@ -288,6 +288,7 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="usub-kalender" onclick="showUtleieView('kalender',this)">📅 Kalender</div>
         <div class="nav-sub-item" id="usub-liste" onclick="showUtleieView('liste',this)">📋 Utleieoversikt</div>
         <div class="nav-sub-item" id="usub-enheter" onclick="showUtleieView('enheter',this)">🔧 Enheter</div>
+        <div class="nav-sub-item" id="usub-reservasjoner" onclick="showUtleieView('reservasjoner',this)">🟡 Reservasjoner</div>
       </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this)">
@@ -433,6 +434,30 @@ tr:hover td{background:#fafafa}
         <div id="utleie-logg" style="background:white;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden">
           <p style="padding:20px;color:#9ca3af;font-size:13px;text-align:center">Laster logg…</p>
         </div>
+      </div>
+    </div>
+
+    <!-- RESERVASJONER -->
+    <div id="utleie-reservasjoner" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div id="res-kpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1;margin-right:16px"></div>
+        <button class="prim" onclick="openNyReservasjon()">+ Ny reservasjon</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Kunde</th>
+            <th>Type</th>
+            <th style="text-align:center">Antall</th>
+            <th>OrdreNr</th>
+            <th>Fra dato</th>
+            <th>Til dato</th>
+            <th style="text-align:center">Status</th>
+            <th>Notat</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="res-tbody"></tbody>
+        </table>
       </div>
     </div>
 
@@ -787,7 +812,7 @@ const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34
 
 // ===== STATE =====
 let lic=[],kick=[],products=[],sources=[],aging=[],isSeed=false,charts={};
-let units=[],rentals=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle';
+let units=[],rentals=[],reservasjoner=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle';
 let utleieSort={col:null,dir:'asc'};
 let ganttSort={col:'enhet',dir:'asc'};
 let enheterSort={col:'type',dir:'asc'};
@@ -1001,6 +1026,7 @@ async function loadDataFromSP(){
   if(srcItems.length===0)await seedSourcesToSP();
   // Load utleie data from SP
   await loadUtleieData();
+  await loadReservasjoner();
   await loadBrukere();
   // Last logg fra SharePoint
   try{
@@ -1892,6 +1918,7 @@ function renderGantt(){
     });
   });
   html2+='</tbody></table>';
+  html2=html2.replace('<tbody>','<tbody>'+renderGanttReservasjoner(dates,today));
   gridEl.innerHTML=html2;
 }
 
@@ -2093,8 +2120,234 @@ function renderUtleieLogg(){
     </div>`).join('');
 }
 
+// ===== RESERVASJONER =====
+const RES_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
+
+async function loadReservasjoner(){
+  try{
+    const items=await spGetItems('Reservasjoner');
+    reservasjoner=items.map(i=>({
+      id:`sp${i.id}`,spId:i.id,
+      kunde:i.fields.Title||'',
+      enhetType:i.fields.EnhetType||'',
+      antall:parseInt(i.fields.Antall)||1,
+      orderNr:i.fields.OrdreNr||'',
+      fromDate:i.fields.FraDato||'',
+      toDate:i.fields.TilDato||'',
+      note:i.fields.Note||'',
+      status:i.fields.Status||'aktiv'
+    }));
+  }catch(e){console.error('Feil ved lasting av reservasjoner:',e);reservasjoner=[];}
+}
+
+function getResStatus(r){
+  const today=new Date();today.setHours(0,0,0,0);
+  const fra=parseLD(r.fromDate);const til=parseLD(r.toDate);
+  if(r.status==='konvertert')return'konvertert';
+  if(!fra||!til)return'aktiv';
+  if(fra>today)return'planlagt';
+  if(til<today)return'utgått';
+  return'aktiv';
+}
+
+function renderReservasjoner(){
+  // KPI
+  const kpiEl=document.getElementById('res-kpi');
+  if(kpiEl){
+    const aktive=reservasjoner.filter(r=>getResStatus(r)==='aktiv').length;
+    const planlagte=reservasjoner.filter(r=>getResStatus(r)==='planlagt').length;
+    const totAntall=reservasjoner.filter(r=>['aktiv','planlagt'].includes(getResStatus(r))).reduce((s,r)=>s+r.antall,0);
+    kpiEl.innerHTML=[
+      {label:'Aktive reservasjoner',val:aktive,color:'#92400e',bg:'#fef3c7'},
+      {label:'Planlagte',val:planlagte,color:'#2a78d6',bg:'#dbeafe'},
+      {label:'Enheter reservert',val:totAntall,color:'#15803d',bg:'#dcfce7'},
+    ].map(({label,val,color,bg})=>`<div style="background:${bg};border-radius:8px;padding:12px 16px;text-align:center">
+      <div style="font-size:11px;color:${color};font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${label}</div>
+      <div style="font-size:24px;font-weight:700;color:${color}">${val}</div>
+    </div>`).join('');
+  }
+
+  // Table
+  const tbody=document.getElementById('res-tbody');if(!tbody)return;
+  const fmtDate=d=>{if(!d)return'—';const dt=parseLD(d);return dt?`${dt.getDate().toString().padStart(2,'0')}.${(dt.getMonth()+1).toString().padStart(2,'0')}.${dt.getFullYear()}`:'—';};
+  const sorted=[...reservasjoner].sort((a,b)=>new Date(a.fromDate||0)-new Date(b.fromDate||0));
+  const statHtml=s=>{
+    const map={aktiv:'#fef3c7|#92400e|🟡 Aktiv',planlagt:'#dbeafe|#1d4ed8|📅 Planlagt',konvertert:'#dcfce7|#15803d|✅ Konvertert',utgått:'#f3f4f6|#6b7280|⏱️ Utgått'};
+    const[bg,color,txt]=((map[s])||'#f3f4f6|#6b7280|Ukjent').split('|');
+    return`<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">${txt}</span>`;
+  };
+  tbody.innerHTML=sorted.length?sorted.map(r=>{
+    const s=getResStatus(r);
+    const tcolor=RES_COLORS[r.enhetType]||'#888';
+    const canConvert=s==='aktiv'||s==='planlagt';
+    return`<tr>
+      <td><strong>${r.kunde}</strong></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${tcolor}"></span>${r.enhetType}</span></td>
+      <td style="text-align:center;font-weight:700;font-size:16px;color:${tcolor}">${r.antall}</td>
+      <td style="font-family:monospace;font-size:12px">${r.orderNr||'—'}</td>
+      <td>${fmtDate(r.fromDate)}</td>
+      <td>${fmtDate(r.toDate)}</td>
+      <td style="text-align:center">${statHtml(s)}</td>
+      <td class="muted" style="font-size:12px">${r.note||'—'}</td>
+      <td><div class="action-btns">
+        ${canConvert?`<button class="btn-icon" onclick="openKonverterModal('${r.id}')" title="Konverter til utleie" style="color:#16a34a;font-size:16px">⇄</button>`:''}
+        <button class="btn-icon" onclick="editReservasjon('${r.id}')" title="Rediger">✎</button>
+        <button class="btn-icon del" onclick="deleteReservasjon('${r.id}')" title="Slett">✕</button>
+      </div></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="9" class="empty">Ingen reservasjoner registrert</td></tr>`;
+}
+
+function openNyReservasjon(){
+  document.getElementById('res-modal-title').textContent='Ny reservasjon';
+  document.getElementById('r-edit-id').value='';
+  document.getElementById('r-kunde').value='';
+  document.getElementById('r-antall').value='1';
+  document.getElementById('r-fra').value='';
+  document.getElementById('r-til').value='';
+  document.getElementById('r-ordre').value='';
+  document.getElementById('r-note').value='';
+  document.getElementById('res-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('r-kunde').focus(),100);
+}
+
+function editReservasjon(id){
+  const r=reservasjoner.find(x=>x.id===id);if(!r)return;
+  document.getElementById('res-modal-title').textContent='Rediger reservasjon';
+  document.getElementById('r-edit-id').value=id;
+  document.getElementById('r-kunde').value=r.kunde;
+  document.getElementById('r-type').value=r.enhetType;
+  document.getElementById('r-antall').value=r.antall;
+  document.getElementById('r-fra').value=r.fromDate;
+  document.getElementById('r-til').value=r.toDate;
+  document.getElementById('r-ordre').value=r.orderNr||'';
+  document.getElementById('r-note').value=r.note||'';
+  document.getElementById('res-modal').classList.add('open');
+}
+
+function closeResModal(){document.getElementById('res-modal').classList.remove('open');}
+
+function saveReservasjon(){
+  const kunde=document.getElementById('r-kunde').value.trim();
+  const antall=parseInt(document.getElementById('r-antall').value)||1;
+  const fromDate=document.getElementById('r-fra').value;
+  const toDate=document.getElementById('r-til').value;
+  if(!kunde||!fromDate||!toDate){alert('Fyll inn kunde og datoer');return;}
+  const editId=document.getElementById('r-edit-id').value;
+  const entry={
+    id:editId||uid(),spId:null,
+    kunde,antall,
+    enhetType:document.getElementById('r-type').value,
+    orderNr:document.getElementById('r-ordre').value.trim(),
+    fromDate,toDate,
+    note:document.getElementById('r-note').value.trim(),
+    status:'aktiv'
+  };
+  const spFields={Title:kunde,EnhetType:entry.enhetType,Antall:antall,OrdreNr:entry.orderNr,FraDato:fromDate,TilDato:toDate,Note:entry.note,Status:'aktiv'};
+  closeResModal();
+  if(editId){
+    const i=reservasjoner.findIndex(r=>r.id===editId);if(i>=0)reservasjoner[i]={...reservasjoner[i],...entry};
+    const existing=reservasjoner.find(r=>r.id===editId);
+    if(existing?.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Reservasjoner',existing.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+  } else {
+    reservasjoner.push(entry);
+    setSPStatus('⏳ Lagrer…');
+    spCreate('Reservasjoner',spFields).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('opprettet',`Reservasjon: ${antall}× ${entry.enhetType} til ${kunde}`);}).catch(e=>setSPStatus('❌ '+e.message,false));
+  }
+  renderReservasjoner();renderGantt();
+}
+
+function deleteReservasjon(id){
+  if(!confirm('Slette denne reservasjonen?'))return;
+  const r=reservasjoner.find(x=>x.id===id);
+  reservasjoner=reservasjoner.filter(x=>x.id!==id);
+  renderReservasjoner();renderGantt();
+  if(r?.spId){spDelete('Reservasjoner',r.spId).catch(e=>console.error(e));}
+}
+
+// ===== KONVERTERING =====
+function openKonverterModal(resId){
+  const res=reservasjoner.find(r=>r.id===resId);if(!res)return;
+  document.getElementById('konverter-res-id').value=resId;
+  document.getElementById('konverter-info').textContent=`Velg ${res.antall} ${res.enhetType}-enhet(er) for ${res.kunde} (${res.fromDate} – ${res.toDate})`;
+  const availableUnits=units.filter(u=>u.type===res.enhetType&&getUnitStatus(u.id)==='lager');
+  const el=document.getElementById('konverter-enheter');
+  if(!availableUnits.length){
+    el.innerHTML=`<div style="background:#fee2e2;border-radius:8px;padding:14px;color:#dc2626;font-size:13px">⚠️ Ingen ledige ${res.enhetType}-enheter på lager. Registrer retur på utleide enheter først.</div>`;
+  } else {
+    el.innerHTML=`<p style="font-size:13px;color:#6b7280;margin-bottom:8px">Velg enheter (trenger ${res.antall}):</p>`+
+      availableUnits.map(u=>`<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:13px">
+        <input type="checkbox" class="konv-enhet-cb" value="${u.id}" style="width:16px;height:16px;cursor:pointer"/>
+        <div><strong>${u.name}</strong>${u.serial?`<span style="color:#9ca3af;font-family:monospace;font-size:11px;margin-left:8px">${u.serial}</span>`:''}${u.did?`<span style="color:#9ca3af;font-size:11px;margin-left:8px">DID: ${u.did}</span>`:''}</div>
+      </label>`).join('');
+  }
+  document.getElementById('konverter-modal').classList.add('open');
+}
+
+function closeKonverterModal(){document.getElementById('konverter-modal').classList.remove('open');}
+
+async function bekreftKonvertering(){
+  const resId=document.getElementById('konverter-res-id').value;
+  const res=reservasjoner.find(r=>r.id===resId);if(!res)return;
+  const checked=[...document.querySelectorAll('.konv-enhet-cb:checked')].map(cb=>cb.value);
+  if(checked.length!==res.antall){alert(`Velg nøyaktig ${res.antall} enhet(er). Du har valgt ${checked.length}.`);return;}
+  closeKonverterModal();
+  showLoading('Oppretter utleier…');
+  for(const unitId of checked){
+    const entry={id:uid(),spId:null,unitId,customer:res.kunde,orderNr:res.orderNr,fromDate:res.fromDate,toDate:res.toDate,returnDate:null,note:res.note};
+    rentals.push(entry);
+    const spF={Title:res.kunde+' '+res.fromDate,EnhetId:unitId,Kunde:res.kunde,OrdreNr:res.orderNr||'',FraDato:res.fromDate,TilDato:res.toDate,Returdato:'',Note:res.note||''};
+    const r=await spCreate('Utleie',spF).catch(e=>{console.error(e);return null;});
+    if(r){entry.spId=r.id;entry.id=`sp${r.id}`;}
+  }
+  // Merk reservasjon som konvertert
+  res.status='konvertert';
+  if(res.spId){await spUpdate('Reservasjoner',res.spId,{Status:'konvertert'}).catch(()=>{});}
+  hideLoading();
+  loggAction('endret',`Reservasjon konvertert til utleie: ${res.antall}× ${res.enhetType} → ${res.kunde}`);
+  renderReservasjoner();renderGantt();renderUtleieListe();
+  alert(`✅ ${checked.length} utleier opprettet for ${res.kunde}!`);
+}
+
+function renderGanttReservasjoner(dates,today,html2Ref){
+  // Vis reservasjoner som gul headerrad i gantt
+  const aktive=reservasjoner.filter(r=>['aktiv','planlagt'].includes(getResStatus(r))&&(utleieType==='alle'||r.enhetType===utleieType));
+  if(!aktive.length)return'';
+  let out=`<tr><td colspan="${dates.length+1}" style="padding:6px 14px;background:#fef9c3;border-top:2px solid #eda100;border-bottom:1px solid #fde68a">
+    <span style="font-size:11px;font-weight:700;color:#92400e">🟡 RESERVASJONER</span>
+  </td></tr>`;
+  aktive.forEach(res=>{
+    out+=`<tr><td class="gantt-td-unit" style="background:#fffbeb">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;flex-shrink:0">${res.antall}×</span>
+        <div>
+          <div style="font-weight:600;color:#92400e">${res.kunde}</div>
+          <div style="font-size:11px;color:#b45309">${res.enhetType}</div>
+        </div>
+      </div>
+    </td>`;
+    dates.forEach(d=>{
+      const fra=parseLD(res.fromDate);const til=parseLD(res.toDate);
+      const inRange=fra&&til&&d>=fra&&d<=til;
+      const isStart=fra&&d.getTime()===fra.getTime();
+      const isEnd=til&&d.getTime()===til.getTime();
+      const isToday=d.getTime()===today.getTime();
+      const isWeekend=d.getDay()===0||d.getDay()===6;
+      let barHtml='';
+      if(inRange){
+        const cls=isStart&&isEnd?'single':isStart?'start':isEnd?'end':'middle';
+        const label=isStart?`<span style="padding:0 4px;color:#92400e;font-size:10px;font-weight:600">${res.antall}× ${res.enhetType}</span>`:'';
+        barHtml=`<div class="gantt-bar ${cls}" style="background:#fde68a;left:${isStart?'2px':'0'};right:${isEnd?'2px':'0'};border:1px solid #eda100" title="${res.kunde}: ${res.antall}× ${res.enhetType}">${label}</div>`;
+      }
+      out+=`<td class="gantt-td-day${isToday?' today':''}${isWeekend?' weekend':''}" style="${inRange?'background:#fffbeb':''}">${barHtml}</td>`;
+    });
+    out+='</tr>';
+  });
+  return out;
+}
+
 function showUtleieView(view,btn){
-  ['kalender','liste','enheter'].forEach(v=>{
+  ['kalender','liste','enheter','reservasjoner'].forEach(v=>{
     const el=document.getElementById('utleie-'+v);
     if(el)el.style.display=v===view?'':'none';
   });
@@ -2104,6 +2357,7 @@ function showUtleieView(view,btn){
   if(view==='kalender')renderGantt();
   if(view==='liste'){renderUtleieKPI();renderUtleieListe();renderUtleieLogg();}
   if(view==='enheter')renderEnheterListe();
+  if(view==='reservasjoner')renderReservasjoner();
 }
 
 function toggleSlicFilter(p){if(slicFilters.has(p)){slicFilters.delete(p);}else{slicFilters.add(p);}renderLicSammenligning();}
@@ -2605,7 +2859,7 @@ function relinkUnit(rentalId,newUnitId){
 
 // ===== INIT =====
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();}});
 
 </script>
 </body>
