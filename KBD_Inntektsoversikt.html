@@ -2215,7 +2215,7 @@ function renderReservasjoner(){
   const fmtDate=d=>{if(!d)return'—';const dt=parseLD(d);return dt?`${dt.getDate().toString().padStart(2,'0')}.${(dt.getMonth()+1).toString().padStart(2,'0')}.${dt.getFullYear()}`:'—';};
   const sorted=[...reservasjoner].sort((a,b)=>new Date(a.fromDate||0)-new Date(b.fromDate||0));
   const statHtml=s=>{
-    const map={aktiv:'#fef3c7|#92400e|🟡 Aktiv',planlagt:'#dbeafe|#1d4ed8|📅 Planlagt',konvertert:'#dcfce7|#15803d|✅ Konvertert',utgått:'#f3f4f6|#6b7280|⏱️ Utgått'};
+    const map={aktiv:'#fef3c7|#92400e|🟡 Reservert',planlagt:'#dbeafe|#1d4ed8|📅 Planlagt',konvertert:'#dcfce7|#15803d|✅ Konvertert',utgått:'#f3f4f6|#6b7280|⏱️ Utgått'};
     const[bg,color,txt]=((map[s])||'#f3f4f6|#6b7280|Ukjent').split('|');
     return`<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">${txt}</span>`;
   };
