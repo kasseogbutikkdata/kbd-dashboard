@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.5 · Oppdatert: 13. aug 2026 kl. 17:00</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.6 · Oppdatert: 14. aug 2026 kl. 07:47</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -383,7 +383,7 @@ tr:hover td{background:#fafafa}
             <button class="fpill" id="utype-term" onclick="setUtleieType('Betalingsterminal')"><span class="fpill-dot" style="background:#1baf7a"></span>Betalingsterminaler</button>
             <button class="fpill" id="utype-service" onclick="setUtleieType('Service/Rep')"><span class="fpill-dot" style="background:#4a3aa7"></span>Service/Rep</button>
           </div>
-          <button class="prim" onclick="openNyUtleieModal()">+ Ny utleie</button>
+          <button class="prim editor-only" onclick="openNyUtleieModal()">+ Ny utleie</button>
         </div>
 
     <!-- KALENDER -->
@@ -450,7 +450,7 @@ tr:hover td{background:#fafafa}
     <div id="utleie-reservasjoner" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div id="res-kpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1;margin-right:16px"></div>
-        <button class="prim" onclick="openNyReservasjon()">+ Ny reservasjon</button>
+        <button class="prim editor-only" onclick="openNyReservasjon()">+ Ny reservasjon</button>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -473,9 +473,9 @@ tr:hover td{background:#fafafa}
     <!-- ENHETER -->
     <div id="utleie-enheter" style="display:none">
       <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-        <button class="btn-sm" onclick="loadUtleieData().then(()=>{renderEnheterListe();setSPStatus('✅ Data oppdatert');setTimeout(()=>setSPStatus(''),3000);})">🔄 Hent fra SharePoint</button>
+        <button class="btn-sm editor-only" onclick="loadUtleieData().then(()=>{renderEnheterListe();setSPStatus('✅ Data oppdatert');setTimeout(()=>setSPStatus(''),3000);})">🔄 Hent fra SharePoint</button>
       </div>
-      <div class="card" style="margin-bottom:20px">
+      <div class="card editor-only" style="margin-bottom:20px">
         <div class="card-title">Legg til enhet</div>
         <div class="fg" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:8px">
           <div class="fgrp"><label>Navn/ID</label><input type="text" id="enhet-navn" placeholder="f.eks. Telpo M1 #3"/></div>
@@ -699,7 +699,7 @@ tr:hover td{background:#fafafa}
       <div class="card admin-only" style="grid-column:1/-1;margin-bottom:0;display:none" id="brukere-card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="card-title" style="margin:0">👥 Brukertilgang</div>
-          <button class="prim" onclick="openNyBruker()" style="font-size:13px">+ Legg til bruker</button>
+          <button class="prim editor-only" onclick="openNyBruker()" style="font-size:13px">+ Legg til bruker</button>
         </div>
         <p style="font-size:13px;color:#6b7280;margin-bottom:16px">Styr hvilke moduler hver bruker har tilgang til. Administratorer har alltid full tilgang.</p>
         <div id="brukere-liste"></div>
