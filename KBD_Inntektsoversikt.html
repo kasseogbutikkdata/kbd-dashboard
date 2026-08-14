@@ -140,7 +140,7 @@ tr:hover td{background:#fafafa}
 .nav-item-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0;opacity:.7}
 .nav-item.active .nav-item-icon{opacity:1}
 .nav-sub{overflow:hidden;max-height:0;transition:max-height .2s ease}
-.nav-sub.open{max-height:200px}
+.nav-sub.open{max-height:260px}
 .nav-sub-item{display:flex;align-items:center;gap:8px;padding:8px 16px 8px 36px;cursor:pointer;font-size:12px;font-weight:500;color:#6b7280;border-left:3px solid transparent;transition:all .1s}
 .nav-sub-item:hover{background:#f9fafb;color:#374151}
 .nav-sub-item.active{color:#1A3A6B;font-weight:600;border-left-color:#93c5fd;background:#f0f4ff}
@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.14 · Oppdatert: 14. aug 2026 kl. 16:38</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.5.0 · Oppdatert: 14. aug 2026 kl. 16:46</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -297,10 +297,18 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="usub-reservasjoner" onclick="showUtleieView('reservasjoner',this)">🟡 Reservasjoner</div>
       </div>
       <div class="sidebar-divider"></div>
-      <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this)">
+      <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
         <span class="nav-item-icon">⚙️</span>Innstillinger
       </div>
+      <div class="nav-sub" id="innstillinger-sub-nav">
+        <div class="nav-sub-item admin-only" id="isub-brukertilgang" style="display:none" onclick="showInnstillingerView('brukertilgang',this)">👥 Brukertilgang</div>
+        <div class="nav-sub-item" id="isub-produkter" onclick="showInnstillingerView('produkter',this)">🏷️ Produkter</div>
+        <div class="nav-sub-item" id="isub-kickback" onclick="showInnstillingerView('kickback',this)">💳 Kickback-kilder</div>
+        <div class="nav-sub-item" id="isub-dataimport" onclick="showInnstillingerView('dataimport',this)">📥 Dataimport</div>
+        <div class="nav-sub-item" id="isub-farlig" onclick="showInnstillingerView('farlig',this)">⚠️ Farlige handlinger</div>
+      </div>
     </div>
+
     <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);margin-top:auto">
       <span id="refresh-status" style="font-size:11px;color:#9ca3af;transition:opacity .5s" title="Sist oppdatert fra SharePoint">🔄 —</span>
     </div>
@@ -665,6 +673,7 @@ tr:hover td{background:#fafafa}
 
   <!-- INNSTILLINGER -->
   <div id="tp-innstillinger" class="tp">
+    <div id="innst-produkter">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
       <div class="card">
         <div class="card-title">🏷️ Produkter (lisenser)</div>
@@ -675,6 +684,10 @@ tr:hover td{background:#fafafa}
           <button class="prim" onclick="addProduct()">+ Legg til</button>
         </div>
       </div>
+    </div>
+    </div>
+    <div id="innst-kickback">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
       <div class="card">
         <div class="card-title">💳 Kickback-kilder</div>
         <p style="font-size:13px;color:#6b7280;margin-bottom:14px">Administrer kickback-kilder og fakturafrekvens.</p>
@@ -686,6 +699,8 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
     </div>
+    </div>
+    <div id="innst-dataimport">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
       <div class="card">
         <div class="card-title">📥 Dataimport</div>
@@ -695,8 +710,11 @@ tr:hover td{background:#fafafa}
           <input type="file" id="backup-input" accept=".json" style="display:none" onchange="importLocalBackup(event)"/>
         </div>
       </div>
+    </div>
+    </div>
+    <div id="innst-brukertilgang">
       <!-- BRUKERTILGANG (kun admin) -->
-      <div class="card admin-only" style="grid-column:1/-1;margin-bottom:0;display:none" id="brukere-card">
+      <div class="card admin-only" style="margin-bottom:0;display:none" id="brukere-card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="card-title" style="margin:0">👥 Brukertilgang</div>
           <button class="prim editor-only" onclick="openNyBruker()" style="font-size:13px">+ Legg til bruker</button>
@@ -721,7 +739,8 @@ tr:hover td{background:#fafafa}
           </div>
         </div>
       </div>
-
+    </div>
+    <div id="innst-farlig">
       <div class="card" style="border-left:3px solid #dc2626">
         <div class="card-title" style="color:#dc2626">⚠️ Farlige handlinger</div>
         <p style="font-size:13px;color:#6b7280;margin-bottom:12px">Disse handlingene kan ikke angres. Bruk med forsiktighet.</p>
@@ -1101,7 +1120,7 @@ async function loadDataFromSP(){
   // Vis oppdateringstidspunkt umiddelbart
   const rsEl=document.getElementById('refresh-status');
   if(rsEl){const n=new Date();rsEl.textContent=`🔄 ${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')};`}
-  if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';}
+  if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='none';}
 }
 
 async function seedProductsToSP(){
@@ -1661,13 +1680,14 @@ function showTab(name,btn){
   toggleUtleieSub(name==='utleie');
   toggleLisenserSub(name==='lisenser'||name==='sammenligning');
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
+  toggleInnstillingerSub(name==='innstillinger');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
   if(name==='kicksammenligning'){renderKickSammenligning();}
   if(name==='oversikt'){renderTrend();renderKPIs();}
   if(name==='aldersfordelt')renderAging();
-  if(name==='innstillinger')renderSettings();
+  if(name==='innstillinger'){renderSettings();showInnstillingerView(userRole==='admin'?'brukertilgang':'produkter');}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
@@ -1690,6 +1710,22 @@ function setLisenserSubActive(view){
 function toggleKickbackSub(open){
   const sub=document.getElementById('kickback-sub-nav');
   if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function toggleInnstillingerSub(open){
+  const sub=document.getElementById('innstillinger-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function showInnstillingerView(view,btn){
+  ['brukertilgang','produkter','kickback','dataimport','farlig'].forEach(v=>{
+    const el=document.getElementById('innst-'+v);
+    if(el)el.style.display=v===view?'':'none';
+  });
+  document.querySelectorAll('#innstillinger-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const subBtn=btn||document.getElementById('isub-'+view);
+  if(subBtn)subBtn.classList.add('active');
+  toggleInnstillingerSub(true);
 }
 
 function showKickbackView(view){
