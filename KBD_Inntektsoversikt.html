@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.8 · Oppdatert: 14. aug 2026 kl. 16:06</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.9 · Oppdatert: 14. aug 2026 kl. 16:12</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1869,9 +1869,18 @@ function saveEnhetEdit(){
   if(!u.name){alert('Navn/ID kan ikke være tomt');return;}
   closeEnhetModal();
   renderEnheterListe();refreshEnhetSelect();
+  const spFields={Title:u.name,EnhetType:u.type,Serienr:u.serial,DID:u.did||'',Note:u.note};
+  setSPStatus('⏳ Oppdaterer…');
   if(u.spId){
-    setSPStatus('⏳ Oppdaterer…');
-    spUpdate('Enheter',u.spId,{Title:u.name,EnhetType:u.type,Serienr:u.serial,DID:u.did||'',Note:u.note}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>setSPStatus('❌ '+e.message,false));
+    spUpdate('Enheter',u.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
+  } else {
+    // Manglet spId (f.eks. eldre enhet aldri koblet til SharePoint) — opprett den nå
+    spCreate('Enheter',spFields).then(r=>{
+      u.spId=r.id;u.id=`sp${r.id}`;
+      document.getElementById('em-edit-id').value=u.id;
+      setSPStatus('✅ Lagret (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);
+      renderEnheterListe();refreshEnhetSelect();
+    }).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Enheten manglet SharePoint-kobling og kunne ikke opprettes:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
   }
 }
 
