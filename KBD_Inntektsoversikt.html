@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.10 · Oppdatert: 14. aug 2026 kl. 16:16</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.11 · Oppdatert: 14. aug 2026 kl. 16:23</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2684,7 +2684,9 @@ async function loadUtleieData(){
   try{
     const[uItems,rItems]=await Promise.all([spGetItems('Enheter'),spGetItems('Utleie')]);
     console.log(`SP Enheter: ${uItems.length} enheter, SP Utleie: ${rItems.length} utleier`);
-    if(uItems[0])console.log('🔍 DEBUG - felt tilgjengelig på Enheter-listen:',Object.keys(uItems[0].fields),uItems[0].fields);
+    if(uItems[0])console.log('🔍 DEBUG - felt tilgjengelig på Enheter-listen (første enhet):',Object.keys(uItems[0].fields),uItems[0].fields);
+    const debugItem=uItems.find(i=>(i.fields.Title||'').includes('18'));
+    if(debugItem)console.log('🔍 DEBUG - felt for enhet som inneholder "18":',debugItem.fields.Title,Object.keys(debugItem.fields),debugItem.fields);
     if(uItems.length>0||rItems.length>0){
       units=uItems.map(i=>({id:`sp${i.id}`,spId:i.id,name:i.fields.Title||'',type:i.fields.EnhetType||'',serial:i.fields.Serienr||'',note:i.fields.Note||''}));
       const unitIdSet=new Set(units.map(u=>u.id));
