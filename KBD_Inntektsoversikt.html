@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.13 · Oppdatert: 14. aug 2026 kl. 16:31</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.14 · Oppdatert: 14. aug 2026 kl. 16:38</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1761,18 +1761,26 @@ function saveUtleie(){
   const toDate=document.getElementById('u-til').value;
   if(!unitId||!customer||!fromDate||!toDate){alert('Fyll inn enhet, kunde og datoer');return;}
   const editId=document.getElementById('u-edit-id').value;
+  const existing=editId?rentals.find(r=>r.id===editId):null;
   const entry={
     id:editId||uid(),unitId,customer,
     orderNr:document.getElementById('u-ordre').value.trim(),
     fromDate,toDate,
     returnDate:document.getElementById('u-retur').value||null,
-    note:document.getElementById('u-note').value.trim()
+    note:document.getElementById('u-note').value.trim(),
+    spId:existing?existing.spId:null
   };
   const spFields={Title:customer+' '+fromDate,EnhetId:unitId,Kunde:customer,OrdreNr:entry.orderNr||'',FraDato:fromDate,TilDato:toDate,Returdato:entry.returnDate||'',Note:entry.note||''};
+  console.log('🔍 DEBUG - sender til SharePoint (Utleie):',spFields,'spId:',entry.spId);
   closeUtleieModal();
   if(editId){
     const i=rentals.findIndex(r=>r.id===editId);if(i>=0)rentals[i]=entry;
-    if(entry.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Utleie',entry.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Endret utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+    if(entry.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Utleie',entry.spId,spFields).then((r)=>{console.log('🔍 DEBUG - svar fra spUpdate (Utleie):',r);setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Endret utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
+    } else {
+      // Manglet spId — opprett i SharePoint nå i stedet for å hoppe over lagring
+      setSPStatus('⏳ Lagrer…');
+      spCreate('Utleie',spFields).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Endret utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Utleien manglet SharePoint-kobling og kunne ikke opprettes:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
+    }
   } else {
     entry.spId=null;
     rentals.push(entry);
@@ -1870,10 +1878,9 @@ function saveEnhetEdit(){
   closeEnhetModal();
   renderEnheterListe();refreshEnhetSelect();
   const spFields={Title:u.name,EnhetType:u.type,Serienr:u.serial,DID:u.did||'',Note:u.note};
-  console.log('🔍 DEBUG - sender til SharePoint (Enheter):',spFields);
   setSPStatus('⏳ Oppdaterer…');
   if(u.spId){
-    spUpdate('Enheter',u.spId,spFields).then((r)=>{console.log('🔍 DEBUG - svar fra spUpdate:',r);setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
+    spUpdate('Enheter',u.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
   } else {
     // Manglet spId (f.eks. eldre enhet aldri koblet til SharePoint) — opprett den nå
     spCreate('Enheter',spFields).then(r=>{
@@ -2685,13 +2692,6 @@ async function loadUtleieData(){
     const[uItems,rItems]=await Promise.all([spGetItems('Enheter'),spGetItems('Utleie')]);
     console.log(`SP Enheter: ${uItems.length} enheter, SP Utleie: ${rItems.length} utleier`);
     if(uItems[0])console.log('🔍 DEBUG - felt tilgjengelig på Enheter-listen (første enhet):',Object.keys(uItems[0].fields),uItems[0].fields);
-    const debugItem=uItems.find(i=>(i.fields.Title||'').includes('18'));
-    if(debugItem)console.log('🔍 DEBUG - felt for enhet som inneholder "18":',debugItem.fields.Title,Object.keys(debugItem.fields),debugItem.fields);
-    // Engangs-sjekk: hent faktiske kolonnedefinisjoner (internt navn vs visningsnavn) for Enheter-listen
-    graphReq(`sites/${siteId}/lists/Enheter/columns`).then(colData=>{
-      const relevant=(colData.value||[]).filter(c=>['Serienr','DID','Note','Notat','Serial'].includes(c.name)||['Serienr','DID','Note','Notat','Serial'].includes(c.displayName));
-      console.log('🔍 DEBUG - kolonnedefinisjoner (internt navn vs visningsnavn):',JSON.stringify(relevant.map(c=>({internName:c.name,visningsnavn:c.displayName})),null,2));
-    }).catch(e=>console.log('🔍 DEBUG - kunne ikke hente kolonner:',e.message));
     if(uItems.length>0||rItems.length>0){
       units=uItems.map(i=>({id:`sp${i.id}`,spId:i.id,name:i.fields.Title||'',type:i.fields.EnhetType||'',serial:i.fields.Serienr||'',note:i.fields.Note||''}));
       const unitIdSet=new Set(units.map(u=>u.id));
