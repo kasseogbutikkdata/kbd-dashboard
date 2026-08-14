@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.6 · Oppdatert: 14. aug 2026 kl. 07:47</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.7 · Oppdatert: 14. aug 2026 kl. 16:02</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1713,9 +1713,14 @@ function ganttPrev(){ganttStart=new Date(ganttStart.getFullYear(),ganttStart.get
 function ganttNext(){ganttStart=new Date(ganttStart.getFullYear(),ganttStart.getMonth()+1,1);renderGantt();}
 function ganttToday(){const d=new Date();ganttStart=new Date(d.getFullYear(),d.getMonth(),1);renderGantt();}
 
-function refreshEnhetSelect(){
+function refreshEnhetSelect(currentUnitId){
   const sel=document.getElementById('u-enhet');
-  if(sel)sel.innerHTML=units.map(u=>`<option value="${u.id}">${u.name} (${u.type})</option>`).join('');
+  if(!sel)return;
+  const visible=units.filter(u=>getUnitStatus(u.id)==='lager'||u.id===currentUnitId);
+  sel.innerHTML=visible.map(u=>{
+    const paUtleie=getUnitStatus(u.id)==='utleie';
+    return `<option value="${u.id}">${u.name} (${u.type})${paUtleie?' — På utleie (nåværende)':''}</option>`;
+  }).join('');
 }
 
 function openNyUtleieModal(){
@@ -1741,7 +1746,7 @@ function editUtleie(id){
   document.getElementById('u-til').value=r.toDate;
   document.getElementById('u-retur').value=r.returnDate||'';
   document.getElementById('u-note').value=r.note||'';
-  refreshEnhetSelect();
+  refreshEnhetSelect(r.unitId);
   document.getElementById('u-enhet').value=r.unitId;
   document.getElementById('utleie-modal').classList.add('open');
 }
