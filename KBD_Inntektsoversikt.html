@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.11 · Oppdatert: 14. aug 2026 kl. 16:23</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.4.12 · Oppdatert: 14. aug 2026 kl. 16:28</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2687,6 +2687,11 @@ async function loadUtleieData(){
     if(uItems[0])console.log('🔍 DEBUG - felt tilgjengelig på Enheter-listen (første enhet):',Object.keys(uItems[0].fields),uItems[0].fields);
     const debugItem=uItems.find(i=>(i.fields.Title||'').includes('18'));
     if(debugItem)console.log('🔍 DEBUG - felt for enhet som inneholder "18":',debugItem.fields.Title,Object.keys(debugItem.fields),debugItem.fields);
+    // Engangs-sjekk: hent faktiske kolonnedefinisjoner (internt navn vs visningsnavn) for Enheter-listen
+    graphReq(`sites/${siteId}/lists/Enheter/columns`).then(colData=>{
+      const relevant=(colData.value||[]).filter(c=>['Serienr','DID','Note','Notat','Serial'].includes(c.name)||['Serienr','DID','Note','Notat','Serial'].includes(c.displayName));
+      console.log('🔍 DEBUG - kolonnedefinisjoner (internt navn vs visningsnavn):',relevant.map(c=>({internName:c.name,visningsnavn:c.displayName})));
+    }).catch(e=>console.log('🔍 DEBUG - kunne ikke hente kolonner:',e.message));
     if(uItems.length>0||rItems.length>0){
       units=uItems.map(i=>({id:`sp${i.id}`,spId:i.id,name:i.fields.Title||'',type:i.fields.EnhetType||'',serial:i.fields.Serienr||'',note:i.fields.Note||''}));
       const unitIdSet=new Set(units.map(u=>u.id));
