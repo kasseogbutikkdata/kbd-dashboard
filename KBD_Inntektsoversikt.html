@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.6.6 · Oppdatert: 15. aug 2026 kl. 08:39</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.7.0 · Oppdatert: 15. aug 2026 kl. 16:27</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -398,6 +398,17 @@ tr:hover td{background:#fafafa}
 
     <!-- KALENDER -->
     <div id="utleie-kalender">
+      <div class="gantt-wrap" style="margin-bottom:16px">
+        <div class="gantt-nav" style="justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="gantt-nav-btn" onclick="moPrevYear()">◀</button>
+            <div class="gantt-nav-title" id="mo-year-title" style="min-width:50px;text-align:center"></div>
+            <button class="gantt-nav-btn" onclick="moNextYear()">▶</button>
+          </div>
+          <span style="font-size:11px;color:#9ca3af;font-weight:600">📅 Månedsoversikt — klikk for å hoppe til måned</span>
+        </div>
+        <div id="month-overview-grid" style="display:grid;grid-template-columns:repeat(12,minmax(60px,1fr));gap:8px;padding:14px;overflow-x:auto"></div>
+      </div>
       <div class="gantt-wrap">
         <div class="gantt-nav">
           <button class="gantt-nav-btn" onclick="ganttPrev()">◀</button>
@@ -891,7 +902,7 @@ const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34
 
 // ===== STATE =====
 let lic=[],kick=[],products=[],sources=[],aging=[],isSeed=false,charts={};
-let units=[],rentals=[],reservasjoner=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle';
+let units=[],rentals=[],reservasjoner=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle',moYear=new Date().getFullYear();
 let utleieSort={col:null,dir:'asc'};
 let ganttSort={col:'enhet',dir:'asc'};
 let enheterSort={col:'type',dir:'asc'};
@@ -1758,9 +1769,57 @@ function showKickbackView(view){
 }
 
 // ===== UTLEIE ACTIONS =====
-function ganttPrev(){ganttStart=new Date(ganttStart.getFullYear(),ganttStart.getMonth()-1,1);renderGantt();}
-function ganttNext(){ganttStart=new Date(ganttStart.getFullYear(),ganttStart.getMonth()+1,1);renderGantt();}
-function ganttToday(){const d=new Date();ganttStart=new Date(d.getFullYear(),d.getMonth(),1);renderGantt();}
+function ganttPrev(){ganttStart=new Date(ganttStart.getFullYear(),ganttStart.getMonth()-1,1);moYear=ganttStart.getFullYear();renderGantt();renderMonthOverview();}
+function ganttNext(){ganttStart=new Date(ganttStart.getFullYear(),ganttStart.getMonth()+1,1);moYear=ganttStart.getFullYear();renderGantt();renderMonthOverview();}
+function ganttToday(){const d=new Date();ganttStart=new Date(d.getFullYear(),d.getMonth(),1);moYear=d.getFullYear();renderGantt();renderMonthOverview();}
+
+function moPrevYear(){moYear--;renderMonthOverview();}
+function moNextYear(){moYear++;renderMonthOverview();}
+function moSelectMonth(monthIdx){ganttStart=new Date(moYear,monthIdx,1);renderGantt();renderMonthOverview();}
+
+function renderMonthOverview(){
+  const yearTitleEl=document.getElementById('mo-year-title');
+  if(yearTitleEl)yearTitleEl.textContent=moYear;
+  const gridEl=document.getElementById('month-overview-grid');
+  if(!gridEl)return;
+  const totalUnits=units.length||1;
+  const today=new Date();today.setHours(0,0,0,0);
+  const monthNames=['Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'];
+  let html='';
+  for(let m=0;m<12;m++){
+    const monthStart=new Date(moYear,m,1);
+    const daysInMonth=new Date(moYear,m+1,0).getDate();
+    let occupiedDaySum=0,aktiveSet=new Set(),nyeCount=0,returnertCount=0;
+    for(let d=1;d<=daysInMonth;d++){
+      const day=new Date(moYear,m,d);
+      let occupiedToday=new Set();
+      rentals.forEach(r=>{
+        const fra=parseLD(r.fromDate);const til=parseLD(r.toDate);
+        if(!fra||!til)return;
+        const effEnd=r.returnDate?(parseLD(r.returnDate)||til):til;
+        if(fra<=day&&day<=effEnd){occupiedToday.add(r.unitId);aktiveSet.add(r.id);}
+      });
+      occupiedDaySum+=occupiedToday.size;
+    }
+    rentals.forEach(r=>{
+      const fra=parseLD(r.fromDate);
+      if(fra&&fra.getFullYear()===moYear&&fra.getMonth()===m)nyeCount++;
+      const ret=r.returnDate?parseLD(r.returnDate):null;
+      if(ret&&ret.getFullYear()===moYear&&ret.getMonth()===m)returnertCount++;
+    });
+    const belegg=Math.round((occupiedDaySum/(daysInMonth*totalUnits))*100);
+    const beleggColor=belegg>=70?'#dc2626':belegg>=40?'#eda100':'#15803d';
+    const isCurrentGanttMonth=ganttStart.getFullYear()===moYear&&ganttStart.getMonth()===m;
+    const isThisMonth=today.getFullYear()===moYear&&today.getMonth()===m;
+    html+=`<div onclick="moSelectMonth(${m})" style="cursor:pointer;background:${isCurrentGanttMonth?'#eef2ff':'#f9fafb'};border:1.5px solid ${isCurrentGanttMonth?'#1A3A6B':'#e5e7eb'};border-radius:8px;padding:8px 6px;text-align:center;transition:all .1s" onmouseover="this.style.borderColor='#1A3A6B'" onmouseout="this.style.borderColor='${isCurrentGanttMonth?'#1A3A6B':'#e5e7eb'}'">
+      <div style="font-size:11px;font-weight:700;color:${isThisMonth?'#1A3A6B':'#6b7280'};margin-bottom:4px">${monthNames[m]}${isThisMonth?' •':''}</div>
+      <div style="font-size:18px;font-weight:700;color:${beleggColor}">${belegg}%</div>
+      <div style="font-size:9px;color:#9ca3af;margin-top:2px">${aktiveSet.size} aktive</div>
+      <div style="font-size:9px;color:#9ca3af">+${nyeCount} ny</div>
+    </div>`;
+  }
+  gridEl.innerHTML=html;
+}
 
 function refreshEnhetSelect(currentUnitId){
   const sel=document.getElementById('u-enhet');
@@ -2554,7 +2613,7 @@ function showUtleieView(view,btn){
   document.querySelectorAll('.nav-sub-item').forEach(b=>b.classList.remove('active'));
   const subBtn2=document.getElementById('usub-'+view);
   if(subBtn2)subBtn2.classList.add('active');
-  if(view==='kalender')renderGantt();
+  if(view==='kalender'){renderGantt();renderMonthOverview();}
   if(view==='liste'){renderUtleieKPI();renderUtleieListe();}
   if(view==='enheter')renderEnheterListe();
   if(view==='reservasjoner')renderReservasjoner();
