@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.6.3 · Oppdatert: 15. aug 2026 kl. 08:14</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.6.4 · Oppdatert: 15. aug 2026 kl. 08:18</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 
   <!-- UTLEIE -->
   <div id="tp-utleie" class="tp">
-      <div class="utleie-content-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="utleie-content-header" id="utleie-content-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <div class="utleie-type-pills" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
             <span class="filter-lbl">Type:</span>
             <button class="fpill f-on" id="utype-alle" style="border-color:#1A3A6B" onclick="setUtleieType('alle')"><span style="font-weight:600;color:#1A3A6B">Alle</span></button>
@@ -2548,6 +2548,8 @@ function showUtleieView(view,btn){
   });
   const loggEl=document.getElementById('utleie-logg-view');
   if(loggEl)loggEl.style.display=view==='logg'?'':'none';
+  const headerEl=document.getElementById('utleie-content-header');
+  if(headerEl)headerEl.style.display=view==='logg'?'none':'flex';
   document.querySelectorAll('.nav-sub-item').forEach(b=>b.classList.remove('active'));
   const subBtn2=document.getElementById('usub-'+view);
   if(subBtn2)subBtn2.classList.add('active');
