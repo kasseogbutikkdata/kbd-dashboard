@@ -253,7 +253,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.5.0 · Oppdatert: 14. aug 2026 kl. 16:46</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.5.1 · Oppdatert: 15. aug 2026 kl. 07:50</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1519,7 +1519,15 @@ const AGING_KEYS=['d1_30','d31_60','d61_90','d90plus'];
 const AGING_LABELS=['1–30 dager','31–60 dager','61–90 dager','Over 90 dager'];
 const AGING_COLORS=['#1baf7a','#eda100','#eb6834','#dc2626'];
 
-function parseLD(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function parseLD(s){
+  if(!s)return null;
+  // Håndter både rent "YYYY-MM-DD" og fulle ISO-datotider fra SharePoint ("YYYY-MM-DDTHH:mm:ssZ")
+  const datePart=String(s).split('T')[0];
+  const[y,m,d]=datePart.split('-').map(Number);
+  if(!y||!m||!d)return null;
+  const dt=new Date(y,m-1,d);
+  return isNaN(dt.getTime())?null:dt;
+}
 function fDateShort(s){if(!s)return'';const d=parseLD(s);return d?`${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`:''}
 
 function toggleAgingFilter(k){
