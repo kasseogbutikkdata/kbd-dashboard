@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.7.2 · Oppdatert: 15. aug 2026 kl. 16:40</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.7.3 · Oppdatert: 15. aug 2026 kl. 16:44</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1866,6 +1866,18 @@ function jumpToUtleieRow(rentalId){
   },60);
 }
 
+function jumpToReservasjonRow(resId){
+  showUtleieView('reservasjoner',document.getElementById('usub-reservasjoner'));
+  setTimeout(()=>{
+    const row=document.getElementById('resrow-'+resId);
+    if(!row)return;
+    row.scrollIntoView({behavior:'smooth',block:'center'});
+    row.style.transition='background-color 1.6s ease';
+    row.style.backgroundColor='#fef3c7';
+    setTimeout(()=>{row.style.backgroundColor='';},1700);
+  },60);
+}
+
 function editUtleie(id){
   const r=rentals.find(x=>x.id===id);if(!r)return;
   document.getElementById('utleie-modal-title').textContent='Rediger utleie';
@@ -2434,7 +2446,7 @@ function renderReservasjoner(){
     const s=getResStatus(r);
     const tcolor=RES_COLORS[r.enhetType]||'#888';
     const canConvert=s==='aktiv'||s==='planlagt';
-    return`<tr>
+    return`<tr id="resrow-${r.id}">
       <td><strong style="white-space:nowrap">${r.kunde}</strong></td>
       <td><span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:${tcolor};flex-shrink:0"></span>${r.enhetType}</span></td>
       <td style="text-align:center;font-weight:700;font-size:16px;color:${tcolor}">${r.antall}</td>
@@ -2613,7 +2625,7 @@ function renderGanttReservasjoner(dates,today,html2Ref){
       if(inRange){
         const cls=isStart&&isEnd?'single':isStart?'start':isEnd?'end':'middle';
         const label=isStart?`<span style="padding:0 4px;color:#92400e;font-size:10px;font-weight:600">${res.antall}× ${res.enhetType}</span>`:'';
-        barHtml=`<div class="gantt-bar ${cls}" style="background:#fde68a;left:${isStart?'2px':'0'};right:${isEnd?'2px':'0'};border:1px solid #eda100" title="${res.kunde}: ${res.antall}× ${res.enhetType}">${label}</div>`;
+        barHtml=`<div class="gantt-bar ${cls}" style="background:#fde68a;left:${isStart?'2px':'0'};right:${isEnd?'2px':'0'};border:1px solid #eda100" title="${res.kunde}: ${res.antall}× ${res.enhetType} — klikk for å åpne i Reservasjoner" onclick="jumpToReservasjonRow('${res.id}')">${label}</div>`;
       }
       out+=`<td class="gantt-td-day${isToday?' today':''}${isWeekend?' weekend':''}" style="${inRange?'background:#fffbeb':''}">${barHtml}</td>`;
     });
