@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.6.4 · Oppdatert: 15. aug 2026 kl. 08:18</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.6.5 · Oppdatert: 15. aug 2026 kl. 08:21</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2107,7 +2107,7 @@ function setUtleieType(t){
     const el=document.getElementById(id);if(!el)return;
     const on=t===x;el.className='fpill'+(on?' f-on':'');el.style.borderColor=on?'#1A3A6B':'';
   });
-  renderGantt();renderUtleieListe();renderEnheterListe();
+  renderGantt();renderUtleieListe();renderEnheterListe();renderReservasjoner();
 }
 
 function renderUtleieListe(){
@@ -2324,12 +2324,13 @@ function getResStatus(r){
 }
 
 function renderReservasjoner(){
+  const filtRes=reservasjoner.filter(r=>utleieType==='alle'||r.enhetType===utleieType);
   // KPI
   const kpiEl=document.getElementById('res-kpi');
   if(kpiEl){
-    const aktive=reservasjoner.filter(r=>getResStatus(r)==='aktiv').length;
-    const planlagte=reservasjoner.filter(r=>getResStatus(r)==='planlagt').length;
-    const totAntall=reservasjoner.filter(r=>['aktiv','planlagt'].includes(getResStatus(r))).reduce((s,r)=>s+r.antall,0);
+    const aktive=filtRes.filter(r=>getResStatus(r)==='aktiv').length;
+    const planlagte=filtRes.filter(r=>getResStatus(r)==='planlagt').length;
+    const totAntall=filtRes.filter(r=>['aktiv','planlagt'].includes(getResStatus(r))).reduce((s,r)=>s+r.antall,0);
     kpiEl.innerHTML=[
       {label:'Aktive reservasjoner',val:aktive,color:'#92400e',bg:'#fef3c7'},
       {label:'Planlagte',val:planlagte,color:'#2a78d6',bg:'#dbeafe'},
@@ -2343,7 +2344,7 @@ function renderReservasjoner(){
   // Table
   const tbody=document.getElementById('res-tbody');if(!tbody)return;
   const fmtDate=d=>{if(!d)return'—';const dt=parseLD(d);return dt?`${dt.getDate().toString().padStart(2,'0')}.${(dt.getMonth()+1).toString().padStart(2,'0')}.${dt.getFullYear()}`:'—';};
-  const sorted=[...reservasjoner].sort((a,b)=>new Date(a.fromDate||0)-new Date(b.fromDate||0));
+  const sorted=[...filtRes].sort((a,b)=>new Date(a.fromDate||0)-new Date(b.fromDate||0));
   const statHtml=s=>{
     const map={aktiv:'#fef3c7|#92400e|🟡 Reservert',planlagt:'#dbeafe|#1d4ed8|📅 Planlagt',konvertert:'#dcfce7|#15803d|✅ Konvertert',utgått:'#f3f4f6|#6b7280|⏱️ Utgått'};
     const[bg,color,txt]=((map[s])||'#f3f4f6|#6b7280|Ukjent').split('|');
