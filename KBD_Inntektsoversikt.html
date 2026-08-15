@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.6.0 · Oppdatert: 15. aug 2026 kl. 08:01</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.6.1 · Oppdatert: 15. aug 2026 kl. 08:07</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -296,6 +296,7 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="usub-liste" onclick="showUtleieView('liste',this)">📋 Utleieoversikt</div>
         <div class="nav-sub-item" id="usub-enheter" onclick="showUtleieView('enheter',this)">🔧 Enheter</div>
         <div class="nav-sub-item" id="usub-reservasjoner" onclick="showUtleieView('reservasjoner',this)">🟡 Reservasjoner</div>
+        <div class="nav-sub-item" id="usub-logg" onclick="showUtleieView('logg',this)">📋 Logg</div>
       </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
@@ -446,8 +447,10 @@ tr:hover td{background:#fafafa}
           <tbody id="utleie-tbody"></tbody>
         </table>
       </div>
+    </div>
 
-      <!-- AKTIVITETSLOGG -->
+    <!-- LOGG -->
+    <div id="utleie-logg-view" style="display:none">
       <div style="margin-top:8px">
         <div style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📋 Aktivitetslogg</div>
         <div id="utleie-logg" style="background:white;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden">
@@ -2543,13 +2546,16 @@ function showUtleieView(view,btn){
     const el=document.getElementById('utleie-'+v);
     if(el)el.style.display=v===view?'':'none';
   });
+  const loggEl=document.getElementById('utleie-logg-view');
+  if(loggEl)loggEl.style.display=view==='logg'?'':'none';
   document.querySelectorAll('.nav-sub-item').forEach(b=>b.classList.remove('active'));
   const subBtn2=document.getElementById('usub-'+view);
   if(subBtn2)subBtn2.classList.add('active');
   if(view==='kalender')renderGantt();
-  if(view==='liste'){renderUtleieKPI();renderUtleieListe();renderUtleieLogg();}
+  if(view==='liste'){renderUtleieKPI();renderUtleieListe();}
   if(view==='enheter')renderEnheterListe();
   if(view==='reservasjoner')renderReservasjoner();
+  if(view==='logg')renderUtleieLogg();
 }
 
 function toggleSlicFilter(p){if(slicFilters.has(p)){slicFilters.delete(p);}else{slicFilters.add(p);}renderLicSammenligning();}
