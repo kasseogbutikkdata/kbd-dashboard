@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.8.2 · Oppdatert: 15. aug 2026 kl. 21:24</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.8.3 · Oppdatert: 15. aug 2026 kl. 22:09</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1160,18 +1160,18 @@ function kickFields(e){return{Title:`${e.year} ${e.period} ${e.source}`,Year:e.y
 async function spSyncLic(entry,isNew){
   setSPStatus('⏳ Synkroniserer…');
   try{
-    if(isNew){const r=await spCreate('Lisenser',licFields(entry));entry.spId=r.id;entry.id=`sp${r.id}`;}
-    else if(entry.spId){await spUpdate('Lisenser',entry.spId,licFields(entry));}
+    if(isNew||!entry.spId){const r=await spCreate('Lisenser',licFields(entry));entry.spId=r.id;entry.id=`sp${r.id}`;}
+    else{await spUpdate('Lisenser',entry.spId,licFields(entry));}
     setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
-  }catch(err){setSPStatus('❌ Feil: '+err.message,false);console.error(err);}
+  }catch(err){setSPStatus('❌ Feil: '+err.message,false);console.error(err);alert('⚠️ Lagring til SharePoint feilet:\n'+err.message);}
 }
 async function spSyncKick(entry,isNew){
   setSPStatus('⏳ Synkroniserer…');
   try{
-    if(isNew){const r=await spCreate('Kickback',kickFields(entry));entry.spId=r.id;entry.id=`sp${r.id}`;}
-    else if(entry.spId){await spUpdate('Kickback',entry.spId,kickFields(entry));}
+    if(isNew||!entry.spId){const r=await spCreate('Kickback',kickFields(entry));entry.spId=r.id;entry.id=`sp${r.id}`;}
+    else{await spUpdate('Kickback',entry.spId,kickFields(entry));}
     setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
-  }catch(err){setSPStatus('❌ Feil: '+err.message,false);console.error(err);}
+  }catch(err){setSPStatus('❌ Feil: '+err.message,false);console.error(err);alert('⚠️ Lagring til SharePoint feilet:\n'+err.message);}
 }
 
 function applyRoleUI(){
@@ -1980,7 +1980,8 @@ function confirmReturn(){
   r.returnDate=d;
   closeReturModal();
   renderGantt();renderUtleieListe();
-  if(r.spId){setSPStatus('⏳ Registrerer…');spUpdate('Utleie',r.spId,{Returdato:d}).then(()=>{setSPStatus('✅ Retur registrert');setTimeout(()=>setSPStatus(''),3000);loggAction('retur',`Retur registrert: ${r.customer} → ${units.find(u=>u.id===r.unitId)?.name||r.unitId} (${d})`);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+  if(r.spId){setSPStatus('⏳ Registrerer…');spUpdate('Utleie',r.spId,{Returdato:d}).then(()=>{setSPStatus('✅ Retur registrert');setTimeout(()=>setSPStatus(''),3000);loggAction('retur',`Retur registrert: ${r.customer} → ${units.find(u=>u.id===r.unitId)?.name||r.unitId} (${d})`);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Returen ble ikke lagret til SharePoint:\n'+e.message);});}
+  else{setSPStatus('⏳ Lagrer…');spCreate('Utleie',{Title:r.customer+' '+r.fromDate,EnhetId:r.unitId,Kunde:r.customer,OrdreNr:r.orderNr||'',FraDato:r.fromDate,TilDato:r.toDate,Returdato:d,Note:r.note||''}).then(res=>{r.spId=res.id;r.id=`sp${res.id}`;setSPStatus('✅ Retur registrert (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);loggAction('retur',`Retur registrert: ${r.customer} → ${units.find(u=>u.id===r.unitId)?.name||r.unitId} (${d})`);renderUtleieListe();}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Utleien manglet SharePoint-kobling og returen kunne ikke lagres:\n'+e.message);});}
 }
 
 function deleteUtleie(id){
@@ -2599,7 +2600,14 @@ function saveReservasjon(){
       setSPStatus('⏳ Oppdaterer…');
       spUpdate('Reservasjoner',existing.spId,spFields).then(()=>{
         setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
-      }).catch(e=>setSPStatus('❌ '+e.message,false));
+      }).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message);});
+    } else {
+      setSPStatus('⏳ Lagrer…');
+      spCreate('Reservasjoner',spFields).then(r=>{
+        if(i>=0){reservasjoner[i].spId=r.id;reservasjoner[i].id=`sp${r.id}`;}
+        setSPStatus('✅ Lagret (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);
+        renderReservasjoner();
+      }).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Reservasjonen manglet SharePoint-kobling og kunne ikke opprettes:\n'+e.message);});
     }
   } else {
     reservasjoner.push(entry);
@@ -2919,7 +2927,8 @@ async function saveBruker(){
     const b=brukere.find(x=>x.id===editId);if(!b)return;
     b.navn=navn;b.epost=epost;b.tilgang=tilgang;
     renderBrukere();
-    if(b.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Brukere',b.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Tilgang endret for ${navn} (${epost})`);}).catch(e=>setSPStatus('❌ '+e.message,false));}
+    if(b.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Brukere',b.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Tilgang endret for ${navn} (${epost})`);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message);});}
+    else{setSPStatus('⏳ Lagrer…');spCreate('Brukere',spFields).then(r=>{b.spId=r.id;b.id=`sp${r.id}`;setSPStatus('✅ Lagret (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Tilgang endret for ${navn} (${epost})`);renderBrukere();}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Brukeren manglet SharePoint-kobling og kunne ikke opprettes:\n'+e.message);});}
   } else {
     const newB={id:uid(),spId:null,navn,epost,azureId:'',tilgang};
     brukere.push(newB);
