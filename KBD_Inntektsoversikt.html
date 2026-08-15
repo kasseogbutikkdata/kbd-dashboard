@@ -193,6 +193,7 @@ tr:hover td{background:#fafafa}
 .stat-utleie{background:#dbeafe;color:#1d4ed8}
 .stat-planlagt{background:#fef3c7;color:#92400e}
 .stat-forfalt{background:#fee2e2;color:#dc2626}
+.stat-reservert{background:#ede9fe;color:#6d28d9}
 .enhet-icon{font-size:16px;margin-right:6px}
 
 /* Auth styles */
@@ -253,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.5.1 · Oppdatert: 15. aug 2026 kl. 07:50</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.6.0 · Oppdatert: 15. aug 2026 kl. 08:01</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -418,13 +419,14 @@ tr:hover td{background:#fafafa}
 
     <!-- LISTE -->
     <div id="utleie-liste" style="display:none">
-      <div id="utleie-kpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
+      <div id="utleie-kpi" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px"></div>
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
         <span class="filter-lbl">Vis:</span>
         <button class="fpill f-on" id="uf-alle" style="border-color:#1A3A6B" onclick="setUtleieFilter('alle')"><span style="font-weight:600;color:#1A3A6B">Alle</span></button>
         <button class="fpill" id="uf-utleie" onclick="setUtleieFilter('utleie')"><span class="fpill-dot" style="background:#2a78d6"></span>På utleie</button>
         <button class="fpill" id="uf-planlagt" onclick="setUtleieFilter('planlagt')"><span class="fpill-dot" style="background:#eda100"></span>Planlagt</button>
         <button class="fpill" id="uf-forfalt" onclick="setUtleieFilter('forfalt')"><span class="fpill-dot" style="background:#dc2626"></span>Forfalt</button>
+        <button class="fpill" id="uf-reservert" onclick="setUtleieFilter('reservert')"><span class="fpill-dot" style="background:#6d28d9"></span>Reservert</button>
         <button class="fpill" id="uf-lager" onclick="setUtleieFilter('lager')"><span class="fpill-dot" style="background:#1baf7a"></span>Returnert</button>
       </div>
       <div class="tbl-wrap" style="margin-bottom:24px">
@@ -2068,14 +2070,17 @@ function renderUtleieKPI(){
     return u&&u.type===utleieType;
   });
   const filtUnits=units.filter(u=>utleieType==='alle'||u.type===utleieType);
+  const filtRes=reservasjoner.filter(r=>utleieType==='alle'||r.enhetType===utleieType);
   const aktiv=filtRentals.filter(r=>getRentalStatus(r)==='utleie').length;
   const planlagt=filtRentals.filter(r=>getRentalStatus(r)==='planlagt').length;
   const forfalt=filtRentals.filter(r=>getRentalStatus(r)==='forfalt').length;
+  const reservert=filtRes.filter(r=>['aktiv','planlagt'].includes(getResStatus(r))).length;
   const ledig=filtUnits.filter(u=>getUnitStatus(u.id)==='lager').length;
   el.innerHTML=[
     {label:'På utleie',val:aktiv,color:'#2a78d6',bg:'#dbeafe'},
     {label:'Ledige enheter',val:ledig,color:'#15803d',bg:'#dcfce7'},
     {label:'Planlagt',val:planlagt,color:'#92400e',bg:'#fef3c7'},
+    {label:'Reservert',val:reservert,color:'#6d28d9',bg:'#ede9fe'},
     {label:'Forfalt retur',val:forfalt,color:'#dc2626',bg:'#fee2e2'},
   ].map(({label,val,color,bg})=>`<div style="background:${bg};border-radius:8px;padding:12px 16px;text-align:center">
     <div style="font-size:11px;color:${color};font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${label}</div>
@@ -2085,7 +2090,7 @@ function renderUtleieKPI(){
 
 function setUtleieFilter(f){
   utleieFilter=f;
-  ['alle','utleie','planlagt','forfalt','lager'].forEach(x=>{
+  ['alle','utleie','planlagt','forfalt','reservert','lager'].forEach(x=>{
     const el=document.getElementById('uf-'+x);if(!el)return;
     el.className='fpill'+(f===x?' f-on':'');el.style.borderColor=f===x?'#1A3A6B':'';
   });
@@ -2105,35 +2110,48 @@ function setUtleieType(t){
 function renderUtleieListe(){
   renderUtleieKPI();
   const unit=id=>units.find(u=>u.id===id);
-  const rows=rentals.filter(r=>{
+  const resRows=(utleieFilter==='alle'||utleieFilter==='reservert')?reservasjoner.filter(r=>{
+    if(!['aktiv','planlagt'].includes(getResStatus(r)))return false;
+    if(utleieType!=='alle'&&r.enhetType!==utleieType)return false;
+    return true;
+  }).map(r=>({
+    id:r.id,customer:r.kunde,orderNr:r.orderNr,fromDate:r.fromDate,toDate:r.toDate,
+    returnDate:null,note:r.note,_isRes:true,enhetType:r.enhetType,antall:r.antall
+  })):[];
+  const rentalRows=rentals.filter(r=>{
     const u=unit(r.unitId);
     if(utleieType!=='alle'&&(!u||u.type!==utleieType))return false;
     if(utleieFilter==='alle')return true;
+    if(utleieFilter==='reservert')return false;
     return getRentalStatus(r)===utleieFilter;
-  }).sort((a,b)=>{
-    const u=id=>units.find(x=>x.id===id);
+  });
+  const rowType=r=>r._isRes?r.enhetType:(unit(r.unitId)?.type||'Ukjent');
+  const rowEnhetNavn=r=>r._isRes?'':(unit(r.unitId)?.name||'');
+  const rowStatus=r=>r._isRes?'reservert':getRentalStatus(r);
+  const rows=[...rentalRows,...resRows].sort((a,b)=>{
     const dir=utleieSort.dir==='asc'?1:-1;
     switch(utleieSort.col){
-      case 'enhet': return dir*((u(a.unitId)?.name||'').localeCompare(u(b.unitId)?.name||''));
-      case 'type': return dir*((u(a.unitId)?.type||'').localeCompare(u(b.unitId)?.type||''));
+      case 'enhet': return dir*(rowEnhetNavn(a).localeCompare(rowEnhetNavn(b)));
+      case 'type': return dir*(rowType(a).localeCompare(rowType(b)));
       case 'kunde': return dir*(a.customer||'').localeCompare(b.customer||'');
       case 'ordre': return dir*(a.orderNr||'').localeCompare(b.orderNr||'');
       case 'fra': return dir*(new Date(a.fromDate||0)-new Date(b.fromDate||0));
       case 'til': return dir*(new Date(a.toDate||0)-new Date(b.toDate||0));
       case 'retur': return dir*((a.returnDate||'9999').localeCompare(b.returnDate||'9999'));
-      case 'status': return dir*(getRentalStatus(a).localeCompare(getRentalStatus(b)));
+      case 'status': return dir*(rowStatus(a).localeCompare(rowStatus(b)));
       default: return new Date(b.fromDate||0)-new Date(a.fromDate||0);
     }
   });
   const fmtDate=d=>{if(!d)return'—';const dt=parseLD(d);return dt?`${dt.getDate().toString().padStart(2,'0')}.${(dt.getMonth()+1).toString().padStart(2,'0')}.${dt.getFullYear()}`:'—';};
   const statHtml=s=>{
-    const map={utleie:'stat-utleie',lager:'stat-lager',planlagt:'stat-planlagt',forfalt:'stat-forfalt'};
-    const lbl={utleie:'På utleie',lager:'Returnert',planlagt:'Planlagt',forfalt:'Forfalt'};
+    const map={utleie:'stat-utleie',lager:'stat-lager',planlagt:'stat-planlagt',forfalt:'stat-forfalt',reservert:'stat-reservert'};
+    const lbl={utleie:'På utleie',lager:'Returnert',planlagt:'Planlagt',forfalt:'Forfalt',reservert:'Reservert'};
     return`<span class="utleie-stat ${map[s]||''}">${lbl[s]||s}</span>`;
   };
   const tbody=document.getElementById('utleie-tbody');if(!tbody)return;
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="10" class="empty">Ingen ${utleieFilter==='alle'?'utleieregistreringer':utleieFilter==='utleie'?'aktive utleier':utleieFilter==='planlagt'?'planlagte utleier':utleieFilter==='forfalt'?'forfalte utleier':'returnerte enheter'}</td></tr>`;
+    const emptyLbl={alle:'utleieregistreringer',utleie:'aktive utleier',planlagt:'planlagte utleier',forfalt:'forfalte utleier',reservert:'aktive reservasjoner',lager:'returnerte enheter'};
+    tbody.innerHTML=`<tr><td colspan="10" class="empty">Ingen ${emptyLbl[utleieFilter]||'utleieregistreringer'}</td></tr>`;
     return;
   }
   // Group by unit type if not sorted by something else
@@ -2142,11 +2160,11 @@ function renderUtleieListe(){
   const shouldGroup=utleieType==='alle'&&(utleieSort.col===null||utleieSort.col==='enhet'||utleieSort.col==='type');
   let html3='';
   if(shouldGroup){
-    const types=[...new Set(rows.map(r=>{const u=unit(r.unitId);return u?u.type:'Ukjent';}))].sort();
+    const types=[...new Set(rows.map(r=>rowType(r)))].sort();
     types.forEach(type=>{
       const tcolor=TYPE_COLORS_L[type]||'#888';
       const ticon=TYPE_ICONS_L[type]||'📦';
-      const typeRows=rows.filter(r=>{const u=unit(r.unitId);return(u?u.type:'Ukjent')===type;});
+      const typeRows=rows.filter(r=>rowType(r)===type);
       html3+=`<tr><td colspan="10" style="padding:8px 14px;background:${tcolor}15;border-top:2px solid ${tcolor};border-bottom:1px solid ${tcolor}30">
         <span style="font-size:12px;font-weight:700;color:${tcolor}">${ticon} ${type} <span style="font-weight:400;color:#9ca3af;font-size:11px">(${typeRows.length})</span></span>
       </td></tr>`;
@@ -2158,6 +2176,20 @@ function renderUtleieListe(){
   tbody.innerHTML=html3;
 
   function rowHtml(r,unit,statHtml){
+    if(r._isRes){
+      return`<tr style="background:#fdfaff">
+        <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="background:#ede9fe;color:#6d28d9;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0">${r.antall}×</span><span style="color:#6d28d9;font-weight:600">Reservasjon</span></span></td>
+        <td><span style="color:#6b7280;font-size:12px">${r.enhetType}</span></td>
+        <td>${r.customer}</td>
+        <td style="font-family:monospace;font-size:12px">${r.orderNr||'—'}</td>
+        <td>${fmtDate(r.fromDate)}</td><td>${fmtDate(r.toDate)}</td><td>—</td>
+        <td style="text-align:center">${statHtml('reservert')}</td>
+        <td class="muted" style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.note||''}">${r.note||'—'}</td>
+        <td><div class="action-btns">
+          <button class="btn-icon" onclick="showUtleieView('reservasjoner',document.getElementById('usub-reservasjoner'))" title="Åpne i Reservasjoner">↗</button>
+        </div></td>
+      </tr>`;
+    }
     const u=unit(r.unitId);const s=getRentalStatus(r);
     const enhetCell=u?`<strong>${u.name}</strong>`:`<select style="font-size:12px;padding:3px 6px;border:1.5px solid #f59e0b;border-radius:5px;background:#fffbeb" onchange="relinkUnit('${r.id}',this.value)"><option value="">⚠️ Velg enhet…</option>${units.map(x=>`<option value="${x.id}">${x.name} (${x.type})</option>`).join('')}</select>`;
     return`<tr>
