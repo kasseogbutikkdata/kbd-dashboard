@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.7.0 · Oppdatert: 15. aug 2026 kl. 16:27</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.7.1 · Oppdatert: 15. aug 2026 kl. 16:31</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -405,7 +405,7 @@ tr:hover td{background:#fafafa}
             <div class="gantt-nav-title" id="mo-year-title" style="min-width:50px;text-align:center"></div>
             <button class="gantt-nav-btn" onclick="moNextYear()">▶</button>
           </div>
-          <span style="font-size:11px;color:#9ca3af;font-weight:600">📅 Månedsoversikt — klikk for å hoppe til måned</span>
+          <span style="font-size:11px;color:#9ca3af;font-weight:600">📅 Månedsoversikt<span id="mo-type-lbl"></span> — klikk for å hoppe til måned</span>
         </div>
         <div id="month-overview-grid" style="display:grid;grid-template-columns:repeat(12,minmax(60px,1fr));gap:8px;padding:14px;overflow-x:auto"></div>
       </div>
@@ -1780,9 +1780,14 @@ function moSelectMonth(monthIdx){ganttStart=new Date(moYear,monthIdx,1);renderGa
 function renderMonthOverview(){
   const yearTitleEl=document.getElementById('mo-year-title');
   if(yearTitleEl)yearTitleEl.textContent=moYear;
+  const typeLbl=document.getElementById('mo-type-lbl');
+  if(typeLbl)typeLbl.textContent=utleieType==='alle'?'':` · ${utleieType}`;
   const gridEl=document.getElementById('month-overview-grid');
   if(!gridEl)return;
-  const totalUnits=units.length||1;
+  const filtUnits=units.filter(u=>utleieType==='alle'||u.type===utleieType);
+  const filtUnitIds=new Set(filtUnits.map(u=>u.id));
+  const filtRentals=rentals.filter(r=>filtUnitIds.has(r.unitId));
+  const totalUnits=filtUnits.length||1;
   const today=new Date();today.setHours(0,0,0,0);
   const monthNames=['Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'];
   let html='';
@@ -1793,7 +1798,7 @@ function renderMonthOverview(){
     for(let d=1;d<=daysInMonth;d++){
       const day=new Date(moYear,m,d);
       let occupiedToday=new Set();
-      rentals.forEach(r=>{
+      filtRentals.forEach(r=>{
         const fra=parseLD(r.fromDate);const til=parseLD(r.toDate);
         if(!fra||!til)return;
         const effEnd=r.returnDate?(parseLD(r.returnDate)||til):til;
@@ -1801,7 +1806,7 @@ function renderMonthOverview(){
       });
       occupiedDaySum+=occupiedToday.size;
     }
-    rentals.forEach(r=>{
+    filtRentals.forEach(r=>{
       const fra=parseLD(r.fromDate);
       if(fra&&fra.getFullYear()===moYear&&fra.getMonth()===m)nyeCount++;
       const ret=r.returnDate?parseLD(r.returnDate):null;
@@ -2166,7 +2171,7 @@ function setUtleieType(t){
     const el=document.getElementById(id);if(!el)return;
     const on=t===x;el.className='fpill'+(on?' f-on':'');el.style.borderColor=on?'#1A3A6B':'';
   });
-  renderGantt();renderUtleieListe();renderEnheterListe();renderReservasjoner();
+  renderGantt();renderUtleieListe();renderEnheterListe();renderReservasjoner();renderMonthOverview();
 }
 
 function renderUtleieListe(){
