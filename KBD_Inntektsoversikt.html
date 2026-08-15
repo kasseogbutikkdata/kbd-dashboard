@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.7.1 · Oppdatert: 15. aug 2026 kl. 16:31</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.7.2 · Oppdatert: 15. aug 2026 kl. 16:40</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1850,6 +1850,22 @@ function openNyUtleieModal(){
   document.getElementById('utleie-modal').classList.add('open');
 }
 
+function jumpToUtleieRow(rentalId){
+  utleieFilter='alle';
+  document.querySelectorAll('#tp-utleie .fpill[id^="uf-"]').forEach(b=>{b.classList.remove('f-on');b.style.borderColor='';});
+  const alleBtn=document.getElementById('uf-alle');
+  if(alleBtn){alleBtn.classList.add('f-on');alleBtn.style.borderColor='#1A3A6B';}
+  showUtleieView('liste',document.getElementById('usub-liste'));
+  setTimeout(()=>{
+    const row=document.getElementById('urow-'+rentalId);
+    if(!row)return;
+    row.scrollIntoView({behavior:'smooth',block:'center'});
+    row.style.transition='background-color 1.6s ease';
+    row.style.backgroundColor='#dbeafe';
+    setTimeout(()=>{row.style.backgroundColor='';},1700);
+  },60);
+}
+
 function editUtleie(id){
   const r=rentals.find(x=>x.id===id);if(!r)return;
   document.getElementById('utleie-modal-title').textContent='Rediger utleie';
@@ -2117,7 +2133,7 @@ function renderGantt(){
           const isStart=d.getTime()===fra.getTime();const isEnd=d.getTime()===til.getTime();
           const cls=isStart&&isEnd?'single':isStart?'start':isEnd?'end':'middle';
           const label=isStart?`<span style="padding:0 4px;color:white;font-size:10px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:120px">${rental.customer}</span>`:'';
-          barHtml=`<div class="gantt-bar ${cls}" style="background:${bcolor};left:${isStart?'2px':'0'};right:${isEnd?'2px':'0'}" title="${rental.customer}${rental.orderNr?' ('+rental.orderNr+')':''}">${label}</div>`;
+          barHtml=`<div class="gantt-bar ${cls}" style="background:${bcolor};left:${isStart?'2px':'0'};right:${isEnd?'2px':'0'}" title="${rental.customer}${rental.orderNr?' ('+rental.orderNr+')':''} — klikk for å åpne i Utleieoversikt" onclick="jumpToUtleieRow('${rental.id}')">${label}</div>`;
         }
         html2+=`<td class="gantt-td-day${isToday?' today':''}${isWeekend?' weekend':''}">${barHtml}</td>`;
       });
@@ -2259,7 +2275,7 @@ function renderUtleieListe(){
     }
     const u=unit(r.unitId);const s=getRentalStatus(r);
     const enhetCell=u?`<strong>${u.name}</strong>`:`<select style="font-size:12px;padding:3px 6px;border:1.5px solid #f59e0b;border-radius:5px;background:#fffbeb" onchange="relinkUnit('${r.id}',this.value)"><option value="">⚠️ Velg enhet…</option>${units.map(x=>`<option value="${x.id}">${x.name} (${x.type})</option>`).join('')}</select>`;
-    return`<tr>
+    return`<tr id="urow-${r.id}">
       <td>${enhetCell}</td>
       <td><span style="color:#6b7280;font-size:12px">${u?u.type:''}</span></td>
       <td>${r.customer}</td>
