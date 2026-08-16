@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.9.0 · Oppdatert: 16. aug 2026 kl. 09:36</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.10.0 · Oppdatert: 16. aug 2026 kl. 09:42</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -637,7 +637,10 @@ tr:hover td{background:#fafafa}
     <div class="modal" style="max-width:520px">
       <h3 id="utleie-modal-title">Ny utleie</h3>
       <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
-        <div class="fgrp"><label>Enhet</label><select id="u-enhet" style="width:100%"></select></div>
+        <div class="fgrp" id="u-enhet-wrap"><label>Enhet <span id="u-enhet-count" style="font-weight:400;color:#9ca3af"></span></label>
+          <select id="u-enhet" style="width:100%"></select>
+          <div id="u-enhet-multi" style="display:none;max-height:170px;overflow-y:auto;border:1.5px solid #d0d5dd;border-radius:8px;padding:8px 10px"></div>
+        </div>
         <div class="fgrp"><label>OrdreNr</label><input type="text" id="u-ordre" placeholder="f.eks. ORD-2026-001"/></div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Kunde</label><input type="text" id="u-kunde" placeholder="Kundenavn"/></div>
@@ -1905,6 +1908,23 @@ function refreshEnhetSelect(currentUnitId){
   }).join('');
 }
 
+function refreshEnhetMultiSelect(){
+  const wrap=document.getElementById('u-enhet-multi');
+  if(!wrap)return;
+  const ledige=units.filter(u=>getUnitStatus(u.id)==='lager');
+  if(!ledige.length){wrap.innerHTML=`<div style="color:#9ca3af;font-size:13px;padding:4px 2px">Ingen ledige enheter</div>`;updateEnhetMultiCount();return;}
+  wrap.innerHTML=ledige.map(u=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;font-size:13px">
+    <input type="checkbox" class="u-enhet-cb" value="${u.id}" onchange="updateEnhetMultiCount()" style="width:15px;height:15px;cursor:pointer"/>
+    <span>${u.name} <span style="color:#9ca3af">(${u.type})</span></span>
+  </label>`).join('');
+  updateEnhetMultiCount();
+}
+function updateEnhetMultiCount(){
+  const n=document.querySelectorAll('.u-enhet-cb:checked').length;
+  const el=document.getElementById('u-enhet-count');
+  if(el)el.textContent=n>0?`— ${n} valgt`:'';
+}
+
 function openNyUtleieModal(){
   document.getElementById('utleie-modal-title').textContent='Ny utleie';
   document.getElementById('u-edit-id').value='';
@@ -1914,7 +1934,9 @@ function openNyUtleieModal(){
   document.getElementById('u-til').value='';
   document.getElementById('u-retur').value='';
   document.getElementById('u-note').value='';
-  refreshEnhetSelect();
+  document.getElementById('u-enhet').style.display='none';
+  document.getElementById('u-enhet-multi').style.display='';
+  refreshEnhetMultiSelect();
   document.getElementById('utleie-modal').classList.add('open');
 }
 
@@ -1969,6 +1991,9 @@ function editUtleie(id){
   document.getElementById('u-til').value=r.toDate;
   document.getElementById('u-retur').value=r.returnDate||'';
   document.getElementById('u-note').value=r.note||'';
+  document.getElementById('u-enhet').style.display='';
+  document.getElementById('u-enhet-multi').style.display='none';
+  document.getElementById('u-enhet-count').textContent='';
   refreshEnhetSelect(r.unitId);
   document.getElementById('u-enhet').value=r.unitId;
   document.getElementById('utleie-modal').classList.add('open');
@@ -1977,41 +2002,64 @@ function editUtleie(id){
 function closeUtleieModal(){document.getElementById('utleie-modal').classList.remove('open');}
 
 function saveUtleie(){
-  const unitId=document.getElementById('u-enhet').value;
+  const editId=document.getElementById('u-edit-id').value;
   const customer=document.getElementById('u-kunde').value.trim();
   const fromDate=document.getElementById('u-fra').value;
   const toDate=document.getElementById('u-til').value;
-  if(!unitId||!customer||!fromDate||!toDate){alert('Fyll inn enhet, kunde og datoer');return;}
-  const editId=document.getElementById('u-edit-id').value;
-  const existing=editId?rentals.find(r=>r.id===editId):null;
-  const entry={
-    id:editId||uid(),unitId,customer,
-    orderNr:document.getElementById('u-ordre').value.trim(),
-    fromDate,toDate,
-    returnDate:document.getElementById('u-retur').value||null,
-    note:document.getElementById('u-note').value.trim(),
-    spId:existing?existing.spId:null
-  };
-  const spFields={Title:customer+' '+fromDate,EnhetId:unitId,Kunde:customer,OrdreNr:entry.orderNr||'',FraDato:fromDate,TilDato:toDate,Returdato:entry.returnDate||'',Note:entry.note||''};
-  console.log('🔍 DEBUG - sender til SharePoint (Utleie):',spFields,'spId:',entry.spId);
-  closeUtleieModal();
+  const orderNr=document.getElementById('u-ordre').value.trim();
+  const returnDate=document.getElementById('u-retur').value||null;
+  const note=document.getElementById('u-note').value.trim();
+
   if(editId){
+    // REDIGERING — én enhet, som før
+    const unitId=document.getElementById('u-enhet').value;
+    if(!unitId||!customer||!fromDate||!toDate){alert('Fyll inn enhet, kunde og datoer');return;}
+    const existing=rentals.find(r=>r.id===editId);
+    const entry={id:editId,unitId,customer,orderNr,fromDate,toDate,returnDate,note,spId:existing?existing.spId:null};
+    const spFields={Title:customer+' '+fromDate,EnhetId:unitId,Kunde:customer,OrdreNr:orderNr||'',FraDato:fromDate,TilDato:toDate,Returdato:returnDate||'',Note:note||''};
+    closeUtleieModal();
     const i=rentals.findIndex(r=>r.id===editId);if(i>=0)rentals[i]=entry;
-    if(entry.spId){setSPStatus('⏳ Oppdaterer…');spUpdate('Utleie',entry.spId,spFields).then((r)=>{console.log('🔍 DEBUG - svar fra spUpdate (Utleie):',r);setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Endret utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
+    if(entry.spId){
+      setSPStatus('⏳ Oppdaterer…');
+      spUpdate('Utleie',entry.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Endret utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
     } else {
-      // Manglet spId — opprett i SharePoint nå i stedet for å hoppe over lagring
       setSPStatus('⏳ Lagrer…');
       spCreate('Utleie',spFields).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);loggAction('endret',`Endret utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Utleien manglet SharePoint-kobling og kunne ikke opprettes:\n'+e.message+'\n\nData forsvinner ved neste innlogging!');});
     }
   } else {
-    entry.spId=null;
-    rentals.push(entry);
-    setSPStatus('⏳ Lagrer…');
-    spCreate('Utleie',spFields).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);loggAction('opprettet',`Ny utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);}).catch(e=>{setSPStatus('❌ '+e.message,false);console.error(e);});
+    // NY UTLEIE — én eller flere enheter samtidig
+    const unitIds=[...document.querySelectorAll('.u-enhet-cb:checked')].map(cb=>cb.value);
+    if(!unitIds.length||!customer||!fromDate||!toDate){alert('Velg minst én enhet, og fyll inn kunde og datoer');return;}
+    closeUtleieModal();
+    setSPStatus(`⏳ Lagrer ${unitIds.length} utleie${unitIds.length>1?'r':''}…`);
+    let done=0,failed=0;
+    unitIds.forEach(unitId=>{
+      const entry={id:uid(),unitId,customer,orderNr,fromDate,toDate,returnDate,note,spId:null};
+      rentals.push(entry);
+      const spFields={Title:customer+' '+fromDate,EnhetId:unitId,Kunde:customer,OrdreNr:orderNr||'',FraDato:fromDate,TilDato:toDate,Returdato:returnDate||'',Note:note||''};
+      spCreate('Utleie',spFields).then(r=>{
+        entry.spId=r.id;entry.id=`sp${r.id}`;
+        done++;
+        loggAction('opprettet',`Ny utleie: ${customer} → ${units.find(u=>u.id===unitId)?.name||unitId}`);
+        if(done+failed===unitIds.length)finishBulkUtleieSave(unitIds.length,failed);
+        renderUtleieListe();renderGantt();
+      }).catch(e=>{
+        failed++;console.error(e);
+        if(done+failed===unitIds.length)finishBulkUtleieSave(unitIds.length,failed);
+      });
+    });
   }
   // Switch to calendar and refresh
   const kBtn=document.getElementById('usub-kalender');
   showUtleieView('kalender',kBtn);
+}
+function finishBulkUtleieSave(total,failed){
+  if(failed>0){
+    setSPStatus(`❌ ${failed} av ${total} feilet`,false);
+    alert(`⚠️ ${failed} av ${total} utleier kunne ikke lagres til SharePoint. Sjekk F12 Console for detaljer.`);
+  } else {
+    setSPStatus(`✅ ${total} utleie${total>1?'r':''} lagret`);setTimeout(()=>setSPStatus(''),3000);
+  }
 }
 
 let returRentalId=null;
