@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.8.3 · Oppdatert: 15. aug 2026 kl. 22:09</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.9.0 · Oppdatert: 16. aug 2026 kl. 09:36</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -613,6 +613,21 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeReturModal()">Avbryt</button>
         <button class="prim" onclick="confirmReturn()" style="background:#16a34a;border-color:#16a34a">↩ Registrer retur</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÅNEDSDETALJER MODAL -->
+  <div class="modal-overlay" id="month-detail-modal" onclick="if(event.target===this)closeMonthDetailModal()">
+    <div class="modal" style="max-width:600px;max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h3 id="month-detail-title" style="margin:0"></h3>
+        <button class="btn-icon" onclick="closeMonthDetailModal()" style="font-size:16px">✕</button>
+      </div>
+      <div id="month-detail-summary" style="font-size:13px;color:#6b7280;margin-bottom:16px"></div>
+      <div id="month-detail-list" style="overflow-y:auto;flex:1"></div>
+      <div class="modal-footer" style="margin-top:16px">
+        <button class="prim" onclick="closeMonthDetailModal()">Lukk</button>
       </div>
     </div>
   </div>
@@ -1783,7 +1798,52 @@ function ganttToday(){const d=new Date();ganttStart=new Date(d.getFullYear(),d.g
 
 function moPrevYear(){moYear--;renderMonthOverview();}
 function moNextYear(){moYear++;renderMonthOverview();}
-function moSelectMonth(monthIdx){ganttStart=new Date(moYear,monthIdx,1);renderGantt();renderMonthOverview();}
+function moSelectMonth(monthIdx){ganttStart=new Date(moYear,monthIdx,1);renderGantt();renderMonthOverview();openMonthDetail(monthIdx);}
+
+function openMonthDetail(monthIdx){
+  const unit=id=>units.find(u=>u.id===id);
+  const filtUnits=units.filter(u=>utleieType==='alle'||u.type===utleieType);
+  const filtUnitIds=new Set(filtUnits.map(u=>u.id));
+  const monthStart=new Date(moYear,monthIdx,1);
+  const monthEnd=new Date(moYear,monthIdx+1,0);
+  const monthNames=['Januar','Februar','Mars','April','Mai','Juni','Juli','August','September','Oktober','November','Desember'];
+  const relevant=rentals.filter(r=>{
+    if(!filtUnitIds.has(r.unitId))return false;
+    const fra=parseLD(r.fromDate);const til=parseLD(r.toDate);
+    if(!fra||!til)return false;
+    const effEnd=r.returnDate?(parseLD(r.returnDate)||til):til;
+    return fra<=monthEnd&&effEnd>=monthStart;
+  }).sort((a,b)=>new Date(a.fromDate)-new Date(b.fromDate));
+
+  document.getElementById('month-detail-title').textContent=`📅 ${monthNames[monthIdx]} ${moYear}`;
+  document.getElementById('month-detail-summary').textContent=`${relevant.length} utleie${relevant.length===1?'':'r'} aktive denne måneden${utleieType!=='alle'?' · '+utleieType:''}`;
+
+  const fmtDate=d=>{const dt=parseLD(d);return dt?`${dt.getDate().toString().padStart(2,'0')}.${(dt.getMonth()+1).toString().padStart(2,'0')}.${dt.getFullYear()}`:'—';};
+  const statMap={utleie:['#dbeafe','#1d4ed8','På utleie'],planlagt:['#fef3c7','#92400e','Planlagt'],forfalt:['#fee2e2','#dc2626','Forfalt'],lager:['#dcfce7','#15803d','Returnert']};
+
+  const listEl=document.getElementById('month-detail-list');
+  if(!relevant.length){
+    listEl.innerHTML=`<div style="text-align:center;padding:30px;color:#9ca3af;font-size:13px">Ingen utleier denne måneden</div>`;
+  } else {
+    listEl.innerHTML=relevant.map(r=>{
+      const u=unit(r.unitId);
+      const s=getRentalStatus(r);
+      const stat=statMap[s]||['#f3f4f6','#6b7280',s];
+      return`<div onclick="closeMonthDetailModal();jumpToUtleieRow('${r.id}')" style="cursor:pointer;padding:10px 12px;border:1px solid #f3f4f6;border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px" onmouseover="this.style.borderColor='#d1d5db'" onmouseout="this.style.borderColor='#f3f4f6'">
+        <div style="min-width:0">
+          <div style="font-weight:600;color:#111;font-size:13px">${r.customer}</div>
+          <div style="font-size:12px;color:#6b7280">${u?u.name:'⚠️ Ukjent enhet'} · ${fmtDate(r.fromDate)} → ${fmtDate(r.toDate)}${r.returnDate?' (returnert '+fmtDate(r.returnDate)+')':''}</div>
+        </div>
+        <span style="flex-shrink:0;background:${stat[0]};color:${stat[1]};font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">${stat[2]}</span>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('month-detail-modal').classList.add('open');
+}
+
+function closeMonthDetailModal(){
+  document.getElementById('month-detail-modal').classList.remove('open');
+}
 
 function renderMonthOverview(){
   const yearTitleEl=document.getElementById('mo-year-title');
