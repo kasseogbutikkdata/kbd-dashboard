@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.12.3 · Oppdatert: 16. aug 2026 kl. 10:43</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.12.4 · Oppdatert: 16. aug 2026 kl. 16:39</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1858,7 +1858,12 @@ function openMonthDetail(monthIdx){
     if(!fra||!til)return false;
     const effEnd=r.returnDate?(parseLD(r.returnDate)||til):til;
     return fra<=monthEnd&&effEnd>=monthStart;
-  }).sort((a,b)=>new Date(a.fromDate)-new Date(b.fromDate));
+  }).sort((a,b)=>{
+    const prio={utleie:0,forfalt:1,planlagt:2,lager:3};
+    const pa=prio[getRentalStatus(a)]??9,pb=prio[getRentalStatus(b)]??9;
+    if(pa!==pb)return pa-pb;
+    return new Date(a.fromDate)-new Date(b.fromDate);
+  });
 
   document.getElementById('month-detail-title').textContent=`📅 ${monthNames[monthIdx]} ${moYear}`;
   document.getElementById('month-detail-summary').textContent=`${relevant.length} utleie${relevant.length===1?'':'r'} aktive denne måneden${utleieType!=='alle'?' · '+utleieType:''}`;
