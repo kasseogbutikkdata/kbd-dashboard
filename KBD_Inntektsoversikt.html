@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.12.0 · Oppdatert: 16. aug 2026 kl. 10:30</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.12.1 · Oppdatert: 16. aug 2026 kl. 10:36</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -666,7 +666,7 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Kunde</label><input type="text" id="u-kunde" placeholder="Kundenavn"/></div>
-      <div class="fg" style="grid-template-columns:2fr 1fr;margin-bottom:10px">
+      <div class="fg" id="u-dato-row" style="grid-template-columns:1fr;margin-bottom:10px">
         <div class="fgrp"><label>Utleieperiode</label>
           <div class="date-range-group">
             <input type="date" id="u-fra" oninput="updateDurationBadge('u-fra','u-til','u-duration')"/>
@@ -675,7 +675,7 @@ tr:hover td{background:#fafafa}
             <span class="duration-badge" id="u-duration"></span>
           </div>
         </div>
-        <div class="fgrp"><label>Returdato <span style="font-weight:400">(faktisk)</span></label><input type="date" id="u-retur"/></div>
+        <div class="fgrp" id="u-retur-wrap" style="display:none"><label>Returdato <span style="font-weight:400">(faktisk — bruk "Registrer retur" i Utleieoversikt for vanlig retur)</span></label><input type="date" id="u-retur"/></div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>OrdreNr</label><input type="text" id="u-ordre" placeholder="f.eks. ORD-2026-001"/></div>
       <div class="fgrp" style="margin-bottom:4px"><label>Notat</label><input type="text" id="u-note" placeholder="Valgfritt"/></div>
@@ -1980,6 +1980,8 @@ function openNyUtleieModal(){
   document.getElementById('u-note').value='';
   document.getElementById('u-enhet').style.display='none';
   document.getElementById('u-enhet-multi-block').style.display='';
+  document.getElementById('u-retur-wrap').style.display='none';
+  document.getElementById('u-dato-row').style.gridTemplateColumns='1fr';
   const typeFilterEl=document.getElementById('u-enhet-type-filter');
   if(typeFilterEl)typeFilterEl.value='Telpo M1';
   refreshEnhetMultiSelect();
@@ -2041,6 +2043,8 @@ function editUtleie(id){
   document.getElementById('u-enhet').style.display='';
   document.getElementById('u-enhet-multi-block').style.display='none';
   document.getElementById('u-enhet-count').textContent='';
+  document.getElementById('u-retur-wrap').style.display='';
+  document.getElementById('u-dato-row').style.gridTemplateColumns='2fr 1fr';
   refreshEnhetSelect(r.unitId);
   document.getElementById('u-enhet').value=r.unitId;
   updateDurationBadge('u-fra','u-til','u-duration');
