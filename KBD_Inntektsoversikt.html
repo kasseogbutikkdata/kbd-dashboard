@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.10.0 · Oppdatert: 16. aug 2026 kl. 09:42</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.10.1 · Oppdatert: 16. aug 2026 kl. 09:49</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -390,6 +390,7 @@ tr:hover td{background:#fafafa}
             <span class="filter-lbl">Type:</span>
             <button class="fpill f-on" id="utype-alle" style="border-color:#1A3A6B" onclick="setUtleieType('alle')"><span style="font-weight:600;color:#1A3A6B">Alle</span></button>
             <button class="fpill" id="utype-telpo" onclick="setUtleieType('Telpo M1')"><span class="fpill-dot" style="background:#2a78d6"></span>Telpo M1</button>
+            <button class="fpill" id="utype-telpom10" onclick="setUtleieType('Telpo M10')"><span class="fpill-dot" style="background:#d97706"></span>Telpo M10</button>
             <button class="fpill" id="utype-term" onclick="setUtleieType('Betalingsterminal')"><span class="fpill-dot" style="background:#1baf7a"></span>Betalingsterminaler</button>
             <button class="fpill" id="utype-service" onclick="setUtleieType('Service/Rep')"><span class="fpill-dot" style="background:#4a3aa7"></span>Service/Rep</button>
           </div>
@@ -511,7 +512,7 @@ tr:hover td{background:#fafafa}
         <div class="card-title">Legg til enhet</div>
         <div class="fg" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:8px">
           <div class="fgrp"><label>Navn/ID</label><input type="text" id="enhet-navn" placeholder="f.eks. Telpo M1 #3"/></div>
-          <div class="fgrp"><label>Type</label><select id="enhet-type"><option>Telpo M1</option><option>Betalingsterminal</option><option>Service/Rep</option></select></div>
+          <div class="fgrp"><label>Type</label><select id="enhet-type"><option>Telpo M1</option><option>Telpo M10</option><option>Betalingsterminal</option><option>Service/Rep</option></select></div>
           <div class="fgrp"><label>Serienummer</label><input type="text" id="enhet-serial" placeholder="f.eks. SN-12345"/></div>
         </div>
         <div class="fg" style="grid-template-columns:1fr 1fr auto;gap:12px;align-items:flex-end">
@@ -542,7 +543,7 @@ tr:hover td{background:#fafafa}
       <h3 style="margin-bottom:16px">Rediger enhet</h3>
       <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
         <div class="fgrp"><label>Navn/ID</label><input type="text" id="em-navn" placeholder="f.eks. Telpo M1 #3"/></div>
-        <div class="fgrp"><label>Type</label><select id="em-type"><option>Telpo M1</option><option>Betalingsterminal</option><option>Service/Rep</option></select></div>
+        <div class="fgrp"><label>Type</label><select id="em-type"><option>Telpo M1</option><option>Telpo M10</option><option>Betalingsterminal</option><option>Service/Rep</option></select></div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Serienummer</label><input type="text" id="em-serial" placeholder="f.eks. SN-12345"/></div>
       <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:4px">
@@ -565,6 +566,7 @@ tr:hover td{background:#fafafa}
         <div class="fgrp"><label>Enhettype</label>
           <select id="r-type">
             <option>Telpo M1</option>
+            <option>Telpo M10</option>
             <option>Betalingsterminal</option>
             <option>Service/Rep</option>
           </select>
@@ -2180,8 +2182,8 @@ function relinkUnit(rentalId,newUnitId){
 }
 
 // ===== UTLEIE RENDER =====
-const ENHET_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
-const TYPE_ICONS={'Telpo M1':'📱','Betalingsterminal':'💳','Service/Rep':'🛠️'};
+const ENHET_COLORS={'Telpo M1':'#2a78d6','Telpo M10':'#d97706','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
+const TYPE_ICONS={'Telpo M1':'📱','Telpo M10':'📟','Betalingsterminal':'💳','Service/Rep':'🛠️'};
 
 function getRentalStatus(r){
   const today=new Date();today.setHours(0,0,0,0);
@@ -2324,8 +2326,8 @@ function setUtleieFilter(f){
 
 function setUtleieType(t){
   utleieType=t;
-  ['alle','Telpo M1','Betalingsterminal','Service/Rep'].forEach(x=>{
-    const id='utype-'+(x==='alle'?'alle':x==='Telpo M1'?'telpo':x==='Betalingsterminal'?'term':'service');
+  ['alle','Telpo M1','Telpo M10','Betalingsterminal','Service/Rep'].forEach(x=>{
+    const id='utype-'+(x==='alle'?'alle':x==='Telpo M1'?'telpo':x==='Telpo M10'?'telpom10':x==='Betalingsterminal'?'term':'service');
     const el=document.getElementById(id);if(!el)return;
     const on=t===x;el.className='fpill'+(on?' f-on':'');el.style.borderColor=on?'#1A3A6B':'';
   });
@@ -2424,8 +2426,8 @@ function renderUtleieListe(){
     return;
   }
   // Group by unit type if not sorted by something else
-  const TYPE_COLORS_L={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
-  const TYPE_ICONS_L={'Telpo M1':'📱','Betalingsterminal':'💳','Service/Rep':'🛠️'};
+  const TYPE_COLORS_L={'Telpo M1':'#2a78d6','Telpo M10':'#d97706','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
+  const TYPE_ICONS_L={'Telpo M1':'📱','Telpo M10':'📟','Betalingsterminal':'💳','Service/Rep':'🛠️'};
   const shouldGroup=utleieType==='alle'&&(utleieSort.col===null||utleieSort.col==='enhet'||utleieSort.col==='type');
   let html3='';
   if(shouldGroup){
@@ -2485,7 +2487,7 @@ function renderUtleieListe(){
 }
 
 function renderEnheterListe(){
-  const TYPE_COLORS_E={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
+  const TYPE_COLORS_E={'Telpo M1':'#2a78d6','Telpo M10':'#d97706','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
   const filtered=units.filter(u=>utleieType==='alle'||u.type===utleieType);
   const sortedUnits=[...filtered].sort((a,b)=>{
     const dir=enheterSort.dir==='asc'?1:-1;
@@ -2560,7 +2562,7 @@ function renderUtleieLogg(){
 }
 
 // ===== RESERVASJONER =====
-const RES_COLORS={'Telpo M1':'#2a78d6','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
+const RES_COLORS={'Telpo M1':'#2a78d6','Telpo M10':'#d97706','Betalingsterminal':'#1baf7a','Service/Rep':'#4a3aa7'};
 
 async function loadReservasjoner(){
   try{
