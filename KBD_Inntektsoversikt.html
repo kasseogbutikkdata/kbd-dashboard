@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.10.2 · Oppdatert: 16. aug 2026 kl. 10:10</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.11.0 · Oppdatert: 16. aug 2026 kl. 10:23</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -638,12 +638,18 @@ tr:hover td{background:#fafafa}
   <div class="modal-overlay" id="utleie-modal" onclick="if(event.target===this)closeUtleieModal()">
     <div class="modal" style="max-width:520px">
       <h3 id="utleie-modal-title">Ny utleie</h3>
-      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
-        <div class="fgrp" id="u-enhet-wrap"><label>Enhet <span id="u-enhet-count" style="font-weight:400;color:#9ca3af"></span></label>
-          <select id="u-enhet" style="width:100%"></select>
-          <div id="u-enhet-multi" style="display:none;max-height:170px;overflow-y:auto;border:1.5px solid #d0d5dd;border-radius:8px;padding:8px 10px"></div>
+      <div class="fgrp" id="u-enhet-wrap" style="margin-bottom:10px">
+        <label>Enhet <span id="u-enhet-count" style="font-weight:400;color:#9ca3af"></span></label>
+        <select id="u-enhet" style="width:100%"></select>
+        <div id="u-enhet-multi-block" style="display:none">
+          <select id="u-enhet-type-filter" onchange="refreshEnhetMultiSelect()" style="width:100%;margin-bottom:6px">
+            <option value="Telpo M1">📱 Telpo M1</option>
+            <option value="Telpo M10">📟 Telpo M10</option>
+            <option value="Betalingsterminal">💳 Betalingsterminal</option>
+            <option value="Service/Rep">🛠️ Service/Rep</option>
+          </select>
+          <div id="u-enhet-multi" style="max-height:170px;overflow-y:auto;border:1.5px solid #d0d5dd;border-radius:8px;padding:8px 10px"></div>
         </div>
-        <div class="fgrp"><label>OrdreNr</label><input type="text" id="u-ordre" placeholder="f.eks. ORD-2026-001"/></div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Kunde</label><input type="text" id="u-kunde" placeholder="Kundenavn"/></div>
       <div class="fg" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:10px">
@@ -651,6 +657,7 @@ tr:hover td{background:#fafafa}
         <div class="fgrp"><label>Til dato</label><input type="date" id="u-til"/></div>
         <div class="fgrp"><label>Returdato</label><input type="date" id="u-retur"/></div>
       </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>OrdreNr</label><input type="text" id="u-ordre" placeholder="f.eks. ORD-2026-001"/></div>
       <div class="fgrp" style="margin-bottom:4px"><label>Notat</label><input type="text" id="u-note" placeholder="Valgfritt"/></div>
       <input type="hidden" id="u-edit-id"/>
       <div class="modal-footer">
@@ -1913,11 +1920,13 @@ function refreshEnhetSelect(currentUnitId){
 function refreshEnhetMultiSelect(){
   const wrap=document.getElementById('u-enhet-multi');
   if(!wrap)return;
-  const ledige=units.filter(u=>getUnitStatus(u.id)==='lager');
-  if(!ledige.length){wrap.innerHTML=`<div style="color:#9ca3af;font-size:13px;padding:4px 2px">Ingen ledige enheter</div>`;updateEnhetMultiCount();return;}
+  const typeFilter=document.getElementById('u-enhet-type-filter')?.value||'Telpo M1';
+  const checkedIds=new Set([...document.querySelectorAll('.u-enhet-cb:checked')].map(cb=>cb.value));
+  const ledige=units.filter(u=>getUnitStatus(u.id)==='lager'&&u.type===typeFilter);
+  if(!ledige.length){wrap.innerHTML=`<div style="color:#9ca3af;font-size:13px;padding:4px 2px">Ingen ledige enheter av denne typen</div>`;updateEnhetMultiCount();return;}
   wrap.innerHTML=ledige.map(u=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;font-size:13px">
-    <input type="checkbox" class="u-enhet-cb" value="${u.id}" onchange="updateEnhetMultiCount()" style="width:15px;height:15px;cursor:pointer"/>
-    <span>${u.name} <span style="color:#9ca3af">(${u.type})</span></span>
+    <input type="checkbox" class="u-enhet-cb" value="${u.id}" ${checkedIds.has(u.id)?'checked':''} onchange="updateEnhetMultiCount()" style="width:15px;height:15px;cursor:pointer"/>
+    <span>${u.name}${u.serial?` <span style="color:#9ca3af;font-family:monospace;font-size:11px">SN: ${u.serial}</span>`:''}</span>
   </label>`).join('');
   updateEnhetMultiCount();
 }
@@ -1937,7 +1946,9 @@ function openNyUtleieModal(){
   document.getElementById('u-retur').value='';
   document.getElementById('u-note').value='';
   document.getElementById('u-enhet').style.display='none';
-  document.getElementById('u-enhet-multi').style.display='';
+  document.getElementById('u-enhet-multi-block').style.display='';
+  const typeFilterEl=document.getElementById('u-enhet-type-filter');
+  if(typeFilterEl)typeFilterEl.value='Telpo M1';
   refreshEnhetMultiSelect();
   document.getElementById('utleie-modal').classList.add('open');
 }
@@ -1994,7 +2005,7 @@ function editUtleie(id){
   document.getElementById('u-retur').value=r.returnDate||'';
   document.getElementById('u-note').value=r.note||'';
   document.getElementById('u-enhet').style.display='';
-  document.getElementById('u-enhet-multi').style.display='none';
+  document.getElementById('u-enhet-multi-block').style.display='none';
   document.getElementById('u-enhet-count').textContent='';
   refreshEnhetSelect(r.unitId);
   document.getElementById('u-enhet').value=r.unitId;
