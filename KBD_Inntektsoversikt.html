@@ -254,7 +254,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.10.1 · Oppdatert: 16. aug 2026 kl. 09:49</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.10.2 · Oppdatert: 16. aug 2026 kl. 10:10</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2232,7 +2232,11 @@ function renderGantt(){
   const sIcon=col=>ganttSort.col===col?(ganttSort.dir==='asc'?'↑':'↓'):'↕';
   const gb1=document.getElementById('gsort-enhet');if(gb1)gb1.textContent=`Enhet ${sIcon('enhet')}`;
   const gb2=document.getElementById('gsort-kunde');if(gb2)gb2.textContent=`Kunde ${sIcon('kunde')}`;
-  const types=[...new Set(filteredUnits.map(u=>u.type))];
+  const TYPE_ORDER=['Telpo M1','Telpo M10','Betalingsterminal','Service/Rep'];
+  const types=[...new Set(filteredUnits.map(u=>u.type))].sort((a,b)=>{
+    const ia=TYPE_ORDER.indexOf(a),ib=TYPE_ORDER.indexOf(b);
+    return(ia===-1?999:ia)-(ib===-1?999:ib);
+  });
   let html2='<table class="gantt-table"><thead><tr>';
   html2+=`<th class="gantt-th-unit">Enhet</th>`;
   dates.forEach(d=>{
