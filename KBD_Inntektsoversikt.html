@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.13.0 · Oppdatert: 17. aug 2026 kl. 08:17</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.13.1 · Oppdatert: 17. aug 2026 kl. 08:22</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -838,7 +838,13 @@ tr:hover td{background:#fafafa}
     <div class="chart-wrap"><canvas id="chart-tillegg" height="250"></canvas></div>
 
     <div class="card">
-      <div class="card-title">Legg til total omsetning for måned</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="card-title" style="margin-bottom:0">Legg til total omsetning for måned</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sm" onclick="document.getElementById('omsetning-file-input').click()" title="Leser 'Sum driftsinntekter' fra en resultatrapport (Excel)">📊 Importer resultatrapport</button>
+          <input type="file" id="omsetning-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleOmsetningFile(event)"/>
+        </div>
+      </div>
       <div class="fg" style="grid-template-columns:110px 130px 1fr;margin-bottom:10px">
         <div class="fgrp"><label>År</label><input type="number" id="tf-year" min="2015" max="2040" value="2026" style="width:100%"/></div>
         <div class="fgrp"><label>Måned</label><select id="tf-m"><option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>Mai</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Okt</option><option>Nov</option><option>Des</option></select></div>
@@ -3450,6 +3456,50 @@ function delOmsetning(id){
   omsetning=omsetning.filter(o=>o.id!==id);
   renderTilleggssalg();
   if(entry?.spId){setSPStatus('⏳ Sletter…');spDelete('Omsetning',entry.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting feilet:\n'+e.message);});}
+}
+
+async function handleOmsetningFile(event){
+  const file=event.target.files[0];if(!file)return;
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+
+    // Finn årstall (f.eks. "Regnskapsår: 2022")
+    let year=null;
+    for(const row of rows){
+      const cell=String(row[0]||'');
+      const m=cell.match(/regnskapsår[:\s]*(\d{4})/i);
+      if(m){year=parseInt(m[1]);break;}
+    }
+    if(!year){alert('Fant ikke årstall (forventet "Regnskapsår: ÅÅÅÅ") i filen. Kontroller at det er riktig type rapport.');return;}
+
+    // Finn raden "Sum driftsinntekter" (fallback: "Sum salgsinntekter")
+    const findRow=label=>rows.find(r=>String(r[0]||'').trim().toLowerCase()===label);
+    let sumRow=findRow('sum driftsinntekter')||findRow('sum salgsinntekter');
+    if(!sumRow){alert('Fant ikke raden "Sum driftsinntekter" i filen. Kontroller at det er en resultatrapport per konto/måned.');return;}
+
+    const NO_MONTH_FULL=['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
+    const existing=new Set(omsetning.map(o=>`${o.year}-${o.period}`));
+    const newEntries=[];
+    for(let m=0;m<12;m++){
+      const val=parseFloat(sumRow[m+1]);
+      if(isNaN(val)||val===0)continue;
+      const period=MONTHS[m];
+      if(existing.has(`${year}-${period}`))continue;
+      newEntries.push({id:uid(),spId:null,year,period,amount:Math.round(val),note:'Importert fra resultatrapport'});
+    }
+    if(!newEntries.length){alert(`Fant ingen nye måneder å importere for ${year} (kan allerede være lagt inn).`);return;}
+    showLoading(`Importerer ${newEntries.length} måneder for ${year}…`);
+    for(let i=0;i<newEntries.length;i++){
+      const e=newEntries[i];omsetning.push(e);
+      const r=await spCreate('Omsetning',{Title:`${e.year} ${e.period}`,Year:e.year,Period:e.period,Amount:e.amount,Note:e.note}).catch(()=>null);
+      if(r){e.spId=r.id;e.id=`sp${r.id}`;}
+    }
+    hideLoading();renderTilleggssalg();alert(`✅ Importert ${newEntries.length} måneder for ${year} (fra "${sumRow[0]}").`);
+  }catch(err){hideLoading();alert('Feil ved lesing av fil: '+err.message);}
+  event.target.value='';
 }
 
 function renderTilleggssalg(){
