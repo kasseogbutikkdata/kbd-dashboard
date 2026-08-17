@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.13.1 · Oppdatert: 17. aug 2026 kl. 08:22</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.13.2 · Oppdatert: 17. aug 2026 kl. 08:26</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3498,7 +3498,7 @@ async function handleOmsetningFile(event){
       if(r){e.spId=r.id;e.id=`sp${r.id}`;}
     }
     hideLoading();renderTilleggssalg();alert(`✅ Importert ${newEntries.length} måneder for ${year} (fra "${sumRow[0]}").`);
-  }catch(err){hideLoading();alert('Feil ved lesing av fil: '+err.message);}
+  }catch(err){hideLoading();alert('Feil ved lesing av fil: '+err.message+'\n\nTips: Hvis filen kommer fra et regnskapssystem og gir denne feilen, kan det hjelpe å åpne den i Excel og lagre den på nytt (Fil → Lagre som → .xlsx) før du laster den opp igjen — det fjerner ofte skjulte feil fra eksporten.');}
   event.target.value='';
 }
 
