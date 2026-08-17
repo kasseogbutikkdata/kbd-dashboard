@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.7 · Oppdatert: 17. aug 2026 kl. 11:34</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.8 · Oppdatert: 17. aug 2026 kl. 11:45</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2078,9 +2078,14 @@ function removeAnsattFraOversikt(navn){
   arbeidstid=arbeidstid.filter(a=>a.ansatt!==navn);
   renderArbeidstidOversikt();
   setSPStatus(`⏳ Fjerner ${navn}…`);
-  Promise.all(rader.filter(r=>r.spId).map(r=>spDelete('Arbeidstidsavtaler',r.spId).catch(e=>console.error(e))))
-    .then(()=>{setSPStatus('✅ Fjernet');setTimeout(()=>setSPStatus(''),3000);})
-    .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Noe gikk galt under sletting:\n'+e.message);});
+  Promise.all(rader.map(async r=>{
+    // Vent på at spId settes hvis raden nettopp ble opprettet og lagringen ikke er ferdig ennå
+    let waited=0;
+    while(!r.spId&&waited<10000){await new Promise(res=>setTimeout(res,300));waited+=300;}
+    if(r.spId)return spDelete('Arbeidstidsavtaler',r.spId).catch(e=>console.error('Kunne ikke slette rad:',r,e));
+    console.warn('Fant aldri spId for rad — kunne ikke slette i SharePoint (ble trolig aldri lagret):',r);
+  })).then(()=>{setSPStatus('✅ Fjernet');setTimeout(()=>setSPStatus(''),3000);})
+  .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Noe gikk galt under sletting:\n'+e.message);});
 }
 
 function showAddAnsattInput(){
