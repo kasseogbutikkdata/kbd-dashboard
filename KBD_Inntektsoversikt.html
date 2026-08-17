@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.12.5 · Oppdatert: 17. aug 2026 kl. 07:52</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.13.0 · Oppdatert: 17. aug 2026 kl. 08:17</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -286,6 +286,7 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="lisenser-sub-nav">
         <div class="nav-sub-item active" id="lsub-lisenser" onclick="showTab('lisenser',document.getElementById('tab-lisenser'));setLisenserSubActive('lisenser')">📋 Registreringer</div>
         <div class="nav-sub-item" id="lsub-sammenligning" onclick="showTab('sammenligning',document.getElementById('tab-lisenser'));setLisenserSubActive('sammenligning')">📈 Årssammenligning</div>
+        <div class="nav-sub-item" id="lsub-tilleggssalg" onclick="showTab('tilleggssalg',document.getElementById('tab-lisenser'));setLisenserSubActive('tilleggssalg')">💰 Tilleggssalg</div>
       </div>
       <div class="nav-item" id="tab-kickback" onclick="showTab('kickback',this);toggleKickbackSub(true)">
         <span class="nav-item-icon">💰</span>Kickback
@@ -829,6 +830,36 @@ tr:hover td{background:#fafafa}
     <div class="tbl-wrap" style="margin-bottom:28px"><table id="tbl-slic"></table></div>
   </div>
 
+  <!-- TILLEGGSSALG -->
+  <div id="tp-tilleggssalg" class="tp">
+    <div class="kpis" id="tillegg-kpis"></div>
+
+    <p class="sec-title">Tilleggssalg over tid <span style="font-weight:400;color:#9ca3af;font-size:12px">(Total omsetning − lisenser)</span></p>
+    <div class="chart-wrap"><canvas id="chart-tillegg" height="250"></canvas></div>
+
+    <div class="card">
+      <div class="card-title">Legg til total omsetning for måned</div>
+      <div class="fg" style="grid-template-columns:110px 130px 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>År</label><input type="number" id="tf-year" min="2015" max="2040" value="2026" style="width:100%"/></div>
+        <div class="fgrp"><label>Måned</label><select id="tf-m"><option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>Mai</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Okt</option><option>Nov</option><option>Des</option></select></div>
+        <div class="fgrp"><label>Total omsetning (kr)</label><input type="number" id="tf-amt" placeholder="f.eks. 4 200 000"/></div>
+      </div>
+      <div class="frow">
+        <input type="text" id="tf-note" placeholder="Notat (valgfritt)" style="flex:1"/>
+        <button class="prim" onclick="addOmsetning()">+ Legg til</button>
+      </div>
+    </div>
+
+    <div class="tbl-wrap" style="margin-top:20px">
+      <table>
+        <thead><tr>
+          <th>Periode</th><th class="tr">Total omsetning</th><th class="tr">Sum lisenser</th><th class="tr">Tilleggssalg</th><th class="tr">%</th><th>Notat</th><th></th>
+        </tr></thead>
+        <tbody id="tillegg-body"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- KICKBACK ÅRSSAMMENLIGNING -->
   <div id="tp-kicksammenligning" class="tp">
     <p class="sec-title">Kickback per år — fordelt på kilde</p>
@@ -956,7 +987,7 @@ const MORD={Jan:1,Feb:2,Mar:3,Apr:4,Mai:5,Jun:6,Jul:7,Aug:8,Sep:9,Okt:10,Nov:11,
 const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34948","#e87ba4","#1A3A6B","#0f6e56"];
 
 // ===== STATE =====
-let lic=[],kick=[],products=[],sources=[],aging=[],isSeed=false,charts={};
+let lic=[],kick=[],products=[],sources=[],aging=[],omsetning=[],isSeed=false,charts={};
 let units=[],rentals=[],reservasjoner=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle',moYear=new Date().getFullYear(),utleieSearch='';
 let utleieSort={col:null,dir:'asc'};
 let ganttSort={col:'enhet',dir:'asc'};
@@ -1158,12 +1189,13 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt')
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   aging=agItems.map(i=>({id:`sp${i.id}`,spId:i.id,date:i.fields.Dato||'',d1_30:parseFloat(i.fields.D1_30)||0,d31_60:parseFloat(i.fields.D31_60)||0,d61_90:parseFloat(i.fields.D61_90)||0,d90plus:parseFloat(i.fields.D90plus)||0,note:i.fields.Note||''}));
+  omsetning=omsItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -1770,11 +1802,12 @@ function showTab(name,btn){
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
-  toggleLisenserSub(name==='lisenser'||name==='sammenligning');
+  toggleLisenserSub(name==='lisenser'||name==='sammenligning'||name==='tilleggssalg');
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
   toggleInnstillingerSub(name==='innstillinger');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
+  if(name==='tilleggssalg'){setLisenserSubActive('tilleggssalg');renderTilleggssalg();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
   if(name==='kicksammenligning'){renderKickSammenligning();}
   if(name==='oversikt'){renderTrend();renderKPIs();}
@@ -3397,6 +3430,86 @@ function addAging(){
   renderAging();
   setSPStatus('⏳ Synkroniserer…');
   spCreate('Aldersfordelt',{Title:entry.date,Dato:entry.date,D1_30:entry['d1_30']||0,D31_60:entry['d31_60']||0,D61_90:entry['d61_90']||0,D90plus:entry['d90plus']||0,Note:entry.note||''}).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);});
+}
+
+// ===== TILLEGGSSALG (Total omsetning - lisenser) =====
+function addOmsetning(){
+  const amt=Number(document.getElementById('tf-amt').value);
+  const yr=Number(document.getElementById('tf-year').value);
+  if(!amt||!yr){alert('Fyll inn år og beløp');return;}
+  const entry={id:uid(),spId:null,year:yr,period:document.getElementById('tf-m').value,amount:amt,note:document.getElementById('tf-note').value.trim()};
+  omsetning.push(entry);
+  document.getElementById('tf-amt').value='';document.getElementById('tf-note').value='';
+  renderTilleggssalg();
+  setSPStatus('⏳ Synkroniserer…');
+  spCreate('Omsetning',{Title:`${entry.year} ${entry.period}`,Year:entry.year,Period:entry.period,Amount:entry.amount,Note:entry.note||''}).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+}
+function delOmsetning(id){
+  if(!confirm('Slette denne raden?'))return;
+  const entry=omsetning.find(o=>o.id===id);
+  omsetning=omsetning.filter(o=>o.id!==id);
+  renderTilleggssalg();
+  if(entry?.spId){setSPStatus('⏳ Sletter…');spDelete('Omsetning',entry.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting feilet:\n'+e.message);});}
+}
+
+function renderTilleggssalg(){
+  const rows=omsetning.map(o=>{
+    const licSum=lic.filter(l=>l.year===o.year&&l.period===o.period).reduce((s,l)=>s+l.amount,0);
+    const tillegg=o.amount-licSum;
+    const pct=o.amount>0?(tillegg/o.amount*100):0;
+    return{...o,licSum,tillegg,pct};
+  }).sort((a,b)=>a.year!==b.year?a.year-b.year:MONTHS.indexOf(a.period)-MONTHS.indexOf(b.period));
+
+  // KPI
+  const kpiEl=document.getElementById('tillegg-kpis');
+  if(kpiEl){
+    if(!rows.length){
+      kpiEl.innerHTML=`
+        <div class="kpi"><div class="kpi-lbl">Total omsetning (siste)</div><div style="font-size:24px;font-weight:700;color:#d0d5dd">—</div><div class="kpi-sub">Ingen data</div></div>
+        <div class="kpi"><div class="kpi-lbl">Sum lisenser (siste)</div><div style="font-size:24px;font-weight:700;color:#d0d5dd">—</div></div>
+        <div class="kpi"><div class="kpi-lbl">Tilleggssalg (siste)</div><div style="font-size:24px;font-weight:700;color:#d0d5dd">—</div><div class="kpi-sub">Ingen data</div></div>`;
+    } else {
+      const last=rows[rows.length-1];
+      const prev=rows.length>1?rows[rows.length-2]:null;
+      const delta=prev&&prev.tillegg!==0?((last.tillegg-prev.tillegg)/Math.abs(prev.tillegg)*100):null;
+      const deltaHtml=delta!=null?`<div style="font-size:13px;font-weight:600;color:${delta>=0?'#15803d':'#dc2626'}">${delta>=0?'▲':'▼'}${Math.abs(delta).toFixed(1)}% vs ${prev.period} ${prev.year}</div>`:'';
+      kpiEl.innerHTML=`
+        <div class="kpi"><div class="kpi-lbl">Total omsetning (${last.period} ${last.year})</div><div style="font-size:24px;font-weight:700;color:#1A3A6B">${fS(last.amount)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Sum lisenser (${last.period} ${last.year})</div><div style="font-size:24px;font-weight:700;color:#2a78d6">${fS(last.licSum)}</div></div>
+        <div class="kpi accent"><div class="kpi-lbl">Tilleggssalg (${last.period} ${last.year})</div><div style="font-size:24px;font-weight:700;color:#15803d">${fS(last.tillegg)}</div><div class="kpi-sub">${last.pct.toFixed(1)}% av omsetningen</div>${deltaHtml}</div>`;
+    }
+  }
+
+  // Chart
+  dC('tillegg');
+  const ctx=document.getElementById('chart-tillegg');
+  if(rows.length&&ctx){
+    charts['tillegg']=new Chart(ctx,{type:'bar',data:{
+      labels:rows.map(r=>`${r.period} ${String(r.year).slice(2)}`),
+      datasets:[
+        {label:'Sum lisenser',data:rows.map(r=>r.licSum),backgroundColor:'#2a78d6',stack:'a'},
+        {label:'Tilleggssalg',data:rows.map(r=>r.tillegg),backgroundColor:'#1baf7a',stack:'a',borderRadius:2}
+      ]
+    },options:{...bOpts,plugins:{...bOpts.plugins,legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:11}}},tooltip:{
+      backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',borderColor:'#e5e7eb',borderWidth:1,padding:10,
+      callbacks:{
+        label:c=>`${c.dataset.label}: ${fS(c.raw)}`,
+        footer:items=>{const tot=items.reduce((s,i)=>s+i.raw,0);return`Total omsetning: ${fS(tot)}`;}
+      }
+    }}}});
+  }
+
+  // Table
+  const tbody=document.getElementById('tillegg-body');
+  if(tbody) tbody.innerHTML=rows.length?[...rows].reverse().map(r=>`<tr>
+      <td style="font-weight:500">${r.period} ${r.year}</td>
+      <td class="tr">${fS(r.amount)}</td>
+      <td class="tr" style="color:#2a78d6">${fS(r.licSum)}</td>
+      <td class="tr" style="color:#15803d;font-weight:600">${fS(r.tillegg)}</td>
+      <td class="tr" style="color:#9ca3af">${r.pct.toFixed(1)}%</td>
+      <td class="muted" style="font-size:12px">${r.note||'—'}</td>
+      <td><button class="btn-icon del" onclick="delOmsetning('${r.id}')" title="Slett">✕</button></td>
+    </tr>`).join(''):`<tr><td colspan="7" class="empty">Ingen omsetningsdata lagt inn ennå</td></tr>`;
 }
 
 function relinkUnit(rentalId,newUnitId){
