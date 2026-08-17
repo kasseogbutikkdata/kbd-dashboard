@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.6 · Oppdatert: 17. aug 2026 kl. 11:31</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.7 · Oppdatert: 17. aug 2026 kl. 11:34</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1998,7 +1998,7 @@ function renderArbeidstidOversikt(){
       const lbl=monster==='Standard'?'Std':monster==='Flex07'?'07–15':'09–17';
       return`<td style="text-align:center"><span style="display:inline-block;min-width:52px;padding:4px 8px;border-radius:6px;background:${bg};color:${txt};font-size:11px;font-weight:700">${lbl}</span></td>`;
     }).join('');
-    const editBtn=userRole==='admin'?`<td><button class="btn-icon" onclick="openArbeidstidEdit('${navn.replace(/'/g,"\\'")}')" title="Rediger mønster">✎</button></td>`:'<td></td>';
+    const editBtn=userRole==='admin'?`<td><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn-icon" onclick="openArbeidstidEdit('${navn.replace(/'/g,"\\'")}')" title="Rediger mønster">✎</button><button class="btn-icon del" onclick="removeAnsattFraOversikt('${navn.replace(/'/g,"\\'")}')" title="Fjern ansatt fra oversikten">🗑</button></div></td>`:'<td></td>';
     return`<tr><td style="font-weight:500">${navn}</td>${cells}${editBtn}</tr>`;
   }).join('');
 }
@@ -2067,6 +2067,20 @@ function sendArbeidstidSoknad(){
     alert('Søknaden din er sendt inn og venter på godkjenning.');
     showArbeidstidView('soknader',document.getElementById('asub-soknader'));
   }).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Søknaden kunne ikke sendes:\n'+e.message);});
+}
+
+function removeAnsattFraOversikt(navn){
+  const rader=arbeidstid.filter(a=>a.ansatt===navn);
+  const inBrukere=brukere.some(b=>b.navn===navn);
+  let msg=`Fjerne ${navn} helt fra Arbeidstid-oversikten? Dette sletter alle ${rader.length} registrerte mønster/søknader for personen permanent.`;
+  if(inBrukere)msg+=`\n\n⚠️ ${navn} ligger fortsatt i Brukere-listen (tilgangsstyring) og vil derfor dukke opp igjen med Standard-mønster. Fjern evt. også personen under Innstillinger → Brukertilgang om det er ønskelig.`;
+  if(!confirm(msg))return;
+  arbeidstid=arbeidstid.filter(a=>a.ansatt!==navn);
+  renderArbeidstidOversikt();
+  setSPStatus(`⏳ Fjerner ${navn}…`);
+  Promise.all(rader.filter(r=>r.spId).map(r=>spDelete('Arbeidstidsavtaler',r.spId).catch(e=>console.error(e))))
+    .then(()=>{setSPStatus('✅ Fjernet');setTimeout(()=>setSPStatus(''),3000);})
+    .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Noe gikk galt under sletting:\n'+e.message);});
 }
 
 function showAddAnsattInput(){
