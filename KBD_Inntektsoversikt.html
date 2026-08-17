@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.13.2 · Oppdatert: 17. aug 2026 kl. 08:26</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.13.3 · Oppdatert: 17. aug 2026 kl. 08:30</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3502,12 +3502,18 @@ async function handleOmsetningFile(event){
   event.target.value='';
 }
 
+const MONTH_TO_Q=['Q1','Q1','Q1','Q2','Q2','Q2','Q3','Q3','Q3','Q4','Q4','Q4'];
 function renderTilleggssalg(){
   const rows=omsetning.map(o=>{
-    const licSum=lic.filter(l=>l.year===o.year&&l.period===o.period).reduce((s,l)=>s+l.amount,0);
+    const monthIdx=MONTHS.indexOf(o.period);
+    const q=MONTH_TO_Q[monthIdx];
+    const monthlyLic=lic.filter(l=>l.year===o.year&&l.period===o.period).reduce((s,l)=>s+l.amount,0);
+    const quarterlyLicTotal=lic.filter(l=>l.year===o.year&&!l.period&&l.quarter===q).reduce((s,l)=>s+l.amount,0);
+    const quarterlyLicShare=quarterlyLicTotal/3;
+    const licSum=monthlyLic+quarterlyLicShare;
     const tillegg=o.amount-licSum;
     const pct=o.amount>0?(tillegg/o.amount*100):0;
-    return{...o,licSum,tillegg,pct};
+    return{...o,licSum,fromQuarterly:quarterlyLicTotal>0,tillegg,pct};
   }).sort((a,b)=>a.year!==b.year?a.year-b.year:MONTHS.indexOf(a.period)-MONTHS.indexOf(b.period));
 
   // KPI
@@ -3554,7 +3560,7 @@ function renderTilleggssalg(){
   if(tbody) tbody.innerHTML=rows.length?[...rows].reverse().map(r=>`<tr>
       <td style="font-weight:500">${r.period} ${r.year}</td>
       <td class="tr">${fS(r.amount)}</td>
-      <td class="tr" style="color:#2a78d6">${fS(r.licSum)}</td>
+      <td class="tr" style="color:#2a78d6">${fS(r.licSum)}${r.fromQuarterly?' <span title="Beregnet fra kvartalsvis lisensdata (delt på 3) — ikke eksakt månedstall" style="cursor:help;color:#9ca3af">≈</span>':''}</td>
       <td class="tr" style="color:#15803d;font-weight:600">${fS(r.tillegg)}</td>
       <td class="tr" style="color:#9ca3af">${r.pct.toFixed(1)}%</td>
       <td class="muted" style="font-size:12px">${r.note||'—'}</td>
