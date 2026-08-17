@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.12.4 · Oppdatert: 16. aug 2026 kl. 16:39</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.12.5 · Oppdatert: 17. aug 2026 kl. 07:52</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1678,7 +1678,7 @@ function renderAging(){
         }),
         {label:'Trend (total)',data:trendData,type:'line',borderColor:'#1A3A6B',backgroundColor:'transparent',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.4,stack:undefined,order:0}
       ]
-    },options:{...bOpts,plugins:{...bOpts.plugins,tooltip:{
+    },options:{...bOpts,scales:{...bOpts.scales,x:{...bOpts.scales.x,ticks:{...bOpts.scales.x.ticks,autoSkip:false,maxRotation:60,minRotation:45}}},plugins:{...bOpts.plugins,tooltip:{
       backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',borderColor:'#e5e7eb',borderWidth:1,padding:10,
       callbacks:{
         label:c=>`${c.dataset.label}: ${fS(c.raw)}`,
