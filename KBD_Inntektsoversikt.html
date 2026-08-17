@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.0 · Oppdatert: 17. aug 2026 kl. 11:06</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.1 · Oppdatert: 17. aug 2026 kl. 11:14</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -657,6 +657,21 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
+  <!-- ARBEIDSTID REDIGER MODAL -->
+  <div class="modal-overlay" id="arbeidstid-edit-modal" onclick="if(event.target===this)closeArbeidstidEdit()">
+    <div class="modal" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h3 id="aem-title" style="margin:0"></h3>
+        <button class="btn-icon" onclick="closeArbeidstidEdit()" style="font-size:16px">✕</button>
+      </div>
+      <div id="aem-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px"></div>
+      <button class="btn-sm" onclick="addArbeidstidAvtaleDirect()" style="margin-top:12px">+ Legg til nytt mønster</button>
+      <div class="modal-footer">
+        <button class="prim" onclick="closeArbeidstidEdit()">Lukk</button>
+      </div>
+    </div>
+  </div>
+
   <!-- NY UTLEIE MODAL -->
   <div class="modal-overlay" id="utleie-modal" onclick="if(event.target===this)closeUtleieModal()">
     <div class="modal" style="width:620px;max-width:94vw">
@@ -762,7 +777,7 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Ansatt</th><th style="text-align:center">Man</th><th style="text-align:center">Tir</th><th style="text-align:center">Ons</th><th style="text-align:center">Tor</th><th style="text-align:center">Fre</th></tr></thead>
+          <thead><tr><th>Ansatt</th><th style="text-align:center">Man</th><th style="text-align:center">Tir</th><th style="text-align:center">Ons</th><th style="text-align:center">Tor</th><th style="text-align:center">Fre</th><th></th></tr></thead>
           <tbody id="arbeidstid-oversikt-body"></tbody>
         </table>
       </div>
@@ -1967,7 +1982,8 @@ function renderArbeidstidOversikt(){
       const lbl=monster==='Standard'?'Std':monster==='Flex07'?'07–15':'09–17';
       return`<td style="text-align:center"><span style="display:inline-block;min-width:52px;padding:4px 8px;border-radius:6px;background:${bg};color:${txt};font-size:11px;font-weight:700">${lbl}</span></td>`;
     }).join('');
-    return`<tr><td style="font-weight:500">${navn}</td>${cells}</tr>`;
+    const editBtn=userRole==='admin'?`<td><button class="btn-icon" onclick="openArbeidstidEdit('${navn.replace(/'/g,"\\'")}')" title="Rediger mønster">✎</button></td>`:'<td></td>';
+    return`<tr><td style="font-weight:500">${navn}</td>${cells}${editBtn}</tr>`;
   }).join('');
 }
 
@@ -2052,6 +2068,89 @@ function decideArbeidstidSoknad(id,newStatus){
     setSPStatus('⏳ Lagrer…');
     spCreate('Arbeidstidsavtaler',{Title:`${a.ansatt} – ${a.startdato}`,Ansatt:a.ansatt,Monster:a.monster,Ukedager:a.ukedager.join(','),Startdato:a.startdato,Kommentar:a.kommentar,...spFields}).then(r=>{a.spId=r.id;a.id=`sp${r.id}`;setSPStatus('✅ Lagret (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);renderArbeidstidSoknader();}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Kunne ikke lagre:\n'+e.message);});
   }
+}
+
+// ===== ARBEIDSTID: rediger direkte fra Oversikt (admin) =====
+let aemCurrentNavn=null;
+
+function openArbeidstidEdit(navn){
+  aemCurrentNavn=navn;
+  document.getElementById('aem-title').textContent=`Rediger mønster — ${navn}`;
+  renderArbeidstidEditList();
+  document.getElementById('arbeidstid-edit-modal').classList.add('open');
+}
+function closeArbeidstidEdit(){
+  document.getElementById('arbeidstid-edit-modal').classList.remove('open');
+  aemCurrentNavn=null;
+}
+
+function renderArbeidstidEditList(){
+  const listEl=document.getElementById('aem-list');
+  if(!listEl||!aemCurrentNavn)return;
+  const rows=arbeidstid.filter(a=>a.ansatt===aemCurrentNavn&&a.status==='Godkjent');
+  if(!rows.length){
+    listEl.innerHTML=`<div class="empty" style="padding:16px;text-align:center">Ingen godkjente mønstre ennå — alle dager vises som Standard. Trykk "+ Legg til nytt mønster" for å sette opp et.</div>`;
+    return;
+  }
+  listEl.innerHTML=rows.map(a=>`
+    <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px" id="aem-row-${a.id}">
+      <div class="fgrp" style="margin-bottom:8px">
+        <label>Mønster</label>
+        <select id="aem-monster-${a.id}">
+          <option value="Standard" ${a.monster==='Standard'?'selected':''}>Standard — 08:00–16:00</option>
+          <option value="Flex07" ${a.monster==='Flex07'?'selected':''}>Flex — 07:00–15:00</option>
+          <option value="Flex09" ${a.monster==='Flex09'?'selected':''}>Flex — 09:00–17:00</option>
+        </select>
+      </div>
+      <div class="fgrp" style="margin-bottom:8px">
+        <label>Ukedager</label>
+        <div style="display:flex;gap:12px;padding:6px 2px">
+          ${UKEDAGER.map(dag=>`<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" class="aem-dag-${a.id}" value="${dag}" ${a.ukedager.includes(dag)?'checked':''}/> ${dag}</label>`).join('')}
+        </div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Kommentar</label><input type="text" id="aem-kommentar-${a.id}" value="${(a.kommentar||'').replace(/"/g,'&quot;')}"/></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-icon del" onclick="deleteArbeidstidAvtale('${a.id}')" title="Fjern mønster">✕ Fjern</button>
+        <button class="prim" style="padding:6px 14px;font-size:13px" onclick="saveArbeidstidAvtaleInline('${a.id}')">Lagre</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function saveArbeidstidAvtaleInline(id){
+  const a=arbeidstid.find(x=>x.id===id);if(!a)return;
+  const monster=document.getElementById(`aem-monster-${id}`).value;
+  const dager=[...document.querySelectorAll(`.aem-dag-${id}:checked`)].map(cb=>cb.value);
+  const kommentar=document.getElementById(`aem-kommentar-${id}`).value.trim();
+  a.monster=monster;a.ukedager=dager;a.kommentar=kommentar;
+  renderArbeidstidOversikt();
+  const spFields={Monster:monster,Ukedager:dager.join(','),Kommentar:kommentar};
+  if(a.spId){
+    setSPStatus('⏳ Oppdaterer…');
+    spUpdate('Arbeidstidsavtaler',a.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message);});
+  } else {
+    setSPStatus('⏳ Lagrer…');
+    spCreate('Arbeidstidsavtaler',{Title:`${a.ansatt} – ${a.startdato}`,Ansatt:a.ansatt,Status:'Godkjent',Startdato:a.startdato,GodkjentAv:a.godkjentAv,GodkjentDato:a.godkjentDato,...spFields}).then(r=>{a.spId=r.id;a.id=`sp${r.id}`;setSPStatus('✅ Lagret (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);renderArbeidstidEditList();}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Kunne ikke lagre:\n'+e.message);});
+  }
+}
+
+function deleteArbeidstidAvtale(id){
+  if(!confirm('Fjerne dette mønsteret? Dagene det dekket faller tilbake til Standard.'))return;
+  const a=arbeidstid.find(x=>x.id===id);
+  arbeidstid=arbeidstid.filter(x=>x.id!==id);
+  renderArbeidstidEditList();renderArbeidstidOversikt();
+  if(a?.spId){setSPStatus('⏳ Sletter…');spDelete('Arbeidstidsavtaler',a.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting feilet:\n'+e.message);});}
+}
+
+function addArbeidstidAvtaleDirect(){
+  if(!aemCurrentNavn)return;
+  const today=new Date().toISOString().slice(0,10);
+  const godkjentAv=currentUser?.name||'Admin';
+  const entry={id:uid(),spId:null,ansatt:aemCurrentNavn,monster:'Standard',ukedager:[],startdato:today,status:'Godkjent',kommentar:'',godkjentAv,godkjentDato:today};
+  arbeidstid.push(entry);
+  renderArbeidstidEditList();
+  setSPStatus('⏳ Lagrer…');
+  spCreate('Arbeidstidsavtaler',{Title:`${entry.ansatt} – ${today}`,Ansatt:entry.ansatt,Monster:entry.monster,Ukedager:'',Startdato:today,Status:'Godkjent',Kommentar:'',GodkjentAv:godkjentAv,GodkjentDato:today}).then(r=>{entry.spId=r.id;entry.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);renderArbeidstidEditList();}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Kunne ikke lagre:\n'+e.message);});
 }
 
 function showKickbackView(view){
