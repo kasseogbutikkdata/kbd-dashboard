@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.13.3 · Oppdatert: 17. aug 2026 kl. 08:30</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.0 · Oppdatert: 17. aug 2026 kl. 11:06</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -286,7 +286,6 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="lisenser-sub-nav">
         <div class="nav-sub-item active" id="lsub-lisenser" onclick="showTab('lisenser',document.getElementById('tab-lisenser'));setLisenserSubActive('lisenser')">📋 Registreringer</div>
         <div class="nav-sub-item" id="lsub-sammenligning" onclick="showTab('sammenligning',document.getElementById('tab-lisenser'));setLisenserSubActive('sammenligning')">📈 Årssammenligning</div>
-        <div class="nav-sub-item" id="lsub-tilleggssalg" onclick="showTab('tilleggssalg',document.getElementById('tab-lisenser'));setLisenserSubActive('tilleggssalg')">💰 Tilleggssalg</div>
       </div>
       <div class="nav-item" id="tab-kickback" onclick="showTab('kickback',this);toggleKickbackSub(true)">
         <span class="nav-item-icon">💰</span>Kickback
@@ -308,6 +307,15 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="usub-reservasjoner" onclick="showUtleieView('reservasjoner',this)">🟡 Reservasjoner</div>
         <div class="nav-sub-item" id="usub-enheter" onclick="showUtleieView('enheter',this)">🔧 Enheter</div>
         <div class="nav-sub-item" id="usub-logg" onclick="showUtleieView('logg',this)">📋 Logg</div>
+      </div>
+      <div class="sidebar-divider"></div>
+      <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
+        <span class="nav-item-icon">🕒</span>Arbeidstid
+      </div>
+      <div class="nav-sub" id="arbeidstid-sub-nav">
+        <div class="nav-sub-item active" id="asub-oversikt" onclick="showArbeidstidView('oversikt',this)">📋 Oversikt</div>
+        <div class="nav-sub-item" id="asub-soknader" onclick="showArbeidstidView('soknader',this)">📝 Søknader</div>
+        <div class="nav-sub-item" id="asub-ny" onclick="showArbeidstidView('ny',this)">➕ Ny søknad</div>
       </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
@@ -743,6 +751,61 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
+  <!-- ARBEIDSTID -->
+  <div id="tp-arbeidstid" class="tp">
+    <div id="arbeidstid-oversikt">
+      <p class="sec-title">Gjeldende arbeidstidsmønster per ansatt <span style="font-weight:400;color:#9ca3af;font-size:12px">— basert på godkjente avtaler</span></p>
+      <div style="display:flex;gap:16px;margin-bottom:16px;font-size:12px;color:#6b7280">
+        <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#e5e7eb;margin-right:4px;vertical-align:-1px"></span>Standard (08–16)</span>
+        <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#bfdbfe;margin-right:4px;vertical-align:-1px"></span>Flex 07–15</span>
+        <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#c7f9dd;margin-right:4px;vertical-align:-1px"></span>Flex 09–17</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Ansatt</th><th style="text-align:center">Man</th><th style="text-align:center">Tir</th><th style="text-align:center">Ons</th><th style="text-align:center">Tor</th><th style="text-align:center">Fre</th></tr></thead>
+          <tbody id="arbeidstid-oversikt-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="arbeidstid-soknader" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:16px" id="asok-filters">
+        <button class="fpill f-on" id="asokf-venter" style="border-color:#eda100" onclick="setAsokFilter('Venter')"><span class="fpill-dot" style="background:#eda100"></span>Venter</button>
+        <button class="fpill" id="asokf-godkjent" onclick="setAsokFilter('Godkjent')"><span class="fpill-dot" style="background:#15803d"></span>Godkjent</button>
+        <button class="fpill" id="asokf-avslatt" onclick="setAsokFilter('Avslått')"><span class="fpill-dot" style="background:#dc2626"></span>Avslått</button>
+        <button class="fpill" id="asokf-alle" onclick="setAsokFilter('alle')"><span style="font-weight:600;color:#6b7280">Alle</span></button>
+      </div>
+      <div id="arbeidstid-soknader-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <div id="arbeidstid-ny" style="display:none">
+      <div class="card" style="max-width:520px">
+        <div class="card-title">Ny søknad om arbeidstidsmønster</div>
+        <div class="fgrp" style="margin-bottom:12px">
+          <label>Ønsket mønster</label>
+          <select id="asok-monster">
+            <option value="Standard">Standard — 08:00–16:00</option>
+            <option value="Flex07">Flex — 07:00–15:00</option>
+            <option value="Flex09">Flex — 09:00–17:00</option>
+          </select>
+        </div>
+        <div class="fgrp" style="margin-bottom:12px">
+          <label>Ukedager dette gjelder for</label>
+          <div style="display:flex;gap:14px;padding:8px 2px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" class="asok-dag" value="Man"/> Man</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" class="asok-dag" value="Tir"/> Tir</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" class="asok-dag" value="Ons"/> Ons</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" class="asok-dag" value="Tor"/> Tor</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" class="asok-dag" value="Fre"/> Fre</label>
+          </div>
+        </div>
+        <div class="fgrp" style="margin-bottom:12px"><label>Ønsket startdato</label><input type="date" id="asok-startdato"/></div>
+        <div class="fgrp" style="margin-bottom:16px"><label>Kommentar <span style="font-weight:400;color:#9ca3af">(valgfritt)</span></label><input type="text" id="asok-kommentar" placeholder="F.eks. begrunnelse eller ønsket varighet"/></div>
+        <button class="prim" onclick="sendArbeidstidSoknad()" style="width:100%">Send søknad</button>
+      </div>
+    </div>
+  </div>
+
   <!-- INNSTILLINGER -->
   <div id="tp-innstillinger" class="tp">
     <div id="innst-produkter">
@@ -1002,6 +1065,7 @@ let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
 let brukere=[];
+let arbeidstid=[],asokFilter='Venter';
 const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
 const CLIENT_ID="b0ff1861-62de-4ecc-8a13-fd463cb5af45";
 const TENANT_ID="c5f9c7ae-f91d-40e1-bbac-303409fa7a8d";
@@ -1211,6 +1275,7 @@ async function loadDataFromSP(){
   await loadUtleieData();
   await loadReservasjoner();
   await loadBrukere();
+  await loadArbeidstid();
   // Last logg fra SharePoint
   try{
     const loggItems=await spGetItems('Logg');
@@ -1808,17 +1873,18 @@ function showTab(name,btn){
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
-  toggleLisenserSub(name==='lisenser'||name==='sammenligning'||name==='tilleggssalg');
+  toggleLisenserSub(name==='lisenser'||name==='sammenligning');
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
   toggleInnstillingerSub(name==='innstillinger');
+  toggleArbeidstidSub(name==='arbeidstid');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
-  if(name==='tilleggssalg'){setLisenserSubActive('tilleggssalg');renderTilleggssalg();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
   if(name==='kicksammenligning'){renderKickSammenligning();}
   if(name==='oversikt'){renderTrend();renderKPIs();}
   if(name==='aldersfordelt')renderAging();
   if(name==='innstillinger'){renderSettings();showInnstillingerView(userRole==='admin'?'brukertilgang':'produkter');}
+  if(name==='arbeidstid')showArbeidstidView('oversikt',document.getElementById('asub-oversikt'));
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
@@ -1857,6 +1923,135 @@ function showInnstillingerView(view,btn){
   const subBtn=btn||document.getElementById('isub-'+view);
   if(subBtn)subBtn.classList.add('active');
   toggleInnstillingerSub(true);
+}
+
+// ===== ARBEIDSTID =====
+const ARBEIDSTID_LABELS={Standard:'Standard 08–16',Flex07:'Flex 07–15',Flex09:'Flex 09–17'};
+const ARBEIDSTID_COLORS={Standard:'#e5e7eb',Flex07:'#bfdbfe',Flex09:'#c7f9dd'};
+const ARBEIDSTID_TXT={Standard:'#6b7280',Flex07:'#1d4ed8',Flex09:'#15803d'};
+const UKEDAGER=['Man','Tir','Ons','Tor','Fre'];
+
+function toggleArbeidstidSub(open){
+  const sub=document.getElementById('arbeidstid-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function showArbeidstidView(view,btn){
+  ['oversikt','soknader','ny'].forEach(v=>{
+    const el=document.getElementById('arbeidstid-'+v);
+    if(el)el.style.display=v===view?'':'none';
+  });
+  document.querySelectorAll('#arbeidstid-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const subBtn=btn||document.getElementById('asub-'+view);
+  if(subBtn)subBtn.classList.add('active');
+  toggleArbeidstidSub(true);
+  if(view==='oversikt')renderArbeidstidOversikt();
+  if(view==='soknader')renderArbeidstidSoknader();
+}
+
+function renderArbeidstidOversikt(){
+  const tbody=document.getElementById('arbeidstid-oversikt-body');
+  if(!tbody)return;
+  const godkjente=arbeidstid.filter(a=>a.status==='Godkjent');
+  // Ansatte: bruk Brukere-lista som master, men ta med evt. navn fra søknader som ikke er der
+  const navn=new Set(brukere.map(b=>b.navn).filter(Boolean));
+  arbeidstid.forEach(a=>{if(a.ansatt)navn.add(a.ansatt);});
+  const ansattListe=[...navn].sort((a,b)=>a.localeCompare(b,'nb'));
+  if(!ansattListe.length){tbody.innerHTML=`<tr><td colspan="6" class="empty">Ingen ansatte registrert ennå</td></tr>`;return;}
+  tbody.innerHTML=ansattListe.map(navn=>{
+    const cells=UKEDAGER.map(dag=>{
+      const avtale=godkjente.find(a=>a.ansatt===navn&&a.ukedager.includes(dag));
+      const monster=avtale?avtale.monster:'Standard';
+      const bg=ARBEIDSTID_COLORS[monster]||'#e5e7eb';
+      const txt=ARBEIDSTID_TXT[monster]||'#6b7280';
+      const lbl=monster==='Standard'?'Std':monster==='Flex07'?'07–15':'09–17';
+      return`<td style="text-align:center"><span style="display:inline-block;min-width:52px;padding:4px 8px;border-radius:6px;background:${bg};color:${txt};font-size:11px;font-weight:700">${lbl}</span></td>`;
+    }).join('');
+    return`<tr><td style="font-weight:500">${navn}</td>${cells}</tr>`;
+  }).join('');
+}
+
+function setAsokFilter(f){
+  asokFilter=f;
+  document.querySelectorAll('#asok-filters .fpill').forEach(b=>{b.classList.remove('f-on');b.style.borderColor='';});
+  const map={Venter:'asokf-venter',Godkjent:'asokf-godkjent','Avslått':'asokf-avslatt',alle:'asokf-alle'};
+  const btn=document.getElementById(map[f]);
+  if(btn){btn.classList.add('f-on');btn.style.borderColor=f==='Venter'?'#eda100':f==='Godkjent'?'#15803d':f==='Avslått'?'#dc2626':'#6b7280';}
+  renderArbeidstidSoknader();
+}
+
+function renderArbeidstidSoknader(){
+  const listEl=document.getElementById('arbeidstid-soknader-list');
+  if(!listEl)return;
+  const rows=arbeidstid.filter(a=>asokFilter==='alle'||a.status===asokFilter)
+    .sort((a,b)=>(b.startdato||'').localeCompare(a.startdato||''));
+  if(!rows.length){listEl.innerHTML=`<div class="empty" style="padding:24px;text-align:center">Ingen søknader${asokFilter!=='alle'?' med status «'+asokFilter+'»':''}</div>`;return;}
+  const statColor={Venter:'#eda100',Godkjent:'#15803d','Avslått':'#dc2626'};
+  listEl.innerHTML=rows.map(a=>{
+    const bg=ARBEIDSTID_COLORS[a.monster]||'#e5e7eb';
+    const txt=ARBEIDSTID_TXT[a.monster]||'#6b7280';
+    const canDecide=userRole==='admin'&&a.status==='Venter';
+    return`<div class="card" style="margin-bottom:0;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="min-width:0">
+          <div style="font-weight:600;color:#111;font-size:14px;margin-bottom:4px">${a.ansatt||'Ukjent'}</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+            <span style="background:${bg};color:${txt};font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">${ARBEIDSTID_LABELS[a.monster]||a.monster}</span>
+            <span style="font-size:12px;color:#6b7280">${a.ukedager.join(', ')||'—'}</span>
+            <span style="font-size:12px;color:#9ca3af">· fra ${a.startdato||'—'}</span>
+          </div>
+          ${a.kommentar?`<div style="font-size:12px;color:#6b7280;margin-top:4px">💬 ${a.kommentar}</div>`:''}
+          ${a.status!=='Venter'?`<div style="font-size:11px;color:#9ca3af;margin-top:6px">${a.status} av ${a.godkjentAv||'—'} (${a.godkjentDato||'—'})</div>`:''}
+        </div>
+        <div style="flex-shrink:0;text-align:right">
+          <span style="display:inline-block;background:${statColor[a.status]}18;color:${statColor[a.status]};font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;margin-bottom:8px">${a.status}</span>
+          ${canDecide?`<div style="display:flex;gap:6px">
+            <button class="btn-sm" style="color:#15803d;border-color:#15803d" onclick="decideArbeidstidSoknad('${a.id}','Godkjent')">✓ Godkjenn</button>
+            <button class="btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="decideArbeidstidSoknad('${a.id}','Avslått')">✕ Avslå</button>
+          </div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function sendArbeidstidSoknad(){
+  const monster=document.getElementById('asok-monster').value;
+  const dager=[...document.querySelectorAll('.asok-dag:checked')].map(cb=>cb.value);
+  const startdato=document.getElementById('asok-startdato').value;
+  const kommentar=document.getElementById('asok-kommentar').value.trim();
+  if(!dager.length){alert('Velg minst én ukedag');return;}
+  if(!startdato){alert('Velg ønsket startdato');return;}
+  const ansattNavn=currentUser?.name||'Ukjent bruker';
+  const entry={id:uid(),spId:null,ansatt:ansattNavn,monster,ukedager:dager,startdato,status:'Venter',kommentar,godkjentAv:'',godkjentDato:''};
+  arbeidstid.push(entry);
+  document.getElementById('asok-startdato').value='';
+  document.getElementById('asok-kommentar').value='';
+  document.querySelectorAll('.asok-dag').forEach(cb=>cb.checked=false);
+  setSPStatus('⏳ Sender søknad…');
+  spCreate('Arbeidstidsavtaler',{Title:`${ansattNavn} – ${startdato}`,Ansatt:ansattNavn,Monster:monster,Ukedager:dager.join(','),Startdato:startdato,Status:'Venter',Kommentar:kommentar,GodkjentAv:'',GodkjentDato:''}).then(r=>{
+    entry.spId=r.id;entry.id=`sp${r.id}`;
+    setSPStatus('✅ Søknad sendt');setTimeout(()=>setSPStatus(''),3000);
+    alert('Søknaden din er sendt inn og venter på godkjenning.');
+    showArbeidstidView('soknader',document.getElementById('asub-soknader'));
+  }).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Søknaden kunne ikke sendes:\n'+e.message);});
+}
+
+function decideArbeidstidSoknad(id,newStatus){
+  const a=arbeidstid.find(x=>x.id===id);if(!a)return;
+  if(!confirm(`${newStatus==='Godkjent'?'Godkjenne':'Avslå'} søknad fra ${a.ansatt} (${ARBEIDSTID_LABELS[a.monster]||a.monster}, ${a.ukedager.join(', ')})?`))return;
+  const godkjentAv=currentUser?.name||'Admin';
+  const godkjentDato=new Date().toISOString().slice(0,10);
+  a.status=newStatus;a.godkjentAv=godkjentAv;a.godkjentDato=godkjentDato;
+  renderArbeidstidSoknader();
+  const spFields={Status:newStatus,GodkjentAv:godkjentAv,GodkjentDato:godkjentDato};
+  if(a.spId){
+    setSPStatus('⏳ Oppdaterer…');
+    spUpdate('Arbeidstidsavtaler',a.spId,spFields).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message);});
+  } else {
+    setSPStatus('⏳ Lagrer…');
+    spCreate('Arbeidstidsavtaler',{Title:`${a.ansatt} – ${a.startdato}`,Ansatt:a.ansatt,Monster:a.monster,Ukedager:a.ukedager.join(','),Startdato:a.startdato,Kommentar:a.kommentar,...spFields}).then(r=>{a.spId=r.id;a.id=`sp${r.id}`;setSPStatus('✅ Lagret (ny SP-kobling)');setTimeout(()=>setSPStatus(''),3000);renderArbeidstidSoknader();}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Kunne ikke lagre:\n'+e.message);});
+  }
 }
 
 function showKickbackView(view){
@@ -3010,6 +3205,23 @@ async function loadBrukere(){
       return{id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',epost:i.fields.Epost||'',azureId:i.fields.AzureId||'',tilgang};
     });
   }catch(e){console.error('Feil ved lasting av brukere:',e);brukere=[];}
+}
+
+async function loadArbeidstid(){
+  try{
+    const items=await spGetItems('Arbeidstidsavtaler');
+    arbeidstid=items.map(i=>({
+      id:`sp${i.id}`,spId:i.id,
+      ansatt:i.fields.Ansatt||'',
+      monster:i.fields.Monster||'',
+      ukedager:(i.fields.Ukedager||'').split(',').map(d=>d.trim()).filter(Boolean),
+      startdato:i.fields.Startdato||'',
+      status:i.fields.Status||'Venter',
+      kommentar:i.fields.Kommentar||'',
+      godkjentAv:i.fields.GodkjentAv||'',
+      godkjentDato:i.fields.GodkjentDato||''
+    }));
+  }catch(e){console.error('Feil ved lasting av arbeidstidsavtaler:',e);arbeidstid=[];}
 }
 
 function applyAccessControl(){
