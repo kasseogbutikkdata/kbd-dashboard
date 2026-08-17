@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.8 · Oppdatert: 17. aug 2026 kl. 11:45</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.9 · Oppdatert: 17. aug 2026 kl. 11:50</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1978,6 +1978,7 @@ function showArbeidstidView(view,btn){
   if(view==='soknader')renderArbeidstidSoknader();
 }
 
+const ARBEIDSTID_SKJULT=['Mirrow'];
 function renderArbeidstidOversikt(){
   const tbody=document.getElementById('arbeidstid-oversikt-body');
   if(!tbody)return;
@@ -1987,6 +1988,7 @@ function renderArbeidstidOversikt(){
   // Ansatte: bruk Brukere-lista som master, men ta med evt. navn fra søknader som ikke er der
   const navn=new Set(brukere.map(b=>b.navn).filter(Boolean));
   arbeidstid.forEach(a=>{if(a.ansatt)navn.add(a.ansatt);});
+  ARBEIDSTID_SKJULT.forEach(n=>navn.delete(n));
   const ansattListe=[...navn].sort((a,b)=>a.localeCompare(b,'nb'));
   if(!ansattListe.length){tbody.innerHTML=`<tr><td colspan="6" class="empty">Ingen ansatte registrert ennå</td></tr>`;return;}
   tbody.innerHTML=ansattListe.map(navn=>{
@@ -2015,7 +2017,7 @@ function setAsokFilter(f){
 function renderArbeidstidSoknader(){
   const listEl=document.getElementById('arbeidstid-soknader-list');
   if(!listEl)return;
-  const rows=arbeidstid.filter(a=>asokFilter==='alle'||a.status===asokFilter)
+  const rows=arbeidstid.filter(a=>!ARBEIDSTID_SKJULT.includes(a.ansatt)&&(asokFilter==='alle'||a.status===asokFilter))
     .sort((a,b)=>(b.startdato||'').localeCompare(a.startdato||''));
   if(!rows.length){listEl.innerHTML=`<div class="empty" style="padding:24px;text-align:center">Ingen søknader${asokFilter!=='alle'?' med status «'+asokFilter+'»':''}</div>`;return;}
   const statColor={Venter:'#eda100',Godkjent:'#15803d','Avslått':'#dc2626'};
