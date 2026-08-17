@@ -264,7 +264,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.5 · Oppdatert: 17. aug 2026 kl. 11:28</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.14.6 · Oppdatert: 17. aug 2026 kl. 11:31</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -773,7 +773,7 @@ tr:hover td{background:#fafafa}
       <p style="font-size:13px;color:#6b7280;max-width:640px;margin:-4px 0 16px;line-height:1.5">
         Ordningen er innført for å gjøre det enklere for ansatte å kombinere jobb med fysisk aktivitet i hverdagen — det er <strong>ikke</strong> en generell fleksitidsordning. Fullstendig formål og betingelser er beskrevet i Personalhåndboken (lenke nederst).
       </p>
-      <div style="margin-bottom:14px" id="aem-add-ansatt-wrap">
+      <div style="margin-bottom:14px;display:none" id="aem-add-ansatt-wrap" class="admin-only">
         <button class="btn-sm" onclick="showAddAnsattInput()" id="aem-add-ansatt-btn">+ Legg til ansatt i oversikten</button>
         <div id="aem-add-ansatt-form" style="display:none;gap:8px;align-items:center;margin-top:8px">
           <input type="text" id="aem-new-navn" placeholder="Fullt navn på ansatt" style="max-width:260px" onkeydown="if(event.key==='Enter')confirmAddAnsatt()"/>
@@ -1981,6 +1981,8 @@ function showArbeidstidView(view,btn){
 function renderArbeidstidOversikt(){
   const tbody=document.getElementById('arbeidstid-oversikt-body');
   if(!tbody)return;
+  const addWrap=document.getElementById('aem-add-ansatt-wrap');
+  if(addWrap)addWrap.style.display=userRole==='admin'?'':'none';
   const godkjente=arbeidstid.filter(a=>a.status==='Godkjent');
   // Ansatte: bruk Brukere-lista som master, men ta med evt. navn fra søknader som ikke er der
   const navn=new Set(brukere.map(b=>b.navn).filter(Boolean));
