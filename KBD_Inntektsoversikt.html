@@ -269,7 +269,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.17.0 · Oppdatert: 19. aug 2026 kl. 15:53</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.17.1 · Oppdatert: 19. aug 2026 kl. 16:11</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1553,23 +1553,28 @@ function renderNokkeltall(regnskap){
   `;
 }
 
+function renderNokkeltallCorsBlokkert(){
+  const target=document.getElementById('k360-nokkeltall');
+  if(!target)return;
+  target.innerHTML='<p class="sec-title">Nøkkeltall</p><div class="tbl-wrap"><div class="empty">Regnskapstall kunne ikke hentes direkte — dette API-et tillater ikke kall fra nettleseren (CORS), bekreftet 19.08.2026. Løses med en liten mellomtjener som kommer sammen med Azure-oppsettet for Visma-synken.</div></div>';
+}
+
 async function hentBrregInfo(orgNr){
   const target=document.getElementById('k360-brreg');
   const nr=normOrgNr(orgNr);
   if(nr.length!==9){target.innerHTML='<div class="empty">Mangler gyldig org.nr for oppslag.</div>';return;}
   target.innerHTML='<div class="empty">Henter…</div>';
+  // Enhet + roller hentes uavhengig av regnskapstall, slik at ett feilende kall
+  // ikke rydder bort resultatet av de andre (bekreftet 19.08.2026: enheter/roller
+  // fungerer fint direkte fra nettleser, regnskapsregisteret gir CORS-feil).
   try{
-    const[enhetRes,rollerRes,regnskapRes]=await Promise.all([
+    const[enhetRes,rollerRes]=await Promise.all([
       fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${nr}`),
-      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${nr}/roller`),
-      fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${nr}`)
+      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${nr}/roller`)
     ]);
     if(!enhetRes.ok)throw new Error(`Fant ikke enheten (${enhetRes.status})`);
     const enhet=await enhetRes.json();
     const roller=rollerRes.ok?await rollerRes.json():null;
-    const regnskap=regnskapRes.ok?await regnskapRes.json():null;
-    if(regnskap)console.log('Regnskapsregisteret-respons (for feltnavn-verifisering):',regnskap);
-    renderNokkeltall(Array.isArray(regnskap)?regnskap[0]:regnskap);
 
     const rollerHtml=(roller&&roller.rollegrupper)?roller.rollegrupper.map(g=>`
       <div style="margin-bottom:6px"><strong>${g.type?.beskrivelse||g.type?.kode||'Rolle'}:</strong> ${
@@ -1590,6 +1595,22 @@ async function hentBrregInfo(orgNr){
   }catch(e){
     target.innerHTML=`<div class="empty">Klarte ikke hente fra Brønnøysundregistrene: ${e.message}</div>`;
     console.error('Brreg-oppslag feilet:',e);
+  }
+
+  // Regnskapstall — eget forsøk, egen feilhåndtering. Dette API-et sender ikke
+  // CORS-headere (bekreftet i praksis 19.08.2026), så et direkte nettleserkall
+  // vil alltid feile inntil vi har en liten mellomtjener foran det (kommer
+  // sammen med Azure Function-oppsettet som allerede er under arbeid for
+  // Visma-synken — samme løsning, ett kall til).
+  try{
+    const regnskapRes=await fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${nr}`);
+    if(!regnskapRes.ok)throw new Error(`HTTP ${regnskapRes.status}`);
+    const regnskap=await regnskapRes.json();
+    console.log('Regnskapsregisteret-respons (for feltnavn-verifisering):',regnskap);
+    renderNokkeltall(Array.isArray(regnskap)?regnskap[0]:regnskap);
+  }catch(e){
+    console.warn('Regnskapstall kunne ikke hentes direkte (trolig CORS):',e);
+    renderNokkeltallCorsBlokkert();
   }
 }
 
