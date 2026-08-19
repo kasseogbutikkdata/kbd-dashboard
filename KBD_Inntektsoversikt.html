@@ -269,7 +269,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.18.0 · Oppdatert: 19. aug 2026 kl. 18:40</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.19.0 · Oppdatert: 19. aug 2026 kl. 21:00</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1318,7 +1318,7 @@ async function loadDataFromSP(){
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   aging=agItems.map(i=>({id:`sp${i.id}`,spId:i.id,date:i.fields.Dato||'',d1_30:parseFloat(i.fields.D1_30)||0,d31_60:parseFloat(i.fields.D31_60)||0,d61_90:parseFloat(i.fields.D61_90)||0,d90plus:parseFloat(i.fields.D90plus)||0,note:i.fields.Note||''}));
   omsetning=omsItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
-  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||''}));
+  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,saldoForfalt:parseFloat(i.fields.SaldoForfalt)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||''}));
   vismaKontrakter=vcItems.map(i=>({id:`sp${i.id}`,spId:i.id,kontraktId:i.fields.KontraktId||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'',beskrivelse:i.fields.Beskrivelse||'',mal:i.fields.Mal||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
@@ -1417,11 +1417,12 @@ function renderKundeKort(k){
         <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>
       </div>
 
-      <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+      <div class="kpis" style="grid-template-columns:repeat(5,1fr)">
         <div class="kpi accent"><div class="kpi-lbl">Kundeklasse</div><div class="kpi-val">${k.kundeklasse||'—'}</div></div>
         <div class="kpi"><div class="kpi-lbl">Kredittgrense</div><div class="kpi-val">${k.kredittgrense?k.kredittgrense.toLocaleString('nb-NO')+' kr':'—'}</div></div>
         <div class="kpi"><div class="kpi-lbl">Dager forfalt</div><div class="kpi-val">${k.kredittDagerForfalt||0}</div></div>
         <div class="kpi" style="${k.saldo>0?'border-left:4px solid #fab219':''}"><div class="kpi-lbl">Saldo (utestående)</div><div class="kpi-val">${k.saldo?k.saldo.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
+        <div class="kpi" style="${k.saldoForfalt>0?'border-left:4px solid #d03b3b':''}"><div class="kpi-lbl">Herav forfalt</div><div class="kpi-val">${k.saldoForfalt?k.saldoForfalt.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
       </div>
 
       <p class="sec-title">Kontaktinfo (Visma)</p>
