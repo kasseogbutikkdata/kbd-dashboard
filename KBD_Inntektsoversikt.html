@@ -122,6 +122,11 @@ tr:hover td{background:#fafafa}
 .dot{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
 .muted{color:#9ca3af;font-size:12px}
 .hint{font-size:11px;color:#9ca3af;font-style:italic;margin-left:4px}
+.k360-meter-track{background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-top:10px}
+.k360-meter-fill{height:100%;border-radius:4px;transition:width .3s}
+.k360-status{display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:13px;margin-top:2px}
+.k360-indikatorer{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.k360-ind-card{background:white;border:1px solid #f0f0f0;border-radius:10px;padding:16px 18px}
 .empty{padding:32px;text-align:center;color:#9ca3af;font-size:14px}
 .action-btns{display:flex;gap:4px;justify-content:flex-end}
 .btn-icon{background:none;border:1px solid transparent;border-radius:5px;padding:3px 7px;font-size:13px;cursor:pointer;color:#9ca3af}
@@ -264,7 +269,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.16.1 · Oppdatert: 19. aug 2026 kl. 15:30</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.17.0 · Oppdatert: 19. aug 2026 kl. 15:53</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1432,6 +1437,8 @@ function renderKundeKort(k){
       <p class="sec-title">Brønnøysundregistrene</p>
       <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:20px"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
 
+      <div id="k360-nokkeltall"></div>
+
       <p class="sec-title">Avtaler (${kontrakter.length}, ${aktiveKontrakter.length} aktive)</p>
       <div class="tbl-wrap" style="margin-bottom:20px">
         ${kontrakter.length===0?'<div class="empty">Ingen avtaler funnet.</div>':`<table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
@@ -1451,19 +1458,118 @@ function renderKundeKort(k){
   document.getElementById('k360-kort').innerHTML=html;
 }
 
+// ===== Nøkkeltall fra Regnskapsregisteret (Brønnøysund) =====
+// MERK: feltstrukturen under er basert på testkall mot data.brreg.no 19.08.2026,
+// men ikke alle nestingsnivåer er 100% bekreftet (spesielt driftsresultat-objektet
+// varierte litt mellom testkall). pick() prøver flere sannsynlige stier, og et
+// console.log av rå-responsen er lagt inn i hentBrregInfo() slik at feltnavn kan
+// verifiseres/justeres mot en ekte kunde med rikere tall enn testselskapet.
+function pick(...vals){for(const v of vals){if(v!==undefined&&v!==null)return v;}return null;}
+
+function beregnNokkeltall(r){
+  if(!r)return null;
+  const egRoot=r.egenkapitalGjeld||{};
+  const edRoot=r.eiendeler||{};
+  const resRoot=r.resultatregnskapResultat||{};
+  const drRoot=resRoot.driftsresultat;
+  const frRoot=resRoot.finansresultat;
+
+  const sumEgenkapital=pick(egRoot.egenkapital?.sumEgenkapital,egRoot.sumEgenkapital);
+  const sumGjeld=pick(egRoot.gjeldOversikt?.sumGjeld,egRoot.sumGjeld);
+  const sumKortsiktigGjeld=pick(egRoot.gjeldOversikt?.kortsiktigGjeld?.sumKortsiktigGjeld,egRoot.gjeldOversikt?.sumKortsiktigGjeld);
+  const sumEiendeler=pick(edRoot.sumEiendeler);
+  const sumOmloepsmidler=pick(edRoot.omloepsmidler?.sumOmloepsmidler,edRoot.sumOmloepsmidler);
+  const driftsresultat=pick(typeof drRoot==='number'?drRoot:null,drRoot?.driftsresultat);
+  const sumDriftsinntekter=pick(drRoot?.driftsinntekter?.sumDriftsinntekter,typeof drRoot?.driftsinntekter==='number'?drRoot.driftsinntekter:null);
+  const sumFinansinntekter=pick(frRoot?.finansinntekt?.sumFinansinntekter,typeof frRoot?.finansinntekt==='number'?frRoot.finansinntekt:null);
+  const foerSkatt=pick(resRoot.ordinaertResultatFoerSkattekostnad);
+
+  const soliditet=(sumEiendeler)?(sumEgenkapital/sumEiendeler*100):null;
+  const likviditet1=(sumKortsiktigGjeld)?(sumOmloepsmidler/sumKortsiktigGjeld):null;
+  const totalrentabilitet=(sumEiendeler)?(((driftsresultat||0)+(sumFinansinntekter||0))/sumEiendeler*100):null;
+  const resultatAvDriften=(sumDriftsinntekter)?(driftsresultat/sumDriftsinntekter*100):null;
+  const ekRentabilitet=(sumEgenkapital)?(foerSkatt/sumEgenkapital*100):null;
+  const gjeldsgrad=(sumEgenkapital)?(sumGjeld/sumEgenkapital):null;
+
+  return{soliditet,likviditet1,totalrentabilitet,resultatAvDriften,ekRentabilitet,gjeldsgrad,
+    periode:r.regnskapsperiode,harData:sumEiendeler!=null};
+}
+
+// bands: liste over {opptil, farge, label} i stigende rekkefølge. Siste band har opptil=Infinity.
+function statusBand(verdi,bands){
+  if(verdi===null||verdi===undefined||isNaN(verdi))return{farge:'#9ca3af',label:'Ukjent'};
+  for(const b of bands)if(verdi<b.opptil)return b;
+  return bands[bands.length-1];
+}
+
+function meterHtml(verdi,min,max,bands,visning){
+  if(verdi===null||verdi===undefined||isNaN(verdi)){
+    return`<div class="k360-status" style="color:#9ca3af">— Ingen data</div><div class="k360-meter-track"></div>`;
+  }
+  const b=statusBand(verdi,bands);
+  const pct=Math.max(0,Math.min(100,(verdi-min)/(max-min)*100));
+  return`
+    <div class="k360-status" style="color:${b.farge}">● ${b.label}</div>
+    <div style="font-size:20px;font-weight:700;color:#111">${visning(verdi)}</div>
+    <div class="k360-meter-track"><div class="k360-meter-fill" style="width:${pct}%;background:${b.farge}"></div></div>
+  `;
+}
+
+const K360_FARGER={god:'#0ca30c',middels:'#fab219',svak:'#d03b3b'};
+
+function renderNokkeltall(regnskap){
+  const target=document.getElementById('k360-nokkeltall');
+  if(!target)return;
+  const n=beregnNokkeltall(regnskap);
+  if(!n||!n.harData){
+    target.innerHTML='<p class="sec-title">Nøkkeltall</p><div class="tbl-wrap"><div class="empty">Ingen regnskapstall funnet i Regnskapsregisteret for dette selskapet (kan skyldes enkeltpersonforetak, nystiftet selskap, eller manglende innsending).</div></div>';
+    return;
+  }
+  const periodeTxt=n.periode?.tilDato?new Date(n.periode.tilDato).getFullYear():'siste år';
+
+  const soliditetBands=[{opptil:20,farge:K360_FARGER.svak,label:'Svak'},{opptil:40,farge:K360_FARGER.middels,label:'Middels'},{opptil:Infinity,farge:K360_FARGER.god,label:'God'}];
+  const likviditetBands=[{opptil:1,farge:K360_FARGER.svak,label:'Svak'},{opptil:2,farge:K360_FARGER.middels,label:'Middels'},{opptil:Infinity,farge:K360_FARGER.god,label:'God'}];
+  const lonnsomhetBands=[{opptil:0,farge:K360_FARGER.svak,label:'Svak'},{opptil:10,farge:K360_FARGER.middels,label:'Middels'},{opptil:Infinity,farge:K360_FARGER.god,label:'God'}];
+
+  target.innerHTML=`
+    <p class="sec-title">Indikatorer (${periodeTxt}) <span class="hint">Basert på generelle tommelfingerregler, ikke Proffs egne terskler</span></p>
+    <div class="k360-indikatorer">
+      <div class="k360-ind-card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Likviditet</div>${meterHtml(n.likviditet1,0,3,likviditetBands,v=>v.toFixed(2))}</div>
+      <div class="k360-ind-card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Lønnsomhet</div>${meterHtml(n.totalrentabilitet,-20,20,lonnsomhetBands,v=>v.toFixed(1)+' %')}</div>
+      <div class="k360-ind-card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Soliditet</div>${meterHtml(n.soliditet,-100,100,soliditetBands,v=>v.toFixed(1)+' %')}</div>
+    </div>
+
+    <p class="sec-title">Nøkkeltall (${periodeTxt}) <span class="hint">Kun siste innsendte regnskapsår tilgjengelig via åpne data — ikke historikk</span></p>
+    <div class="tbl-wrap" style="margin-bottom:20px">
+      <table><tbody>
+        <tr><td class="muted" style="width:260px">Totalrentabilitet i % (Lønnsomhet)</td><td class="tr">${n.totalrentabilitet!=null?n.totalrentabilitet.toFixed(1):'—'}</td></tr>
+        <tr><td class="muted">Resultat av driften i %</td><td class="tr">${n.resultatAvDriften!=null?n.resultatAvDriften.toFixed(1):'—'}</td></tr>
+        <tr><td class="muted">Egenkapitalens rentabilitet før skatt i %</td><td class="tr">${n.ekRentabilitet!=null?n.ekRentabilitet.toFixed(1):'—'}</td></tr>
+        <tr><td class="muted">Likviditetsgrad 1</td><td class="tr">${n.likviditet1!=null?n.likviditet1.toFixed(2):'—'}</td></tr>
+        <tr><td class="muted">Egenkapital i % (Soliditet)</td><td class="tr">${n.soliditet!=null?n.soliditet.toFixed(1):'—'}</td></tr>
+        <tr><td class="muted">Gjeldsgrad</td><td class="tr">${n.gjeldsgrad!=null?n.gjeldsgrad.toFixed(1):'—'}</td></tr>
+      </tbody></table>
+    </div>
+  `;
+}
+
 async function hentBrregInfo(orgNr){
   const target=document.getElementById('k360-brreg');
   const nr=normOrgNr(orgNr);
   if(nr.length!==9){target.innerHTML='<div class="empty">Mangler gyldig org.nr for oppslag.</div>';return;}
   target.innerHTML='<div class="empty">Henter…</div>';
   try{
-    const[enhetRes,rollerRes]=await Promise.all([
+    const[enhetRes,rollerRes,regnskapRes]=await Promise.all([
       fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${nr}`),
-      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${nr}/roller`)
+      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${nr}/roller`),
+      fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${nr}`)
     ]);
     if(!enhetRes.ok)throw new Error(`Fant ikke enheten (${enhetRes.status})`);
     const enhet=await enhetRes.json();
     const roller=rollerRes.ok?await rollerRes.json():null;
+    const regnskap=regnskapRes.ok?await regnskapRes.json():null;
+    if(regnskap)console.log('Regnskapsregisteret-respons (for feltnavn-verifisering):',regnskap);
+    renderNokkeltall(Array.isArray(regnskap)?regnskap[0]:regnskap);
 
     const rollerHtml=(roller&&roller.rollegrupper)?roller.rollegrupper.map(g=>`
       <div style="margin-bottom:6px"><strong>${g.type?.beskrivelse||g.type?.kode||'Rolle'}:</strong> ${
