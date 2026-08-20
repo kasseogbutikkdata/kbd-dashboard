@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.24.1 · Oppdatert: 20. aug 2026 kl. 08:09</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.25.0 · Oppdatert: 20. aug 2026 kl. 08:16</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1430,6 +1430,23 @@ function renderKundeKort(k){
         <div class="kpi" style="${k.saldoForfalt>0?'border-left:4px solid #d03b3b':''}"><div class="kpi-lbl">Herav forfalt</div><div class="kpi-val">${k.saldoForfalt?k.saldoForfalt.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
       </div>
 
+      <p class="sec-title">Aktive avtaler (${aktiveKontrakter.length})</p>
+      <div class="tbl-wrap" style="margin-bottom:20px">
+        ${aktiveKontrakter.length===0?'<div class="empty">Ingen aktive avtaler funnet.</div>':`<table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
+          ${aktiveKontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td><span class="k360-status" style="color:#0ca30c;font-size:12px">● ${c.status}</span></td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td></tr>`).join('')}
+        </tbody></table>`}
+      </div>
+
+      ${kontrakter.length>aktiveKontrakter.length?`
+      <details style="margin-bottom:20px">
+        <summary style="cursor:pointer;font-size:13px;color:#6b7280;margin-bottom:8px">Vis alle avtaler, inkl. tidligere/inaktive (${kontrakter.length} totalt)</summary>
+        <div class="tbl-wrap" style="margin-top:8px">
+          <table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
+            ${kontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td>${c.status}</td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td></tr>`).join('')}
+          </tbody></table>
+        </div>
+      </details>`:''}
+
       <p class="sec-title">Kontaktinfo (Visma)</p>
       <div class="tbl-wrap" style="margin-bottom:20px">
         <table><tbody>
@@ -1448,23 +1465,6 @@ function renderKundeKort(k){
       <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:20px"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
 
       <div id="k360-nokkeltall"></div>
-
-      <p class="sec-title">Aktive avtaler (${aktiveKontrakter.length})</p>
-      <div class="tbl-wrap" style="margin-bottom:20px">
-        ${aktiveKontrakter.length===0?'<div class="empty">Ingen aktive avtaler funnet.</div>':`<table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
-          ${aktiveKontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td><span class="k360-status" style="color:#0ca30c;font-size:12px">● ${c.status}</span></td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td></tr>`).join('')}
-        </tbody></table>`}
-      </div>
-
-      ${kontrakter.length>aktiveKontrakter.length?`
-      <details style="margin-bottom:20px">
-        <summary style="cursor:pointer;font-size:13px;color:#6b7280;margin-bottom:8px">Vis alle avtaler, inkl. tidligere/inaktive (${kontrakter.length} totalt)</summary>
-        <div class="tbl-wrap" style="margin-top:8px">
-          <table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
-            ${kontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td>${c.status}</td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td></tr>`).join('')}
-          </tbody></table>
-        </div>
-      </details>`:''}
 
       <p class="sec-title">Utleiehistorikk (${utleieTreff.length})</p>
       <div class="hint" style="margin-bottom:8px">Kobles i dag kun via kundenavn i Utleie-modulen — kan avvike hvis navnet er skrevet ulikt der enn i Visma.</div>
