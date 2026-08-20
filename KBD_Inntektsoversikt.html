@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.29.0 · Oppdatert: 20. aug 2026 kl. 14:00</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.29.1 · Oppdatert: 20. aug 2026 kl. 14:07</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1411,6 +1411,13 @@ function renderKunder360Oversikt(){
   const target=document.getElementById('k360-oversikt');
   if(!target)return;
   dC('k360trend');
+  // Nøkkeltallsoversikten er kun ment å fylle tomrommet FØR man har åpnet en
+  // kunde — skjules så snart en konkret kunde er valgt, og kommer tilbake når
+  // man går tilbake til søk (k360Valgt settes til null i searchKunder360()).
+  if(k360Valgt){
+    target.innerHTML='';
+    return;
+  }
   if(vismaKunder.length===0&&vismaKontrakter.length===0){
     target.innerHTML='';
     return;
@@ -1510,6 +1517,7 @@ function searchKunder360(){
   const resDiv=document.getElementById('k360-resultater');
   document.getElementById('k360-kort').innerHTML='';
   k360Valgt=null;
+  renderKunder360Oversikt(); // vis nøkkeltallene igjen (skjules kun mens en konkret kunde er valgt)
   if(!raw){resDiv.innerHTML='';return;}
 
   if(vismaKunder.length===0){
@@ -1544,6 +1552,7 @@ function velgKunde360FraId(id){
 function velgKunde360(kunde){
   k360Valgt=kunde;
   document.getElementById('k360-resultater').innerHTML='';
+  renderKunder360Oversikt(); // skjul nøkkeltallene mens en konkret kunde vises
   renderKundeKort(kunde);
 }
 
