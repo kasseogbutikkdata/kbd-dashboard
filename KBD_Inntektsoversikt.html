@@ -122,6 +122,14 @@ tr:hover td{background:#fafafa}
 .dot{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
 .muted{color:#9ca3af;font-size:12px}
 .hint{font-size:11px;color:#9ca3af;font-style:italic;margin-left:4px}
+.k360-meter-track{background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-top:10px}
+.k360-meter-fill{height:100%;border-radius:4px;transition:width .3s}
+.k360-status{display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:13px;margin-top:2px}
+.k360-indikatorer{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.k360-ind-card{background:white;border:1px solid #f0f0f0;border-radius:10px;padding:16px 18px}
+.k360-kpis .kpi{padding:12px 14px}
+.k360-kpis .kpi-lbl{font-size:11px;margin-bottom:4px}
+.k360-kpis .kpi-val{font-size:15px;line-height:1.3}
 .empty{padding:32px;text-align:center;color:#9ca3af;font-size:14px}
 .action-btns{display:flex;gap:4px;justify-content:flex-end}
 .btn-icon{background:none;border:1px solid transparent;border-radius:5px;padding:3px 7px;font-size:13px;cursor:pointer;color:#9ca3af}
@@ -264,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.16.2 · Oppdatert: 20. aug 2026 kl. 12:45</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.26.0 · Oppdatert: 20. aug 2026 kl. 13:13</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -299,6 +307,9 @@ tr:hover td{background:#fafafa}
       </div>
 <div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this)">
         <span class="nav-item-icon">⏱️</span>Aldersfordelt
+      </div>
+      <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this)">
+        <span class="nav-item-icon">🧑‍💼</span>Kunde360 (BETA)
       </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
@@ -371,6 +382,20 @@ tr:hover td{background:#fafafa}
     <p class="sec-title">Kvartalstrend — lisenser og kickback</p>
     <div class="filters" id="trend-filters"></div>
     <div class="chart-wrap"><canvas id="chart-trend" height="220"></canvas></div>
+  </div>
+
+  <!-- KUNDER (Kunde 360) -->
+  <div id="tp-kunder" class="tp">
+    <div class="card">
+      <div class="card-title">Kunde 360 — søk</div>
+      <div class="frow" style="margin-bottom:4px">
+        <input type="text" id="k360-search" placeholder="Søk på org.nr (9 siffer) eller firmanavn…" style="flex:1" onkeydown="if(event.key==='Enter')searchKunder360()"/>
+        <button class="prim" onclick="searchKunder360()">Søk</button>
+      </div>
+      <div class="hint" id="k360-hint">Kundedata hentes fra Visma.net (synkes automatisk hver natt) og suppleres live med Brønnøysundregistrene.</div>
+    </div>
+    <div id="k360-resultater"></div>
+    <div id="k360-kort"></div>
   </div>
 
   <!-- LISENSER -->
@@ -1116,6 +1141,7 @@ const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34
 // ===== STATE =====
 let lic=[],kick=[],products=[],sources=[],aging=[],omsetning=[],isSeed=false,charts={};
 let units=[],rentals=[],reservasjoner=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle',moYear=new Date().getFullYear(),utleieSearch='';
+let vismaKunder=[],vismaKontrakter=[],k360Valgt=null;
 let utleieSort={col:null,dir:'asc'};
 let ganttSort={col:'enhet',dir:'asc'};
 let enheterSort={col:'type',dir:'asc'};
@@ -1317,13 +1343,19 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   aging=agItems.map(i=>({id:`sp${i.id}`,spId:i.id,date:i.fields.Dato||'',d1_30:parseFloat(i.fields.D1_30)||0,d31_60:parseFloat(i.fields.D31_60)||0,d61_90:parseFloat(i.fields.D61_90)||0,d90plus:parseFloat(i.fields.D90plus)||0,note:i.fields.Note||''}));
   omsetning=omsItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
+  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,saldoForfalt:parseFloat(i.fields.SaldoForfalt)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||''}));
+  // MERK: SharePoint-kolonnen som vises som "KontraktId" har internt feltnavn
+  // "VismaKontrakter" (bekreftet 20.08.2026 via rå Graph-respons — trolig fordi
+  // kolonnen opprinnelig ble opprettet med det navnet og senere bare fikk
+  // visningsnavnet endret). Bruker derfor i.fields.VismaKontrakter her.
+  vismaKontrakter=vcItems.map(i=>({id:`sp${i.id}`,spId:i.id,kontraktId:i.fields.VismaKontrakter||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'',beskrivelse:i.fields.Beskrivelse||'',mal:i.fields.Mal||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -1354,6 +1386,283 @@ async function loadDataFromSP(){
   if(rsEl){const n=new Date();rsEl.textContent=`🔄 ${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')};`}
   if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='none';}
 }
+
+// ===== KUNDE 360 =====
+
+function renderKunder360(){
+  document.getElementById('k360-resultater').innerHTML='';
+  if(k360Valgt)renderKundeKort(k360Valgt);
+}
+
+function normOrgNr(s){return (s||'').replace(/[^0-9]/g,'');}
+
+function searchKunder360(){
+  const raw=(document.getElementById('k360-search').value||'').trim();
+  const resDiv=document.getElementById('k360-resultater');
+  document.getElementById('k360-kort').innerHTML='';
+  k360Valgt=null;
+  if(!raw){resDiv.innerHTML='';return;}
+
+  if(vismaKunder.length===0){
+    resDiv.innerHTML='<div class="card"><div class="empty">Ingen kunder synkronisert fra Visma ennå. Synk-jobben fyller denne listen automatisk hver natt når den er satt opp — inntil da er den tom.</div></div>';
+    return;
+  }
+
+  const orgNrSok=normOrgNr(raw);
+  let treff=[];
+  if(orgNrSok.length===9)treff=vismaKunder.filter(k=>normOrgNr(k.orgNr)===orgNrSok);
+  if(treff.length===0){
+    const q=raw.toLowerCase();
+    treff=vismaKunder.filter(k=>(k.navn||'').toLowerCase().includes(q));
+  }
+
+  if(treff.length===0){
+    resDiv.innerHTML=`<div class="card"><div class="empty">Ingen treff på «${raw}».</div></div>`;
+    return;
+  }
+  if(treff.length===1){velgKunde360(treff[0]);return;}
+
+  resDiv.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Navn</th><th>Org.nr</th><th>Status</th><th></th></tr></thead><tbody>
+    ${treff.map(k=>`<tr><td>${k.navn}</td><td>${k.orgNr||'—'}</td><td>${k.status||'—'}</td><td class="action-btns"><button class="btn-sm" onclick="velgKunde360FraId('${k.id}')">Åpne</button></td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+function velgKunde360FraId(id){
+  const k=vismaKunder.find(x=>x.id===id);
+  if(k)velgKunde360(k);
+}
+
+function velgKunde360(kunde){
+  k360Valgt=kunde;
+  document.getElementById('k360-resultater').innerHTML='';
+  renderKundeKort(kunde);
+}
+
+function renderKundeKort(k){
+  const kNr=String(k.vismaNummer||'').trim();
+  const kontrakter=vismaKontrakter.filter(c=>String(c.vismaKundeNummer||'').trim()===kNr);
+  const aktiveKontrakter=kontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';});
+  const utleieTreff=rentals.filter(r=>(r.customer||'').trim().toLowerCase()===(k.navn||'').trim().toLowerCase());
+
+  const html=`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:34px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.15">${k.navn||'(uten navn)'}</div>
+          <div class="muted">Org.nr ${k.orgNr||'ukjent'} · Visma-nr ${k.vismaNummer||'—'} · ${k.status||'—'}</div>
+        </div>
+      </div>
+
+      <div class="kpis k360-kpis" style="grid-template-columns:repeat(3,1fr)">
+        <div class="kpi accent"><div class="kpi-lbl">Kundeprofil</div><div class="kpi-val">${k.kundeklasse||'—'}</div></div>
+        <div class="kpi" style="${k.saldo>0?'border-left:4px solid #fab219':''}"><div class="kpi-lbl">Saldo (utestående)</div><div class="kpi-val">${k.saldo?k.saldo.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
+        <div class="kpi" style="${k.saldoForfalt>0?'border-left:4px solid #d03b3b':''}"><div class="kpi-lbl">Herav forfalt</div><div class="kpi-val">${k.saldoForfalt?k.saldoForfalt.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
+      </div>
+
+      <p class="sec-title">Aktive avtaler (${aktiveKontrakter.length})</p>
+      <div class="tbl-wrap" style="margin-bottom:20px">
+        ${aktiveKontrakter.length===0?'<div class="empty">Ingen aktive avtaler funnet.</div>':`<table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
+          ${aktiveKontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td><span class="k360-status" style="color:#0ca30c;font-size:12px">● ${c.status}</span></td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td></tr>`).join('')}
+        </tbody></table>`}
+      </div>
+
+      ${kontrakter.length>aktiveKontrakter.length?`
+      <details style="margin-bottom:20px">
+        <summary style="cursor:pointer;font-size:13px;color:#6b7280;margin-bottom:8px">Vis alle avtaler, inkl. tidligere/inaktive (${kontrakter.length} totalt)</summary>
+        <div class="tbl-wrap" style="margin-top:8px">
+          <table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
+            ${kontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td>${c.status}</td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td></tr>`).join('')}
+          </tbody></table>
+        </div>
+      </details>`:''}
+
+      <p class="sec-title">Kontaktinfo (Visma)</p>
+      <div class="tbl-wrap" style="margin-bottom:20px">
+        <table><tbody>
+          <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
+          <tr><td class="muted">Kontaktperson</td><td>${k.kontaktNavn||'—'}</td></tr>
+          <tr><td class="muted">E-post</td><td>${k.kontaktEpost||'—'}</td></tr>
+          <tr><td class="muted">Telefon</td><td>${k.kontaktTelefon||'—'}</td></tr>
+          <tr><td class="muted">Sist oppdatert i Visma</td><td>${k.sistOppdatertVisma?new Date(k.sistOppdatertVisma).toLocaleDateString('nb-NO'):'—'}</td></tr>
+        </tbody></table>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
+        <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>
+        <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>
+      </div>
+      <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:20px"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
+
+      <div id="k360-nokkeltall"></div>
+
+      <p class="sec-title">Utleiehistorikk (${utleieTreff.length})</p>
+      <div class="hint" style="margin-bottom:8px">Kobles i dag kun via kundenavn i Utleie-modulen — kan avvike hvis navnet er skrevet ulikt der enn i Visma.</div>
+      <div class="tbl-wrap">
+        ${utleieTreff.length===0?'<div class="empty">Ingen utleieforhold funnet på dette navnet.</div>':`<table><thead><tr><th>Enhet</th><th>Fra</th><th>Til</th><th>Retur</th></tr></thead><tbody>
+          ${utleieTreff.map(r=>{const u=units.find(x=>x.id===r.unitId);return `<tr><td>${u?u.name:r.unitId}</td><td>${r.fromDate||'—'}</td><td>${r.toDate||'—'}</td><td>${r.returnDate||'—'}</td></tr>`;}).join('')}
+        </tbody></table>`}
+      </div>
+    </div>
+  `;
+  document.getElementById('k360-kort').innerHTML=html;
+}
+
+// ===== Nøkkeltall fra Regnskapsregisteret (Brønnøysund) =====
+// MERK: feltstrukturen under er basert på testkall mot data.brreg.no 19.08.2026,
+// men ikke alle nestingsnivåer er 100% bekreftet (spesielt driftsresultat-objektet
+// varierte litt mellom testkall). pick() prøver flere sannsynlige stier, og et
+// console.log av rå-responsen er lagt inn i hentBrregInfo() slik at feltnavn kan
+// verifiseres/justeres mot en ekte kunde med rikere tall enn testselskapet.
+function pick(...vals){for(const v of vals){if(v!==undefined&&v!==null)return v;}return null;}
+
+function beregnNokkeltall(r){
+  if(!r)return null;
+  const egRoot=r.egenkapitalGjeld||{};
+  const edRoot=r.eiendeler||{};
+  const resRoot=r.resultatregnskapResultat||{};
+  const drRoot=resRoot.driftsresultat;
+  const frRoot=resRoot.finansresultat;
+
+  const sumEgenkapital=pick(egRoot.egenkapital?.sumEgenkapital,egRoot.sumEgenkapital);
+  const sumGjeld=pick(egRoot.gjeldOversikt?.sumGjeld,egRoot.sumGjeld);
+  const sumKortsiktigGjeld=pick(egRoot.gjeldOversikt?.kortsiktigGjeld?.sumKortsiktigGjeld,egRoot.gjeldOversikt?.sumKortsiktigGjeld);
+  const sumEiendeler=pick(edRoot.sumEiendeler);
+  const sumOmloepsmidler=pick(edRoot.omloepsmidler?.sumOmloepsmidler,edRoot.sumOmloepsmidler);
+  const driftsresultat=pick(typeof drRoot==='number'?drRoot:null,drRoot?.driftsresultat);
+  const sumDriftsinntekter=pick(drRoot?.driftsinntekter?.sumDriftsinntekter,typeof drRoot?.driftsinntekter==='number'?drRoot.driftsinntekter:null);
+  const sumFinansinntekter=pick(frRoot?.finansinntekt?.sumFinansinntekter,typeof frRoot?.finansinntekt==='number'?frRoot.finansinntekt:null);
+  const foerSkatt=pick(resRoot.ordinaertResultatFoerSkattekostnad);
+
+  const soliditet=(sumEiendeler)?(sumEgenkapital/sumEiendeler*100):null;
+  const likviditet1=(sumKortsiktigGjeld)?(sumOmloepsmidler/sumKortsiktigGjeld):null;
+  const totalrentabilitet=(sumEiendeler)?(((driftsresultat||0)+(sumFinansinntekter||0))/sumEiendeler*100):null;
+  const resultatAvDriften=(sumDriftsinntekter)?(driftsresultat/sumDriftsinntekter*100):null;
+  const ekRentabilitet=(sumEgenkapital)?(foerSkatt/sumEgenkapital*100):null;
+  const gjeldsgrad=(sumEgenkapital)?(sumGjeld/sumEgenkapital):null;
+
+  return{soliditet,likviditet1,totalrentabilitet,resultatAvDriften,ekRentabilitet,gjeldsgrad,
+    periode:r.regnskapsperiode,harData:sumEiendeler!=null};
+}
+
+// bands: liste over {opptil, farge, label} i stigende rekkefølge. Siste band har opptil=Infinity.
+function statusBand(verdi,bands){
+  if(verdi===null||verdi===undefined||isNaN(verdi))return{farge:'#9ca3af',label:'Ukjent'};
+  for(const b of bands)if(verdi<b.opptil)return b;
+  return bands[bands.length-1];
+}
+
+function meterHtml(verdi,min,max,bands,visning){
+  if(verdi===null||verdi===undefined||isNaN(verdi)){
+    return`<div class="k360-status" style="color:#9ca3af">— Ingen data</div><div class="k360-meter-track"></div>`;
+  }
+  const b=statusBand(verdi,bands);
+  const pct=Math.max(0,Math.min(100,(verdi-min)/(max-min)*100));
+  return`
+    <div class="k360-status" style="color:${b.farge}">● ${b.label}</div>
+    <div style="font-size:20px;font-weight:700;color:#111">${visning(verdi)}</div>
+    <div class="k360-meter-track"><div class="k360-meter-fill" style="width:${pct}%;background:${b.farge}"></div></div>
+  `;
+}
+
+const K360_FARGER={god:'#0ca30c',middels:'#fab219',svak:'#d03b3b'};
+
+function renderNokkeltall(regnskap){
+  const target=document.getElementById('k360-nokkeltall');
+  if(!target)return;
+  const n=beregnNokkeltall(regnskap);
+  if(!n||!n.harData){
+    target.innerHTML='<p class="sec-title">Nøkkeltall</p><div class="tbl-wrap"><div class="empty">Ingen regnskapstall funnet i Regnskapsregisteret for dette selskapet (kan skyldes enkeltpersonforetak, nystiftet selskap, eller manglende innsending).</div></div>';
+    return;
+  }
+  const periodeTxt=n.periode?.tilDato?new Date(n.periode.tilDato).getFullYear():'siste år';
+
+  const soliditetBands=[{opptil:20,farge:K360_FARGER.svak,label:'Svak'},{opptil:40,farge:K360_FARGER.middels,label:'Middels'},{opptil:Infinity,farge:K360_FARGER.god,label:'God'}];
+  const likviditetBands=[{opptil:1,farge:K360_FARGER.svak,label:'Svak'},{opptil:2,farge:K360_FARGER.middels,label:'Middels'},{opptil:Infinity,farge:K360_FARGER.god,label:'God'}];
+  const lonnsomhetBands=[{opptil:0,farge:K360_FARGER.svak,label:'Svak'},{opptil:10,farge:K360_FARGER.middels,label:'Middels'},{opptil:Infinity,farge:K360_FARGER.god,label:'God'}];
+
+  target.innerHTML=`
+    <p class="sec-title">Indikatorer (${periodeTxt}) <span class="hint">Basert på generelle tommelfingerregler, ikke Proffs egne terskler</span></p>
+    <div class="k360-indikatorer">
+      <div class="k360-ind-card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Likviditet</div>${meterHtml(n.likviditet1,0,3,likviditetBands,v=>v.toFixed(2))}</div>
+      <div class="k360-ind-card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Lønnsomhet</div>${meterHtml(n.totalrentabilitet,-20,20,lonnsomhetBands,v=>v.toFixed(1)+' %')}</div>
+      <div class="k360-ind-card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Soliditet</div>${meterHtml(n.soliditet,-100,100,soliditetBands,v=>v.toFixed(1)+' %')}</div>
+    </div>
+
+    <p class="sec-title">Nøkkeltall (${periodeTxt}) <span class="hint">Kun siste innsendte regnskapsår tilgjengelig via åpne data — ikke historikk</span></p>
+    <div class="tbl-wrap" style="margin-bottom:20px">
+      <table><tbody>
+        <tr><td class="muted" style="width:260px">Totalrentabilitet i % (Lønnsomhet)</td><td class="tr">${n.totalrentabilitet!=null?n.totalrentabilitet.toFixed(1):'—'}</td></tr>
+        <tr><td class="muted">Resultat av driften i %</td><td class="tr">${n.resultatAvDriften!=null?n.resultatAvDriften.toFixed(1):'—'}</td></tr>
+        <tr><td class="muted">Egenkapitalens rentabilitet før skatt i %</td><td class="tr">${n.ekRentabilitet!=null?n.ekRentabilitet.toFixed(1):'—'}</td></tr>
+        <tr><td class="muted">Likviditetsgrad 1</td><td class="tr">${n.likviditet1!=null?n.likviditet1.toFixed(2):'—'}</td></tr>
+        <tr><td class="muted">Egenkapital i % (Soliditet)</td><td class="tr">${n.soliditet!=null?n.soliditet.toFixed(1):'—'}</td></tr>
+        <tr><td class="muted">Gjeldsgrad</td><td class="tr">${n.gjeldsgrad!=null?n.gjeldsgrad.toFixed(1):'—'}</td></tr>
+      </tbody></table>
+    </div>
+  `;
+}
+
+function renderNokkeltallCorsBlokkert(){
+  const target=document.getElementById('k360-nokkeltall');
+  if(!target)return;
+  target.innerHTML='<p class="sec-title">Nøkkeltall</p><div class="tbl-wrap"><div class="empty">Regnskapstall kunne ikke hentes direkte — dette API-et tillater ikke kall fra nettleseren (CORS), bekreftet 19.08.2026. Løses med en liten mellomtjener som kommer sammen med Azure-oppsettet for Visma-synken.</div></div>';
+}
+
+async function hentBrregInfo(orgNr){
+  const target=document.getElementById('k360-brreg');
+  const nr=normOrgNr(orgNr);
+  if(nr.length!==9){target.innerHTML='<div class="empty">Mangler gyldig org.nr for oppslag.</div>';return;}
+  target.innerHTML='<div class="empty">Henter…</div>';
+  // Enhet + roller hentes uavhengig av regnskapstall, slik at ett feilende kall
+  // ikke rydder bort resultatet av de andre (bekreftet 19.08.2026: enheter/roller
+  // fungerer fint direkte fra nettleser, regnskapsregisteret gir CORS-feil).
+  try{
+    const[enhetRes,rollerRes]=await Promise.all([
+      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${nr}`),
+      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${nr}/roller`)
+    ]);
+    if(!enhetRes.ok)throw new Error(`Fant ikke enheten (${enhetRes.status})`);
+    const enhet=await enhetRes.json();
+    const roller=rollerRes.ok?await rollerRes.json():null;
+
+    const rollerHtml=(roller&&roller.rollegrupper)?roller.rollegrupper.map(g=>`
+      <div style="margin-bottom:6px"><strong>${g.type?.beskrivelse||g.type?.kode||'Rolle'}:</strong> ${
+        (g.roller||[]).map(r=>r.person?`${r.person.navn?.fornavn||''} ${r.person.navn?.etternavn||''}`.trim():((r.enhet?.navn||[]).join(', ')||'—')).join(', ')||'—'
+      }</div>`).join(''):'<div class="muted">Ingen rolleinformasjon tilgjengelig (eller enkeltpersonforetak uten styre).</div>';
+
+    target.innerHTML=`
+      <table><tbody>
+        <tr><td class="muted" style="width:160px">Navn (Brreg)</td><td>${enhet.navn||'—'}</td></tr>
+        <tr><td class="muted">Selskapsform</td><td>${enhet.organisasjonsform?.beskrivelse||'—'}</td></tr>
+        <tr><td class="muted">Adresse</td><td>${(enhet.forretningsadresse?.adresse||[]).join(' ')||'—'}, ${enhet.forretningsadresse?.postnummer||''} ${enhet.forretningsadresse?.poststed||''}</td></tr>
+        <tr><td class="muted">Registrert</td><td>${enhet.registreringsdatoEnhetsregisteret||'—'}</td></tr>
+        <tr><td class="muted">Antall ansatte</td><td>${enhet.antallAnsatte??'—'}</td></tr>
+        <tr><td class="muted">Konkurs / avvikling</td><td>${enhet.konkurs?'⚠️ Konkurs':enhet.underAvvikling?'⚠️ Under avvikling':'Nei'}</td></tr>
+      </tbody></table>
+      <div style="padding:14px"><p class="sec-title" style="margin-bottom:8px">Roller</p>${rollerHtml}</div>
+    `;
+  }catch(e){
+    target.innerHTML=`<div class="empty">Klarte ikke hente fra Brønnøysundregistrene: ${e.message}</div>`;
+    console.error('Brreg-oppslag feilet:',e);
+  }
+
+  // Regnskapstall — eget forsøk, egen feilhåndtering. Dette API-et sender ikke
+  // CORS-headere (bekreftet i praksis 19.08.2026), så et direkte nettleserkall
+  // vil alltid feile inntil vi har en liten mellomtjener foran det (kommer
+  // sammen med Azure Function-oppsettet som allerede er under arbeid for
+  // Visma-synken — samme løsning, ett kall til).
+  try{
+    const regnskapRes=await fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${nr}`);
+    if(!regnskapRes.ok)throw new Error(`HTTP ${regnskapRes.status}`);
+    const regnskap=await regnskapRes.json();
+    console.log('Regnskapsregisteret-respons (for feltnavn-verifisering):',regnskap);
+    renderNokkeltall(Array.isArray(regnskap)?regnskap[0]:regnskap);
+  }catch(e){
+    console.warn('Regnskapstall kunne ikke hentes direkte (trolig CORS):',e);
+    renderNokkeltallCorsBlokkert();
+  }
+}
+
 
 async function seedProductsToSP(){
   for(const name of DEFAULT_PRODUCTS)await spCreate('Produkter',{Title:name,ProductName:name}).catch(()=>{});
@@ -2046,6 +2355,7 @@ function showTab(name,btn){
   if(name==='innstillinger'){renderSettings();showInnstillingerView(userRole==='admin'?'brukertilgang':'produkter');}
   if(name==='arbeidstid')showArbeidstidView('oversikt',document.getElementById('asub-oversikt'));
   if(name==='hjem')renderHjem();
+  if(name==='kunder'){renderKunder360();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
