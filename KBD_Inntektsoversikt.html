@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.27.0 · Oppdatert: 20. aug 2026 kl. 13:24</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.28.0 · Oppdatert: 20. aug 2026 kl. 13:46</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1356,7 +1356,13 @@ async function loadDataFromSP(){
   // "VismaKontrakter" (bekreftet 20.08.2026 via rå Graph-respons — trolig fordi
   // kolonnen opprinnelig ble opprettet med det navnet og senere bare fikk
   // visningsnavnet endret). Bruker derfor i.fields.VismaKontrakter her.
-  vismaKontrakter=vcItems.map(i=>({id:`sp${i.id}`,spId:i.id,kontraktId:i.fields.VismaKontrakter||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'',beskrivelse:i.fields.Beskrivelse||'',mal:i.fields.Mal||''}));
+  // opprettetLokalt = tidspunktet synkjobben SÅ denne kontrakten første gang.
+  // Visma sitt /customerContract-endepunkt har ikke noe bekreftet
+  // "opprettet"-felt (kun lastModifiedDateTime, som endres ved enhver
+  // redigering — ikke egnet til å avgjøre om en avtale er "ny"). Derfor
+  // stempler synkjobben selv datoen kontrakten dukker opp første gang i
+  // SharePoint (se OpprettetLokalt i run.ps1). Bekreftet 20.08.2026.
+  vismaKontrakter=vcItems.map(i=>({id:`sp${i.id}`,spId:i.id,kontraktId:i.fields.VismaKontrakter||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'',beskrivelse:i.fields.Beskrivelse||'',mal:i.fields.Mal||'',opprettetLokalt:i.fields.OpprettetLokalt||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -1404,12 +1410,17 @@ const K360_PRODUKTNOKKELORD=['Susoft','Nets','Verifone'];
 function renderKunder360Oversikt(){
   const target=document.getElementById('k360-oversikt');
   if(!target)return;
+  dC('k360trend');
   if(vismaKunder.length===0&&vismaKontrakter.length===0){
     target.innerHTML='';
     return;
   }
 
   const aktiveAvtaler=vismaKontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';});
+  const idag=new Date();
+  const for30DagerSiden=new Date(idag.getTime()-30*24*60*60*1000);
+  const kontrakterMedDato=vismaKontrakter.filter(c=>c.opprettetLokalt&&!isNaN(new Date(c.opprettetLokalt)));
+  const nyeSiste30=kontrakterMedDato.filter(c=>new Date(c.opprettetLokalt)>=for30DagerSiden).length;
   const produktTall=K360_PRODUKTNOKKELORD.map(nokkel=>({
     nokkel,
     antall:aktiveAvtaler.filter(c=>(c.beskrivelse||'').toLowerCase().includes(nokkel.toLowerCase())).length
@@ -1438,11 +1449,43 @@ function renderKunder360Oversikt(){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
       ${card('📄','Aktive avtaler totalt',`${aktiveAvtaler.length}`,`${andreAvtaler} uten treff på produktnøkkelord`,'#374151','#f3f4f6')}
       ${produktKort}
+      ${card('🆕','Nye kontrakter, 30 dager',`${nyeSiste30}`,'registrert av synkjobben siste 30 dager','#0f766e','#effaf8')}
       ${card('🏢','Kunder synkronisert',`${vismaKunder.length}`,'fra Visma.net','#6d28d9','#f5f0ff')}
       ${card('💳','Utestående saldo totalt',fS(totalSaldo),'sum av alle kunders saldo','#eb6834','#fff2e8')}
       ${card('⚠️','Herav forfalt totalt',fS(totalForfalt),`${kunderMedForfalt} kunder med forfalt beløp`,'#d03b3b','#fef2f2')}
     </div>
+    ${kontrakterMedDato.length>0?`
+    <p class="sec-title">Nye kontrakter — siste 12 måneder</p>
+    <div class="hint">Basert på når synkjobben registrerte kontrakten første gang (Visma har ikke et pålitelig "opprettet"-felt på kontrakter). Kan gi et engangsutslag i første søyle rett etter at synken ble satt opp, siden alle eksisterende kontrakter da telles som "nye" den natten.</div>
+    <div style="background:#fff;border-radius:10px;padding:16px;height:220px;margin-bottom:24px">
+      <canvas id="chart-k360trend"></canvas>
+    </div>
+    `:`
+    <div class="hint" style="margin-bottom:24px">Trend for nye kontrakter vises her så snart synkjobben har registrert "opprettet lokalt"-dato på minst én kontrakt.</div>
+    `}
   `;
+  if(kontrakterMedDato.length>0)renderKunder360Trend(kontrakterMedDato);
+}
+
+function renderKunder360Trend(kontrakterMedDato){
+  const ctx=document.getElementById('chart-k360trend');
+  if(!ctx)return;
+  const monthNamesKort=['Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'];
+  const buckets=[];
+  const naa=new Date();
+  for(let i=11;i>=0;i--){
+    const d=new Date(naa.getFullYear(),naa.getMonth()-i,1);
+    buckets.push({y:d.getFullYear(),m:d.getMonth(),label:`${monthNamesKort[d.getMonth()]} ${d.getFullYear()}`});
+  }
+  const counts=buckets.map(b=>kontrakterMedDato.filter(c=>{
+    const d=new Date(c.opprettetLokalt);
+    return d.getFullYear()===b.y&&d.getMonth()===b.m;
+  }).length);
+  charts['k360trend']=new Chart(ctx,{type:'bar',data:{labels:buckets.map(b=>b.label),datasets:[{label:'Nye kontrakter',data:counts,backgroundColor:'#1A3A6B',borderRadius:3}]},options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',borderColor:'#e5e7eb',borderWidth:1,padding:10,callbacks:{label:c=>`${c.raw} nye kontrakter`}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9ca3af'}},y:{grid:{color:'#f3f4f6'},ticks:{font:{size:11},color:'#9ca3af',stepSize:1,precision:0},border:{display:false},beginAtZero:true}}
+  }});
 }
 
 function normOrgNr(s){return (s||'').replace(/[^0-9]/g,'');}
