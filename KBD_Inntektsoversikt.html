@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.29.1 · Oppdatert: 20. aug 2026 kl. 14:07</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.30.0 · Oppdatert: 20. aug 2026 kl. 14:30</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -661,6 +661,31 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeResModal()">Avbryt</button>
         <button class="prim" onclick="saveReservasjon()">Lagre reservasjon</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SALG & OPPFØLGING: NY OPPFØRING -->
+  <div class="modal-overlay" id="notat-modal" onclick="if(event.target===this)closeNotatModal()">
+    <div class="modal" style="max-width:520px">
+      <h3 id="notat-modal-title" style="margin-bottom:16px">Ny oppføring</h3>
+      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>Type</label>
+          <select id="n-type" onchange="updateNotatFormFields()">
+            <option value="Notat">📝 Notat</option>
+            <option value="Tilbud">💼 Tilbud</option>
+            <option value="Oppfølging">⏰ Oppfølging</option>
+          </select>
+        </div>
+        <div class="fgrp" id="n-forfallsdato-wrap" style="display:none"><label>Forfallsdato</label><input type="date" id="n-forfallsdato"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Tittel</label><input type="text" id="n-tittel" placeholder="Kort overskrift"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Innhold</label><textarea id="n-innhold" rows="4" placeholder="Notat, tilbudsdetaljer eller hva som skal følges opp…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <input type="hidden" id="n-edit-id"/>
+      <input type="hidden" id="n-kunde-nr"/>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeNotatModal()">Avbryt</button>
+        <button class="prim" onclick="saveNotat()">Lagre</button>
       </div>
     </div>
   </div>
@@ -1149,6 +1174,11 @@ let enheterSort={col:'type',dir:'asc'};
 let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
+// salgTilgang = egen tilgangsflagg (uavhengig av redaktør) for hvem som kan
+// skrive i "Salg & oppfølging"-fanen på Kunde 360-kundekortet. Satt i
+// applyAccessControl() basert på tilgang.salg for vanlige brukere, alltid true
+// for admin. kundeNotater = alle rader fra SharePoint-listen "KundeNotater".
+let salgTilgang=false,kundeNotater=[];
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
 const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
@@ -1344,8 +1374,8 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -1363,6 +1393,9 @@ async function loadDataFromSP(){
   // stempler synkjobben selv datoen kontrakten dukker opp første gang i
   // SharePoint (se OpprettetLokalt i run.ps1). Bekreftet 20.08.2026.
   vismaKontrakter=vcItems.map(i=>({id:`sp${i.id}`,spId:i.id,kontraktId:i.fields.VismaKontrakter||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'',beskrivelse:i.fields.Beskrivelse||'',mal:i.fields.Mal||'',opprettetLokalt:i.fields.OpprettetLokalt||'',avsluttetLokalt:i.fields.AvsluttetLokalt||''}));
+  // KundeNotater = felles logg for salg (notater/tilbud/oppfølging) på tvers av
+  // KBD, koblet til kunde via VismaKundeNummer. Se renderKundeNotater().
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',type:i.fields.Type||'Notat',tittel:i.fields.Tittel||'',innhold:i.fields.Innhold||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -1451,6 +1484,13 @@ function renderKunder360Oversikt(){
   const totalForfalt=vismaKunder.reduce((s,k)=>s+(k.saldoForfalt||0),0);
   const kunderMedForfalt=vismaKunder.filter(k=>(k.saldoForfalt||0)>0).length;
 
+  // Forfalte oppfølginger på tvers av alle kunder (Salg & oppfølging-fanen).
+  const forfalteOppfolginger=kundeNotater.filter(n=>{
+    if(n.type!=='Oppfølging'||n.status!=='Åpen'||!n.forfallsdato)return false;
+    const d=new Date(n.forfallsdato);
+    return !isNaN(d)&&d<idag;
+  }).length;
+
   const card=(icon,label,val,sub,color,bg)=>`<div style="background:${bg};border-radius:10px;padding:14px 16px;border-left:3px solid ${color}">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
       <span style="font-size:14px">${icon}</span>
@@ -1471,6 +1511,7 @@ function renderKunder360Oversikt(){
       ${card('🔚','Avsluttede, 30 dager',`${avsluttedeSiste30}`,'registrert av synkjobben siste 30 dager','#6b7280','#f3f4f6')}
       ${produktKort}
       ${card('🏢','Kunder synkronisert',`${vismaKunder.length}`,'fra Visma.net','#6d28d9','#f5f0ff')}
+      ${forfalteOppfolginger>0?card('⏰','Forfalte oppfølginger',`${forfalteOppfolginger}`,'fra Salg & oppfølging-fanen','#d03b3b','#fef2f2'):''}
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;max-width:400px">
       ${card('💳','Utestående saldo totalt',fS(totalSaldo),'sum av alle kunders saldo','#eb6834','#fff2e8')}
@@ -1577,6 +1618,8 @@ function renderKundeKort(k){
         <div class="kpi" style="${k.saldoForfalt>0?'border-left:4px solid #d03b3b':''}"><div class="kpi-lbl">Herav forfalt</div><div class="kpi-val">${k.saldoForfalt?k.saldoForfalt.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
       </div>
 
+      ${renderKundeNotaterHTML(k)}
+
       <p class="sec-title">Aktive avtaler (${aktiveKontrakter.length})</p>
       <div class="tbl-wrap" style="margin-bottom:20px">
         ${aktiveKontrakter.length===0?'<div class="empty">Ingen aktive avtaler funnet.</div>':`<table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
@@ -1623,6 +1666,141 @@ function renderKundeKort(k){
     </div>
   `;
   document.getElementById('k360-kort').innerHTML=html;
+}
+
+// ===== SALG & OPPFØLGING =====
+// Felles logg (notater/tilbud/oppfølging) synlig for hele KBD på kundekortet —
+// ikke bare salgsavdelingens eget CRM. Lagres i SharePoint-listen "KundeNotater"
+// (se Kunde360-oppsett-sjekkliste.md for kolonneoppsett). Kun brukere med
+// salgTilgang=true (egen tilgangsflagg, se Innstillinger → Brukertilgang) kan
+// legge til/redigere/lukke/slette — alle andre med tilgang til Kunde 360 kan lese.
+const K360_NOTAT_FARGER={Notat:{c:'#6b7280',bg:'#f3f4f6'},Tilbud:{c:'#6d28d9',bg:'#f5f0ff'},Oppfølging:{c:'#0f766e',bg:'#effaf8'}};
+
+function renderKundeNotaterHTML(k){
+  const kNr=String(k.vismaNummer||'').trim();
+  const notater=kundeNotater.filter(n=>String(n.vismaKundeNummer||'').trim()===kNr)
+    .sort((a,b)=>new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0));
+  const idag=new Date();
+  const erForfalt=n=>n.type==='Oppfølging'&&n.status==='Åpen'&&n.forfallsdato&&!isNaN(new Date(n.forfallsdato))&&new Date(n.forfallsdato)<idag;
+  const antallForfalt=notater.filter(erForfalt).length;
+
+  const rader=notater.map(n=>{
+    const tf=K360_NOTAT_FARGER[n.type]||K360_NOTAT_FARGER.Notat;
+    const lukket=n.status==='Lukket';
+    const forfalt=erForfalt(n);
+    return `<div style="background:#fff;border:1px solid #e5e7eb;${forfalt?'border-left:3px solid #d03b3b;':''}border-radius:8px;padding:12px 14px;margin-bottom:8px;${lukket?'opacity:.6':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:600;color:${tf.c};background:${tf.bg};padding:2px 8px;border-radius:20px">${n.type}</span>
+          ${lukket?'<span style="font-size:11px;color:#9ca3af">✓ Lukket</span>':''}
+          ${forfalt?'<span style="font-size:11px;color:#d03b3b;font-weight:600">⚠️ Forfalt</span>':''}
+          <span style="font-weight:600;font-size:13px;color:#111">${n.tittel||'(uten tittel)'}</span>
+        </div>
+        ${salgTilgang?`<div class="action-btns">
+          <button class="btn-icon" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne':'Merk som lukket'}">${lukket?'↺':'✓'}</button>
+          <button class="btn-icon" onclick="openRedigerNotat('${n.id}')" title="Rediger">✎</button>
+          <button class="btn-icon del" onclick="deleteNotat('${n.id}')" title="Slett">✕</button>
+        </div>`:''}
+      </div>
+      ${n.innhold?`<div style="font-size:13px;color:#374151;white-space:pre-wrap;margin-bottom:6px">${n.innhold}</div>`:''}
+      <div style="font-size:11px;color:#9ca3af">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · Forfallsdato: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')}`:''}</div>
+    </div>`;
+  }).join('');
+
+  return `
+    <p class="sec-title">📋 Salg & oppfølging (${notater.length})${antallForfalt>0?` <span style="color:#d03b3b;font-weight:600;font-size:12px">· ${antallForfalt} forfalt</span>`:''}</p>
+    ${salgTilgang?`<button class="btn-sm" style="margin-bottom:10px" onclick="openNyNotatModal('${kNr}')">+ Ny oppføring</button>`:''}
+    <div style="margin-bottom:20px">
+      ${notater.length===0?'<div class="empty">Ingen oppføringer registrert ennå.</div>':rader}
+    </div>
+  `;
+}
+
+function openNyNotatModal(kNr){
+  document.getElementById('notat-modal-title').textContent='Ny oppføring';
+  document.getElementById('n-type').value='Notat';
+  document.getElementById('n-tittel').value='';
+  document.getElementById('n-innhold').value='';
+  document.getElementById('n-forfallsdato').value='';
+  document.getElementById('n-edit-id').value='';
+  document.getElementById('n-kunde-nr').value=kNr;
+  updateNotatFormFields();
+  document.getElementById('notat-modal').classList.add('open');
+}
+
+function openRedigerNotat(id){
+  const n=kundeNotater.find(x=>x.id===id);if(!n)return;
+  document.getElementById('notat-modal-title').textContent='Rediger oppføring';
+  document.getElementById('n-type').value=n.type;
+  document.getElementById('n-tittel').value=n.tittel;
+  document.getElementById('n-innhold').value=n.innhold;
+  document.getElementById('n-forfallsdato').value=n.forfallsdato?n.forfallsdato.substring(0,10):'';
+  document.getElementById('n-edit-id').value=n.id;
+  document.getElementById('n-kunde-nr').value=n.vismaKundeNummer;
+  updateNotatFormFields();
+  document.getElementById('notat-modal').classList.add('open');
+}
+
+function closeNotatModal(){document.getElementById('notat-modal').classList.remove('open');}
+
+function updateNotatFormFields(){
+  const type=document.getElementById('n-type').value;
+  document.getElementById('n-forfallsdato-wrap').style.display=type==='Oppfølging'?'':'none';
+}
+
+function notatFieldsPayload(n){
+  return{Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,Type:n.type,Tittel:n.tittel,Innhold:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,OpprettetAv:n.opprettetAv,OpprettetDato:n.opprettetDato};
+}
+
+function saveNotat(){
+  const tittel=document.getElementById('n-tittel').value.trim();
+  const innhold=document.getElementById('n-innhold').value.trim();
+  const type=document.getElementById('n-type').value;
+  const forfallsdatoRaw=document.getElementById('n-forfallsdato').value||'';
+  const kNr=document.getElementById('n-kunde-nr').value;
+  const editId=document.getElementById('n-edit-id').value;
+  if(!tittel){alert('Fyll inn en tittel');return;}
+  if(type==='Oppfølging'&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato for oppfølging');return;}
+  const forfallsdato=type==='Oppfølging'?forfallsdatoRaw:'';
+  closeNotatModal();
+
+  if(editId){
+    const n=kundeNotater.find(x=>x.id===editId);if(!n)return;
+    n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;
+    if(k360Valgt)renderKundeKort(k360Valgt);
+    if(n.spId){
+      setSPStatus('⏳ Lagrer…');
+      spUpdate('KundeNotater',n.spId,notatFieldsPayload(n)).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+    }
+  } else {
+    const now=new Date().toISOString();
+    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,type,tittel,innhold,status:'Åpen',forfallsdato,opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetDato:now};
+    kundeNotater.push(nyNotat);
+    if(k360Valgt)renderKundeKort(k360Valgt);
+    setSPStatus('⏳ Lagrer…');
+    spCreate('KundeNotater',notatFieldsPayload(nyNotat)).then(r=>{nyNotat.spId=r.id;nyNotat.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppføringen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);});
+  }
+}
+
+function toggleNotatStatus(id){
+  const n=kundeNotater.find(x=>x.id===id);if(!n)return;
+  n.status=n.status==='Åpen'?'Lukket':'Åpen';
+  if(k360Valgt)renderKundeKort(k360Valgt);
+  if(n.spId){
+    setSPStatus('⏳ Lagrer…');
+    spUpdate('KundeNotater',n.spId,{Status:n.status}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Statusendring ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+}
+
+function deleteNotat(id){
+  const n=kundeNotater.find(x=>x.id===id);if(!n)return;
+  if(!confirm(`Slette «${n.tittel}»?`))return;
+  kundeNotater=kundeNotater.filter(x=>x.id!==id);
+  if(k360Valgt)renderKundeKort(k360Valgt);
+  if(n.spId){
+    setSPStatus('⏳ Sletter…');
+    spDelete('KundeNotater',n.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting fra SharePoint feilet:\n'+e.message);});
+  }
 }
 
 // ===== Nøkkeltall fra Regnskapsregisteret (Brønnøysund) =====
@@ -3946,7 +4124,7 @@ async function loadArbeidstid(){
 }
 
 function applyAccessControl(){
-  if(userRole==='admin')return; // Admin ser alt
+  if(userRole==='admin'){salgTilgang=true;return;} // Admin ser og kan skrive alt
   // Finn bruker basert på e-post eller azure ID
   const me=brukere.find(b=>
     b.epost.toLowerCase()===currentUser?.username?.toLowerCase()||
@@ -3955,6 +4133,10 @@ function applyAccessControl(){
   const tilgang=me?.tilgang||{oversikt:true}; // Default: kun oversikt
   // Sett redaktør-rolle basert på tilgang
   if(tilgang.redaktor&&userRole!=='admin')userRole='editor';
+  // salgTilgang = egen rolle, uavhengig av redaktør (satt av bruker 20.08.2026:
+  // salgsavdelingen skal kunne skrive i "Salg & oppfølging" på kundekortet uten
+  // nødvendigvis å ha generell redaktør-tilgang, og omvendt).
+  salgTilgang=tilgang.salg===true;
   // Skjul/vis menypunkter
   MODULER.forEach(m=>{
     const navEl=document.getElementById('tab-'+m.id);
@@ -3992,6 +4174,7 @@ function renderBrukere(){
       <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">E-post</th>
       ${MODULER.map(m=>`<th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px;max-width:60px">${m.label.split(' ')[1]}</th>`).join('')}
       <th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px">Redigere</th>
+      <th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px">Salg</th>
       <th></th>
     </tr></thead>
     <tbody>${brukere.map(b=>`<tr style="border-bottom:1px solid #f9fafb">
@@ -4005,6 +4188,11 @@ function renderBrukere(){
       <td style="text-align:center;padding:10px 4px">
         <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${b.tilgang.redaktor?'#dbeafe':'#f3f4f6'}">
           ${b.tilgang.redaktor?'<span style="color:#2a78d6;font-size:13px">✓</span>':'<span style="color:#d1d5db;font-size:11px">—</span>'}
+        </span>
+      </td>
+      <td style="text-align:center;padding:10px 4px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${b.tilgang.salg?'#fce7f3':'#f3f4f6'}">
+          ${b.tilgang.salg?'<span style="color:#be185d;font-size:13px">✓</span>':'<span style="color:#d1d5db;font-size:11px">—</span>'}
         </span>
       </td>
       <td style="padding:10px 8px"><div class="action-btns">
@@ -4027,6 +4215,9 @@ function openNyBruker(){
   </label>`).join('')+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#eff6ff;border-radius:8px;border:1.5px solid #93c5fd;cursor:pointer;font-size:13px;font-weight:600">
     <input type="checkbox" id="bfm-redaktor" style="width:16px;height:16px;cursor:pointer"/>
     <span>✏️ Kan redigere data</span>
+  </label>`+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fdf2f8;border-radius:8px;border:1.5px solid #f9a8d4;cursor:pointer;font-size:13px;font-weight:600">
+    <input type="checkbox" id="bfm-salg" style="width:16px;height:16px;cursor:pointer"/>
+    <span>📋 Kan skrive salgsnotater (Kunde 360)</span>
   </label>`;
   document.getElementById('bruker-form').style.display='';
   document.getElementById('bf-navn').focus();
@@ -4045,6 +4236,9 @@ function editBruker(id){
   </label>`).join('')+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#eff6ff;border-radius:8px;border:1.5px solid #93c5fd;cursor:pointer;font-size:13px;font-weight:600">
     <input type="checkbox" id="bfm-redaktor" style="width:16px;height:16px;cursor:pointer" ${b.tilgang.redaktor?'checked':''}/>
     <span>✏️ Kan redigere data</span>
+  </label>`+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fdf2f8;border-radius:8px;border:1.5px solid #f9a8d4;cursor:pointer;font-size:13px;font-weight:600">
+    <input type="checkbox" id="bfm-salg" style="width:16px;height:16px;cursor:pointer" ${b.tilgang.salg?'checked':''}/>
+    <span>📋 Kan skrive salgsnotater (Kunde 360)</span>
   </label>`;
   document.getElementById('bruker-form').style.display='';
 }
@@ -4060,6 +4254,7 @@ async function saveBruker(){
   const tilgang={};
   MODULER.forEach(m=>{tilgang[m.id]=document.getElementById('bfm-'+m.id)?.checked===true;});
   tilgang.redaktor=document.getElementById('bfm-redaktor')?.checked===true;
+  tilgang.salg=document.getElementById('bfm-salg')?.checked===true;
   const editId=document.getElementById('bf-edit-id').value;
   const spFields={Title:navn,Epost:epost,Tilgang:JSON.stringify(tilgang)};
   closeBrukerForm();
