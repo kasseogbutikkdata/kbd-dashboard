@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.28.1 · Oppdatert: 20. aug 2026 kl. 13:53</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.29.0 · Oppdatert: 20. aug 2026 kl. 14:00</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1362,7 +1362,7 @@ async function loadDataFromSP(){
   // redigering — ikke egnet til å avgjøre om en avtale er "ny"). Derfor
   // stempler synkjobben selv datoen kontrakten dukker opp første gang i
   // SharePoint (se OpprettetLokalt i run.ps1). Bekreftet 20.08.2026.
-  vismaKontrakter=vcItems.map(i=>({id:`sp${i.id}`,spId:i.id,kontraktId:i.fields.VismaKontrakter||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'',beskrivelse:i.fields.Beskrivelse||'',mal:i.fields.Mal||'',opprettetLokalt:i.fields.OpprettetLokalt||''}));
+  vismaKontrakter=vcItems.map(i=>({id:`sp${i.id}`,spId:i.id,kontraktId:i.fields.VismaKontrakter||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'',beskrivelse:i.fields.Beskrivelse||'',mal:i.fields.Mal||'',opprettetLokalt:i.fields.OpprettetLokalt||'',avsluttetLokalt:i.fields.AvsluttetLokalt||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -1417,16 +1417,22 @@ function renderKunder360Oversikt(){
   }
 
   const aktiveAvtaler=vismaKontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';});
-  // Avsluttede/inaktive = alt uten status Active/Aktiv. Visma sitt customerContract-
-  // endepunkt har ikke en bekreftet liste over alle mulige statusverdier for
-  // ikke-aktive kontrakter (kan være "Closed", "Inactive", "Suspended" e.l.) —
-  // samme "alt som ikke er aktivt"-logikk som brukes i "tidligere/inaktive"-
-  // seksjonen på selve kundekortet.
-  const avsluttedeAvtaler=vismaKontrakter.length-aktiveAvtaler.length;
   const idag=new Date();
   const for30DagerSiden=new Date(idag.getTime()-30*24*60*60*1000);
   const kontrakterMedDato=vismaKontrakter.filter(c=>c.opprettetLokalt&&!isNaN(new Date(c.opprettetLokalt)));
   const nyeSiste30=kontrakterMedDato.filter(c=>new Date(c.opprettetLokalt)>=for30DagerSiden).length;
+  // Avsluttede siste 30 dager = kontrakter synkjobben har SETT gå fra aktiv til
+  // ikke-aktiv i løpet av de siste 30 dagene (feltet AvsluttetLokalt, satt av
+  // run.ps1 idet det oppdager overgangen). IKKE et tall for alle ikke-aktive
+  // kontrakter noensinne — kun de vi har registrert avslutningstidspunktet på.
+  // Samme "vi stempler selv, ikke bakover-utfylt"-prinsipp som OpprettetLokalt.
+  const avsluttedeSiste30=vismaKontrakter.filter(c=>{
+    const s=(c.status||'').toLowerCase();
+    const erAktiv=s==='active'||s==='aktiv';
+    if(erAktiv||!c.avsluttetLokalt)return false;
+    const d=new Date(c.avsluttetLokalt);
+    return !isNaN(d)&&d>=for30DagerSiden;
+  }).length;
   const produktTall=K360_PRODUKTNOKKELORD.map(nokkel=>({
     nokkel,
     antall:aktiveAvtaler.filter(c=>(c.beskrivelse||'').toLowerCase().includes(nokkel.toLowerCase())).length
@@ -1452,12 +1458,14 @@ function renderKunder360Oversikt(){
 
   target.innerHTML=`
     <p class="sec-title">Kunde 360 — nøkkeltall</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:12px">
       ${card('📄','Aktive avtaler totalt',`${aktiveAvtaler.length}`,`${andreAvtaler} uten treff på produktnøkkelord`,'#374151','#f3f4f6')}
       ${card('🆕','Nye kontrakter, 30 dager',`${nyeSiste30}`,'registrert av synkjobben siste 30 dager','#0f766e','#effaf8')}
-      ${card('🔚','Avsluttede kontrakter',`${avsluttedeAvtaler}`,'status ≠ aktiv/active','#6b7280','#f3f4f6')}
+      ${card('🔚','Avsluttede, 30 dager',`${avsluttedeSiste30}`,'registrert av synkjobben siste 30 dager','#6b7280','#f3f4f6')}
       ${produktKort}
       ${card('🏢','Kunder synkronisert',`${vismaKunder.length}`,'fra Visma.net','#6d28d9','#f5f0ff')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;max-width:400px">
       ${card('💳','Utestående saldo totalt',fS(totalSaldo),'sum av alle kunders saldo','#eb6834','#fff2e8')}
       ${card('⚠️','Herav forfalt totalt',fS(totalForfalt),`${kunderMedForfalt} kunder med forfalt beløp`,'#d03b3b','#fef2f2')}
     </div>
