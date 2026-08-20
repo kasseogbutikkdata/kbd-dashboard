@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.31.0 · Oppdatert: 20. aug 2026 kl. 15:57</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.31.1 · Oppdatert: 20. aug 2026 kl. 16:06</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1168,6 +1168,7 @@ const PALETTE=["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834","#888780","#e34
 let lic=[],kick=[],products=[],sources=[],aging=[],omsetning=[],isSeed=false,charts={};
 let units=[],rentals=[],reservasjoner=[],ganttStart=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})(),utleieFilter='alle',utleieType='alle',moYear=new Date().getFullYear(),utleieSearch='';
 let vismaKunder=[],vismaKontrakter=[],k360Valgt=null;
+let k360NotatFilter='alle'; // filter for "Salg & oppfølging"-fanen: 'alle'/'Notat'/'Tilbud'/'Oppfølging'
 let utleieSort={col:null,dir:'asc'};
 let ganttSort={col:'enhet',dir:'asc'};
 let enheterSort={col:'type',dir:'asc'};
@@ -1617,6 +1618,7 @@ function velgKunde360FraId(id){
 
 function velgKunde360(kunde){
   k360Valgt=kunde;
+  k360NotatFilter='alle'; // nullstill filteret i Salg & oppfølging ved bytte av kunde
   document.getElementById('k360-resultater').innerHTML='';
   renderKunder360Oversikt(); // skjul nøkkeltallene mens en konkret kunde vises
   renderKundeKort(kunde);
@@ -1721,11 +1723,20 @@ function renderNotatLoggHTML(n){
 
 function renderKundeNotaterHTML(k){
   const kNr=String(k.vismaNummer||'').trim();
-  const notater=kundeNotater.filter(n=>String(n.vismaKundeNummer||'').trim()===kNr)
+  const notaterAlle=kundeNotater.filter(n=>String(n.vismaKundeNummer||'').trim()===kNr)
     .sort((a,b)=>new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0));
+  const notater=k360NotatFilter==='alle'?notaterAlle:notaterAlle.filter(n=>n.type===k360NotatFilter);
   const idag=new Date();
   const erForfalt=n=>n.type==='Oppfølging'&&n.status==='Åpen'&&n.forfallsdato&&!isNaN(new Date(n.forfallsdato))&&new Date(n.forfallsdato)<idag;
-  const antallForfalt=notater.filter(erForfalt).length;
+  const antallForfalt=notaterAlle.filter(erForfalt).length; // alltid basert på ALLE typer, uavhengig av filter
+
+  const filterPill=(val,lbl,farge)=>`<button class="fpill${k360NotatFilter===val?' f-on':''}" style="${k360NotatFilter===val?`border-color:${farge}`:''}" onclick="setK360NotatFilter('${val}')">${farge?`<span class="fpill-dot" style="background:${farge}"></span>`:''}<span style="${k360NotatFilter===val?`font-weight:600;color:${farge}`:''}">${lbl}</span></button>`;
+  const filterHtml=`<div style="display:flex;gap:6px;flex-wrap:wrap">
+    ${filterPill('alle','Alle','#1A3A6B')}
+    ${filterPill('Notat','Notat',K360_NOTAT_FARGER.Notat.c)}
+    ${filterPill('Tilbud','Tilbud',K360_NOTAT_FARGER.Tilbud.c)}
+    ${filterPill('Oppfølging','Oppfølging',K360_NOTAT_FARGER.Oppfølging.c)}
+  </div>`;
 
   const rader=notater.map(n=>{
     const tf=K360_NOTAT_FARGER[n.type]||K360_NOTAT_FARGER.Notat;
@@ -1752,10 +1763,13 @@ function renderKundeNotaterHTML(k){
   }).join('');
 
   return `
-    <p class="sec-title">📋 Salg & oppfølging (${notater.length})${antallForfalt>0?` <span style="color:#d03b3b;font-weight:600;font-size:12px">· ${antallForfalt} forfalt</span>`:''}</p>
-    ${salgTilgang?`<button class="btn-sm" style="margin-bottom:10px" onclick="openNyNotatModal('${kNr}')">+ Ny oppføring</button>`:''}
+    <p class="sec-title">📋 Salg & oppfølging (${notaterAlle.length})${antallForfalt>0?` <span style="color:#d03b3b;font-weight:600;font-size:12px">· ${antallForfalt} forfalt</span>`:''}</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      ${salgTilgang?`<button class="btn-sm" onclick="openNyNotatModal('${kNr}')">+ Ny oppføring</button>`:'<span></span>'}
+      ${filterHtml}
+    </div>
     <div style="margin-bottom:20px">
-      ${notater.length===0?'<div class="empty">Ingen oppføringer registrert ennå.</div>':rader}
+      ${notater.length===0?`<div class="empty">${notaterAlle.length===0?'Ingen oppføringer registrert ennå.':'Ingen oppføringer av denne typen.'}</div>`:rader}
     </div>
   `;
 }
@@ -1850,6 +1864,11 @@ function deleteNotat(id){
     setSPStatus('⏳ Sletter…');
     spDelete('KundeNotater',n.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting fra SharePoint feilet:\n'+e.message);});
   }
+}
+
+function setK360NotatFilter(f){
+  k360NotatFilter=f;
+  if(k360Valgt)renderKundeKort(k360Valgt);
 }
 
 // leggTilLoggpost: raskt, dato-stemplet oppdatering PÅ en eksisterende
