@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.30.2 · Oppdatert: 20. aug 2026 kl. 15:04</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.30.3 · Oppdatert: 20. aug 2026 kl. 15:24</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1405,7 +1405,17 @@ async function loadDataFromSP(){
   // "Tittel" kolliderer derfor med den innebygde — den nye kolonnen får et internt
   // navn som ikke er "Tittel" selv om den vises slik (bekreftet 20.08.2026:
   // "Field 'Tittel' is not recognized"). Bruk derfor Title, ikke en egen kolonne.
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
+  // MERK 3 (bekreftet 20.08.2026 via Graph Explorer-dump av listens kolonner):
+  // "OpprettetAv"- og "Innhold"-kolonnene i KBD sin SharePoint-liste har BYTTET
+  // interne navn — sannsynligvis fordi en av dem ble opprettet med feil navn og
+  // så omdøpt i etterkant (samme klasse feil som KontraktId/VismaKontrakter).
+  // Kolonnen som VISES som "OpprettetAv" har internt navn "Innhold".
+  // Kolonnen som VISES som "Innhold" har internt navn "Innhold0" (fikk en "0"
+  // bak fordi "Innhold" allerede var opptatt av den andre kolonnen).
+  // Koden under bruker derfor de bekreftede interne navnene direkte, IKKE
+  // visningsnavnene — ikke "rett" dette til å bruke OpprettetAv/Innhold uten å
+  // først sjekke faktisk internt navn på nytt via Graph Explorer.
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetDato:i.fields.OpprettetDato||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -1758,8 +1768,13 @@ function updateNotatFormFields(){
   document.getElementById('n-forfallsdato-wrap').style.display=type==='Oppfølging'?'':'none';
 }
 
+// Feltnøklene Innhold/Innhold0 under er IKKE en skrivefeil — se MERK 3 ved
+// kundeNotater-mappingen i loadDataFromSP(): kolonnen som vises som
+// "OpprettetAv" har internt navn "Innhold", og kolonnen som vises som
+// "Innhold" har internt navn "Innhold0". Bekreftet 20.08.2026 via Graph
+// Explorer. Sjekk faktisk internt navn på nytt før dette endres.
 function notatFieldsPayload(n){
-  return{Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,NotatType:n.type,Innhold:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,OpprettetAv:n.opprettetAv,OpprettetDato:n.opprettetDato};
+  return{Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,NotatType:n.type,Innhold0:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,Innhold:n.opprettetAv,OpprettetDato:n.opprettetDato};
 }
 
 function saveNotat(){
