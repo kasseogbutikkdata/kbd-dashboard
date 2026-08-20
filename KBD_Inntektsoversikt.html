@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.28.0 · Oppdatert: 20. aug 2026 kl. 13:46</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.28.1 · Oppdatert: 20. aug 2026 kl. 13:53</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1417,6 +1417,12 @@ function renderKunder360Oversikt(){
   }
 
   const aktiveAvtaler=vismaKontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';});
+  // Avsluttede/inaktive = alt uten status Active/Aktiv. Visma sitt customerContract-
+  // endepunkt har ikke en bekreftet liste over alle mulige statusverdier for
+  // ikke-aktive kontrakter (kan være "Closed", "Inactive", "Suspended" e.l.) —
+  // samme "alt som ikke er aktivt"-logikk som brukes i "tidligere/inaktive"-
+  // seksjonen på selve kundekortet.
+  const avsluttedeAvtaler=vismaKontrakter.length-aktiveAvtaler.length;
   const idag=new Date();
   const for30DagerSiden=new Date(idag.getTime()-30*24*60*60*1000);
   const kontrakterMedDato=vismaKontrakter.filter(c=>c.opprettetLokalt&&!isNaN(new Date(c.opprettetLokalt)));
@@ -1448,8 +1454,9 @@ function renderKunder360Oversikt(){
     <p class="sec-title">Kunde 360 — nøkkeltall</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
       ${card('📄','Aktive avtaler totalt',`${aktiveAvtaler.length}`,`${andreAvtaler} uten treff på produktnøkkelord`,'#374151','#f3f4f6')}
-      ${produktKort}
       ${card('🆕','Nye kontrakter, 30 dager',`${nyeSiste30}`,'registrert av synkjobben siste 30 dager','#0f766e','#effaf8')}
+      ${card('🔚','Avsluttede kontrakter',`${avsluttedeAvtaler}`,'status ≠ aktiv/active','#6b7280','#f3f4f6')}
+      ${produktKort}
       ${card('🏢','Kunder synkronisert',`${vismaKunder.length}`,'fra Visma.net','#6d28d9','#f5f0ff')}
       ${card('💳','Utestående saldo totalt',fS(totalSaldo),'sum av alle kunders saldo','#eb6834','#fff2e8')}
       ${card('⚠️','Herav forfalt totalt',fS(totalForfalt),`${kunderMedForfalt} kunder med forfalt beløp`,'#d03b3b','#fef2f2')}
