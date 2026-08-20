@@ -272,7 +272,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.26.0 · Oppdatert: 20. aug 2026 kl. 13:13</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.27.0 · Oppdatert: 20. aug 2026 kl. 13:24</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -394,6 +394,7 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="hint" id="k360-hint">Kundedata hentes fra Visma.net (synkes automatisk hver natt) og suppleres live med Brønnøysundregistrene.</div>
     </div>
+    <div id="k360-oversikt"></div>
     <div id="k360-resultater"></div>
     <div id="k360-kort"></div>
   </div>
@@ -1390,8 +1391,58 @@ async function loadDataFromSP(){
 // ===== KUNDE 360 =====
 
 function renderKunder360(){
+  renderKunder360Oversikt();
   document.getElementById('k360-resultater').innerHTML='';
   if(k360Valgt)renderKundeKort(k360Valgt);
+}
+
+// Produktnøkkelord vi teller aktive avtaler for — basert på kontraktBeskrivelse.
+// Legg til flere her etter hvert (f.eks. andre kassesystem-merker) — de dukker
+// automatisk opp i oversikten.
+const K360_PRODUKTNOKKELORD=['Susoft','Nets','Verifone'];
+
+function renderKunder360Oversikt(){
+  const target=document.getElementById('k360-oversikt');
+  if(!target)return;
+  if(vismaKunder.length===0&&vismaKontrakter.length===0){
+    target.innerHTML='';
+    return;
+  }
+
+  const aktiveAvtaler=vismaKontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';});
+  const produktTall=K360_PRODUKTNOKKELORD.map(nokkel=>({
+    nokkel,
+    antall:aktiveAvtaler.filter(c=>(c.beskrivelse||'').toLowerCase().includes(nokkel.toLowerCase())).length
+  }));
+  const matchetMinstEtt=aktiveAvtaler.filter(c=>K360_PRODUKTNOKKELORD.some(n=>(c.beskrivelse||'').toLowerCase().includes(n.toLowerCase())));
+  const andreAvtaler=aktiveAvtaler.length-matchetMinstEtt.length;
+
+  const totalSaldo=vismaKunder.reduce((s,k)=>s+(k.saldo||0),0);
+  const totalForfalt=vismaKunder.reduce((s,k)=>s+(k.saldoForfalt||0),0);
+  const kunderMedForfalt=vismaKunder.filter(k=>(k.saldoForfalt||0)>0).length;
+
+  const card=(icon,label,val,sub,color,bg)=>`<div style="background:${bg};border-radius:10px;padding:14px 16px;border-left:3px solid ${color}">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span style="font-size:14px">${icon}</span>
+      <span style="font-size:12.5px;color:${color};font-weight:600">${label}</span>
+    </div>
+    <div style="font-size:19px;font-weight:700;color:#111">${val}</div>
+    <div style="font-size:11.5px;color:#6b7280;margin-top:1px">${sub}</div>
+  </div>`;
+
+  const produktFarger=['#1A3A6B','#15803d','#a6392f'];
+  const produktKort=produktTall.map((p,i)=>card('📦',p.nokkel,`${p.antall}`,'aktive avtaler',produktFarger[i%produktFarger.length],['#eef2ff','#ecfdf3','#fdf1ef'][i%3])).join('');
+
+  target.innerHTML=`
+    <p class="sec-title">Kunde 360 — nøkkeltall</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
+      ${card('📄','Aktive avtaler totalt',`${aktiveAvtaler.length}`,`${andreAvtaler} uten treff på produktnøkkelord`,'#374151','#f3f4f6')}
+      ${produktKort}
+      ${card('🏢','Kunder synkronisert',`${vismaKunder.length}`,'fra Visma.net','#6d28d9','#f5f0ff')}
+      ${card('💳','Utestående saldo totalt',fS(totalSaldo),'sum av alle kunders saldo','#eb6834','#fff2e8')}
+      ${card('⚠️','Herav forfalt totalt',fS(totalForfalt),`${kunderMedForfalt} kunder med forfalt beløp`,'#d03b3b','#fef2f2')}
+    </div>
+  `;
 }
 
 function normOrgNr(s){return (s||'').replace(/[^0-9]/g,'');}
