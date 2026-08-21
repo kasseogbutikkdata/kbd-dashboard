@@ -142,6 +142,15 @@ tr:hover td{background:#fafafa}
 .modal{background:white;border-radius:14px;padding:28px;width:520px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .modal h3{font-size:17px;font-weight:700;color:#111;margin-bottom:20px}
 .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid #f3f4f6}
+.progress-track{background:#f1f3f6;border-radius:20px;height:8px;overflow:hidden;flex:1}
+.progress-fill{height:100%;border-radius:20px;transition:width .2s}
+.prio-btns{display:flex;flex-direction:column;gap:2px}
+.prio-btn{background:none;border:1px solid #e5e7eb;border-radius:4px;width:20px;height:16px;font-size:10px;line-height:1;cursor:pointer;color:#6b7280;padding:0}
+.prio-btn:hover{background:#f9fafb;color:#111}
+.prio-btn:disabled{opacity:.3;cursor:default}
+.checklist-item{display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:13px;color:#374151}
+.checklist-item input[type=checkbox]{width:15px;height:15px;cursor:pointer;flex-shrink:0;margin-top:1px}
+.checklist-item.done span.dtxt{color:#9ca3af;text-decoration:line-through}
 
 
 
@@ -272,7 +281,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.31.1 · Oppdatert: 20. aug 2026 kl. 16:06</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.32.0 · Oppdatert: 21. aug 2026 kl. 08:04</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -310,6 +319,9 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this)">
         <span class="nav-item-icon">🧑‍💼</span>Kunde360 (BETA)
+      </div>
+      <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
+        <span class="nav-item-icon">💡</span>Idébank
       </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
@@ -397,6 +409,15 @@ tr:hover td{background:#fafafa}
     <div id="k360-oversikt"></div>
     <div id="k360-resultater"></div>
     <div id="k360-kort"></div>
+  </div>
+
+  <!-- IDÉBANK -->
+  <div id="tp-idebank" class="tp">
+    <div class="card">
+      <div class="card-title">💡 Idébank — videreutvikling av KBD Command Center</div>
+      <div class="hint">Foreslå og følg opp ideer til nye funksjoner og forbedringer i selve dashbordet. Alle kan foreslå ideer og krysse av delmål; status, prioritet og sletting styres av admin/redaktør.</div>
+    </div>
+    <div id="idebank-liste"></div>
   </div>
 
   <!-- LISENSER -->
@@ -686,6 +707,52 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeNotatModal()">Avbryt</button>
         <button class="prim" onclick="saveNotat()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IDÉBANK MODAL -->
+  <div class="modal-overlay" id="idebank-modal" onclick="if(event.target===this)closeIdeModal()">
+    <div class="modal" style="max-width:560px">
+      <h3 id="idebank-modal-title" style="margin-bottom:16px">Ny idé</h3>
+      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>Kategori</label>
+          <select id="ide-type">
+            <option value="Ny funksjon">✨ Ny funksjon</option>
+            <option value="Forbedring">🔧 Forbedring</option>
+            <option value="Feilretting">🐞 Feilretting</option>
+            <option value="Annet">📌 Annet</option>
+          </select>
+        </div>
+        <div class="fgrp" id="ide-status-wrap"><label>Status</label>
+          <select id="ide-status">
+            <option value="Idé">💡 Idé</option>
+            <option value="Under vurdering">🔍 Under vurdering</option>
+            <option value="Planlagt">🗓️ Planlagt</option>
+            <option value="Under arbeid">🚧 Under arbeid</option>
+            <option value="Ferdig">✅ Ferdig</option>
+            <option value="Forkastet">🚫 Forkastet</option>
+          </select>
+        </div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Tittel</label><input type="text" id="ide-tittel" placeholder="Kort overskrift på ideen"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Beskrivelse</label><textarea id="ide-beskrivelse" rows="3" placeholder="Hva går ideen ut på, og hvorfor?" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:14px">
+        <div class="fgrp"><label>Versjon (planlagt/levert i)</label><input type="text" id="ide-versjon" placeholder="f.eks. v1.33.0"/></div>
+        <div class="fgrp" id="ide-prioritet-wrap"><label>Prioritet (lavere tall = høyere opp)</label><input type="number" id="ide-prioritet" placeholder="f.eks. 1"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:6px">
+        <label>Delmål (styrer fullføringsgrad automatisk)</label>
+        <div id="ide-delmaal-liste" style="margin-bottom:6px"></div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="ide-nytt-delmaal" placeholder="Legg til et delmål…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();addIdeDelmaal();}"/>
+          <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="addIdeDelmaal()">Legg til</button>
+        </div>
+      </div>
+      <input type="hidden" id="ide-edit-id"/>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeIdeModal()">Avbryt</button>
+        <button class="prim" onclick="saveIde()">Lagre</button>
       </div>
     </div>
   </div>
@@ -1375,8 +1442,8 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -1422,6 +1489,12 @@ async function loadDataFromSP(){
   // som JSON i én tekstkolonne (Logg), samme mønster som Tilgang-feltet på
   // Brukere-listen — unngår å måtte lage enda en egen SharePoint-liste.
   kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetDato:i.fields.OpprettetDato||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
+  // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
+  // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
+  // (samme fremgangsmåte som for KundeNotater over) og juster mappingen under
+  // dersom noen navn ble avvikende.
+  ideBank=ideItems.map(i=>({id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',ideType:i.fields.IdeType||'Annet',beskrivelse:i.fields.Beskrivelse||'',status:i.fields.Status||'Idé',versjon:i.fields.IdeVersjon||'',prioritet:i.fields.Prioritet===undefined||i.fields.Prioritet===null||i.fields.Prioritet===''?null:parseFloat(i.fields.Prioritet),opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||'',delmaal:(()=>{try{const p=JSON.parse(i.fields.Delmaal||'[]');return Array.isArray(p)?p:[];}catch{return[];}})(),logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -1887,6 +1960,309 @@ function leggTilLoggpost(id){
   if(n.spId){
     setSPStatus('⏳ Lagrer…');
     spUpdate('KundeNotater',n.spId,{Logg:JSON.stringify(n.logg)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppdateringen ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+}
+
+// ===== IDÉBANK =====
+// Idébank = fane for videreutvikling av selve KBD Command Center-løsningen
+// (ideer/funksjonsønsker til dashbordet, ikke kundedata). Lagres i
+// SharePoint-listen "Idebank" (se Idebank-oppsett-sjekkliste.md for
+// kolonneoppsett og hvordan interne feltnavn ble verifisert via Graph
+// Explorer). Alle innloggede brukere kan foreslå ideer, redigere tittel/
+// beskrivelse/delmål og kommentere (samme åpne mønster som Kunde 360 er
+// synlig for alle). Status og prioritetsrekkefølge styres kun av
+// admin/redaktør (ideBankKanStyre()), tilsvarende hvordan salgTilgang er en
+// egen, uavhengig rettighet i Kunde 360 — men her trenger vi ikke et eget
+// tilgangsflagg, siden det gjenbruker den samme redaktør-rollen som resten
+// av appen ("canEdit"-mønsteret brukt bl.a. i Arbeidstid-fanen).
+// Fullføringsgrad (%) er IKKE et fritt tall — det utledes automatisk fra
+// hvor mange delmål (sjekkliste-punkter) som er avkrysset, se
+// ideFullforing(). En idé uten delmål vises som "ingen delmål lagt til"
+// fremfor 0 %, slik at det ikke ser ut som om arbeidet har startet.
+let ideBank=[],ideBankFilter='alle',ideModalDelmaal=[];
+const IDEBANK_STATUSER={
+  'Idé':{c:'#6b7280',bg:'#f3f4f6'},
+  'Under vurdering':{c:'#b45309',bg:'#fef3e2'},
+  'Planlagt':{c:'#1A3A6B',bg:'#eff4ff'},
+  'Under arbeid':{c:'#6d28d9',bg:'#f5f0ff'},
+  'Ferdig':{c:'#0f766e',bg:'#effaf8'},
+  'Forkastet':{c:'#d03b3b',bg:'#fef2f2'}
+};
+function ideBankKanStyre(){return userRole==='admin'||userRole==='editor';}
+function ideEsc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function ideFullforing(idea){
+  const d=idea.delmaal||[];
+  if(!d.length)return null;
+  return Math.round(d.filter(x=>x.checked).length/d.length*100);
+}
+function ideSortert(){
+  return ideBank.slice().sort((a,b)=>{
+    const pa=a.prioritet==null?Infinity:a.prioritet,pb=b.prioritet==null?Infinity:b.prioritet;
+    if(pa!==pb)return pa-pb;
+    return new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0);
+  });
+}
+
+function renderIdeBank(){
+  const el=document.getElementById('idebank-liste');if(!el)return;
+  const kanStyre=ideBankKanStyre();
+  const alle=ideSortert();
+  const filtrert=ideBankFilter==='alle'?alle:alle.filter(i=>i.status===ideBankFilter);
+
+  const filterPill=(val,lbl,farge)=>`<button class="fpill${ideBankFilter===val?' f-on':''}" style="${ideBankFilter===val?`border-color:${farge}`:''}" onclick="setIdeBankFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${ideBankFilter===val?`font-weight:600;color:${farge}`:''}">${lbl}</span></button>`;
+  const filterHtml=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+    ${filterPill('alle',`Alle (${alle.length})`,'#1A3A6B')}
+    ${Object.keys(IDEBANK_STATUSER).map(s=>filterPill(s,`${s} (${alle.filter(i=>i.status===s).length})`,IDEBANK_STATUSER[s].c)).join('')}
+  </div>`;
+
+  const rader=filtrert.map((idea,idx)=>renderIdeCard(idea,idx,filtrert,kanStyre)).join('');
+
+  el.innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+      <button class="btn-sm" onclick="openNyIdeModal()">+ Ny idé</button>
+    </div>
+    ${filterHtml}
+    <div>${filtrert.length===0?`<div class="empty">${alle.length===0?'Ingen ideer registrert ennå. Legg til den første!':'Ingen ideer med denne statusen.'}</div>`:rader}</div>
+  `;
+}
+
+function renderIdeCard(idea,idx,liste,kanStyre){
+  const st=IDEBANK_STATUSER[idea.status]||IDEBANK_STATUSER['Idé'];
+  const full=ideFullforing(idea);
+  const delmaalCount=(idea.delmaal||[]).length;
+  const doneCount=(idea.delmaal||[]).filter(d=>d.checked).length;
+  const prioBtns=kanStyre?`<div class="prio-btns">
+      <button class="prio-btn" ${idx===0?'disabled':''} onclick="moveIdePriority('${idea.id}',-1)" title="Flytt opp i prioritet">▲</button>
+      <button class="prio-btn" ${idx===liste.length-1?'disabled':''} onclick="moveIdePriority('${idea.id}',1)" title="Flytt ned i prioritet">▼</button>
+    </div>`:'<div style="width:20px"></div>';
+  const delmaalHtml=(idea.delmaal||[]).map((d,i)=>`
+    <div class="checklist-item${d.checked?' done':''}">
+      <input type="checkbox" ${d.checked?'checked':''} onchange="toggleIdeDelmaalLive('${idea.id}',${i})"/>
+      <span class="dtxt">${ideEsc(d.tekst)}</span>
+    </div>`).join('');
+  const progressHtml=full===null
+    ?`<span style="font-size:12px;color:#9ca3af">Ingen delmål lagt til ennå</span>`
+    :`<div style="display:flex;align-items:center;gap:8px">
+        <div class="progress-track"><div class="progress-fill" style="width:${full}%;background:${st.c}"></div></div>
+        <span style="font-size:12px;font-weight:600;color:${st.c};white-space:nowrap">${full}% (${doneCount}/${delmaalCount})</span>
+      </div>`;
+  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;gap:10px">
+    ${prioBtns}
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:600;color:${st.c};background:${st.bg};padding:2px 8px;border-radius:20px">${idea.status}</span>
+          <span style="font-size:11px;color:#6b7280;background:#f3f4f6;padding:2px 8px;border-radius:20px">${ideEsc(idea.ideType||'Annet')}</span>
+          ${idea.versjon?`<span style="font-size:11px;color:#6b7280">🏷️ ${ideEsc(idea.versjon)}</span>`:''}
+          <span style="font-weight:600;font-size:14px;color:#111">${ideEsc(idea.tittel||'(uten tittel)')}</span>
+        </div>
+        <div class="action-btns">
+          <button class="btn-icon" onclick="openRedigerIde('${idea.id}')" title="Rediger">✎</button>
+          ${kanStyre?`<button class="btn-icon del" onclick="deleteIde('${idea.id}')" title="Slett">✕</button>`:''}
+        </div>
+      </div>
+      ${idea.beskrivelse?`<div style="font-size:13px;color:#374151;white-space:pre-wrap;margin-bottom:8px">${ideEsc(idea.beskrivelse)}</div>`:''}
+      <div style="margin-bottom:8px">${progressHtml}</div>
+      ${delmaalHtml?`<div style="margin-bottom:8px">${delmaalHtml}</div>`:''}
+      <div style="font-size:11px;color:#9ca3af">${ideEsc(idea.opprettetAv||'Ukjent')} · ${idea.opprettetDato?new Date(idea.opprettetDato).toLocaleDateString('nb-NO'):'—'}</div>
+      ${renderIdeLoggHTML(idea)}
+    </div>
+  </div>`;
+}
+
+function renderIdeLoggHTML(idea){
+  const loggListe=(idea.logg||[]).slice().sort((a,b)=>new Date(b.dato)-new Date(a.dato));
+  const loggRader=loggListe.map(l=>{
+    const d=new Date(l.dato);
+    const dStr=isNaN(d)?'—':`${d.toLocaleDateString('nb-NO')} ${d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}`;
+    return `<div style="font-size:12px;color:#374151;margin-bottom:4px"><span style="color:#9ca3af">${dStr} · ${ideEsc(l.forfatter||'Ukjent')}:</span> ${ideEsc(l.tekst)}</div>`;
+  }).join('');
+  const loggBlokk=loggListe.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e5e7eb">${loggRader}</div>`:'';
+  const loggInput=`<div style="display:flex;gap:6px;margin-top:8px">
+    <input type="text" id="ide-logg-input-${idea.id}" placeholder="Legg til en kommentar…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilIdeLoggpost('${idea.id}');}"/>
+    <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilIdeLoggpost('${idea.id}')">Kommenter</button>
+  </div>`;
+  return `${loggBlokk}${loggInput}`;
+}
+
+function leggTilIdeLoggpost(id){
+  const idea=ideBank.find(x=>x.id===id);if(!idea)return;
+  const input=document.getElementById('ide-logg-input-'+id);if(!input)return;
+  const tekst=input.value.trim();if(!tekst)return;
+  if(!Array.isArray(idea.logg))idea.logg=[];
+  idea.logg.push({dato:new Date().toISOString(),tekst,forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
+  input.value='';
+  renderIdeBank();
+  if(idea.spId){
+    setSPStatus('⏳ Lagrer…');
+    spUpdate('Idebank',idea.spId,{Logg:JSON.stringify(idea.logg)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Kommentaren ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+}
+
+function toggleIdeDelmaalLive(id,idx){
+  const idea=ideBank.find(x=>x.id===id);if(!idea||!Array.isArray(idea.delmaal)||!idea.delmaal[idx])return;
+  idea.delmaal[idx].checked=!idea.delmaal[idx].checked;
+  renderIdeBank();
+  if(idea.spId){
+    setSPStatus('⏳ Lagrer…');
+    spUpdate('Idebank',idea.spId,{Delmaal:JSON.stringify(idea.delmaal)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+}
+
+function moveIdePriority(id,dir){
+  if(!ideBankKanStyre())return;
+  const sortert=ideSortert();
+  const idx=sortert.findIndex(i=>i.id===id);if(idx<0)return;
+  const swapIdx=idx+dir;if(swapIdx<0||swapIdx>=sortert.length)return;
+  const a=sortert[idx],b=sortert[swapIdx];
+  const pa=a.prioritet==null?sortert.length:a.prioritet;
+  const pb=b.prioritet==null?sortert.length:b.prioritet;
+  a.prioritet=pb;b.prioritet=pa;
+  renderIdeBank();
+  const jobs=[];
+  if(a.spId)jobs.push(spUpdate('Idebank',a.spId,{Prioritet:a.prioritet}));
+  if(b.spId)jobs.push(spUpdate('Idebank',b.spId,{Prioritet:b.prioritet}));
+  if(jobs.length){
+    setSPStatus('⏳ Lagrer…');
+    Promise.all(jobs).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);});
+  }
+}
+
+function setIdeBankFilter(f){ideBankFilter=f;renderIdeBank();}
+
+function openNyIdeModal(){
+  document.getElementById('idebank-modal-title').textContent='Ny idé';
+  document.getElementById('ide-type').value='Ny funksjon';
+  document.getElementById('ide-status').value='Idé';
+  document.getElementById('ide-tittel').value='';
+  document.getElementById('ide-beskrivelse').value='';
+  document.getElementById('ide-versjon').value='';
+  document.getElementById('ide-prioritet').value='';
+  document.getElementById('ide-edit-id').value='';
+  ideModalDelmaal=[];
+  renderIdeDelmaalEditor();
+  updateIdeModalPermissions();
+  document.getElementById('idebank-modal').classList.add('open');
+}
+
+function openRedigerIde(id){
+  const idea=ideBank.find(x=>x.id===id);if(!idea)return;
+  document.getElementById('idebank-modal-title').textContent='Rediger idé';
+  document.getElementById('ide-type').value=idea.ideType||'Annet';
+  document.getElementById('ide-status').value=idea.status||'Idé';
+  document.getElementById('ide-tittel').value=idea.tittel||'';
+  document.getElementById('ide-beskrivelse').value=idea.beskrivelse||'';
+  document.getElementById('ide-versjon').value=idea.versjon||'';
+  document.getElementById('ide-prioritet').value=idea.prioritet==null?'':idea.prioritet;
+  document.getElementById('ide-edit-id').value=idea.id;
+  ideModalDelmaal=(idea.delmaal||[]).map(d=>({...d}));
+  renderIdeDelmaalEditor();
+  updateIdeModalPermissions();
+  document.getElementById('idebank-modal').classList.add('open');
+}
+
+function updateIdeModalPermissions(){
+  const kanStyre=ideBankKanStyre();
+  const statusSel=document.getElementById('ide-status');
+  if(statusSel)statusSel.disabled=!kanStyre;
+  const prioInp=document.getElementById('ide-prioritet');
+  if(prioInp)prioInp.disabled=!kanStyre;
+  const statusWrap=document.getElementById('ide-status-wrap');
+  if(statusWrap)statusWrap.style.opacity=kanStyre?'1':'.5';
+  const prioWrap=document.getElementById('ide-prioritet-wrap');
+  if(prioWrap)prioWrap.style.opacity=kanStyre?'1':'.5';
+}
+
+function closeIdeModal(){const m=document.getElementById('idebank-modal');if(m)m.classList.remove('open');}
+
+function renderIdeDelmaalEditor(){
+  const el=document.getElementById('ide-delmaal-liste');if(!el)return;
+  if(!ideModalDelmaal.length){el.innerHTML='<div style="font-size:12px;color:#9ca3af">Ingen delmål lagt til ennå.</div>';return;}
+  el.innerHTML=ideModalDelmaal.map((d,i)=>`
+    <div class="checklist-item${d.checked?' done':''}">
+      <input type="checkbox" ${d.checked?'checked':''} onchange="toggleIdeModalDelmaal(${i})"/>
+      <span class="dtxt" style="flex:1">${ideEsc(d.tekst)}</span>
+      <button class="btn-icon del" style="padding:1px 6px" onclick="removeIdeDelmaal(${i})" title="Fjern">✕</button>
+    </div>`).join('');
+}
+
+function addIdeDelmaal(){
+  const inp=document.getElementById('ide-nytt-delmaal');
+  const tekst=inp.value.trim();if(!tekst)return;
+  ideModalDelmaal.push({tekst,checked:false});
+  inp.value='';
+  renderIdeDelmaalEditor();
+}
+
+function removeIdeDelmaal(idx){ideModalDelmaal.splice(idx,1);renderIdeDelmaalEditor();}
+function toggleIdeModalDelmaal(idx){if(ideModalDelmaal[idx])ideModalDelmaal[idx].checked=!ideModalDelmaal[idx].checked;renderIdeDelmaalEditor();}
+
+// MERK: kolonnenavnene under (IdeType, Beskrivelse, Status, IdeVersjon,
+// Prioritet, Delmaal, Logg, OpprettetAv, OpprettetDato) er FORESLÅTTE interne
+// navn for en ny liste "Idebank" — de er ikke bekreftet mot et faktisk
+// SharePoint-site ennå. Før denne fanen tas i bruk: opprett listen, sjekk
+// faktiske interne feltnavn via Graph Explorer-metoden (se kommentar ved
+// kundeNotater-mappingen lenger opp i filen / Idebank-oppsett-sjekkliste.md),
+// og juster feltnøklene her dersom noe fikk et annet internt navn enn
+// forventet (typisk fordi navnet allerede var i bruk, eller kolonnen ble
+// omdøpt etter opprettelse).
+// BEKREFTET 21.08.2026: "Versjon" er IKKE ledig som kolonnenavn på Idebank-
+// listen — SharePoint UI ga feilen "Det finnes allerede en kolonne med dette
+// navnet" ved forsøk på å opprette den (trolig en skjult/reservert kolonne på
+// denne listen, samme klasse problem som "Type"). Bruk derfor "IdeVersjon"
+// som kolonnenavn i SharePoint, ikke "Versjon".
+function ideFieldsPayload(idea){
+  return{Title:idea.tittel||'(uten tittel)',IdeType:idea.ideType||'Annet',Beskrivelse:idea.beskrivelse||'',Status:idea.status||'Idé',IdeVersjon:idea.versjon||'',Prioritet:idea.prioritet==null?null:idea.prioritet,Delmaal:JSON.stringify(idea.delmaal||[]),Logg:JSON.stringify(idea.logg||[]),OpprettetAv:idea.opprettetAv||'',OpprettetDato:idea.opprettetDato||''};
+}
+
+function saveIde(){
+  const tittel=document.getElementById('ide-tittel').value.trim();
+  const beskrivelse=document.getElementById('ide-beskrivelse').value.trim();
+  const ideType=document.getElementById('ide-type').value;
+  const versjon=document.getElementById('ide-versjon').value.trim();
+  const editId=document.getElementById('ide-edit-id').value;
+  const kanStyre=ideBankKanStyre();
+  if(!tittel){alert('Fyll inn en tittel');return;}
+  const delmaal=ideModalDelmaal.map(d=>({tekst:d.tekst,checked:!!d.checked}));
+  // Status/prioritet leses kun fra skjemaet dersom brukeren faktisk har lov
+  // til å styre dem (ideBankKanStyre) — uavhengig av om feltene visuelt er
+  // disablet i UI, slik at et evt. triks med devtools ikke kan omgå regelen
+  // (samme prinsipp bør uansett håndheves videre av SharePoint-rettigheter).
+  let status='Idé',prioritet=null;
+  if(kanStyre){
+    status=document.getElementById('ide-status').value;
+    const prioRaw=document.getElementById('ide-prioritet').value;
+    prioritet=prioRaw===''?null:parseFloat(prioRaw);
+  }
+
+  if(editId){
+    const idea=ideBank.find(x=>x.id===editId);if(!idea)return;
+    idea.tittel=tittel;idea.beskrivelse=beskrivelse;idea.ideType=ideType;idea.versjon=versjon;idea.delmaal=delmaal;
+    if(kanStyre){idea.status=status;idea.prioritet=prioritet;}
+    closeIdeModal();renderIdeBank();
+    if(idea.spId){
+      setSPStatus('⏳ Lagrer…');
+      spUpdate('Idebank',idea.spId,ideFieldsPayload(idea)).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+    }
+  } else {
+    const now=new Date().toISOString();
+    const nyIde={id:'tmp'+Math.random().toString(36).slice(2),spId:null,tittel,beskrivelse,ideType,versjon,status,prioritet,delmaal,logg:[],opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetDato:now};
+    ideBank.push(nyIde);
+    closeIdeModal();renderIdeBank();
+    setSPStatus('⏳ Lagrer…');
+    spCreate('Idebank',ideFieldsPayload(nyIde)).then(r=>{nyIde.spId=r.id;nyIde.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Ideen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);});
+  }
+}
+
+function deleteIde(id){
+  if(!ideBankKanStyre())return;
+  const idea=ideBank.find(x=>x.id===id);if(!idea)return;
+  if(!confirm(`Slette ideen «${idea.tittel}»?`))return;
+  ideBank=ideBank.filter(x=>x.id!==id);
+  renderIdeBank();
+  if(idea.spId){
+    setSPStatus('⏳ Sletter…');
+    spDelete('Idebank',idea.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting fra SharePoint feilet:\n'+e.message);});
   }
 }
 
@@ -2739,6 +3115,7 @@ function showTab(name,btn){
   if(name==='arbeidstid')showArbeidstidView('oversikt',document.getElementById('asub-oversikt'));
   if(name==='hjem')renderHjem();
   if(name==='kunder'){renderKunder360();}
+  if(name==='idebank'){renderIdeBank();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
@@ -4819,7 +5196,7 @@ function startAutoRefresh(){
 
 // ===== INIT =====
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeIdeModal();}});
 
 </script>
 </body>
