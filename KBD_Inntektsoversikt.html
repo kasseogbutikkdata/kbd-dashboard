@@ -281,7 +281,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.33.0 · Oppdatert: 21. aug 2026 kl. 09:01</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.33.1 · Oppdatert: 21. aug 2026 kl. 09:16</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2035,14 +2035,10 @@ function renderIdeCard(idea,idx,liste,kanStyre){
       <button class="prio-btn" ${idx===0?'disabled':''} onclick="moveIdePriority('${idea.id}',-1)" title="Flytt opp i prioritet">▲</button>
       <button class="prio-btn" ${idx===liste.length-1?'disabled':''} onclick="moveIdePriority('${idea.id}',1)" title="Flytt ned i prioritet">▼</button>
     </div>`:'<div style="width:20px"></div>';
-  const delmaalHtml=(idea.delmaal||[]).map((d,i,arr)=>`
+  const delmaalHtml=(idea.delmaal||[]).map((d,i)=>`
     <div class="checklist-item${d.checked?' done':''}">
       <input type="checkbox" ${d.checked?'checked':''} onchange="toggleIdeDelmaalLive('${idea.id}',${i})"/>
-      <span class="dtxt" style="flex:1">${ideEsc(d.tekst)}</span>
-      <div class="prio-btns">
-        <button class="prio-btn" ${i===0?'disabled':''} onclick="moveIdeDelmaalLive('${idea.id}',${i},-1)" title="Flytt opp">▲</button>
-        <button class="prio-btn" ${i===arr.length-1?'disabled':''} onclick="moveIdeDelmaalLive('${idea.id}',${i},1)" title="Flytt ned">▼</button>
-      </div>
+      <span class="dtxt">${ideEsc(d.tekst)}</span>
     </div>`).join('');
   const progressHtml=full===null
     ?`<span style="font-size:12px;color:#9ca3af">Ingen delmål lagt til ennå</span>`
@@ -2110,20 +2106,6 @@ function toggleIdeDelmaalLive(id,idx){
   if(idea.spId){
     setSPStatus('⏳ Lagrer…');
     spUpdate('Idebank',idea.spId,{Delmaal:JSON.stringify(idea.delmaal)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Endringen ble ikke lagret til SharePoint:\n'+e.message);});
-  }
-}
-
-// Bytt plass på to delmål (rekkefølgen har ingen egen sorteringsverdi — selve
-// posisjonen i Delmaal-JSON-arrayet ER rekkefølgen), samme swap-mønster som
-// moveIdePriority() bruker for ideer.
-function moveIdeDelmaalLive(id,idx,dir){
-  const idea=ideBank.find(x=>x.id===id);if(!idea||!Array.isArray(idea.delmaal))return;
-  const swapIdx=idx+dir;if(swapIdx<0||swapIdx>=idea.delmaal.length)return;
-  const tmp=idea.delmaal[idx];idea.delmaal[idx]=idea.delmaal[swapIdx];idea.delmaal[swapIdx]=tmp;
-  renderIdeBank();
-  if(idea.spId){
-    setSPStatus('⏳ Lagrer…');
-    spUpdate('Idebank',idea.spId,{Delmaal:JSON.stringify(idea.delmaal)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Rekkefølgen ble ikke lagret til SharePoint:\n'+e.message);});
   }
 }
 
