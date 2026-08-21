@@ -247,6 +247,58 @@ tr:hover td{background:#fafafa}
   .fg4,.fg4b,.fg3{grid-template-columns:1fr 1fr}
   .kpis{grid-template-columns:1fr}
 }
+
+/* ===== Verifone trans.avgift (vf-) ===== */
+.vf-upload-card{background:white;border-radius:10px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.vf-file-info{display:flex;align-items:center;gap:14px}
+.vf-file-icon{width:42px;height:42px;border-radius:8px;background:#eef2ff;color:#1A3A6B;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.vf-file-name{font-size:14px;font-weight:600;color:#111}
+.vf-file-meta{font-size:12px;color:#9ca3af;margin-top:2px}
+.vf-upload-error{display:none;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13.5px}
+.vf-steps{display:flex;gap:0;margin-bottom:24px;background:white;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
+.vf-step{flex:1;padding:14px 18px;display:flex;align-items:center;gap:10px;border-right:1px solid #f0f0f0}
+.vf-step:last-child{border-right:none}
+.vf-step-num{width:24px;height:24px;border-radius:50%;background:#e5e7eb;color:#9ca3af;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.vf-step.done .vf-step-num{background:#1baf7a;color:white}
+.vf-step.active .vf-step-num{background:#1A3A6B;color:white}
+.vf-step-txt{font-size:13px;font-weight:600;color:#9ca3af}
+.vf-step.done .vf-step-txt,.vf-step.active .vf-step-txt{color:#111}
+.kpi.vf-warn{border-left:4px solid #d97706}
+.kpi-val.vf-green{color:#1baf7a}
+.kpi-val.vf-warn{color:#d97706}
+.vftp{display:none}
+.vftp.active{display:block}
+.tab.vf-warn-tab .tab-count{background:#fef3c7;color:#92400e}
+.tab.vf-warn-tab.active .tab-count{background:#d97706;color:white}
+.tab-count{font-size:11px;padding:1px 7px;border-radius:20px;background:#f3f4f6;color:#6b7280;font-weight:700}
+.tab.active .tab-count{background:#1A3A6B;color:white}
+.vf-kundenr{font-family:ui-monospace,monospace;font-size:12px;color:#9ca3af}
+.vf-kundenavn{font-weight:600;color:#111}
+.vf-chev{color:#c3cad6;font-size:11px;transition:.15s;display:inline-block}
+.vf-chev.open{transform:rotate(90deg)}
+.vf-detail-row td{background:#fafbfc;padding:0}
+.vf-detail-inner{padding:10px 14px 14px 44px}
+.vf-detail-inner table{background:transparent;width:100%;border-collapse:collapse}
+.vf-detail-inner th{background:transparent;padding:6px 10px;font-size:10px;text-align:left;color:#6b7280;text-transform:uppercase}
+.vf-detail-inner td{padding:6px 10px;border-bottom:none;font-size:12.5px;color:#6b7280}
+.vf-pill-status{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.vf-pill-ok{background:#e6f7ef;color:#0e8a58}
+.vf-pill-warn{background:#fef3c7;color:#92400e}
+.vf-flag-row td{background:#fffbeb}
+.vf-flag-bax{font-family:ui-monospace,monospace;font-size:12px;color:#92400e;font-weight:700}
+.vf-match-select{padding:6px 10px;border:1.5px solid #d0d5dd;border-radius:6px;font-size:12.5px;font-family:inherit;min-width:220px;background:white}
+.vf-match-select:focus{outline:none;border-color:#1A3A6B}
+.vf-link-btn{padding:6px 12px;background:#1A3A6B;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
+.vf-link-btn:hover{background:#142f58}
+.vf-link-btn:disabled{background:#d0d5dd;cursor:not-allowed}
+.vf-link-btn.linked{background:#1baf7a}
+.vf-approve-bar{background:white;border-radius:10px;padding:18px 22px;box-shadow:0 1px 3px rgba(0,0,0,.07);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.vf-approve-sum{font-size:13px;color:#6b7280}
+.vf-approve-sum b{color:#111;font-size:16px}
+.vf-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#111;color:white;padding:12px 22px;border-radius:8px;font-size:13.5px;font-weight:500;opacity:0;transition:.25s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px;z-index:9999}
+.vf-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.vf-toast .vf-dot{width:8px;height:8px;border-radius:50%;background:#1baf7a}
+
 </style>
 </head>
 <body>
@@ -343,6 +395,9 @@ tr:hover td{background:#fafafa}
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
       </div>
+      <div class="nav-item" id="tab-verifone" onclick="showTab('verifone',this)">
+        <span class="nav-item-icon">🧾</span>Verifone trans.avgift
+      </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
         <span class="nav-item-icon">⚙️</span>Innstillinger
@@ -421,7 +476,109 @@ tr:hover td{background:#fafafa}
   </div>
 
   <!-- LISENSER -->
-  <div id="tp-lisenser" class="tp">
+    <div id="tp-verifone" class="tp">
+    <div class="hdr">
+      <div class="hdr-left">
+        <div class="hdr-bar"></div>
+        <div>
+          <div class="hdr-title">Verifone trans.avgift</div>
+          <div class="hdr-sub">Automatisert viderefakturering av Verifone transaksjonsavgift</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="vf-steps">
+      <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Faktura lastet opp</div></div>
+      <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Kunder matchet mot Visma</div></div>
+      <div class="vf-step active"><div class="vf-step-num">3</div><div class="vf-step-txt">Gjennomgang &amp; godkjenning</div></div>
+      <div class="vf-step"><div class="vf-step-num">4</div><div class="vf-step-txt">Salgsordre opprettet i Visma.net</div></div>
+    </div>
+
+    <div class="vf-upload-card">
+      <div class="vf-file-info">
+        <div class="vf-file-icon">📄</div>
+        <div>
+          <div class="vf-file-name" id="vf-upload-filename">Ingen faktura lastet opp ennå</div>
+          <div class="vf-file-meta" id="vf-upload-meta">Last opp en Verifone-faktura (PDF) for å starte</div>
+        </div>
+      </div>
+      <div>
+        <input type="file" id="vf-file-input" accept="application/pdf" style="display:none" onchange="vfLastOppFaktura(this.files[0])">
+        <button class="btn-sm" onclick="document.getElementById('vf-file-input').click()">Last opp faktura</button>
+      </div>
+    </div>
+    <div class="vf-upload-error" id="vf-upload-error"></div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-lbl">Transaksjonslinjer lest</div>
+        <div class="kpi-val" id="vf-kpi-total-lines">—</div>
+        <div class="kpi-sub" id="vf-kpi-total-bax">—</div>
+      </div>
+      <div class="kpi accent">
+        <div class="kpi-lbl">Klar til fakturering</div>
+        <div class="kpi-val vf-green" id="vf-kpi-matched-sum">—</div>
+        <div class="kpi-sub" id="vf-kpi-matched-count">—</div>
+      </div>
+      <div class="kpi vf-warn">
+        <div class="kpi-lbl">Må avklares</div>
+        <div class="kpi-val vf-warn" id="vf-kpi-unmatched-sum">—</div>
+        <div class="kpi-sub" id="vf-kpi-unmatched-count">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Pris til kunde</div>
+        <div class="kpi-val">0,40 kr</div>
+        <div class="kpi-sub">per transaksjon</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="vf-tabbtn-matched" onclick="vfSwitchTab('matched')">Klar til fakturering <span class="tab-count" id="vf-tab-count-matched">0</span></button>
+      <button class="tab vf-warn-tab" id="vf-tabbtn-unmatched" onclick="vfSwitchTab('unmatched')">Må avklares <span class="tab-count" id="vf-tab-count-unmatched">0</span></button>
+    </div>
+
+    <div class="vftp active" id="vftp-matched">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:24px"></th>
+            <th>Kundenr</th>
+            <th>Kunde</th>
+            <th class="tr">Antall trans.</th>
+            <th class="tr">Beløp (0,40 kr/stk)</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="vf-matched-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="vftp" id="vftp-unmatched">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>BAX-nr</th>
+            <th>Brukersted (fra Verifone)</th>
+            <th class="tr">Antall trans.</th>
+            <th class="tr">Beløp</th>
+            <th>Koble til kunde</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="vf-unmatched-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="vf-approve-bar">
+      <div class="vf-approve-sum">
+        <b id="vf-approve-total">—</b> klar for salgsordre-utkast i Visma.net
+        <span id="vf-approve-pending" style="display:block;color:#d97706;margin-top:2px"></span>
+      </div>
+      <button class="prim green" id="vf-approve-btn" onclick="vfApprove()" disabled>Opprett salgsordre-utkast i Visma.net →</button>
+    </div>
+  </div>
+
+<div id="tp-lisenser" class="tp">
     <div class="card">
       <div class="card-title">Legg til registrering</div>
       <div class="fg fg4b">
@@ -3125,6 +3282,7 @@ function showTab(name,btn){
   if(name==='hjem')renderHjem();
   if(name==='kunder'){renderKunder360();}
   if(name==='idebank'){renderIdeBank();}
+  if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
@@ -5207,6 +5365,251 @@ function startAutoRefresh(){
 initAuth();
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeIdeModal();}});
 
+
+/* ===== Verifone trans.avgift (vf-namespace) ===== */
+const VF_CONFIG = {
+  // baseUrl er ikke sensitivt - trygt å ha direkte i filen.
+  baseUrl: "https://kbd-verifone-func.azurewebsites.net",
+  // VIKTIG: functionKey ligger IKKE her, siden dette dashbordet ligger i et
+  // offentlig GitHub-repo (kasseogbutikkdata/kbd-dashboard) - all kildekode
+  // er derfor lesbar for hvem som helst på internett. Nøkkelen hentes i
+  // stedet interaktivt fra brukeren og holdes kun i sessionStorage (forsvinner
+  // når fanen/nettleseren lukkes) - se vfGetFunctionKey() under.
+};
+
+let vfData = { matched: [], unmatched: [], conflicts: [] };
+let vfSisteFakturaReferanse = "";
+const vfLinkedState = {};
+const vfNf = new Intl.NumberFormat('nb-NO', {minimumFractionDigits:2, maximumFractionDigits:2});
+const vfNfi = new Intl.NumberFormat('nb-NO');
+const vfKr = v => vfNf.format(v) + ' kr';
+
+const VF_API_SCOPE = `api://${CLIENT_ID}/access_as_user`;
+
+async function vfGetApiToken(){
+  // Gjenbruker den samme MSAL-innloggingen som allerede brukes mot SharePoint —
+  // ber bare om en egen tilgang (scope) for vår Azure Function i tillegg.
+  if (!msalInstance) throw new Error("Ikke logget inn ennå — last siden på nytt.");
+  const account = msalInstance.getActiveAccount();
+  try {
+    const r = await msalInstance.acquireTokenSilent({ scopes: [VF_API_SCOPE], account });
+    return r.accessToken;
+  } catch {
+    const r = await msalInstance.acquireTokenPopup({ scopes: [VF_API_SCOPE] });
+    return r.accessToken;
+  }
+}
+
+function vfApiUrl(path){
+  return `${VF_CONFIG.baseUrl}${path}`;
+}
+
+function vfSwitchTab(name){
+  document.getElementById('vf-tabbtn-matched').classList.toggle('active', name==='matched');
+  document.getElementById('vf-tabbtn-unmatched').classList.toggle('active', name==='unmatched');
+  document.getElementById('vftp-matched').classList.toggle('active', name==='matched');
+  document.getElementById('vftp-unmatched').classList.toggle('active', name==='unmatched');
+}
+
+function vfToggleDetail(idx){
+  const row = document.getElementById('vf-detail-'+idx);
+  const chev = document.getElementById('vf-chev-'+idx);
+  const open = row.style.display !== 'table-row';
+  row.style.display = open ? 'table-row' : 'none';
+  chev.classList.toggle('open', open);
+}
+
+async function vfLastOppFaktura(file){
+  if (!file) return;
+  if (!VF_CONFIG.baseUrl){
+    vfShowUploadError("Ikke koblet til Azure Function ennå — sett VF_CONFIG.baseUrl (og evt. functionKey) i scriptet.");
+    return;
+  }
+  vfHideUploadError();
+  document.getElementById('vf-upload-filename').textContent = file.name;
+  document.getElementById('vf-upload-meta').textContent = "Leser og matcher mot Visma.net …";
+
+  const formData = new FormData();
+  formData.append('faktura', file);
+
+  try {
+    const vfToken = await vfGetApiToken();
+    const resp = await fetch(vfApiUrl('/api/parse_invoice'), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${vfToken}` },
+      body: formData,
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      vfShowUploadError(data.error || `Feil fra server (${resp.status})`);
+      document.getElementById('vf-upload-meta').textContent = "Opplasting feilet — se feilmelding under.";
+      return;
+    }
+    vfData = data;
+    vfSisteFakturaReferanse = file.name.replace(/\.pdf$/i, '');
+    document.getElementById('vf-upload-meta').textContent =
+      `${data.antallLinjerLest} transaksjonslinjer lest · matchet mot Visma.net`;
+    vfRenderMatched();
+    vfRenderUnmatched();
+    document.getElementById('vf-approve-btn').disabled = false;
+    document.getElementById('vf-approve-btn').textContent = 'Opprett salgsordre-utkast i Visma.net →';
+  } catch (err) {
+    vfShowUploadError(`Kunne ikke nå Azure Function: ${err.message}`);
+    document.getElementById('vf-upload-meta').textContent = "Opplasting feilet — se feilmelding under.";
+  }
+}
+
+function vfShowUploadError(msg){
+  const el = document.getElementById('vf-upload-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function vfHideUploadError(){
+  document.getElementById('vf-upload-error').style.display = 'none';
+}
+
+function vfRenderMatched(){
+  const tbody = document.getElementById('vf-matched-body');
+  if (!tbody) return;
+  let totalAntall = 0, totalBelop = 0;
+  tbody.innerHTML = vfData.matched.map((m, i) => {
+    totalAntall += m.totalAntall;
+    totalBelop += m.totalBelop;
+    const detailRows = m.periods.map(p => `
+      <tr><td>Periode ${p.periode}</td><td class="tr">${vfNfi.format(p.antall)} trans.</td><td class="tr">${vfKr(p.belop)}</td></tr>
+    `).join('');
+    return `
+      <tr class="rowhover" onclick="vfToggleDetail(${i})" style="cursor:pointer">
+        <td><span class="vf-chev" id="vf-chev-${i}">▶</span></td>
+        <td class="vf-kundenr">${m.kundenr}</td>
+        <td class="vf-kundenavn">${m.kundenavn}</td>
+        <td class="tr">${vfNfi.format(m.totalAntall)}</td>
+        <td class="tr" style="color:#0e8a58;font-weight:700">${vfKr(m.totalBelop)}</td>
+        <td><span class="vf-pill-status vf-pill-ok">✓ BAX-match</span></td>
+      </tr>
+      <tr class="vf-detail-row" id="vf-detail-${i}" style="display:none">
+        <td colspan="6"><div class="vf-detail-inner"><table>
+          <thead><tr><th>Periode</th><th class="tr">Antall</th><th class="tr">Beløp</th></tr></thead>
+          <tbody>${detailRows}</tbody>
+        </table></div></td>
+      </tr>`;
+  }).join('');
+
+  const totalLinjer = vfData.matched.reduce((s,m)=>s+m.periods.length,0) + vfData.unmatched.reduce((s,u)=>s+u.periods.length,0);
+  document.getElementById('vf-kpi-total-lines').textContent = vfNfi.format(totalLinjer);
+  document.getElementById('vf-kpi-total-bax').textContent = (vfData.matched.length + vfData.unmatched.length) + ' unike BAX-numre';
+  document.getElementById('vf-kpi-matched-sum').textContent = vfKr(totalBelop);
+  document.getElementById('vf-kpi-matched-count').textContent = vfData.matched.length + ' kunder · ' + vfNfi.format(totalAntall) + ' trans.';
+  document.getElementById('vf-tab-count-matched').textContent = vfData.matched.length;
+  vfUpdateApproveBar();
+}
+
+function vfRenderUnmatched(){
+  const tbody = document.getElementById('vf-unmatched-body');
+  if (!tbody) return;
+  let totalBelop = 0;
+  tbody.innerHTML = vfData.unmatched.map((u, i) => {
+    totalBelop += u.totalBelop;
+    return `
+      <tr class="vf-flag-row">
+        <td class="vf-flag-bax">${u.bax}</td>
+        <td>${u.brukersted}</td>
+        <td class="tr">${vfNfi.format(u.totalAntall)}</td>
+        <td class="tr" style="color:#92400e;font-weight:700">${vfKr(u.totalBelop)}</td>
+        <td>
+          <select class="vf-match-select" id="vf-sel-${i}">
+            <option value="">Søk kunde i Visma…</option>
+          </select>
+        </td>
+        <td><button class="vf-link-btn" id="vf-btn-${i}" onclick="vfLinkCustomer(${i})">Koble</button></td>
+      </tr>`;
+  }).join('');
+  document.getElementById('vf-kpi-unmatched-sum').textContent = vfKr(totalBelop);
+  document.getElementById('vf-kpi-unmatched-count').textContent = vfData.unmatched.length + ' BAX-numre uten treff';
+  document.getElementById('vf-tab-count-unmatched').textContent = vfData.unmatched.length;
+}
+
+function vfLinkCustomer(i){
+  const sel = document.getElementById('vf-sel-'+i);
+  const btn = document.getElementById('vf-btn-'+i);
+  if(!sel.value){ sel.focus(); return; }
+  vfLinkedState[i] = sel.value;
+  btn.textContent = '✓ Koblet';
+  btn.classList.add('linked');
+  sel.disabled = true;
+  vfShowToast(vfData.unmatched[i].brukersted + ' koblet til kunde — legges til i neste kjøring');
+}
+
+function vfUpdateApproveBar(){
+  const totalBelop = vfData.matched.reduce((s,m)=>s+m.totalBelop,0);
+  document.getElementById('vf-approve-total').textContent = vfKr(totalBelop) + ' (' + vfData.matched.length + ' kunder)';
+  const pendingCount = vfData.unmatched.length - Object.keys(vfLinkedState).length;
+  const pendingEl = document.getElementById('vf-approve-pending');
+  pendingEl.textContent = pendingCount > 0 ? `${pendingCount} BAX-numre venter fortsatt på kobling` : '';
+}
+
+function vfShowToast(msg){
+  const t = document.getElementById('vf-toast');
+  document.getElementById('vf-toast-txt').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._vfToastTimer);
+  window._vfToastTimer = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+
+async function vfApprove(){
+  if (!VF_CONFIG.baseUrl){
+    vfShowToast('Ikke koblet til Azure Function ennå.');
+    return;
+  }
+  if (!vfData.matched.length){
+    vfShowToast('Ingenting å opprette — last opp en faktura først.');
+    return;
+  }
+  const btn = document.getElementById('vf-approve-btn');
+  btn.disabled = true;
+  btn.textContent = 'Oppretter utkast…';
+
+  const payload = {
+    godkjente: vfData.matched.map(m => ({ kundenr: m.kundenr, kundenavn: m.kundenavn, periods: m.periods })),
+    fakturareferanse: vfSisteFakturaReferanse || 'Verifone transaksjonsavgift',
+  };
+
+  try {
+    const vfToken = await vfGetApiToken();
+    const resp = await fetch(vfApiUrl('/api/create_sales_orders'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${vfToken}` },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      vfShowToast(data.error || `Feil fra server (${resp.status})`);
+      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+      return;
+    }
+    const ok = data.resultater.filter(r => r.status === 'ok').length;
+    const feilet = data.resultater.filter(r => r.status === 'feil');
+    if (feilet.length === 0) {
+      btn.textContent = '✓ Opprettet — se Visma.net for gjennomgang';
+      vfShowToast(`${ok} salgsordre-utkast opprettet i Visma.net`);
+    } else {
+      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+      vfShowToast(`${ok} opprettet, ${feilet.length} feilet — se konsoll`);
+      console.warn('Kunder som feilet:', feilet);
+    }
+  } catch (err) {
+    btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+    vfShowToast(`Kunne ikke nå Azure Function: ${err.message}`);
+  }
+}
+
+function renderVerifone(){
+  vfRenderMatched();
+  vfRenderUnmatched();
+}
+
 </script>
+
+<div class="vf-toast" id="vf-toast"><span class="vf-dot"></span><span id="vf-toast-txt"></span></div>
 </body>
 </html>
