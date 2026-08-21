@@ -281,7 +281,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.32.0 · Oppdatert: 21. aug 2026 kl. 08:04</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.32.1 · Oppdatert: 21. aug 2026 kl. 08:35</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -320,9 +320,6 @@ tr:hover td{background:#fafafa}
       <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this)">
         <span class="nav-item-icon">🧑‍💼</span>Kunde360 (BETA)
       </div>
-      <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
-        <span class="nav-item-icon">💡</span>Idébank
-      </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -342,6 +339,9 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="asub-oversikt" onclick="showArbeidstidView('oversikt',this)">📋 Oversikt</div>
         <div class="nav-sub-item" id="asub-soknader" onclick="showArbeidstidView('soknader',this)">📝 Søknader</div>
         <div class="nav-sub-item" id="asub-ny" onclick="showArbeidstidView('ny',this)">➕ Ny søknad</div>
+      </div>
+      <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
+        <span class="nav-item-icon">💡</span>Idébank
       </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
