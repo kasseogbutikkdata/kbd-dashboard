@@ -288,6 +288,17 @@ tr:hover td{background:#fafafa}
 .vf-flag-bax{font-family:ui-monospace,monospace;font-size:12px;color:#92400e;font-weight:700}
 .vf-match-select{padding:6px 10px;border:1.5px solid #d0d5dd;border-radius:6px;font-size:12.5px;font-family:inherit;min-width:220px;background:white}
 .vf-match-select:focus{outline:none;border-color:#1A3A6B}
+.vf-kunde-ac{position:relative;min-width:220px}
+.vf-kunde-ac input{padding:6px 10px;border:1.5px solid #d0d5dd;border-radius:6px;font-size:12.5px;font-family:inherit;background:white;width:100%;box-sizing:border-box}
+.vf-kunde-ac input:focus{outline:none;border-color:#1A3A6B}
+.vf-kunde-ac input:disabled{background:#f3f4f6;color:#6b7280}
+.vf-ac-treff{display:none;position:absolute;z-index:20;top:100%;left:0;margin-top:2px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;max-height:220px;overflow-y:auto;width:100%;min-width:260px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.vf-ac-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6}
+.vf-ac-item:hover{background:#f8f9fb}
+.vf-ac-item:last-child{border-bottom:none}
+.vf-ac-name{font-weight:600}
+.vf-ac-meta{color:#9ca3af;font-size:11px}
+.vf-ac-empty{padding:8px 12px;color:#9ca3af;font-size:13px}
 .vf-link-btn{padding:6px 12px;background:#1A3A6B;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
 .vf-link-btn:hover{background:#142f58}
 .vf-link-btn:disabled{background:#d0d5dd;cursor:not-allowed}
@@ -5517,9 +5528,7 @@ function vfRenderUnmatched(){
         <td class="tr">${vfNfi.format(u.totalAntall)}</td>
         <td class="tr" style="color:#92400e;font-weight:700">${vfKr(u.totalBelop)}</td>
         <td>
-          <select class="vf-match-select" id="vf-sel-${i}">
-            <option value="">Søk kunde i Visma…</option>
-          </select>
+          ${vfRenderKundeAutocomplete(i)}
         </td>
         <td><button class="vf-link-btn" id="vf-btn-${i}" onclick="vfLinkCustomer(${i})">Koble</button></td>
       </tr>`;
@@ -5529,20 +5538,101 @@ function vfRenderUnmatched(){
   document.getElementById('vf-tab-count-unmatched').textContent = vfData.unmatched.length;
 }
 
+// ===== Kunde-autocomplete for "Må avklares"-fanen =====
+// Gjenbruker vismaKunder-arrayet (fylt av loadDataFromSP() ved innlogging,
+// samme kilde som Kunde 360) og samme søkelogikk som searchKunder360():
+// eksakt org.nr-match først (9 siffer), ellers case-insensitiv substreng på navn.
+// Se Verifonekundesokgjenbruk.md (22.08.2026) for bakgrunn.
+function vfRenderKundeAutocomplete(baxId, forhandsvalgtVismaNummer){
+  const forhandsvalgt = forhandsvalgtVismaNummer
+    ? vismaKunder.find(k => k.vismaNummer === forhandsvalgtVismaNummer)
+    : null;
+  return `
+    <div class="vf-kunde-ac">
+      <input type="text" id="vf-ac-input-${baxId}"
+             placeholder="Søk kundenavn eller org.nr…"
+             value="${forhandsvalgt ? forhandsvalgt.navn.replace(/"/g,'&quot;') : ''}"
+             oninput="vfKundeAcSok(${baxId})"
+             onfocus="vfKundeAcSok(${baxId})"
+             onblur="document.getElementById('vf-ac-treff-${baxId}').style.display='none'"
+             autocomplete="off"/>
+      <div id="vf-ac-treff-${baxId}" class="vf-ac-treff"></div>
+      <input type="hidden" id="vf-ac-value-${baxId}" value="${forhandsvalgt ? forhandsvalgt.vismaNummer : ''}"/>
+    </div>`;
+}
+
+function vfKundeAcSok(baxId){
+  const raw = (document.getElementById(`vf-ac-input-${baxId}`).value || '').trim();
+  const treffDiv = document.getElementById(`vf-ac-treff-${baxId}`);
+  if (!raw) { treffDiv.style.display = 'none'; treffDiv.innerHTML = ''; return; }
+
+  const orgNrSok = normOrgNr(raw);
+  let treff = [];
+  if (orgNrSok.length === 9) treff = vismaKunder.filter(k => normOrgNr(k.orgNr) === orgNrSok);
+  if (treff.length === 0) {
+    const q = raw.toLowerCase();
+    treff = vismaKunder.filter(k => (k.navn || '').toLowerCase().includes(q));
+  }
+  treff = treff.slice(0, 15); // ikke render for mange rader i dropdown
+
+  if (treff.length === 0) {
+    treffDiv.innerHTML = `<div class="vf-ac-empty">Ingen treff</div>`;
+  } else {
+    treffDiv.innerHTML = treff.map(k => `
+      <div class="vf-ac-item"
+           onmousedown="vfKundeAcVelg(${baxId},'${k.vismaNummer}','${(k.navn||'').replace(/'/g,"\\'")}')">
+        <div class="vf-ac-name">${k.navn}</div>
+        <div class="vf-ac-meta">Kundenr ${k.vismaNummer || '—'} · Org.nr ${k.orgNr || '—'}</div>
+      </div>`).join('');
+  }
+  treffDiv.style.display = 'block';
+}
+
+function vfKundeAcVelg(baxId, vismaNummer, navn){
+  document.getElementById(`vf-ac-input-${baxId}`).value = navn;
+  document.getElementById(`vf-ac-value-${baxId}`).value = vismaNummer;
+  document.getElementById(`vf-ac-treff-${baxId}`).style.display = 'none';
+}
+
 function vfLinkCustomer(i){
-  const sel = document.getElementById('vf-sel-'+i);
+  const valueInput = document.getElementById('vf-ac-value-'+i);
+  const textInput = document.getElementById('vf-ac-input-'+i);
   const btn = document.getElementById('vf-btn-'+i);
-  if(!sel.value){ sel.focus(); return; }
-  vfLinkedState[i] = sel.value;
+  if(!valueInput.value){ textInput.focus(); return; }
+  vfLinkedState[i] = { vismaNummer: valueInput.value, navn: textInput.value };
   btn.textContent = '✓ Koblet';
   btn.classList.add('linked');
-  sel.disabled = true;
-  vfShowToast(vfData.unmatched[i].brukersted + ' koblet til kunde — legges til i neste kjøring');
+  textInput.disabled = true;
+  vfShowToast(vfData.unmatched[i].brukersted + ' koblet til ' + textInput.value + ' — tas med i salgsordre-utkastet');
+  vfUpdateApproveBar();
+}
+
+// Slår sammen automatisk matchede kunder (vfData.matched) og manuelt koblede
+// kunder (vfLinkedState, satt via vfLinkCustomer) til én liste gruppert per
+// kundenr — slik at hvis samme kunde både har et automatisk BAX-treff og en
+// manuelt koblet BAX-linje, blir det ETT salgsordre-utkast per kunde i
+// Visma.net, ikke to. Brukes både til å vise riktig sum i godkjenn-linja og
+// til selve payload'en som sendes til /api/create_sales_orders.
+function vfBuildGodkjenteListe(){
+  const kundeMap = {};
+  vfData.matched.forEach(m => {
+    const entry = kundeMap[m.kundenr] || (kundeMap[m.kundenr] = { kundenr: m.kundenr, kundenavn: m.kundenavn, periods: [] });
+    entry.periods.push(...m.periods);
+  });
+  Object.keys(vfLinkedState).forEach(i => {
+    const link = vfLinkedState[i];
+    const u = vfData.unmatched[i];
+    if (!u) return; // forsiktighet i tilfelle unmatched-listen er re-rendret siden koblingen ble gjort
+    const entry = kundeMap[link.vismaNummer] || (kundeMap[link.vismaNummer] = { kundenr: link.vismaNummer, kundenavn: link.navn, periods: [] });
+    entry.periods.push(...u.periods);
+  });
+  return Object.values(kundeMap);
 }
 
 function vfUpdateApproveBar(){
-  const totalBelop = vfData.matched.reduce((s,m)=>s+m.totalBelop,0);
-  document.getElementById('vf-approve-total').textContent = vfKr(totalBelop) + ' (' + vfData.matched.length + ' kunder)';
+  const godkjente = vfBuildGodkjenteListe();
+  const totalBelop = godkjente.reduce((s,k)=>s+k.periods.reduce((s2,p)=>s2+p.belop,0),0);
+  document.getElementById('vf-approve-total').textContent = vfKr(totalBelop) + ' (' + godkjente.length + ' kunder)';
   const pendingCount = vfData.unmatched.length - Object.keys(vfLinkedState).length;
   const pendingEl = document.getElementById('vf-approve-pending');
   pendingEl.textContent = pendingCount > 0 ? `${pendingCount} BAX-numre venter fortsatt på kobling` : '';
@@ -5561,7 +5651,8 @@ async function vfApprove(){
     vfShowToast('Ikke koblet til Azure Function ennå.');
     return;
   }
-  if (!vfData.matched.length){
+  const godkjente = vfBuildGodkjenteListe();
+  if (!godkjente.length){
     vfShowToast('Ingenting å opprette — last opp en faktura først.');
     return;
   }
@@ -5570,7 +5661,7 @@ async function vfApprove(){
   btn.textContent = 'Oppretter utkast…';
 
   const payload = {
-    godkjente: vfData.matched.map(m => ({ kundenr: m.kundenr, kundenavn: m.kundenavn, periods: m.periods })),
+    godkjente: godkjente.map(k => ({ kundenr: k.kundenr, kundenavn: k.kundenavn, periods: k.periods })),
     fakturareferanse: vfSisteFakturaReferanse || 'Verifone transaksjonsavgift',
   };
 
