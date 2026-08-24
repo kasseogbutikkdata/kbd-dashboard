@@ -7,6 +7,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"></script>
+<!-- Flatpickr — moderne dato/klokkeslett-velger, lagt til 24.08.2026 for
+     Forfallsdato-feltet på Salg & oppfølging (erstatter nettleserens
+     innebygde datetime-local-popup, som ikke lar seg style og ser ulikt/
+     gammeldags ut på tvers av nettlesere). no.js gir norske måneds-/
+     ukedagsnavn i kalenderen, konsistent med resten av grensesnittet. -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/no.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#111;font-size:15px;margin:0;padding:0}
@@ -310,6 +318,18 @@ tr:hover td{background:#fafafa}
 .vf-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .vf-toast .vf-dot{width:8px;height:8px;border-radius:50%;background:#1baf7a}
 
+/* Flatpickr — temaoverstyring så kalenderen matcher KBDs blåfarge (#1A3A6B)
+   i stedet for flatpickr sin standard oransje. Selve input-feltet (altInput)
+   arver de vanlige input-stilene fra .fgrp input via samme klasser. */
+.flatpickr-day.selected,.flatpickr-day.selected:hover,.flatpickr-day.selected.prevMonthDay,.flatpickr-day.selected.nextMonthDay{background:#1A3A6B;border-color:#1A3A6B}
+.flatpickr-day.today{border-color:#1A3A6B}
+.flatpickr-day.today:hover{background:#1A3A6B;color:#fff}
+.flatpickr-day:hover{background:#eef2f8}
+.flatpickr-months .flatpickr-month,.flatpickr-current-month .flatpickr-monthDropdown-months{color:#1A3A6B}
+.flatpickr-months .flatpickr-prev-month:hover svg,.flatpickr-months .flatpickr-next-month:hover svg{fill:#1A3A6B}
+.flatpickr-time input:hover,.flatpickr-time .flatpickr-am-pm:hover,.flatpickr-time input:focus,.flatpickr-time .flatpickr-am-pm:focus{background:#eef2f8}
+.flatpickr-calendar{box-shadow:0 8px 24px rgba(0,0,0,.15);border-radius:10px;overflow:hidden}
+
 </style>
 </head>
 <body>
@@ -344,7 +364,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.35.0 · Oppdatert: 22. aug 2026 kl. 14:15</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.37.0 · Oppdatert: 24. aug 2026 kl. 16:02</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1415,6 +1435,7 @@ let enheterSort={col:'type',dir:'asc'};
 let editId=null,editType=null;
 // Auth & SharePoint state
 let msalInstance=null,currentUser=null,userRole=null,siteId=null;
+let notatDatePicker=null; // flatpickr-instans for #n-forfallsdato, satt opp i initNotatDatePicker()
 // salgTilgang = egen tilgangsflagg (uavhengig av redaktør) for hvem som kan
 // skrive i "Salg & oppfølging"-fanen på Kunde 360-kundekortet. Satt i
 // applyAccessControl() basert på tilgang.salg for vanlige brukere, alltid true
@@ -1570,6 +1591,7 @@ async function afterLogin(account){
     refreshProdDropdowns();refreshSrcDropdowns();
     document.getElementById('lf-m').value='Jun';
     renderAll();
+    handleDeepLink(); // åpner rett kunde/oppføring hvis siden ble åpnet med ?kunde=...&notat=... (f.eks. fra varsel-e-post)
   }catch(err){
     hideLoading();
     console.error(err);
@@ -1733,11 +1755,12 @@ function renderKunder360Oversikt(){
 
   const idag=new Date();
   // "Mine varsler" — personlig varsel-banner (dashbord-kanalen av den
-  // valgfrie e-post/dashbord-varslingen på Oppfølging, lagt til 22.08.2026).
+  // valgfrie e-post/dashbord-varslingen, lagt til 22.08.2026 — gjelder alle
+  // typer (Notat/Tilbud/Oppfølging) siden 24.08.2026, ikke bare Oppfølging).
   // Bygger på kundeNotater alene, IKKE vismaKunder/vismaKontrakter — må derfor
   // vises uavhengig av om Visma-synken har kjørt ennå (se early-return under).
   const mineVarsler=kundeNotater.filter(n=>{
-    if(n.type!=='Oppfølging'||n.status!=='Åpen'||!n.varsleDashbord||!n.forfallsdato)return false;
+    if(n.status!=='Åpen'||!n.varsleDashbord||!n.forfallsdato)return false;
     const erMin=(n.opprettetAvEpost&&currentUser?.username&&n.opprettetAvEpost.toLowerCase()===currentUser.username.toLowerCase())
       ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name); // eldre oppføringer uten lagret e-post: fall tilbake på navn
     if(!erMin)return false;
@@ -1747,11 +1770,11 @@ function renderKunder360Oversikt(){
 
   const mineVarslerHtml=mineVarsler.length===0?'':`
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;margin-bottom:20px">
-      <div style="font-weight:600;color:#b91c1c;font-size:13.5px;margin-bottom:8px">🔔 Du har ${mineVarsler.length} oppfølging${mineVarsler.length>1?'er':''} som har forfalt</div>
+      <div style="font-weight:600;color:#b91c1c;font-size:13.5px;margin-bottom:8px">🔔 Du har ${mineVarsler.length} oppføring${mineVarsler.length>1?'er':''} som har forfalt</div>
       ${mineVarsler.map(n=>{
         const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
         return `<div style="font-size:13px;color:#374151;padding:4px 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-          <span>«${n.tittel||'(uten tittel)'}»${kunde?` — ${kunde.navn}`:''}</span>
+          <span>[${n.type}] «${n.tittel||'(uten tittel)'}»${kunde?` — ${kunde.navn}`:''}</span>
           <span style="color:#9ca3af;font-size:12px">forfalt ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}</span>
         </div>`;
       }).join('')}
@@ -1789,9 +1812,11 @@ function renderKunder360Oversikt(){
   const totalForfalt=vismaKunder.reduce((s,k)=>s+(k.saldoForfalt||0),0);
   const kunderMedForfalt=vismaKunder.filter(k=>(k.saldoForfalt||0)>0).length;
 
-  // Forfalte oppfølginger på tvers av alle kunder (Salg & oppfølging-fanen).
+  // Forfalte oppføringer med varsling på tvers av alle kunder (Salg &
+  // oppfølging-fanen) — gjelder alle typer (Notat/Tilbud/Oppfølging) siden
+  // 24.08.2026, ikke bare Oppfølging som tidligere.
   const forfalteOppfolginger=kundeNotater.filter(n=>{
-    if(n.type!=='Oppfølging'||n.status!=='Åpen'||!n.forfallsdato)return false;
+    if(n.status!=='Åpen'||!n.forfallsdato)return false;
     const d=new Date(n.forfallsdato);
     return !isNaN(d)&&d<idag;
   }).length;
@@ -1816,7 +1841,7 @@ function renderKunder360Oversikt(){
       ${card('🔚','Avsluttede, 30 dager',`${avsluttedeSiste30}`,'registrert av synkjobben siste 30 dager','#6b7280','#f3f4f6')}
       ${produktKort}
       ${card('🏢','Kunder synkronisert',`${vismaKunder.length}`,'fra Visma.net','#6d28d9','#f5f0ff')}
-      ${forfalteOppfolginger>0?card('⏰','Forfalte oppfølginger',`${forfalteOppfolginger}`,'fra Salg & oppfølging-fanen','#d03b3b','#fef2f2'):''}
+      ${forfalteOppfolginger>0?card('⏰','Forfalte oppføringer',`${forfalteOppfolginger}`,'fra Salg & oppfølging-fanen','#d03b3b','#fef2f2'):''}
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;max-width:400px">
       ${card('💳','Utestående saldo totalt',fS(totalSaldo),'sum av alle kunders saldo','#eb6834','#fff2e8')}
@@ -1901,6 +1926,38 @@ function velgKunde360(kunde){
   document.getElementById('k360-resultater').innerHTML='';
   renderKunder360Oversikt(); // skjul nøkkeltallene mens en konkret kunde vises
   renderKundeKort(kunde);
+}
+
+// Åpner direkte på riktig kunde (og evt. scroller til/utheven en spesifikk
+// oppføring) hvis siden lastes med ?kunde=<VismaNummer>&notat=<SharePoint-ID>
+// i URL-en — brukt av lenken i varsel-e-postene fra sjekk_varslinger
+// (kbd-verifone-func). Kalles én gang, rett etter renderAll() i afterLogin().
+// Trygg no-op hvis parameterne mangler, eller kunden ikke finnes ennå (f.eks.
+// hvis Kunde360-synken ikke har rukket å hente den kunden).
+function handleDeepLink(){
+  const params=new URLSearchParams(location.search);
+  const kundeParam=(params.get('kunde')||'').trim();
+  if(!kundeParam)return;
+
+  const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===kundeParam);
+  if(!kunde){console.warn('Deep link: fant ingen kunde med Visma-nr',kundeParam);return;}
+
+  showTab('kunder');
+  document.getElementById('k360-search').value=kunde.navn||'';
+  velgKunde360(kunde);
+
+  const notatParam=(params.get('notat')||'').trim();
+  if(!notatParam)return;
+  // Kortet må rekke å tegnes (velgKunde360 er riktignok synkron, men vi
+  // venter én frame ekstra for å være robust mot fremtidige endringer der).
+  setTimeout(()=>{
+    const el=document.getElementById('notat-'+notatParam);
+    if(!el){console.warn('Deep link: fant ingen oppføring med SharePoint-ID',notatParam);return;}
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.style.transition='box-shadow .3s ease';
+    el.style.boxShadow='0 0 0 3px #f5a623';
+    setTimeout(()=>{el.style.boxShadow='';},3000);
+  },150);
 }
 
 function renderKundeKort(k){
@@ -2006,7 +2063,8 @@ function renderKundeNotaterHTML(k){
     .sort((a,b)=>new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0));
   const notater=k360NotatFilter==='alle'?notaterAlle:notaterAlle.filter(n=>n.type===k360NotatFilter);
   const idag=new Date();
-  const erForfalt=n=>n.type==='Oppfølging'&&n.status==='Åpen'&&n.forfallsdato&&!isNaN(new Date(n.forfallsdato))&&new Date(n.forfallsdato)<idag;
+  // Gjelder alle typer (Notat/Tilbud/Oppfølging) siden 24.08.2026, ikke bare Oppfølging.
+  const erForfalt=n=>n.status==='Åpen'&&n.forfallsdato&&!isNaN(new Date(n.forfallsdato))&&new Date(n.forfallsdato)<idag;
   const antallForfalt=notaterAlle.filter(erForfalt).length; // alltid basert på ALLE typer, uavhengig av filter
 
   const filterPill=(val,lbl,farge)=>`<button class="fpill${k360NotatFilter===val?' f-on':''}" style="${k360NotatFilter===val?`border-color:${farge}`:''}" onclick="setK360NotatFilter('${val}')">${farge?`<span class="fpill-dot" style="background:${farge}"></span>`:''}<span style="${k360NotatFilter===val?`font-weight:600;color:${farge}`:''}">${lbl}</span></button>`;
@@ -2021,7 +2079,7 @@ function renderKundeNotaterHTML(k){
     const tf=K360_NOTAT_FARGER[n.type]||K360_NOTAT_FARGER.Notat;
     const lukket=n.status==='Lukket';
     const forfalt=erForfalt(n);
-    return `<div style="background:#fff;border:1px solid #e5e7eb;${forfalt?'border-left:3px solid #d03b3b;':''}border-radius:8px;padding:12px 14px;margin-bottom:8px;${lukket?'opacity:.6':''}">
+    return `<div id="notat-${n.spId}" style="background:#fff;border:1px solid #e5e7eb;${forfalt?'border-left:3px solid #d03b3b;':''}border-radius:8px;padding:12px 14px;margin-bottom:8px;${lukket?'opacity:.6':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:11px;font-weight:600;color:${tf.c};background:${tf.bg};padding:2px 8px;border-radius:20px">${n.type}</span>
@@ -2065,13 +2123,42 @@ function toLocalDatetimeInputValue(isoString){
   const p=n=>String(n).padStart(2,'0');
   return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+// Ikke lenger i bruk av notat-skjemaet selv (se initNotatDatePicker/
+// openRedigerNotat, som nå bruker flatpickr sin egen setDate()) — beholdt i
+// tilfelle den er nyttig andre steder senere. dateFormat under
+// ('Y-m-d\\TH:i') produserer nøyaktig samme strengformat som denne
+// funksjonen alltid har gjort, så saveNotat()/notatFieldsPayload() sin
+// tolkning av verdien (new Date(...).toISOString()) er uendret.
+
+// Setter opp flatpickr på Forfallsdato-feltet i notat-modalen — moderne
+// kalender+klokkeslett-velger i stedet for nettleserens innebygde
+// datetime-local-popup (lagt til 24.08.2026, se CDN-scriptene og CSS-
+// temaet øverst i filen). Kalles én gang ved oppstart (se initAuth()-kallet
+// nederst) — feltet finnes statisk i DOM fra sidelasting, uavhengig av om
+// brukeren er innlogget ennå.
+function initNotatDatePicker(){
+  if(typeof flatpickr==='undefined'){
+    console.warn('Flatpickr lastet ikke — Forfallsdato-feltet faller tilbake til vanlig tekstinput.');
+    return;
+  }
+  notatDatePicker=flatpickr('#n-forfallsdato',{
+    enableTime:true,
+    time_24hr:true,
+    minuteIncrement:5,
+    dateFormat:'Y-m-d\\TH:i', // samme strengformat som datetime-local ga tidligere — ingen endring nødvendig i saveNotat()
+    altInput:true,
+    altFormat:'j. F Y, H:i',
+    locale:(typeof flatpickr!=='undefined'&&flatpickr.l10ns&&flatpickr.l10ns.no)?'no':undefined,
+    allowInput:true,
+  });
+}
 
 function openNyNotatModal(kNr){
   document.getElementById('notat-modal-title').textContent='Ny oppføring';
   document.getElementById('n-type').value='Notat';
   document.getElementById('n-tittel').value='';
   document.getElementById('n-innhold').value='';
-  document.getElementById('n-forfallsdato').value='';
+  if(notatDatePicker)notatDatePicker.clear();else document.getElementById('n-forfallsdato').value='';
   document.getElementById('n-varsle-epost').checked=true;
   document.getElementById('n-varsle-dashbord').checked=true;
   document.getElementById('n-edit-id').value='';
@@ -2086,7 +2173,8 @@ function openRedigerNotat(id){
   document.getElementById('n-type').value=n.type;
   document.getElementById('n-tittel').value=n.tittel;
   document.getElementById('n-innhold').value=n.innhold;
-  document.getElementById('n-forfallsdato').value=toLocalDatetimeInputValue(n.forfallsdato);
+  if(notatDatePicker)n.forfallsdato?notatDatePicker.setDate(new Date(n.forfallsdato)):notatDatePicker.clear();
+  else document.getElementById('n-forfallsdato').value=toLocalDatetimeInputValue(n.forfallsdato);
   document.getElementById('n-varsle-epost').checked=n.varsleEpost!==false;
   document.getElementById('n-varsle-dashbord').checked=n.varsleDashbord!==false;
   document.getElementById('n-edit-id').value=n.id;
@@ -2098,10 +2186,14 @@ function openRedigerNotat(id){
 function closeNotatModal(){document.getElementById('notat-modal').classList.remove('open');}
 
 function updateNotatFormFields(){
-  const type=document.getElementById('n-type').value;
-  const vis=type==='Oppfølging'?'':'none';
-  document.getElementById('n-forfallsdato-wrap').style.display=vis;
-  document.getElementById('n-varsel-wrap').style.display=vis;
+  // Forfallsdato + varsling (e-post/dashbord) er tilgjengelig for ALLE typer
+  // (Notat/Tilbud/Oppfølging) siden 24.08.2026 — tidligere kun for
+  // Oppfølging. Feltene er uansett valgfrie (se saveNotat()), så det er
+  // trygt å alltid vise dem. Funksjonen beholdes (fremfor å fjerne
+  // display-styringen helt) i tilfelle et fremtidig felt SKAL være
+  // type-avhengig igjen.
+  document.getElementById('n-forfallsdato-wrap').style.display='';
+  document.getElementById('n-varsel-wrap').style.display='';
 }
 
 // Feltnøklene Innhold/Innhold0 under er IKKE en skrivefeil — se MERK 3 ved
@@ -2118,17 +2210,20 @@ function saveNotat(){
   const innhold=document.getElementById('n-innhold').value.trim();
   const type=document.getElementById('n-type').value;
   const forfallsdatoRaw=document.getElementById('n-forfallsdato').value||'';
-  // datetime-local gir lokal tid uten tidssone ("2026-08-25T14:30") — new Date()
-  // tolker den strengen som lokal browsertid, .toISOString() gjør den om til
-  // riktig UTC-tidspunkt for lagring (se også toLocalDatetimeInputValue, som
-  // gjør det motsatte ved redigering).
-  const forfallsdato=type==='Oppfølging'&&forfallsdatoRaw?new Date(forfallsdatoRaw).toISOString():'';
+  // Flatpickr sitt dateFormat ('Y-m-d\TH:i', se initNotatDatePicker) gir
+  // samme strengformat som datetime-local alltid har gjort — lokal tid uten
+  // tidssone (f.eks. "2026-08-25T14:30"). new Date() tolker den strengen som
+  // lokal browsertid, .toISOString() gjør den om til riktig UTC-tidspunkt
+  // for lagring (motsatt vei: openRedigerNotat, som bruker
+  // notatDatePicker.setDate(new Date(...))).
+  // Tilgjengelig for alle typer siden 24.08.2026 — ikke lenger kun Oppfølging.
+  const forfallsdato=forfallsdatoRaw?new Date(forfallsdatoRaw).toISOString():'';
   const varsleEpost=document.getElementById('n-varsle-epost').checked;
   const varsleDashbord=document.getElementById('n-varsle-dashbord').checked;
   const kNr=document.getElementById('n-kunde-nr').value;
   const editId=document.getElementById('n-edit-id').value;
   if(!tittel){alert('Fyll inn en tittel');return;}
-  if(type==='Oppfølging'&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato for oppfølging');return;}
+  if((varsleEpost||varsleDashbord)&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato/klokkeslett for å kunne varsle');return;}
   closeNotatModal();
 
   if(editId){
@@ -5439,6 +5534,7 @@ function startAutoRefresh(){
 }
 
 // ===== INIT =====
+initNotatDatePicker();
 initAuth();
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeIdeModal();}});
 
