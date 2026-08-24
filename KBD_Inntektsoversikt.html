@@ -364,7 +364,19 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.38.0 · Oppdatert: 24. aug 2026 kl. 16:22</span>
+    <!-- Varsel-bjelle (lagt til 24.08.2026): personlig, sanntids varselmeny for
+         forfalte Notat/Tilbud/Oppfølging-oppføringer der innlogget bruker selv
+         har huket av "Varsle i dashbordet". Skjult (display:none) når det ikke
+         er noen varsler — se renderVarselMeny(). Gjenbruker samme filterlogikk
+         som "mine varsler"-banneret på Kunde 360-fanen (hentMineVarsler()),
+         men er synlig fra ALLE faner siden den ligger i den globale toppbaren. -->
+    <div id="varsel-meny-wrap" style="position:relative">
+      <button id="varsel-bjelle" onclick="toggleVarselMeny(event)" title="Mine varsler" aria-label="Mine varsler" style="display:none;position:relative;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.9);font-size:17px;padding:4px 6px;line-height:1">
+        🔔<span id="varsel-badge" style="display:none;position:absolute;top:-3px;right:-1px;background:#dc2626;color:#fff;border-radius:9px;min-width:16px;height:16px;font-size:10px;font-weight:700;line-height:16px;text-align:center;padding:0 3px;box-shadow:0 0 0 2px #1A3A6B"></span>
+      </button>
+      <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
+    </div>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.39.0 · Oppdatert: 24. aug 2026 kl. 23:20</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1593,6 +1605,7 @@ async function afterLogin(account){
     document.getElementById('lf-m').value='Jun';
     renderAll();
     handleDeepLink(); // åpner rett kunde/oppføring hvis siden ble åpnet med ?kunde=...&notat=... (f.eks. fra varsel-e-post)
+    startVarselPolling(); // starter varsel-bjellen i toppbaren + 30-sekunders sanntids-gjenberegning
   }catch(err){
     hideLoading();
     console.error(err);
@@ -1744,6 +1757,123 @@ function renderKunder360(){
   if(k360Valgt)renderKundeKort(k360Valgt);
 }
 
+// hentMineVarsler(): forfalte Notat/Tilbud/Oppfølging-oppføringer der
+// innlogget bruker selv har huket av "Varsle i dashbordet" (VarsleDashbord).
+// Delt filterlogikk (lagt til 24.08.2026) mellom "mine varsler"-banneret på
+// Kunde 360-fanen og den globale varsel-bjellen i toppbaren
+// (renderVarselMeny()) — flyttet hit fra renderKunder360Oversikt() slik at
+// begge stedene definitivt bruker nøyaktig samme regel for "er dette mitt og
+// har det forfalt". Bygger på kundeNotater alene (ikke vismaKunder), så den
+// fungerer uavhengig av om Visma-synken har kjørt.
+function hentMineVarsler(){
+  const idag=new Date();
+  return kundeNotater.filter(n=>{
+    if(n.status!=='Åpen'||!n.varsleDashbord||!n.forfallsdato)return false;
+    const erMin=(n.opprettetAvEpost&&currentUser?.username&&n.opprettetAvEpost.toLowerCase()===currentUser.username.toLowerCase())
+      ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name); // eldre oppføringer uten lagret e-post: fall tilbake på navn
+    if(!erMin)return false;
+    const d=new Date(n.forfallsdato);
+    return !isNaN(d)&&d<=idag;
+  }).sort((a,b)=>new Date(a.forfallsdato)-new Date(b.forfallsdato));
+}
+
+// ===== VARSEL-BJELLE (global toppbar, lagt til 24.08.2026) =====
+// Sanntids (client-side) varselmeny synlig fra ALLE faner, ikke bare Kunde
+// 360 — se HTML i #varsel-meny-wrap (user-bar). "Sanntid" betyr her: gjenberegnes
+// mot allerede innlastet kundeNotater hvert 30. sekund (startVarselPolling()),
+// slik at en oppføring dukker opp i menyen idet klokka faktisk passerer
+// Forfallsdato mens dashbordet står åpent — uten at brukeren må laste siden på
+// nytt. I tillegg kalles renderVarselMeny() eksplisitt hver gang lokal data kan
+// ha endret seg (etter saveNotat/toggleNotatStatus/deleteNotat, og etter hver
+// 5-minutters auto-refresh i refreshData()) slik at endringer andre brukere
+// gjør også dukker opp uten unødig ventetid.
+let varselMenyApen=false;
+let varselPollInterval=null;
+
+function renderVarselMeny(){
+  const btn=document.getElementById('varsel-bjelle');
+  const badge=document.getElementById('varsel-badge');
+  const dropdown=document.getElementById('varsel-dropdown');
+  if(!btn||!badge||!dropdown)return;
+
+  const mine=hentMineVarsler();
+  if(mine.length===0){
+    btn.style.display='none';
+    badge.style.display='none';
+    dropdown.style.display='none';
+    varselMenyApen=false;
+    return;
+  }
+
+  btn.style.display='inline-flex';
+  badge.style.display='inline-block';
+  badge.textContent=mine.length>99?'99+':String(mine.length);
+
+  dropdown.innerHTML=mine.map(n=>{
+    const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+    const kundeNavnVis=n.kundeNavn||kunde?.navn||'Ukjent kunde';
+    const ikon=n.type==='Tilbud'?'📄':n.type==='Notat'?'📝':'🔔';
+    return `<div onclick="gaTilNotatFraVarsel('${n.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
+      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">${ikon} [${n.type}] ${kundeNavnVis}</div>
+      <div style="font-size:12px;color:#4b5563;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">«${n.tittel||'(uten tittel)'}»</div>
+      <div style="font-size:11px;color:#9ca3af">forfalt ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`;
+  }).join('');
+  // fjern kant under siste rad
+  if(dropdown.lastElementChild)dropdown.lastElementChild.style.borderBottom='none';
+}
+
+function toggleVarselMeny(e){
+  e.stopPropagation();
+  varselMenyApen=!varselMenyApen;
+  const dropdown=document.getElementById('varsel-dropdown');
+  if(dropdown)dropdown.style.display=varselMenyApen?'block':'none';
+}
+
+function closeVarselMeny(){
+  varselMenyApen=false;
+  const dropdown=document.getElementById('varsel-dropdown');
+  if(dropdown)dropdown.style.display='none';
+}
+
+// Lukk menyen ved klikk utenfor — samme mønster som andre dropdowns i siden.
+document.addEventListener('click',e=>{
+  if(!varselMenyApen)return;
+  const wrap=document.getElementById('varsel-meny-wrap');
+  if(wrap&&!wrap.contains(e.target))closeVarselMeny();
+});
+
+function startVarselPolling(){
+  if(varselPollInterval)clearInterval(varselPollInterval);
+  renderVarselMeny();
+  varselPollInterval=setInterval(renderVarselMeny,30000); // hvert 30. sekund, kun lokal gjenberegning — ingen nettverkskall
+}
+
+// Går til riktig kunde/oppføring når en rad i varsel-bjellens dropdown
+// klikkes. n.id (ikke spId) brukes i onclick, samme mønster som
+// toggleNotatStatus/deleteNotat — trygt å interpolere i en HTML-streng siden
+// det alltid er en lokalt genererte id (sp<tall> eller tmp<tilfeldig>), aldri
+// fritekst fra brukeren.
+function gaTilNotatFraVarsel(id){
+  const n=kundeNotater.find(x=>x.id===id);
+  if(!n)return;
+  const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+  closeVarselMeny();
+  if(!kunde){console.warn('Fant ikke kunden for varselet i vismaKunder-lista (Visma-synk kan mangle denne kunden ennå):',n.vismaKundeNummer);return;}
+  showTab('kunder');
+  document.getElementById('k360-search').value=kunde.navn||'';
+  velgKunde360(kunde);
+  if(!n.spId)return;
+  setTimeout(()=>{
+    const el=document.getElementById('notat-'+n.spId);
+    if(!el)return;
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.style.transition='box-shadow .3s ease';
+    el.style.boxShadow='0 0 0 3px #f5a623';
+    setTimeout(()=>{el.style.boxShadow='';},3000);
+  },150);
+}
+
 // Produktnøkkelord vi teller aktive avtaler for — basert på kontraktBeskrivelse.
 // Legg til flere her etter hvert (f.eks. andre kassesystem-merker) — de dukker
 // automatisk opp i oversikten.
@@ -1767,14 +1897,10 @@ function renderKunder360Oversikt(){
   // typer (Notat/Tilbud/Oppfølging) siden 24.08.2026, ikke bare Oppfølging).
   // Bygger på kundeNotater alene, IKKE vismaKunder/vismaKontrakter — må derfor
   // vises uavhengig av om Visma-synken har kjørt ennå (se early-return under).
-  const mineVarsler=kundeNotater.filter(n=>{
-    if(n.status!=='Åpen'||!n.varsleDashbord||!n.forfallsdato)return false;
-    const erMin=(n.opprettetAvEpost&&currentUser?.username&&n.opprettetAvEpost.toLowerCase()===currentUser.username.toLowerCase())
-      ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name); // eldre oppføringer uten lagret e-post: fall tilbake på navn
-    if(!erMin)return false;
-    const d=new Date(n.forfallsdato);
-    return !isNaN(d)&&d<=idag;
-  }).sort((a,b)=>new Date(a.forfallsdato)-new Date(b.forfallsdato));
+  // Filterlogikken selv bor i hentMineVarsler() (lagt til 24.08.2026) — delt
+  // med varsel-bjellen i toppbaren (renderVarselMeny()), slik at «mine
+  // varsler» betyr nøyaktig det samme begge steder.
+  const mineVarsler=hentMineVarsler();
 
   const mineVarslerHtml=mineVarsler.length===0?'':`
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;margin-bottom:20px">
@@ -2260,6 +2386,7 @@ function saveNotat(){
     setSPStatus('⏳ Lagrer…');
     spCreate('KundeNotater',notatFieldsPayload(nyNotat)).then(r=>{nyNotat.spId=r.id;nyNotat.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppføringen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);});
   }
+  renderVarselMeny(); // varsel-bjellen skal reflektere endringen umiddelbart, ikke vente på neste 30-sekunders tikk
 }
 
 function toggleNotatStatus(id){
@@ -2270,6 +2397,7 @@ function toggleNotatStatus(id){
     setSPStatus('⏳ Lagrer…');
     spUpdate('KundeNotater',n.spId,{Status:n.status}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Statusendring ble ikke lagret til SharePoint:\n'+e.message);});
   }
+  renderVarselMeny();
 }
 
 function deleteNotat(id){
@@ -2281,6 +2409,7 @@ function deleteNotat(id){
     setSPStatus('⏳ Sletter…');
     spDelete('KundeNotater',n.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting fra SharePoint feilet:\n'+e.message);});
   }
+  renderVarselMeny();
 }
 
 function setK360NotatFilter(f){
@@ -5531,6 +5660,7 @@ async function refreshData(){
     await loadUtleieData();
     await loadReservasjoner();
     renderAll();
+    renderVarselMeny(); // fanger opp nye/endrede varsler fra andre brukere ved hver 5-min auto-refresh
     // Oppdater refresh-indikator
     const el=document.getElementById('refresh-status');
     if(el){
@@ -5551,7 +5681,7 @@ function startAutoRefresh(){
 // ===== INIT =====
 initNotatDatePicker();
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeIdeModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeIdeModal();closeVarselMeny();}});
 
 
 /* ===== Verifone trans.avgift (vf-namespace) ===== */
