@@ -329,6 +329,24 @@ tr:hover td{background:#fafafa}
 .flatpickr-months .flatpickr-prev-month:hover svg,.flatpickr-months .flatpickr-next-month:hover svg{fill:#1A3A6B}
 .flatpickr-time input:hover,.flatpickr-time .flatpickr-am-pm:hover,.flatpickr-time input:focus,.flatpickr-time .flatpickr-am-pm:focus{background:#eef2f8}
 .flatpickr-calendar{box-shadow:0 8px 24px rgba(0,0,0,.15);border-radius:10px;overflow:hidden}
+/* Forbedringer lagt til 24.08.2026: klokkeslett-pilene i standard flatpickr er
+   usynlige til man hover'er nøyaktig over dem (dårlig affordance/oppdagbarhet,
+   spesielt på berøringsskjerm) — gjøres alltid svakt synlige, tydelige på
+   hover. Klokkeslett-tallene forstørres litt for lesbarhet. Helg dempes svakt
+   (med mindre valgt/i dag) for raskere visuell skanning av kalenderen. */
+.numInputWrapper span.arrowUp,.numInputWrapper span.arrowDown{opacity:.5}
+.numInputWrapper:hover span.arrowUp,.numInputWrapper:hover span.arrowDown{opacity:1}
+.flatpickr-time input{font-size:16px;font-weight:600}
+.flatpickr-day.knd-helg:not(.selected):not(.today){color:#9aa4b2}
+/* Snarveisknapper (I dag/I morgen/Om 1 uke/+1 time) og bunnrad (Nå/Tøm),
+   satt inn i kalenderen av _leggTilVarselSnarveier()/_leggTilVarselFooter()
+   i initNotatDatePicker(). */
+.knd-dato-snarvei{font-size:11.5px;padding:5px 10px;border-radius:14px;border:1px solid #dbe3ee;background:#f4f7fb;color:#1A3A6B;cursor:pointer;font-weight:500;white-space:nowrap;transition:background .15s}
+.knd-dato-snarvei:hover{background:#e4ebf5}
+.knd-dato-footer-btn{font-size:11.5px;padding:5px 10px;border-radius:14px;border:1px solid #dbe3ee;background:#fff;color:#1A3A6B;cursor:pointer;font-weight:500}
+.knd-dato-footer-btn:hover{background:#eef2f8}
+.knd-dato-footer-btn.knd-tom{border-color:#f3c6c6;color:#b91c1c}
+.knd-dato-footer-btn.knd-tom:hover{background:#fef2f2}
 
 </style>
 </head>
@@ -376,7 +394,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.39.1 · Oppdatert: 24. aug 2026 kl. 23:30</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.40.0 · Oppdatert: 24. aug 2026 kl. 23:39</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2294,12 +2312,62 @@ function toLocalDatetimeInputValue(isoString){
 // funksjonen alltid har gjort, så saveNotat()/notatFieldsPayload() sin
 // tolkning av verdien (new Date(...).toISOString()) er uendret.
 
+// Rad med hurtigvalg (I dag/I morgen/Om 1 uke/+1 time) satt inn ØVERST i
+// kalenderen (lagt til 24.08.2026, del av "gjør dato/klokke-funksjonen
+// bedre") — dekker de klart vanligste valgene for en oppfølgingsfrist uten at
+// man trenger å klikke seg gjennom kalenderen eller taste inn klokkeslett for
+// hånd. instance.setDate(dato,true) setter datoen OG lukker/oppdaterer feltet
+// akkurat som et vanlig kalenderklikk ville gjort.
+function _leggTilVarselSnarveier(instance){
+  if(instance.calendarContainer.querySelector('.knd-dato-snarveier'))return; // ikke dupliser (onReady kjører kun én gang, men vær robust)
+  const rad=document.createElement('div');
+  rad.className='knd-dato-snarveier';
+  rad.style.cssText='display:flex;flex-wrap:wrap;gap:6px;padding:10px 10px 0 10px';
+  const snarveier=[
+    {label:'I dag 12:00',lag:()=>{const d=new Date();d.setHours(12,0,0,0);return d;}},
+    {label:'I morgen 09:00',lag:()=>{const d=new Date();d.setDate(d.getDate()+1);d.setHours(9,0,0,0);return d;}},
+    {label:'Om 1 uke',lag:()=>{const d=new Date();d.setDate(d.getDate()+7);d.setHours(9,0,0,0);return d;}},
+    {label:'+1 time',lag:()=>{const d=new Date();d.setHours(d.getHours()+1,0,0,0);return d;}},
+  ];
+  snarveier.forEach(s=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='knd-dato-snarvei';
+    btn.textContent=s.label;
+    btn.onclick=()=>instance.setDate(s.lag(),true);
+    rad.appendChild(btn);
+  });
+  instance.calendarContainer.insertBefore(rad,instance.calendarContainer.firstChild);
+}
+
+// Bunnrad med "Nå" (setter gjeldende tidspunkt) og "Tøm" (fjerner
+// forfallsdatoen helt) — lagt til 24.08.2026. "Tøm" dekker et hull i
+// standard flatpickr: uten den var eneste måte å fjerne en satt dato på å
+// manuelt slette teksten i altInput-feltet, ikke opplagt for de fleste.
+function _leggTilVarselFooter(instance){
+  if(instance.calendarContainer.querySelector('.knd-dato-footer'))return;
+  const footer=document.createElement('div');
+  footer.className='knd-dato-footer';
+  footer.style.cssText='display:flex;justify-content:space-between;gap:6px;padding:8px 10px;border-top:1px solid #eef1f5';
+  const naaBtn=document.createElement('button');
+  naaBtn.type='button';naaBtn.className='knd-dato-footer-btn';naaBtn.textContent='🕐 Nå';
+  naaBtn.onclick=()=>instance.setDate(new Date(),true);
+  const tomBtn=document.createElement('button');
+  tomBtn.type='button';tomBtn.className='knd-dato-footer-btn knd-tom';tomBtn.textContent='✕ Tøm';
+  tomBtn.onclick=()=>{instance.clear();instance.close();};
+  footer.appendChild(naaBtn);footer.appendChild(tomBtn);
+  instance.calendarContainer.appendChild(footer);
+}
+
 // Setter opp flatpickr på Forfallsdato-feltet i notat-modalen — moderne
 // kalender+klokkeslett-velger i stedet for nettleserens innebygde
 // datetime-local-popup (lagt til 24.08.2026, se CDN-scriptene og CSS-
 // temaet øverst i filen). Kalles én gang ved oppstart (se initAuth()-kallet
 // nederst) — feltet finnes statisk i DOM fra sidelasting, uavhengig av om
 // brukeren er innlogget ennå.
+// Utvidet 24.08.2026 med hurtigvalg + Nå/Tøm-knapper (se
+// _leggTilVarselSnarveier/_leggTilVarselFooter) og svak helge-demping
+// (onDayCreate) — samlet svar på "gjør dato/klokke-funksjonen bedre".
 function initNotatDatePicker(){
   if(typeof flatpickr==='undefined'){
     console.warn('Flatpickr lastet ikke — Forfallsdato-feltet faller tilbake til vanlig tekstinput.');
@@ -2314,6 +2382,14 @@ function initNotatDatePicker(){
     altFormat:'j. F Y, H:i',
     locale:(typeof flatpickr!=='undefined'&&flatpickr.l10ns&&flatpickr.l10ns.no)?'no':undefined,
     allowInput:true,
+    onDayCreate:(dSel,dStr,fp,dayElem)=>{
+      const dow=dayElem.dateObj.getDay();
+      if(dow===0||dow===6)dayElem.classList.add('knd-helg');
+    },
+    onReady:(dSel,dStr,instance)=>{
+      _leggTilVarselSnarveier(instance);
+      _leggTilVarselFooter(instance);
+    },
   });
 }
 
