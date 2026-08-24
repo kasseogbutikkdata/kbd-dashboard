@@ -344,7 +344,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.34.2 · Oppdatert: 22. aug 2026 kl. 11:30</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.35.0 · Oppdatert: 22. aug 2026 kl. 14:15</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -864,7 +864,14 @@ tr:hover td{background:#fafafa}
             <option value="Oppfølging">⏰ Oppfølging</option>
           </select>
         </div>
-        <div class="fgrp" id="n-forfallsdato-wrap" style="display:none"><label>Forfallsdato</label><input type="date" id="n-forfallsdato"/></div>
+        <div class="fgrp" id="n-forfallsdato-wrap" style="display:none"><label>Forfallsdato og klokkeslett</label><input type="datetime-local" id="n-forfallsdato"/></div>
+      </div>
+      <div class="fgrp" id="n-varsel-wrap" style="display:none;margin-bottom:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px">
+        <label style="margin-bottom:6px">Varsling ved forfall</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:#374151;cursor:pointer"><input type="checkbox" id="n-varsle-epost" style="width:15px;height:15px"/> ✉️ Varsle på e-post</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:#374151;cursor:pointer"><input type="checkbox" id="n-varsle-dashbord" style="width:15px;height:15px"/> 🔔 Varsle i dashbordet</label>
+        </div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Tittel</label><input type="text" id="n-tittel" placeholder="Kort overskrift"/></div>
       <div class="fgrp" style="margin-bottom:10px"><label>Innhold</label><textarea id="n-innhold" rows="4" placeholder="Notat, tilbudsdetaljer eller hva som skal følges opp…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
@@ -1654,7 +1661,14 @@ async function loadDataFromSP(){
   // over tid uten å opprette en helt ny oppføring for hver kommentar. Lagres
   // som JSON i én tekstkolonne (Logg), samme mønster som Tilgang-feltet på
   // Brukere-listen — unngår å måtte lage enda en egen SharePoint-liste.
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetDato:i.fields.OpprettetDato||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // VarsleEpost/VarsleDashbord/VarselSendt = nye Ja/Nei-kolonner (lagt til
+  // 22.08.2026) for valgfri e-post-/dashbord-varsling ved forfall på en
+  // Oppfølging. Graph API returnerer Ja/Nei-felt som ekte boolean true/false,
+  // IKKE som strengen "true" — sammenlign derfor alltid med ===true, aldri
+  // ===('true'). OpprettetAvEpost lagres direkte fra currentUser.username ved
+  // opprettelse, slik at en fremtidig e-post-varslingsjobb slipper å slå opp
+  // navn→e-post via Brukere-listen (skjørt hvis navn ikke er unikt/endres).
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -1716,13 +1730,39 @@ function renderKunder360Oversikt(){
     target.innerHTML='';
     return;
   }
+
+  const idag=new Date();
+  // "Mine varsler" — personlig varsel-banner (dashbord-kanalen av den
+  // valgfrie e-post/dashbord-varslingen på Oppfølging, lagt til 22.08.2026).
+  // Bygger på kundeNotater alene, IKKE vismaKunder/vismaKontrakter — må derfor
+  // vises uavhengig av om Visma-synken har kjørt ennå (se early-return under).
+  const mineVarsler=kundeNotater.filter(n=>{
+    if(n.type!=='Oppfølging'||n.status!=='Åpen'||!n.varsleDashbord||!n.forfallsdato)return false;
+    const erMin=(n.opprettetAvEpost&&currentUser?.username&&n.opprettetAvEpost.toLowerCase()===currentUser.username.toLowerCase())
+      ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name); // eldre oppføringer uten lagret e-post: fall tilbake på navn
+    if(!erMin)return false;
+    const d=new Date(n.forfallsdato);
+    return !isNaN(d)&&d<=idag;
+  }).sort((a,b)=>new Date(a.forfallsdato)-new Date(b.forfallsdato));
+
+  const mineVarslerHtml=mineVarsler.length===0?'':`
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;margin-bottom:20px">
+      <div style="font-weight:600;color:#b91c1c;font-size:13.5px;margin-bottom:8px">🔔 Du har ${mineVarsler.length} oppfølging${mineVarsler.length>1?'er':''} som har forfalt</div>
+      ${mineVarsler.map(n=>{
+        const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+        return `<div style="font-size:13px;color:#374151;padding:4px 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <span>«${n.tittel||'(uten tittel)'}»${kunde?` — ${kunde.navn}`:''}</span>
+          <span style="color:#9ca3af;font-size:12px">forfalt ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+
   if(vismaKunder.length===0&&vismaKontrakter.length===0){
-    target.innerHTML='';
+    target.innerHTML=mineVarslerHtml;
     return;
   }
 
   const aktiveAvtaler=vismaKontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';});
-  const idag=new Date();
   const for30DagerSiden=new Date(idag.getTime()-30*24*60*60*1000);
   const kontrakterMedDato=vismaKontrakter.filter(c=>c.opprettetLokalt&&!isNaN(new Date(c.opprettetLokalt)));
   const nyeSiste30=kontrakterMedDato.filter(c=>new Date(c.opprettetLokalt)>=for30DagerSiden).length;
@@ -1996,7 +2036,7 @@ function renderKundeNotaterHTML(k){
         </div>`:''}
       </div>
       ${n.innhold?`<div style="font-size:13px;color:#374151;white-space:pre-wrap;margin-bottom:6px">${n.innhold}</div>`:''}
-      <div style="font-size:11px;color:#9ca3af">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · Forfallsdato: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')}`:''}</div>
+      <div style="font-size:11px;color:#9ca3af">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · Forfallsdato: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · ${[n.varsleEpost?'✉️':'',n.varsleDashbord?'🔔':''].filter(Boolean).join(' ')}`:''}`:''}</div>
       ${renderNotatLoggHTML(n)}
     </div>`;
   }).join('');
@@ -2013,12 +2053,27 @@ function renderKundeNotaterHTML(k){
   `;
 }
 
+// Konverterer en lagret UTC ISO-dato (slik den kommer fra SharePoint) til
+// verdien et <input type="datetime-local"> forventer, i BRUKERENS lokale
+// tidssone (Europe/Oslo for KBD) — datetime-local har ingen tidssone selv,
+// så vi må konvertere eksplisitt begge veier (se også saveNotat, som gjør
+// det motsatte med new Date(raw).toISOString()).
+function toLocalDatetimeInputValue(isoString){
+  if(!isoString)return'';
+  const d=new Date(isoString);
+  if(isNaN(d))return'';
+  const p=n=>String(n).padStart(2,'0');
+  return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function openNyNotatModal(kNr){
   document.getElementById('notat-modal-title').textContent='Ny oppføring';
   document.getElementById('n-type').value='Notat';
   document.getElementById('n-tittel').value='';
   document.getElementById('n-innhold').value='';
   document.getElementById('n-forfallsdato').value='';
+  document.getElementById('n-varsle-epost').checked=true;
+  document.getElementById('n-varsle-dashbord').checked=true;
   document.getElementById('n-edit-id').value='';
   document.getElementById('n-kunde-nr').value=kNr;
   updateNotatFormFields();
@@ -2031,7 +2086,9 @@ function openRedigerNotat(id){
   document.getElementById('n-type').value=n.type;
   document.getElementById('n-tittel').value=n.tittel;
   document.getElementById('n-innhold').value=n.innhold;
-  document.getElementById('n-forfallsdato').value=n.forfallsdato?n.forfallsdato.substring(0,10):'';
+  document.getElementById('n-forfallsdato').value=toLocalDatetimeInputValue(n.forfallsdato);
+  document.getElementById('n-varsle-epost').checked=n.varsleEpost!==false;
+  document.getElementById('n-varsle-dashbord').checked=n.varsleDashbord!==false;
   document.getElementById('n-edit-id').value=n.id;
   document.getElementById('n-kunde-nr').value=n.vismaKundeNummer;
   updateNotatFormFields();
@@ -2042,7 +2099,9 @@ function closeNotatModal(){document.getElementById('notat-modal').classList.remo
 
 function updateNotatFormFields(){
   const type=document.getElementById('n-type').value;
-  document.getElementById('n-forfallsdato-wrap').style.display=type==='Oppfølging'?'':'none';
+  const vis=type==='Oppfølging'?'':'none';
+  document.getElementById('n-forfallsdato-wrap').style.display=vis;
+  document.getElementById('n-varsel-wrap').style.display=vis;
 }
 
 // Feltnøklene Innhold/Innhold0 under er IKKE en skrivefeil — se MERK 3 ved
@@ -2051,7 +2110,7 @@ function updateNotatFormFields(){
 // "Innhold" har internt navn "Innhold0". Bekreftet 20.08.2026 via Graph
 // Explorer. Sjekk faktisk internt navn på nytt før dette endres.
 function notatFieldsPayload(n){
-  return{Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,NotatType:n.type,Innhold0:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,Innhold:n.opprettetAv,OpprettetDato:n.opprettetDato,Logg:JSON.stringify(n.logg||[])};
+  return{Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,NotatType:n.type,Innhold0:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,Innhold:n.opprettetAv,OpprettetDato:n.opprettetDato,Logg:JSON.stringify(n.logg||[]),VarsleEpost:n.varsleEpost===true,VarsleDashbord:n.varsleDashbord===true,OpprettetAvEpost:n.opprettetAvEpost||'',VarselSendt:n.varselSendt===true};
 }
 
 function saveNotat(){
@@ -2059,16 +2118,25 @@ function saveNotat(){
   const innhold=document.getElementById('n-innhold').value.trim();
   const type=document.getElementById('n-type').value;
   const forfallsdatoRaw=document.getElementById('n-forfallsdato').value||'';
+  // datetime-local gir lokal tid uten tidssone ("2026-08-25T14:30") — new Date()
+  // tolker den strengen som lokal browsertid, .toISOString() gjør den om til
+  // riktig UTC-tidspunkt for lagring (se også toLocalDatetimeInputValue, som
+  // gjør det motsatte ved redigering).
+  const forfallsdato=type==='Oppfølging'&&forfallsdatoRaw?new Date(forfallsdatoRaw).toISOString():'';
+  const varsleEpost=document.getElementById('n-varsle-epost').checked;
+  const varsleDashbord=document.getElementById('n-varsle-dashbord').checked;
   const kNr=document.getElementById('n-kunde-nr').value;
   const editId=document.getElementById('n-edit-id').value;
   if(!tittel){alert('Fyll inn en tittel');return;}
   if(type==='Oppfølging'&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato for oppfølging');return;}
-  const forfallsdato=type==='Oppfølging'?forfallsdatoRaw:'';
   closeNotatModal();
 
   if(editId){
     const n=kundeNotater.find(x=>x.id===editId);if(!n)return;
-    n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;
+    // VarselSendt nullstilles ved enhver redigering av en Oppfølging, slik at
+    // en endret/utsatt frist faktisk gir nytt varsel i stedet for å bli
+    // stille undertrykt av at et tidligere (nå utdatert) varsel alt er sendt.
+    n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;n.varsleEpost=varsleEpost;n.varsleDashbord=varsleDashbord;n.varselSendt=false;
     if(k360Valgt)renderKundeKort(k360Valgt);
     if(n.spId){
       setSPStatus('⏳ Lagrer…');
@@ -2076,7 +2144,7 @@ function saveNotat(){
     }
   } else {
     const now=new Date().toISOString();
-    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,type,tittel,innhold,status:'Åpen',forfallsdato,opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetDato:now,logg:[]};
+    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetAvEpost:currentUser?.username||'',opprettetDato:now,logg:[]};
     kundeNotater.push(nyNotat);
     if(k360Valgt)renderKundeKort(k360Valgt);
     setSPStatus('⏳ Lagrer…');
