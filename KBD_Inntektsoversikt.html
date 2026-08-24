@@ -364,7 +364,7 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.37.0 · Oppdatert: 24. aug 2026 kl. 16:02</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.38.0 · Oppdatert: 24. aug 2026 kl. 16:22</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -897,6 +897,7 @@ tr:hover td{background:#fafafa}
       <div class="fgrp" style="margin-bottom:10px"><label>Innhold</label><textarea id="n-innhold" rows="4" placeholder="Notat, tilbudsdetaljer eller hva som skal følges opp…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <input type="hidden" id="n-edit-id"/>
       <input type="hidden" id="n-kunde-nr"/>
+      <input type="hidden" id="n-kunde-navn"/>
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeNotatModal()">Avbryt</button>
         <button class="prim" onclick="saveNotat()">Lagre</button>
@@ -1690,7 +1691,14 @@ async function loadDataFromSP(){
   // ===('true'). OpprettetAvEpost lagres direkte fra currentUser.username ved
   // opprettelse, slik at en fremtidig e-post-varslingsjobb slipper å slå opp
   // navn→e-post via Brukere-listen (skjørt hvis navn ikke er unikt/endres).
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // KundeNavn (lagt til 24.08.2026, enkeltlinje tekst) = kundens firmanavn,
+  // denormalisert inn på selve notatet ved opprettelse/redigering (fra
+  // vismaKunder-oppslag, se openNyNotatModal/openRedigerNotat) av samme grunn
+  // som OpprettetAvEpost: KundeNotater lagrer kun VismaKundeNummer, og
+  // varslingsjobben i backend (varsling.py) skal slippe å slå opp navnet fra
+  // VismaKunder-lista på hver 5-minutters kjøring bare for å sette det i
+  // e-postens emnefelt.
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -2163,6 +2171,11 @@ function openNyNotatModal(kNr){
   document.getElementById('n-varsle-dashbord').checked=true;
   document.getElementById('n-edit-id').value='';
   document.getElementById('n-kunde-nr').value=kNr;
+  // Kundenavnet lagres direkte PÅ notatet (samme mønster som OpprettetAvEpost)
+  // slik at varsel-e-posten (kbd-verifone-func/varsling.py) kan vise det i
+  // emnefeltet uten et ekstra Graph-kall mot VismaKunder — slått opp her via
+  // vismaKunder fremfor k360Valgt for å være robust uansett hvordan modalen åpnes.
+  document.getElementById('n-kunde-navn').value=(vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(kNr||'').trim())||{}).navn||'';
   updateNotatFormFields();
   document.getElementById('notat-modal').classList.add('open');
 }
@@ -2179,6 +2192,7 @@ function openRedigerNotat(id){
   document.getElementById('n-varsle-dashbord').checked=n.varsleDashbord!==false;
   document.getElementById('n-edit-id').value=n.id;
   document.getElementById('n-kunde-nr').value=n.vismaKundeNummer;
+  document.getElementById('n-kunde-navn').value=n.kundeNavn||(vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim())||{}).navn||'';
   updateNotatFormFields();
   document.getElementById('notat-modal').classList.add('open');
 }
@@ -2202,7 +2216,7 @@ function updateNotatFormFields(){
 // "Innhold" har internt navn "Innhold0". Bekreftet 20.08.2026 via Graph
 // Explorer. Sjekk faktisk internt navn på nytt før dette endres.
 function notatFieldsPayload(n){
-  return{Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,NotatType:n.type,Innhold0:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,Innhold:n.opprettetAv,OpprettetDato:n.opprettetDato,Logg:JSON.stringify(n.logg||[]),VarsleEpost:n.varsleEpost===true,VarsleDashbord:n.varsleDashbord===true,OpprettetAvEpost:n.opprettetAvEpost||'',VarselSendt:n.varselSendt===true};
+  return{Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,NotatType:n.type,Innhold0:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,Innhold:n.opprettetAv,OpprettetDato:n.opprettetDato,Logg:JSON.stringify(n.logg||[]),VarsleEpost:n.varsleEpost===true,VarsleDashbord:n.varsleDashbord===true,OpprettetAvEpost:n.opprettetAvEpost||'',VarselSendt:n.varselSendt===true,KundeNavn:n.kundeNavn||''};
 }
 
 function saveNotat(){
@@ -2221,6 +2235,7 @@ function saveNotat(){
   const varsleEpost=document.getElementById('n-varsle-epost').checked;
   const varsleDashbord=document.getElementById('n-varsle-dashbord').checked;
   const kNr=document.getElementById('n-kunde-nr').value;
+  const kNavn=document.getElementById('n-kunde-navn').value;
   const editId=document.getElementById('n-edit-id').value;
   if(!tittel){alert('Fyll inn en tittel');return;}
   if((varsleEpost||varsleDashbord)&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato/klokkeslett for å kunne varsle');return;}
@@ -2231,7 +2246,7 @@ function saveNotat(){
     // VarselSendt nullstilles ved enhver redigering av en Oppfølging, slik at
     // en endret/utsatt frist faktisk gir nytt varsel i stedet for å bli
     // stille undertrykt av at et tidligere (nå utdatert) varsel alt er sendt.
-    n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;n.varsleEpost=varsleEpost;n.varsleDashbord=varsleDashbord;n.varselSendt=false;
+    n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;n.varsleEpost=varsleEpost;n.varsleDashbord=varsleDashbord;n.varselSendt=false;n.kundeNavn=kNavn;
     if(k360Valgt)renderKundeKort(k360Valgt);
     if(n.spId){
       setSPStatus('⏳ Lagrer…');
@@ -2239,7 +2254,7 @@ function saveNotat(){
     }
   } else {
     const now=new Date().toISOString();
-    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetAvEpost:currentUser?.username||'',opprettetDato:now,logg:[]};
+    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetAvEpost:currentUser?.username||'',opprettetDato:now,logg:[]};
     kundeNotater.push(nyNotat);
     if(k360Valgt)renderKundeKort(k360Valgt);
     setSPStatus('⏳ Lagrer…');
