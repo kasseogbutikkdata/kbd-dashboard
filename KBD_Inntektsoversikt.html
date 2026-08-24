@@ -376,7 +376,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.39.0 · Oppdatert: 24. aug 2026 kl. 23:20</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.39.1 · Oppdatert: 24. aug 2026 kl. 23:30</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1757,13 +1757,37 @@ function renderKunder360(){
   if(k360Valgt)renderKundeKort(k360Valgt);
 }
 
+// "Sett"-sporing for varsler (lagt til 24.08.2026): når du klikker deg inn på
+// et varsel via varsel-bjellen, skal det forsvinne fra tallet/listen — uten at
+// det skal telle som "løst" i SharePoint-forstand (Status/VarselSendt røres
+// ikke, kun UI-et). Lagres i nettleserens localStorage, PER NETTLESER/enhet —
+// bevisst enkelt: ingen ny SharePoint-kolonne/liste kun for å synke lese-status
+// på tvers av enheter for én bruker. Konsekvens: sees du en oppføring på PC-en
+// og åpner dashbordet på mobilen etterpå, dukker den opp der igjen til du
+// klikker den der også. Nøkkelen er spId+Forfallsdato (ikke bare spId) — så
+// hvis oppføringen redigeres og fristen endres (som uansett nullstiller
+// VarselSendt, se saveNotat()), telles den automatisk som usett/nytt varsel
+// igjen, slik det bør være.
+let varselSettSet=new Set();
+try{varselSettSet=new Set(JSON.parse(localStorage.getItem('kbdVarselSett')||'[]'));}catch(e){varselSettSet=new Set();}
+function _varselNokkel(n){return `${n.spId||n.id}|${n.forfallsdato||''}`;}
+function erVarselSett(n){return varselSettSet.has(_varselNokkel(n));}
+function markerVarselSett(n){
+  varselSettSet.add(_varselNokkel(n));
+  try{
+    // behold kun de 300 nyeste nøklene, så localStorage ikke vokser i det uendelige
+    localStorage.setItem('kbdVarselSett',JSON.stringify([...varselSettSet].slice(-300)));
+  }catch(e){/* localStorage kan være utilgjengelig (privat nettlesing e.l.) — ufarlig å hoppe over */}
+}
+
 // hentMineVarsler(): forfalte Notat/Tilbud/Oppfølging-oppføringer der
-// innlogget bruker selv har huket av "Varsle i dashbordet" (VarsleDashbord).
-// Delt filterlogikk (lagt til 24.08.2026) mellom "mine varsler"-banneret på
-// Kunde 360-fanen og den globale varsel-bjellen i toppbaren
-// (renderVarselMeny()) — flyttet hit fra renderKunder360Oversikt() slik at
-// begge stedene definitivt bruker nøyaktig samme regel for "er dette mitt og
-// har det forfalt". Bygger på kundeNotater alene (ikke vismaKunder), så den
+// innlogget bruker selv har huket av "Varsle i dashbordet" (VarsleDashbord),
+// og som ikke allerede er klikket/sett (se markerVarselSett over). Delt
+// filterlogikk (lagt til 24.08.2026) mellom "mine varsler"-banneret på Kunde
+// 360-fanen og den globale varsel-bjellen i toppbaren (renderVarselMeny()) —
+// flyttet hit fra renderKunder360Oversikt() slik at begge stedene definitivt
+// bruker nøyaktig samme regel for "er dette mitt, har det forfalt, og har jeg
+// sett det". Bygger på kundeNotater alene (ikke vismaKunder), så den
 // fungerer uavhengig av om Visma-synken har kjørt.
 function hentMineVarsler(){
   const idag=new Date();
@@ -1772,6 +1796,7 @@ function hentMineVarsler(){
     const erMin=(n.opprettetAvEpost&&currentUser?.username&&n.opprettetAvEpost.toLowerCase()===currentUser.username.toLowerCase())
       ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name); // eldre oppføringer uten lagret e-post: fall tilbake på navn
     if(!erMin)return false;
+    if(erVarselSett(n))return false;
     const d=new Date(n.forfallsdato);
     return !isNaN(d)&&d<=idag;
   }).sort((a,b)=>new Date(a.forfallsdato)-new Date(b.forfallsdato));
@@ -1853,13 +1878,18 @@ function startVarselPolling(){
 // klikkes. n.id (ikke spId) brukes i onclick, samme mønster som
 // toggleNotatStatus/deleteNotat — trygt å interpolere i en HTML-streng siden
 // det alltid er en lokalt genererte id (sp<tall> eller tmp<tilfeldig>), aldri
-// fritekst fra brukeren.
+// fritekst fra brukeren. Markerer varselet som "sett" (se markerVarselSett)
+// idet vi faktisk lykkes med å navigere dit — IKKE før vi vet at kunden ble
+// funnet, slik at et varsel som av en eller annen grunn ikke kan åpnes
+// fortsatt vises (og kan prøves på nytt) i stedet for å bare forsvinne.
 function gaTilNotatFraVarsel(id){
   const n=kundeNotater.find(x=>x.id===id);
   if(!n)return;
   const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
   closeVarselMeny();
   if(!kunde){console.warn('Fant ikke kunden for varselet i vismaKunder-lista (Visma-synk kan mangle denne kunden ennå):',n.vismaKundeNummer);return;}
+  markerVarselSett(n);
+  renderVarselMeny();
   showTab('kunder');
   document.getElementById('k360-search').value=kunde.navn||'';
   velgKunde360(kunde);
