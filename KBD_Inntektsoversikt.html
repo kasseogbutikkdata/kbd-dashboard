@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.41.0 · Oppdatert: 25. aug 2026 kl. 08:50</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.42.0 · Oppdatert: 25. aug 2026 kl. 17:55</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -443,8 +443,16 @@ tr:hover td{background:#fafafa}
 <div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this)">
         <span class="nav-item-icon">⏱️</span>Aldersfordelt
       </div>
-      <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this)">
+      <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this);toggleKunder360Sub(true)">
         <span class="nav-item-icon">🧑‍💼</span>Kunde360 (BETA)
+      </div>
+      <!-- Undermeny lagt til 25.08.2026: skiller dagens kundesøk/-oppfølging
+           ("Kunder") fra den nye leadgenererings-lista fra Brønnøysund
+           ("Nyetableringer") — samme nav-sub/toggleXSub-mønster som
+           Lisenser/Kickback/Utleie/Arbeidstid/Innstillinger allerede bruker. -->
+      <div class="nav-sub" id="kunder360-sub-nav">
+        <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kunder',document.getElementById('tab-kunder'))">🧑‍💼 Kunder</div>
+        <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="showTab('nyetableringer',document.getElementById('tab-kunder'))">🏢 Nyetableringer</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -536,6 +544,21 @@ tr:hover td{background:#fafafa}
     <div id="k360-oversikt"></div>
     <div id="k360-resultater"></div>
     <div id="k360-kort"></div>
+  </div>
+
+  <!-- NYETABLERINGER (leadgenerering fra Brønnøysund, lagt til 25.08.2026) —
+       egen undermeny-fane under Kunde 360, bevisst IKKE integrert med
+       Notat/Tilbud/Oppfølging-motoren (kundekortet over), siden en helt
+       fersk lead per definisjon ikke har noe VismaKundeNummer ennå — se
+       renderNyetableringer(). Fylles av den daglige backend-jobben
+       hent_nyetableringer i kbd-verifone-func (se nyetableringer.py). -->
+  <div id="tp-nyetableringer" class="tp">
+    <div class="card">
+      <div class="card-title">🏢 Nyetableringer</div>
+      <div class="hint">Nyregistrerte selskaper (hoved- og underenheter) i Akershus, Østfold og Vestfold, hentet daglig fra Brønnøysundregistrenes åpne Enhetsregisteret — et grunnlag for å finne nye potensielle kunder til kasse-/betalingsløsninger. Egen liste, ikke koblet til det ordinære Kunde 360-kundekortet før noen faktisk blir kunde og flyttes over dit manuelt.</div>
+      <div class="filters" id="nye-filters" style="margin-top:10px"></div>
+    </div>
+    <div id="nye-tabell"></div>
   </div>
 
   <!-- IDÉBANK -->
@@ -989,6 +1012,25 @@ tr:hover td{background:#fafafa}
       <div id="kg-popup-innhold" style="font-size:13.5px;color:#374151;white-space:pre-wrap;margin-bottom:16px;line-height:1.5"></div>
       <div class="modal-footer">
         <button class="prim" onclick="lukkKunngjoringPopup()">Jeg har lest dette</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NYETABLERINGER — DETALJVISNING/SALGSNOTATER MODAL, lagt til 25.08.2026 -->
+  <div class="modal-overlay" id="nye-detalj-modal" onclick="if(event.target===this)closeNyeDetaljModal()">
+    <div class="modal" style="max-width:520px">
+      <h3 id="nye-detalj-tittel" style="margin-bottom:4px"></h3>
+      <div id="nye-detalj-meta" style="font-size:12px;color:#9ca3af;margin-bottom:16px"></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Salgsnotater</label>
+        <div id="nye-detalj-logg-liste" style="margin-bottom:8px"></div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="nye-detalj-loggtekst" placeholder="Legg til et notat, f.eks. «ringte, ønsker tilbud»…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilNyeLoggpost();}"/>
+          <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilNyeLoggpost()">Legg til</button>
+        </div>
+      </div>
+      <input type="hidden" id="nye-detalj-id"/>
+      <div class="modal-footer">
+        <button class="prim" onclick="closeNyeDetaljModal()">Lukk</button>
       </div>
     </div>
   </div>
@@ -1536,6 +1578,13 @@ let salgTilgang=false,kundeNotater=[];
 // liste fra KundeNotater — helt annen målgruppe/formål (org-informasjon, ikke
 // kundeoppfølging).
 let kunngjoringer=[];
+// nyetableringer = leadgenerering fra Brønnøysund (lagt til 25.08.2026), fylt
+// av den daglige backend-jobben hent_nyetableringer i kbd-verifone-func (se
+// nyetableringer.py/brreg_client.py). Egen liste, IKKE koblet til
+// KundeNotater/VismaKunder — se undermenypunktet "🏢 Nyetableringer" under
+// Kunde 360 (renderNyetableringer()).
+let nyetableringer=[];
+let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
 const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
@@ -1735,8 +1784,8 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -1807,6 +1856,12 @@ async function loadDataFromSP(){
   // Innhold, PatrengendePopup, OpprettetAv, OpprettetDato) fikk internt navn
   // identisk med visningsnavnet — ingen avvik denne gangen. Nyeste øverst.
   kunngjoringer=kgItems.map(i=>({id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',innhold:i.fields.Innhold||'',patrengende:i.fields.PatrengendePopup===true,opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''})).sort((a,b)=>new Date(b.opprettetDato)-new Date(a.opprettetDato));
+  // Nyetableringer (lagt til 25.08.2026) — fylt av backend-jobben
+  // hent_nyetableringer i kbd-verifone-func, IKKE av dashbordet selv (bortsett
+  // fra Status/Logg, som brukeren endrer herfra via settNyStatus()/
+  // leggTilNyeLoggpost()). Verifisert 25.08.2026 via Graph Explorer: alle ni
+  // kolonner fikk internt navn identisk med visningsnavnet — ingen avvik.
+  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -2162,6 +2217,119 @@ function lukkKunngjoringPopup(){
   document.getElementById('kunngjoring-popup-modal').classList.remove('open');
   if(k){markerKunngjoringSett(k);renderKunngjoringMeny();}
   if(kunngjoringPopupKo.length>0)setTimeout(visNestePatrengendeKunngjoring,300); // kort pause mellom to påfølgende popup-er, ikke hakkete overgang
+}
+
+// ===== NYETABLERINGER (leadgenerering fra Brønnøysund, lagt til 25.08.2026) =====
+// Egen undermeny-fane under Kunde 360. Listen fylles av en daglig backend-jobb
+// (hent_nyetableringer i kbd-verifone-func, se nyetableringer.py) — dashbordet
+// selv skriver KUN til Status og Logg (brukerens oppfølging av en lead), aldri
+// til de øvrige feltene (de kommer fra Brønnøysund og skal ikke redigeres her).
+function setNyeStatusFilter(f){
+  nyeStatusFilter=f;
+  renderNyetableringer();
+}
+
+function renderNyetableringer(){
+  const filterDiv=document.getElementById('nye-filters');
+  if(filterDiv){
+    const antall=s=>s==='alle'?nyetableringer.length:nyetableringer.filter(n=>n.status===s).length;
+    const pill=(val,lbl,farge)=>`<button class="fpill${nyeStatusFilter===val?' f-on':''}" style="${nyeStatusFilter===val?`border-color:${farge}`:''}" onclick="setNyeStatusFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${nyeStatusFilter===val?`font-weight:600;color:${farge}`:''}">${lbl} (${antall(val)})</span></button>`;
+    filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Ikke kontaktet','Ikke kontaktet','#d03b3b')+pill('Kontaktet','Kontaktet','#eda100')+pill('Ikke aktuell','Ikke aktuell','#9ca3af');
+  }
+
+  const target=document.getElementById('nye-tabell');
+  if(!target)return;
+
+  if(nyetableringer.length===0){
+    target.innerHTML=`<div class="empty">Ingen nyetableringer hentet ennå — jobben kjører daglig, sjekk igjen i morgen, eller se Application Insights på kbd-verifone-func hvis dette vedvarer over flere dager.</div>`;
+    return;
+  }
+
+  const liste=(nyeStatusFilter==='alle'?nyetableringer:nyetableringer.filter(n=>n.status===nyeStatusFilter))
+    .slice().sort((a,b)=>new Date(b.registreringsDato||0)-new Date(a.registreringsDato||0));
+
+  if(liste.length===0){
+    target.innerHTML=`<div class="empty">Ingen nyetableringer med status «${nyeStatusFilter}».</div>`;
+    return;
+  }
+
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Firma</th><th>Bransje</th><th>Sted</th><th>Registrert</th><th>Status</th><th></th></tr></thead><tbody>
+    ${liste.map(n=>{
+      const registrert=n.registreringsDato&&!isNaN(new Date(n.registreringsDato))?new Date(n.registreringsDato).toLocaleDateString('nb-NO'):'—';
+      const sted=n.poststed?`${n.postnummer} ${n.poststed}`.trim():(n.kommune||'—');
+      return `<tr>
+        <td><strong>${n.tittel||'(uten navn)'}</strong><div style="font-size:11px;color:#9ca3af">${n.orgNr||'—'}</div></td>
+        <td>${n.naeringsBeskrivelse||n.naeringskode||'—'}</td>
+        <td>${sted}</td>
+        <td>${registrert}</td>
+        <td><select onchange="settNyStatus('${n.id}',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
+          ${['Ikke kontaktet','Kontaktet','Ikke aktuell'].map(s=>`<option value="${s}"${n.status===s?' selected':''}>${s}</option>`).join('')}
+        </select></td>
+        <td><button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table></div>`;
+}
+
+function settNyStatus(id,status){
+  const n=nyetableringer.find(x=>x.id===id);if(!n)return;
+  n.status=status;
+  if(n.spId){
+    setSPStatus('⏳ Lagrer…');
+    spUpdate('Nyetableringer',n.spId,{Status:status}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Statusendring ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+  renderNyetableringer(); // oppdaterer filterpillenes tellere med det samme
+}
+
+function apneNyeDetalj(id){
+  const n=nyetableringer.find(x=>x.id===id);if(!n)return;
+  document.getElementById('nye-detalj-id').value=id;
+  document.getElementById('nye-detalj-tittel').textContent=n.tittel||'(uten navn)';
+  const registrert=n.registreringsDato&&!isNaN(new Date(n.registreringsDato))?new Date(n.registreringsDato).toLocaleDateString('nb-NO'):'ukjent dato';
+  document.getElementById('nye-detalj-meta').textContent=[n.orgNr,n.naeringsBeskrivelse||n.naeringskode,[n.postnummer,n.poststed].filter(Boolean).join(' ')||n.kommune,'registrert '+registrert].filter(Boolean).join(' · ');
+  renderNyeDetaljLogg(n);
+  document.getElementById('nye-detalj-loggtekst').value='';
+  document.getElementById('nye-detalj-modal').classList.add('open');
+}
+
+function renderNyeDetaljLogg(n){
+  const el=document.getElementById('nye-detalj-logg-liste');
+  if(!el)return;
+  const logg=(n.logg||[]).slice().sort((a,b)=>new Date(b.dato)-new Date(a.dato));
+  el.innerHTML=logg.length===0?`<div style="font-size:12px;color:#9ca3af;padding:4px 0">Ingen notater ennå.</div>`:logg.map(l=>`<div style="font-size:12.5px;color:#374151;padding:6px 0;border-bottom:1px solid #f1f1f1">
+    <div>${l.tekst}</div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:2px">${l.forfatter||'Ukjent'} · ${l.dato&&!isNaN(new Date(l.dato))?new Date(l.dato).toLocaleDateString('nb-NO')+' kl. '+new Date(l.dato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):''}</div>
+  </div>`).join('');
+}
+
+function leggTilNyeLoggpost(){
+  const id=document.getElementById('nye-detalj-id').value;
+  const n=nyetableringer.find(x=>x.id===id);if(!n)return;
+  const input=document.getElementById('nye-detalj-loggtekst');
+  const tekst=input.value.trim();
+  if(!tekst)return;
+  if(!Array.isArray(n.logg))n.logg=[];
+  n.logg.push({dato:new Date().toISOString(),tekst,forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
+  input.value='';
+  renderNyeDetaljLogg(n);
+  renderNyetableringer(); // oppdaterer notat-telleren på raden i tabellen
+  if(n.spId){
+    setSPStatus('⏳ Lagrer…');
+    spUpdate('Nyetableringer',n.spId,{Logg:JSON.stringify(n.logg)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Notatet ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+}
+
+function closeNyeDetaljModal(){document.getElementById('nye-detalj-modal').classList.remove('open');}
+
+function toggleKunder360Sub(open){
+  const sub=document.getElementById('kunder360-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function setKunder360SubActive(view){
+  document.querySelectorAll('#kunder360-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById(view==='nyetableringer'?'ksub360-nyetableringer':'ksub360-kunder');
+  if(el)el.classList.add('active');
 }
 
 // Produktnøkkelord vi teller aktive avtaler for — basert på kontraktBeskrivelse.
@@ -3927,7 +4095,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':name==='nyetableringer'?'kunder':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -3935,6 +4103,7 @@ function showTab(name,btn){
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
+  toggleKunder360Sub(name==='kunder'||name==='nyetableringer');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -3944,7 +4113,8 @@ function showTab(name,btn){
   if(name==='innstillinger'){renderSettings();showInnstillingerView(userRole==='admin'?'brukertilgang':'produkter');}
   if(name==='arbeidstid')showArbeidstidView('oversikt',document.getElementById('asub-oversikt'));
   if(name==='hjem')renderHjem();
-  if(name==='kunder'){renderKunder360();}
+  if(name==='kunder'){renderKunder360();setKunder360SubActive('kunder');}
+  if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
