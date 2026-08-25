@@ -382,6 +382,19 @@ tr:hover td{background:#fafafa}
     <span style="font-size:18px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.5px">KBD Command Center</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
+    <!-- Kunngjørings-megafon (lagt til 24.08.2026): felles nyheter/kunngjøringer
+         til ALLE ansatte (nye funksjoner, endringer i KBD CC o.l.) — motsatt
+         retning av varsel-bjellen (som er personlig og handlingsorientert).
+         I motsetning til bjellen er megafonen alltid synlig (ikke bare når det
+         er noe ulest) siden admin trenger et fast sted å opprette nye
+         kunngjøringer fra, og andre brukere skal kunne bla i historikken når
+         som helst — kun selve tallmerket (badge) vises betinget. -->
+    <div id="kunngjoring-meny-wrap" style="position:relative">
+      <button id="kunngjoring-ikon" onclick="toggleKunngjoringMeny(event)" title="Kunngjøringer" aria-label="Kunngjøringer" style="position:relative;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.9);font-size:17px;padding:4px 6px;line-height:1">
+        📣<span id="kunngjoring-badge" style="display:none;position:absolute;top:-3px;right:-1px;background:#f5a623;color:#1A3A6B;border-radius:9px;min-width:16px;height:16px;font-size:10px;font-weight:700;line-height:16px;text-align:center;padding:0 3px;box-shadow:0 0 0 2px #1A3A6B"></span>
+      </button>
+      <div id="kunngjoring-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
+    </div>
     <!-- Varsel-bjelle (lagt til 24.08.2026): personlig, sanntids varselmeny for
          forfalte Notat/Tilbud/Oppfølging-oppføringer der innlogget bruker selv
          har huket av "Varsle i dashbordet". Skjult (display:none) når det ikke
@@ -394,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.40.0 · Oppdatert: 24. aug 2026 kl. 23:39</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.41.0 · Oppdatert: 25. aug 2026 kl. 08:50</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -931,6 +944,51 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeNotatModal()">Avbryt</button>
         <button class="prim" onclick="saveNotat()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KUNNGJØRING — NY (admin) MODAL, lagt til 24.08.2026 -->
+  <div class="modal-overlay" id="kunngjoring-modal" onclick="if(event.target===this)closeKunngjoringModal()">
+    <div class="modal" style="max-width:520px">
+      <h3 style="margin-bottom:16px">📣 Ny kunngjøring</h3>
+      <div class="fgrp" style="margin-bottom:10px"><label>Tittel</label><input type="text" id="kg-tittel" placeholder="Kort overskrift, f.eks. «Ny funksjon: varsel-bjelle»"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Innhold</label><textarea id="kg-innhold" rows="5" placeholder="Hva er nytt, og hva betyr det for deg som bruker?" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div class="fgrp" style="margin-bottom:14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13px;color:#374151;cursor:pointer;margin-bottom:0"><input type="checkbox" id="kg-patrengende" style="width:15px;height:15px"/> 📌 Vis som påtrengende popup ved innlogging</label>
+        <div style="font-size:11.5px;color:#9ca3af;margin-top:4px;padding-left:23px">Bruk kun for viktige kunngjøringer — dukker opp som en modal rett etter innlogging til alle som ikke har sett den ennå, i tillegg til å ligge i 📣-lista.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeKunngjoringModal()">Avbryt</button>
+        <button class="prim" onclick="lagreKunngjoring()">Publiser</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KUNNGJØRING — VISNING (alle brukere) MODAL, lagt til 24.08.2026 -->
+  <div class="modal-overlay" id="kunngjoring-visning-modal" onclick="if(event.target===this)closeKunngjoringVisning()">
+    <div class="modal" style="max-width:480px">
+      <h3 id="kg-visning-tittel" style="margin-bottom:4px">Kunngjøring</h3>
+      <div id="kg-visning-meta" style="font-size:11.5px;color:#9ca3af;margin-bottom:14px"></div>
+      <div id="kg-visning-innhold" style="font-size:13.5px;color:#374151;white-space:pre-wrap;margin-bottom:16px;line-height:1.5"></div>
+      <div class="modal-footer">
+        <button class="prim" onclick="closeKunngjoringVisning()">Lukk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KUNNGJØRING — PÅTRENGENDE POPUP (alle brukere) MODAL, lagt til 24.08.2026.
+       Med vilje UTEN onclick på selve overlay-en (i motsetning til de andre
+       modalene) — skal ikke kunne lukkes ved et tilfeldig klikk utenfor, kun
+       via den eksplisitte Lukk-knappen (se lukkKunngjoringPopup()), siden
+       poenget nettopp er at brukeren aktivt skal ha registrert kunngjøringen. -->
+  <div class="modal-overlay" id="kunngjoring-popup-modal">
+    <div class="modal" style="max-width:480px">
+      <div style="font-size:11px;color:#1A3A6B;font-weight:600;letter-spacing:.3px;margin-bottom:6px">📌 VIKTIG KUNNGJØRING</div>
+      <h3 id="kg-popup-tittel" style="margin-bottom:14px"></h3>
+      <div id="kg-popup-innhold" style="font-size:13.5px;color:#374151;white-space:pre-wrap;margin-bottom:16px;line-height:1.5"></div>
+      <div class="modal-footer">
+        <button class="prim" onclick="lukkKunngjoringPopup()">Jeg har lest dette</button>
       </div>
     </div>
   </div>
@@ -1472,6 +1530,12 @@ let notatDatePicker=null; // flatpickr-instans for #n-forfallsdato, satt opp i i
 // applyAccessControl() basert på tilgang.salg for vanlige brukere, alltid true
 // for admin. kundeNotater = alle rader fra SharePoint-listen "KundeNotater".
 let salgTilgang=false,kundeNotater=[];
+// kunngjoringer = felles nyheter/kunngjøringer til alle ansatte om KBD CC selv
+// (nye funksjoner, endringer o.l.), lagt til 24.08.2026. Opprettes kun av admin
+// (se renderKunngjoringsMeny()/lagreKunngjoring()), leses av alle. Uavhengig
+// liste fra KundeNotater — helt annen målgruppe/formål (org-informasjon, ikke
+// kundeoppfølging).
+let kunngjoringer=[];
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
 const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
@@ -1624,6 +1688,8 @@ async function afterLogin(account){
     renderAll();
     handleDeepLink(); // åpner rett kunde/oppføring hvis siden ble åpnet med ?kunde=...&notat=... (f.eks. fra varsel-e-post)
     startVarselPolling(); // starter varsel-bjellen i toppbaren + 30-sekunders sanntids-gjenberegning
+    renderKunngjoringMeny(); // fyller 📣-megafonen med evt. uleste kunngjøringer
+    forberedKunngjoringPopupKo(); // viser evt. påtrengende, ennå usette kunngjøringer som popup
   }catch(err){
     hideLoading();
     console.error(err);
@@ -1669,8 +1735,8 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -1736,6 +1802,11 @@ async function loadDataFromSP(){
   // (samme fremgangsmåte som for KundeNotater over) og juster mappingen under
   // dersom noen navn ble avvikende.
   ideBank=ideItems.map(i=>({id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',ideType:i.fields.IdeType||'Annet',beskrivelse:i.fields.Beskrivelse||'',status:i.fields.Status||'Idé',versjon:i.fields.IdeVersjon||'',prioritet:i.fields.Prioritet===undefined||i.fields.Prioritet===null||i.fields.Prioritet===''?null:parseFloat(i.fields.Prioritet),opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||'',delmaal:(()=>{try{const p=JSON.parse(i.fields.Delmaal||'[]');return Array.isArray(p)?p:[];}catch{return[];}})(),logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // Kunngjoringer = felles nyheter til alle ansatte (lagt til 24.08.2026).
+  // Verifisert 24.08.2026 via Graph Explorer: alle fem kolonner (Title,
+  // Innhold, PatrengendePopup, OpprettetAv, OpprettetDato) fikk internt navn
+  // identisk med visningsnavnet — ingen avvik denne gangen. Nyeste øverst.
+  kunngjoringer=kgItems.map(i=>({id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',innhold:i.fields.Innhold||'',patrengende:i.fields.PatrengendePopup===true,opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''})).sort((a,b)=>new Date(b.opprettetDato)-new Date(a.opprettetDato));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -1920,6 +1991,177 @@ function gaTilNotatFraVarsel(id){
     el.style.boxShadow='0 0 0 3px #f5a623';
     setTimeout(()=>{el.style.boxShadow='';},3000);
   },150);
+}
+
+// ===== KUNNGJØRINGER (global toppbar, lagt til 24.08.2026) =====
+// Felles nyheter/kunngjøringer fra admin til ALLE ansatte (nye funksjoner,
+// endringer i KBD CC o.l.) — se drøfting i samtalen 24.08.2026. Motsatt
+// retning av varsel-bjellen (personlig, handlingsorientert): dette er
+// informativt og likt for alle. Enklere "sett"-modell enn varsel-bjellens,
+// siden en kunngjøring ikke har noen "frist" som kan endres og gjøre den
+// aktuell igjen — sett er sett, for godt (på denne enheten), til brukeren
+// selv velger å slette den (kun mulig for admin).
+//
+// "Sett"-status lagres i localStorage (kbdKunngjoringSett), PER
+// NETTLESER/enhet — samme bevisste forenkling som varselSettSet, ingen ny
+// SharePoint-kolonne/liste for lese-sporing i første runde (ikke etterspurt).
+let kunngjoringSettSet=new Set();
+try{kunngjoringSettSet=new Set(JSON.parse(localStorage.getItem('kbdKunngjoringSett')||'[]'));}catch(e){kunngjoringSettSet=new Set();}
+function erKunngjoringSett(k){return kunngjoringSettSet.has(String(k.spId||k.id));}
+function markerKunngjoringSett(k){
+  kunngjoringSettSet.add(String(k.spId||k.id));
+  try{localStorage.setItem('kbdKunngjoringSett',JSON.stringify([...kunngjoringSettSet].slice(-300)));}catch(e){/* localStorage utilgjengelig — ufarlig å hoppe over */}
+}
+function hentUlesteKunngjoringer(){return kunngjoringer.filter(k=>!erKunngjoringSett(k));}
+
+let kunngjoringMenyApen=false;
+// kunngjoringPopupKo = kø av påtrengende, ennå usette kunngjøringer som skal
+// vises som modal ETT AV GANGEN (se forberedKunngjoringPopupKo/
+// visNestePatrengendeKunngjoring/lukkKunngjoringPopup). Bygges opp både ved
+// innlogging og ved hver 5-minutters auto-refresh (refreshData()), slik at en
+// NY påtrengende kunngjøring en admin publiserer mens andre allerede har
+// dashbordet åpent, faktisk dukker opp for dem uten at de må laste siden på
+// nytt — uten å vise duplikater eller avbryte en modal som allerede er åpen.
+let kunngjoringPopupKo=[];
+
+function renderKunngjoringMeny(){
+  const badge=document.getElementById('kunngjoring-badge');
+  const dropdown=document.getElementById('kunngjoring-dropdown');
+  if(!badge||!dropdown)return;
+
+  const ulest=hentUlesteKunngjoringer();
+  if(ulest.length===0){badge.style.display='none';}
+  else{badge.style.display='inline-block';badge.textContent=ulest.length>99?'99+':String(ulest.length);}
+
+  const nyKnappHtml=userRole==='admin'?`<div style="padding:10px 14px;border-bottom:1px solid #f1f1f1"><button class="btn-sm" style="width:100%" onclick="openNyKunngjoringModal()">+ Ny kunngjøring</button></div>`:'';
+
+  if(kunngjoringer.length===0){
+    dropdown.innerHTML=nyKnappHtml+`<div style="padding:16px 14px;color:#9ca3af;font-size:12.5px;text-align:center">Ingen kunngjøringer ennå</div>`;
+    return;
+  }
+
+  dropdown.innerHTML=nyKnappHtml+kunngjoringer.map(k=>{
+    const usett=!erKunngjoringSett(k);
+    const utdrag=(k.innhold||'').slice(0,80)+((k.innhold||'').length>80?'…':'');
+    const delKnapp=userRole==='admin'?`<button onclick="event.stopPropagation();slettKunngjoring('${k.id}')" title="Slett" style="position:absolute;top:8px;right:8px;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:12px;padding:2px 4px">✕</button>`:'';
+    return `<div onclick="apneKunngjoring('${k.id}')" style="position:relative;padding:10px 30px 10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer;${usett?'background:#f8fafc':''}" onmouseover="this.style.background='#eef2f8'" onmouseout="this.style.background='${usett?'#f8fafc':''}'">
+      ${delKnapp}
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+        ${usett?'<span style="width:7px;height:7px;border-radius:50%;background:#1A3A6B;flex-shrink:0"></span>':''}
+        <span style="font-size:12.5px;font-weight:600;color:#111">${k.patrengende?'📌 ':''}${k.tittel||'(uten tittel)'}</span>
+      </div>
+      <div style="font-size:12px;color:#4b5563;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${utdrag}</div>
+      <div style="font-size:11px;color:#9ca3af">${k.opprettetAv?k.opprettetAv+' · ':''}${k.opprettetDato&&!isNaN(new Date(k.opprettetDato))?new Date(k.opprettetDato).toLocaleDateString('nb-NO'):''}</div>
+    </div>`;
+  }).join('');
+  if(dropdown.lastElementChild)dropdown.lastElementChild.style.borderBottom='none';
+}
+
+function toggleKunngjoringMeny(e){
+  e.stopPropagation();
+  kunngjoringMenyApen=!kunngjoringMenyApen;
+  const dropdown=document.getElementById('kunngjoring-dropdown');
+  if(dropdown)dropdown.style.display=kunngjoringMenyApen?'block':'none';
+}
+
+function closeKunngjoringMeny(){
+  kunngjoringMenyApen=false;
+  const dropdown=document.getElementById('kunngjoring-dropdown');
+  if(dropdown)dropdown.style.display='none';
+}
+
+document.addEventListener('click',e=>{
+  if(!kunngjoringMenyApen)return;
+  const wrap=document.getElementById('kunngjoring-meny-wrap');
+  if(wrap&&!wrap.contains(e.target))closeKunngjoringMeny();
+});
+
+// Åpner full-visning av én kunngjøring og markerer den som sett med det
+// samme — matcher "varsel kan ligge der til det blir trykket på" (avklart
+// 24.08.2026): ingen automatisk utløp, kun eksplisitt klikk fjerner den fra
+// tallet/lista.
+function apneKunngjoring(id){
+  const k=kunngjoringer.find(x=>x.id===id);
+  if(!k)return;
+  markerKunngjoringSett(k);
+  renderKunngjoringMeny();
+  closeKunngjoringMeny();
+  document.getElementById('kg-visning-tittel').textContent=(k.patrengende?'📌 ':'')+(k.tittel||'(uten tittel)');
+  const dato=k.opprettetDato&&!isNaN(new Date(k.opprettetDato))?new Date(k.opprettetDato).toLocaleDateString('nb-NO')+' kl. '+new Date(k.opprettetDato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):'';
+  document.getElementById('kg-visning-meta').textContent=[k.opprettetAv,dato].filter(Boolean).join(' · ');
+  document.getElementById('kg-visning-innhold').textContent=k.innhold||'';
+  document.getElementById('kunngjoring-visning-modal').classList.add('open');
+}
+function closeKunngjoringVisning(){document.getElementById('kunngjoring-visning-modal').classList.remove('open');}
+
+// ---- Admin: opprette/slette kunngjøringer ----
+function openNyKunngjoringModal(){
+  if(userRole!=='admin')return; // knappen vises uansett kun for admin, men vær robust
+  closeKunngjoringMeny();
+  document.getElementById('kg-tittel').value='';
+  document.getElementById('kg-innhold').value='';
+  document.getElementById('kg-patrengende').checked=false;
+  document.getElementById('kunngjoring-modal').classList.add('open');
+}
+function closeKunngjoringModal(){document.getElementById('kunngjoring-modal').classList.remove('open');}
+
+function kunngjoringFieldsPayload(k){
+  return{Title:k.tittel||'(uten tittel)',Innhold:k.innhold||'',PatrengendePopup:k.patrengende===true,OpprettetAv:k.opprettetAv||'',OpprettetDato:k.opprettetDato};
+}
+
+function lagreKunngjoring(){
+  if(userRole!=='admin'){alert('Kun administrator kan opprette kunngjøringer.');return;}
+  const tittel=document.getElementById('kg-tittel').value.trim();
+  const innhold=document.getElementById('kg-innhold').value.trim();
+  const patrengende=document.getElementById('kg-patrengende').checked;
+  if(!tittel){alert('Fyll inn en tittel');return;}
+  closeKunngjoringModal();
+  const ny={id:'tmp'+Math.random().toString(36).slice(2),spId:null,tittel,innhold,patrengende,opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetDato:new Date().toISOString()};
+  kunngjoringer.unshift(ny);
+  renderKunngjoringMeny();
+  setSPStatus('⏳ Lagrer…');
+  spCreate('Kunngjoringer',kunngjoringFieldsPayload(ny)).then(r=>{ny.spId=r.id;ny.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Kunngjøringen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);});
+}
+
+function slettKunngjoring(id){
+  if(userRole!=='admin')return;
+  const k=kunngjoringer.find(x=>x.id===id);if(!k)return;
+  if(!confirm(`Slette kunngjøringen «${k.tittel}»?`))return;
+  kunngjoringer=kunngjoringer.filter(x=>x.id!==id);
+  kunngjoringPopupKo=kunngjoringPopupKo.filter(x=>x.id!==id);
+  renderKunngjoringMeny();
+  if(k.spId){
+    setSPStatus('⏳ Sletter…');
+    spDelete('Kunngjoringer',k.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting fra SharePoint feilet:\n'+e.message);});
+  }
+}
+
+// ---- Påtrengende popup-kø ----
+// Kalles ved innlogging OG ved hver auto-refresh (refreshData()) — se kommentar
+// ved kunngjoringPopupKo over. Idempotent: legger kun til kandidater som ikke
+// allerede ligger i køen, og starter kun visningen hvis ingen popup allerede
+// er åpen (unngår at en ny kunngjøring "kutter køen" foran en som vises nå).
+function forberedKunngjoringPopupKo(){
+  const kandidater=kunngjoringer.filter(k=>k.patrengende&&!erKunngjoringSett(k));
+  const alleredeIKo=new Set(kunngjoringPopupKo.map(k=>k.id));
+  kandidater.forEach(k=>{if(!alleredeIKo.has(k.id))kunngjoringPopupKo.push(k);});
+  const modal=document.getElementById('kunngjoring-popup-modal');
+  if(kunngjoringPopupKo.length>0&&modal&&!modal.classList.contains('open')){
+    visNestePatrengendeKunngjoring();
+  }
+}
+function visNestePatrengendeKunngjoring(){
+  if(kunngjoringPopupKo.length===0)return;
+  const k=kunngjoringPopupKo[0];
+  document.getElementById('kg-popup-tittel').textContent=k.tittel||'(uten tittel)';
+  document.getElementById('kg-popup-innhold').textContent=k.innhold||'';
+  document.getElementById('kunngjoring-popup-modal').classList.add('open');
+}
+function lukkKunngjoringPopup(){
+  const k=kunngjoringPopupKo.shift();
+  document.getElementById('kunngjoring-popup-modal').classList.remove('open');
+  if(k){markerKunngjoringSett(k);renderKunngjoringMeny();}
+  if(kunngjoringPopupKo.length>0)setTimeout(visNestePatrengendeKunngjoring,300); // kort pause mellom to påfølgende popup-er, ikke hakkete overgang
 }
 
 // Produktnøkkelord vi teller aktive avtaler for — basert på kontraktBeskrivelse.
@@ -5767,6 +6009,8 @@ async function refreshData(){
     await loadReservasjoner();
     renderAll();
     renderVarselMeny(); // fanger opp nye/endrede varsler fra andre brukere ved hver 5-min auto-refresh
+    renderKunngjoringMeny();
+    forberedKunngjoringPopupKo(); // en NY påtrengende kunngjøring publisert av admin mens siden sto åpen, dukker opp uten sideoppdatering
     // Oppdater refresh-indikator
     const el=document.getElementById('refresh-status');
     if(el){
@@ -5787,7 +6031,7 @@ function startAutoRefresh(){
 // ===== INIT =====
 initNotatDatePicker();
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeIdeModal();closeVarselMeny();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
 
 
 /* ===== Verifone trans.avgift (vf-namespace) ===== */
