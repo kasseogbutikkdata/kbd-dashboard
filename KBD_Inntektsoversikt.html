@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.42.0 · Oppdatert: 25. aug 2026 kl. 17:55</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.42.1 · Oppdatert: 26. aug 2026 kl. 15:23</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -557,6 +557,7 @@ tr:hover td{background:#fafafa}
       <div class="card-title">🏢 Nyetableringer</div>
       <div class="hint">Nyregistrerte selskaper (hoved- og underenheter) i Akershus, Østfold og Vestfold, hentet daglig fra Brønnøysundregistrenes åpne Enhetsregisteret — et grunnlag for å finne nye potensielle kunder til kasse-/betalingsløsninger. Egen liste, ikke koblet til det ordinære Kunde 360-kundekortet før noen faktisk blir kunde og flyttes over dit manuelt.</div>
       <div class="filters" id="nye-filters" style="margin-top:10px"></div>
+      <div id="nye-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
     </div>
     <div id="nye-tabell"></div>
   </div>
@@ -1585,6 +1586,8 @@ let kunngjoringer=[];
 // Kunde 360 (renderNyetableringer()).
 let nyetableringer=[];
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
+let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
+let nyeStedFilter='alle';    // 'alle', ellers en eksakt verdi fra _nyeStedVerdi() under
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
 const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
@@ -2229,12 +2232,51 @@ function setNyeStatusFilter(f){
   renderNyetableringer();
 }
 
+function setNyeBransjeFilter(f){
+  nyeBransjeFilter=f;
+  renderNyetableringer();
+}
+
+function setNyeStedFilter(f){
+  nyeStedFilter=f;
+  renderNyetableringer();
+}
+
+function nullstillNyeFilter(){
+  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';
+  renderNyetableringer();
+}
+
+// Delt mellom filter-nedtrekkene og tabellcellene, slik at det man velger i
+// filteret er GARANTERT identisk med det som faktisk vises i raden (ellers
+// kan f.eks. "—" i tabellen og "Ukjent bransje" i filteret bli to ulike
+// bøtter for samme rad uten at man forstår hvorfor filteret ikke traff).
+function _nyeBransjeVerdi(n){return n.naeringsBeskrivelse||n.naeringskode||'Ukjent bransje';}
+function _nyeStedVerdi(n){return n.poststed?`${n.postnummer||''} ${n.poststed}`.trim():(n.kommune||'Ukjent sted');}
+
 function renderNyetableringer(){
   const filterDiv=document.getElementById('nye-filters');
   if(filterDiv){
     const antall=s=>s==='alle'?nyetableringer.length:nyetableringer.filter(n=>n.status===s).length;
     const pill=(val,lbl,farge)=>`<button class="fpill${nyeStatusFilter===val?' f-on':''}" style="${nyeStatusFilter===val?`border-color:${farge}`:''}" onclick="setNyeStatusFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${nyeStatusFilter===val?`font-weight:600;color:${farge}`:''}">${lbl} (${antall(val)})</span></button>`;
     filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Ikke kontaktet','Ikke kontaktet','#d03b3b')+pill('Kontaktet','Kontaktet','#eda100')+pill('Ikke aktuell','Ikke aktuell','#9ca3af');
+  }
+
+  const dropdownDiv=document.getElementById('nye-dropdown-filters');
+  if(dropdownDiv){
+    const bransjer=[...new Set(nyetableringer.map(_nyeBransjeVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
+    const steder=[...new Set(nyetableringer.map(_nyeStedVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
+    // Hvis dataene har endret seg (f.eks. ny dagskjøring) slik at en tidligere
+    // valgt verdi ikke lenger finnes i lista, nullstill filteret til "alle" i
+    // stedet for å vise en tabell som ser feilaktig tom ut.
+    if(nyeBransjeFilter!=='alle'&&!bransjer.includes(nyeBransjeFilter))nyeBransjeFilter='alle';
+    if(nyeStedFilter!=='alle'&&!steder.includes(nyeStedFilter))nyeStedFilter='alle';
+    const opts=(liste,valgt,alleLabel)=>`<option value="alle"${valgt==='alle'?' selected':''}>${alleLabel}</option>`+liste.map(v=>`<option value="${v.replace(/"/g,'&quot;')}"${valgt===v?' selected':''}>${v}</option>`).join('');
+    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle';
+    dropdownDiv.innerHTML=
+      `<select id="nye-bransje-filter" onchange="setNyeBransjeFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${opts(bransjer,nyeBransjeFilter,'Alle bransjer')}</select>`+
+      `<select id="nye-sted-filter" onchange="setNyeStedFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts(steder,nyeStedFilter,'Alle steder')}</select>`+
+      (aktivtFilter?`<button class="btn-sm" onclick="nullstillNyeFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'');
   }
 
   const target=document.getElementById('nye-tabell');
@@ -2245,22 +2287,25 @@ function renderNyetableringer(){
     return;
   }
 
-  const liste=(nyeStatusFilter==='alle'?nyetableringer:nyetableringer.filter(n=>n.status===nyeStatusFilter))
+  const liste=nyetableringer.filter(n=>
+      (nyeStatusFilter==='alle'||n.status===nyeStatusFilter)&&
+      (nyeBransjeFilter==='alle'||_nyeBransjeVerdi(n)===nyeBransjeFilter)&&
+      (nyeStedFilter==='alle'||_nyeStedVerdi(n)===nyeStedFilter)
+    )
     .slice().sort((a,b)=>new Date(b.registreringsDato||0)-new Date(a.registreringsDato||0));
 
   if(liste.length===0){
-    target.innerHTML=`<div class="empty">Ingen nyetableringer med status «${nyeStatusFilter}».</div>`;
+    target.innerHTML=`<div class="empty">Ingen nyetableringer matcher valgte filtre.</div>`;
     return;
   }
 
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Firma</th><th>Bransje</th><th>Sted</th><th>Registrert</th><th>Status</th><th></th></tr></thead><tbody>
     ${liste.map(n=>{
       const registrert=n.registreringsDato&&!isNaN(new Date(n.registreringsDato))?new Date(n.registreringsDato).toLocaleDateString('nb-NO'):'—';
-      const sted=n.poststed?`${n.postnummer} ${n.poststed}`.trim():(n.kommune||'—');
       return `<tr>
         <td><strong>${n.tittel||'(uten navn)'}</strong><div style="font-size:11px;color:#9ca3af">${n.orgNr||'—'}</div></td>
-        <td>${n.naeringsBeskrivelse||n.naeringskode||'—'}</td>
-        <td>${sted}</td>
+        <td>${_nyeBransjeVerdi(n)}</td>
+        <td>${_nyeStedVerdi(n)}</td>
         <td>${registrert}</td>
         <td><select onchange="settNyStatus('${n.id}',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
           ${['Ikke kontaktet','Kontaktet','Ikke aktuell'].map(s=>`<option value="${s}"${n.status===s?' selected':''}>${s}</option>`).join('')}
