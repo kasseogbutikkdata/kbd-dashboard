@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.43.0 · Oppdatert: 26. aug 2026 kl. 15:49</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.44.0 · Oppdatert: 26. aug 2026 kl. 16:04</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1031,7 +1031,6 @@ tr:hover td{background:#fafafa}
       </div>
       <input type="hidden" id="nye-detalj-id"/>
       <div class="modal-footer">
-        <button class="btn-sm" id="nye-detalj-overfor-btn" onclick="overforNyeTilKunder(document.getElementById('nye-detalj-id').value)">➡️ Overfør til Kunder</button>
         <button class="prim" onclick="closeNyeDetaljModal()">Lukk</button>
       </div>
     </div>
@@ -1865,7 +1864,7 @@ async function loadDataFromSP(){
   // fra Status/Logg, som brukeren endrer herfra via settNyStatus()/
   // leggTilNyeLoggpost()). Verifisert 25.08.2026 via Graph Explorer: alle ni
   // kolonner fikk internt navn identisk med visningsnavnet — ingen avvik.
-  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -2311,7 +2310,10 @@ function renderNyetableringer(){
         <td>${n.status==='Overført'?`<span style="font-size:11px;font-weight:700;color:${K360_NOTAT_FARGER.Oppfølging.c};background:${K360_NOTAT_FARGER.Oppfølging.bg};padding:4px 10px;border-radius:20px;white-space:nowrap">✅ Overført</span>`:`<select onchange="settNyStatus('${n.id}',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
           ${['Ikke kontaktet','Kontaktet','Ikke aktuell'].map(s=>`<option value="${s}"${n.status===s?' selected':''}>${s}</option>`).join('')}
         </select>`}</td>
-        <td>${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button>`}</td>
+        <td>${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button>
+          <button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>
+        </div>`}</td>
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
@@ -2335,8 +2337,6 @@ function apneNyeDetalj(id){
   document.getElementById('nye-detalj-meta').textContent=[n.orgNr,n.naeringsBeskrivelse||n.naeringskode,[n.postnummer,n.poststed].filter(Boolean).join(' ')||n.kommune,'registrert '+registrert].filter(Boolean).join(' · ');
   renderNyeDetaljLogg(n);
   document.getElementById('nye-detalj-loggtekst').value='';
-  const overforBtn=document.getElementById('nye-detalj-overfor-btn');
-  if(overforBtn)overforBtn.textContent=n.status==='Overført'?'➡️ Åpne kundekort':'➡️ Overfør til Kunder';
   document.getElementById('nye-detalj-modal').classList.add('open');
 }
 
@@ -2393,10 +2393,10 @@ function hentProspektKunder(){
     adresse:n.adresse||'',
     postnr:n.postnummer||'',
     sted:n.poststed||n.kommune||'',
-    kontaktNavn:'',kontaktEpost:'',kontaktTelefon:'',
+    kontaktNavn:n.kontaktNavn||'',kontaktEpost:n.kontaktEpost||'',kontaktTelefon:n.kontaktTelefon||'',
     kundeklasse:'',kredittgrense:0,kredittDagerForfalt:0,
     saldo:0,saldoForfalt:0,sistOppdatertVisma:'',sistSynkronisert:'',
-    erProspekt:true
+    erProspekt:true,nyetableringId:n.id
   }));
 }
 
@@ -2778,11 +2778,16 @@ function renderProspektKundeKort(k){
 
       ${renderKundeNotaterHTML(k)}
 
-      <p class="sec-title">Kontaktinfo (fra Brønnøysundregisteret)</p>
+      <p class="sec-title">Kontaktinfo</p>
+      <div class="hint" style="margin-bottom:8px">Adressen er hentet fra Brønnøysundregisteret. Kontaktperson/e-post/telefon finnes ikke der — legg inn manuelt etter hvert som dere får det fra selskapet.</div>
       <div class="tbl-wrap" style="margin-bottom:20px">
         <table><tbody>
-          <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
+          <tr><td class="muted" style="width:160px">Adresse (Brreg)</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
+          <tr><td class="muted">Kontaktperson</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-navn" value="${(k.kontaktNavn||'').replace(/"/g,'&quot;')}" placeholder="Navn" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktNavn||'—')}</td></tr>
+          <tr><td class="muted">E-post</td><td>${salgTilgang?`<input type="email" id="prospekt-kontakt-epost" value="${(k.kontaktEpost||'').replace(/"/g,'&quot;')}" placeholder="navn@firma.no" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktEpost||'—')}</td></tr>
+          <tr><td class="muted">Telefon</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-telefon" value="${(k.kontaktTelefon||'').replace(/"/g,'&quot;')}" placeholder="12345678" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktTelefon||'—')}</td></tr>
         </tbody></table>
+        ${salgTilgang?`<div style="padding:10px 14px;border-top:1px solid #f3f4f6"><button class="btn-sm" onclick="lagreProspektKontaktinfo('${k.nyetableringId}')">💾 Lagre kontaktinfo</button></div>`:''}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
@@ -2793,6 +2798,31 @@ function renderProspektKundeKort(k){
     </div>
   `;
   document.getElementById('k360-kort').innerHTML=html;
+}
+
+// Lagrer kontaktperson/e-post/telefon for et prospekt overført fra
+// Nyetableringer — lagt til 26.08.2026. Finnes ikke i Brønnøysundregisteret,
+// så dette er ren manuell inntasting (i motsetning til resten av
+// Nyetableringer-feltene, som kun backend-jobben skriver til). Lagres
+// direkte PÅ Nyetableringer-raden (nye SharePoint-kolonner
+// KontaktpersonNavn/KontaktEpost/KontaktTelefon, samme navn som brukes på
+// VismaKunder for gjenkjennelighet) — ikke en egen liste.
+function lagreProspektKontaktinfo(nyetableringId){
+  const n=nyetableringer.find(x=>x.id===nyetableringId);if(!n)return;
+  n.kontaktNavn=(document.getElementById('prospekt-kontakt-navn')?.value||'').trim();
+  n.kontaktEpost=(document.getElementById('prospekt-kontakt-epost')?.value||'').trim();
+  n.kontaktTelefon=(document.getElementById('prospekt-kontakt-telefon')?.value||'').trim();
+  if(n.spId){
+    setSPStatus('⏳ Lagrer…');
+    spUpdate('Nyetableringer',n.spId,{KontaktpersonNavn:n.kontaktNavn,KontaktEpost:n.kontaktEpost,KontaktTelefon:n.kontaktTelefon}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Kontaktinfo ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+  // Gjenskap k360Valgt fra ferske data (i stedet for å plukke enkeltfelt inn i
+  // det gamle objektet) slik at kortet er garantert i samsvar med det som
+  // faktisk ble lagret på n over.
+  if(k360Valgt?.erProspekt&&k360Valgt.nyetableringId===nyetableringId){
+    k360Valgt=hentProspektKunder().find(x=>x.id===k360Valgt.id)||k360Valgt;
+    renderKundeKort(k360Valgt);
+  }
 }
 
 // ===== SALG & OPPFØLGING =====
