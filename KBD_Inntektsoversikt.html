@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.44.0 · Oppdatert: 26. aug 2026 kl. 16:04</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.45.0 · Oppdatert: 26. aug 2026 kl. 19:34</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1588,6 +1588,94 @@ let nyetableringer=[];
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
 let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
 let nyeStedFilter='alle';    // 'alle', ellers en eksakt verdi fra _nyeStedVerdi() under
+let nyeKunKbdBransjer=false;   // "Vis kun bransjer KBD har kunder i"-bryter, lagt til 26.08.2026
+let nyeKbdBransjeMinAntall=10; // terskel (antall eksisterende kunder i samme NACE-hovedgruppe) for at en bransje regnes som "KBD-typisk" — justerbar i UI
+
+// Fasit for "bransjer KBD har kunder i" — bygget 26.08.2026 fra en engangs-
+// analyse av 2406 unike org.numre i Visma-kundelisten (Kunder_20260826.xlsx),
+// slått opp mot Brønnøysundregisterets næringskoder via et frittstående
+// nettleser-verktøy (bransje_analyse_verktoy.html — dette miljøet har ikke
+// selv utgående nettverkstilgang til data.brreg.no). Nøkkel = 2-sifret
+// NACE-hovedgruppe (samme prefiks-logikk som brreg_client.py sin
+// fylkesfiltrering, bare på næringskode i stedet for kommunenummer).
+// `antall` = antall eksisterende KBD-kunder Graph Explorer-analysen fant i
+// nettopp denne hovedgruppen — brukes til å luke ut rene enkelttilfeller
+// (terskelen nyeKbdBransjeMinAntall) fra ekte kundesegmenter. STATISK
+// øyeblikksbilde, ikke live-oppdatert — bør fornyes med en ny kundeeksport
+// om KBD sin kundeportefølje endrer seg vesentlig over tid.
+const KBD_KUNDE_BRANSJER={
+  "56":{"antall":387,"beskrivelse":"Drift av restauranter"},
+  "47":{"antall":334,"beskrivelse":"Detaljhandel med klær"},
+  "96":{"antall":178,"beskrivelse":"Frisering og barbering"},
+  "55":{"antall":128,"beskrivelse":"Drift av hoteller"},
+  "46":{"antall":92,"beskrivelse":"Engroshandel med informasjons- og kommunikasjonsteknologiutstyr"},
+  "86":{"antall":81,"beskrivelse":"Ortopedi- og fotterapitjenester"},
+  "84":{"antall":65,"beskrivelse":"Generell offentlig administrasjon"},
+  "93":{"antall":62,"beskrivelse":"Drift av idrettsanlegg"},
+  "10":{"antall":46,"beskrivelse":"Produksjon av brød og ferske konditorvarer"},
+  "68":{"antall":46,"beskrivelse":"Utleie av egen eller leid fast eiendom"},
+  "85":{"antall":46,"beskrivelse":"Undervisning ved godkjente trafikkskoler"},
+  "94":{"antall":46,"beskrivelse":"Aktiviteter i religiøse organisasjoner"},
+  "95":{"antall":45,"beskrivelse":"Reparasjon og vedlikehold av motorvogner"},
+  "01":{"antall":38,"beskrivelse":"Dyrking av ettårige vekster ellers"},
+  "88":{"antall":38,"beskrivelse":"Arbeidstrening og varig tilrettelagt arbeid"},
+  "43":{"antall":20,"beskrivelse":"Maler- og glassarbeid"},
+  "62":{"antall":16,"beskrivelse":"Konsulentvirksomhet tilknyttet informasjonsteknologi og forvaltning og drift av it-systemer"},
+  "91":{"antall":15,"beskrivelse":"Drift av historiske steder og monumenter"},
+  "50":{"antall":13,"beskrivelse":"Kysttrafikk med passasjerer ikke nevnt annet sted"},
+  "49":{"antall":12,"beskrivelse":"Passasjertransport utenom rutetabell"},
+  "79":{"antall":12,"beskrivelse":"Aktiviteter utført av utflukts- og eventarrangører"},
+  "74":{"antall":11,"beskrivelse":"Fotografvirksomhet"},
+  "77":{"antall":11,"beskrivelse":"Utleie og leasing av sports- og fritidsutstyr"},
+  "90":{"antall":11,"beskrivelse":"Utøvende kunstnerisk virksomhet og underholdningsvirksomhet innenfor scenekunst"},
+  "81":{"antall":9,"beskrivelse":"Rengjøring av bygninger"},
+  "14":{"antall":8,"beskrivelse":"Produksjon av yttertøy"},
+  "70":{"antall":7,"beskrivelse":"Bedriftsrådgivning og annen administrativ rådgivning"},
+  "87":{"antall":7,"beskrivelse":"Sykehjemstjenester"},
+  "32":{"antall":7,"beskrivelse":"Produksjon av sportsartikler"},
+  "02":{"antall":6,"beskrivelse":"Avvirkning"},
+  "03":{"antall":6,"beskrivelse":"Fiske og fangst i sjø"},
+  "16":{"antall":5,"beskrivelse":"Saging og høvling av tre"},
+  "23":{"antall":5,"beskrivelse":"Produksjon av emballasje og husholdningsartikler av glass og krystall"},
+  "41":{"antall":5,"beskrivelse":"Oppføring av bygninger"},
+  "52":{"antall":5,"beskrivelse":"Andre tjenester tilknyttet lufttransport"},
+  "75":{"antall":5,"beskrivelse":"Veterinærtjenester"},
+  "11":{"antall":4,"beskrivelse":"Produksjon av leskedrikker og flaskevann"},
+  "64":{"antall":4,"beskrivelse":"Annen kredittgivning"},
+  "71":{"antall":4,"beskrivelse":"Annen teknisk konsulentvirksomhet"},
+  "18":{"antall":3,"beskrivelse":"Trykking ellers"},
+  "33":{"antall":3,"beskrivelse":"Reparasjon og vedlikehold av maskiner"},
+  "35":{"antall":3,"beskrivelse":"Produksjon av elektrisitet fra vannkraft"},
+  "59":{"antall":3,"beskrivelse":"Filmfremvisning"},
+  "82":{"antall":3,"beskrivelse":"Inkasso- og kredittopplysningsvirksomhet"},
+  "38":{"antall":2,"beskrivelse":"Materialgjenvinning"},
+  "58":{"antall":2,"beskrivelse":"Utgivelsesvirksomhet ellers, unntatt utgivelse av programvare"},
+  "61":{"antall":2,"beskrivelse":"Videresalg av telekommunikasjon og formidlingstjenester tilknyttet telekommunikasjon"},
+  "00":{"antall":1,"beskrivelse":"Uoppgitt"},
+  "13":{"antall":1,"beskrivelse":"Bearbeiding og spinning av tekstilfibre"},
+  "15":{"antall":1,"beskrivelse":"Produksjon av reiseeffekter og salmakerartikler"},
+  "17":{"antall":1,"beskrivelse":"Produksjon av varer av papir og papp ellers"},
+  "20":{"antall":1,"beskrivelse":"Produksjon av såpe og vaske-, rense- og poleringsmidler"},
+  "24":{"antall":1,"beskrivelse":"Produksjon av aluminium"},
+  "25":{"antall":1,"beskrivelse":"Produksjon av andre metallvarer ikke nevnt annet sted"},
+  "28":{"antall":1,"beskrivelse":"Produksjon av maskiner og utstyr til generell bruk ikke nevnt annet sted"},
+  "37":{"antall":1,"beskrivelse":"Oppsamling og behandling av avløpsvann"},
+  "51":{"antall":1,"beskrivelse":"Lufttransport med gods"},
+  "53":{"antall":1,"beskrivelse":"Andre post- og budtjenester"},
+  "60":{"antall":1,"beskrivelse":"Annen virksomhet for distribuering av innhold"},
+  "63":{"antall":1,"beskrivelse":"Datainfrastruktur, -behandling, -lagring og tilknyttede tjenester"},
+  "69":{"antall":1,"beskrivelse":"Regnskapsføring og bokføring"},
+  "72":{"antall":1,"beskrivelse":"Forskning og eksperimentell utvikling innenfor naturvitenskap og teknikk"},
+  "73":{"antall":1,"beskrivelse":"Reklamebyråvirksomhet"},
+  "78":{"antall":1,"beskrivelse":"Utleie av arbeidskraft og andre personaladministrative tjenester"},
+  "80":{"antall":1,"beskrivelse":"Etterforskningstjenester og private vakttjenester"}
+};
+
+function _erKbdTypiskBransje(n){
+  if(!n.naeringskode)return false;
+  const info=KBD_KUNDE_BRANSJER[n.naeringskode.slice(0,2)];
+  return !!(info&&info.antall>=nyeKbdBransjeMinAntall);
+}
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
 const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
@@ -2242,8 +2330,19 @@ function setNyeStedFilter(f){
   renderNyetableringer();
 }
 
+function setNyeKunKbdBransjer(v){
+  nyeKunKbdBransjer=v;
+  renderNyetableringer();
+}
+
+function setNyeKbdBransjeMin(v){
+  const n=parseInt(v,10);
+  nyeKbdBransjeMinAntall=isNaN(n)||n<1?1:n;
+  renderNyetableringer();
+}
+
 function nullstillNyeFilter(){
-  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';
+  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';nyeKunKbdBransjer=false;
   renderNyetableringer();
 }
 
@@ -2262,20 +2361,36 @@ function renderNyetableringer(){
     filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Ikke kontaktet','Ikke kontaktet','#d03b3b')+pill('Kontaktet','Kontaktet','#eda100')+pill('Ikke aktuell','Ikke aktuell','#9ca3af')+pill('Overført','Overført',K360_NOTAT_FARGER.Oppfølging.c);
   }
 
+  // "KBD-bransje"-bryteren begrenser HELE grunnlaget (dropdown-alternativer
+  // OG tabellen) til rader hvor næringskoden hører til en NACE-hovedgruppe
+  // KBD faktisk har minst nyeKbdBransjeMinAntall eksisterende kunder i (se
+  // KBD_KUNDE_BRANSJER over). Rader uten næringskode ekskluderes når bryteren
+  // er på, siden vi da ikke kan bekrefte at de matcher.
+  const kbdBasis=nyeKunKbdBransjer?nyetableringer.filter(_erKbdTypiskBransje):nyetableringer;
+
   const dropdownDiv=document.getElementById('nye-dropdown-filters');
   if(dropdownDiv){
-    const bransjer=[...new Set(nyetableringer.map(_nyeBransjeVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
-    const steder=[...new Set(nyetableringer.map(_nyeStedVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
-    // Hvis dataene har endret seg (f.eks. ny dagskjøring) slik at en tidligere
-    // valgt verdi ikke lenger finnes i lista, nullstill filteret til "alle" i
-    // stedet for å vise en tabell som ser feilaktig tom ut.
+    const bransjer=[...new Set(kbdBasis.map(_nyeBransjeVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
+    const steder=[...new Set(kbdBasis.map(_nyeStedVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
+    // Hvis dataene har endret seg (f.eks. ny dagskjøring, eller bryteren over
+    // ble slått på/av) slik at en tidligere valgt verdi ikke lenger finnes i
+    // lista, nullstill filteret til "alle" i stedet for å vise en tabell som
+    // ser feilaktig tom ut.
     if(nyeBransjeFilter!=='alle'&&!bransjer.includes(nyeBransjeFilter))nyeBransjeFilter='alle';
     if(nyeStedFilter!=='alle'&&!steder.includes(nyeStedFilter))nyeStedFilter='alle';
     const opts=(liste,valgt,alleLabel)=>`<option value="alle"${valgt==='alle'?' selected':''}>${alleLabel}</option>`+liste.map(v=>`<option value="${v.replace(/"/g,'&quot;')}"${valgt===v?' selected':''}>${v}</option>`).join('');
-    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle';
+    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle'||nyeKunKbdBransjer;
+    const kbdToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
+      <input type="checkbox" id="nye-kbd-bransje-toggle" ${nyeKunKbdBransjer?'checked':''} onchange="setNyeKunKbdBransjer(this.checked)"/>
+      Vis kun bransjer KBD har kunder i
+    </label>`;
+    const kbdMin=nyeKunKbdBransjer?`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6b7280;white-space:nowrap">
+      min. antall kunder <input type="number" id="nye-kbd-bransje-min" value="${nyeKbdBransjeMinAntall}" min="1" style="width:56px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onchange="setNyeKbdBransjeMin(this.value)"/>
+    </label>`:'';
     dropdownDiv.innerHTML=
       `<select id="nye-bransje-filter" onchange="setNyeBransjeFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${opts(bransjer,nyeBransjeFilter,'Alle bransjer')}</select>`+
       `<select id="nye-sted-filter" onchange="setNyeStedFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts(steder,nyeStedFilter,'Alle steder')}</select>`+
+      kbdToggle+kbdMin+
       (aktivtFilter?`<button class="btn-sm" onclick="nullstillNyeFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'');
   }
 
@@ -2287,7 +2402,7 @@ function renderNyetableringer(){
     return;
   }
 
-  const liste=nyetableringer.filter(n=>
+  const liste=kbdBasis.filter(n=>
       (nyeStatusFilter==='alle'||n.status===nyeStatusFilter)&&
       (nyeBransjeFilter==='alle'||_nyeBransjeVerdi(n)===nyeBransjeFilter)&&
       (nyeStedFilter==='alle'||_nyeStedVerdi(n)===nyeStedFilter)
@@ -2310,7 +2425,7 @@ function renderNyetableringer(){
         <td>${n.status==='Overført'?`<span style="font-size:11px;font-weight:700;color:${K360_NOTAT_FARGER.Oppfølging.c};background:${K360_NOTAT_FARGER.Oppfølging.bg};padding:4px 10px;border-radius:20px;white-space:nowrap">✅ Overført</span>`:`<select onchange="settNyStatus('${n.id}',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
           ${['Ikke kontaktet','Kontaktet','Ikke aktuell'].map(s=>`<option value="${s}"${n.status===s?' selected':''}>${s}</option>`).join('')}
         </select>`}</td>
-        <td>${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<div style="display:flex;gap:6px;flex-wrap:wrap">
+        <td style="white-space:nowrap">${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<div style="display:flex;gap:6px;flex-wrap:nowrap">
           <button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button>
           <button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>
         </div>`}</td>
