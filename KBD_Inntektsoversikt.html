@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.42.1 · Oppdatert: 26. aug 2026 kl. 15:23</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.43.0 · Oppdatert: 26. aug 2026 kl. 15:49</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1031,6 +1031,7 @@ tr:hover td{background:#fafafa}
       </div>
       <input type="hidden" id="nye-detalj-id"/>
       <div class="modal-footer">
+        <button class="btn-sm" id="nye-detalj-overfor-btn" onclick="overforNyeTilKunder(document.getElementById('nye-detalj-id').value)">➡️ Overfør til Kunder</button>
         <button class="prim" onclick="closeNyeDetaljModal()">Lukk</button>
       </div>
     </div>
@@ -2259,7 +2260,7 @@ function renderNyetableringer(){
   if(filterDiv){
     const antall=s=>s==='alle'?nyetableringer.length:nyetableringer.filter(n=>n.status===s).length;
     const pill=(val,lbl,farge)=>`<button class="fpill${nyeStatusFilter===val?' f-on':''}" style="${nyeStatusFilter===val?`border-color:${farge}`:''}" onclick="setNyeStatusFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${nyeStatusFilter===val?`font-weight:600;color:${farge}`:''}">${lbl} (${antall(val)})</span></button>`;
-    filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Ikke kontaktet','Ikke kontaktet','#d03b3b')+pill('Kontaktet','Kontaktet','#eda100')+pill('Ikke aktuell','Ikke aktuell','#9ca3af');
+    filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Ikke kontaktet','Ikke kontaktet','#d03b3b')+pill('Kontaktet','Kontaktet','#eda100')+pill('Ikke aktuell','Ikke aktuell','#9ca3af')+pill('Overført','Overført',K360_NOTAT_FARGER.Oppfølging.c);
   }
 
   const dropdownDiv=document.getElementById('nye-dropdown-filters');
@@ -2307,10 +2308,10 @@ function renderNyetableringer(){
         <td>${_nyeBransjeVerdi(n)}</td>
         <td>${_nyeStedVerdi(n)}</td>
         <td>${registrert}</td>
-        <td><select onchange="settNyStatus('${n.id}',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
+        <td>${n.status==='Overført'?`<span style="font-size:11px;font-weight:700;color:${K360_NOTAT_FARGER.Oppfølging.c};background:${K360_NOTAT_FARGER.Oppfølging.bg};padding:4px 10px;border-radius:20px;white-space:nowrap">✅ Overført</span>`:`<select onchange="settNyStatus('${n.id}',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
           ${['Ikke kontaktet','Kontaktet','Ikke aktuell'].map(s=>`<option value="${s}"${n.status===s?' selected':''}>${s}</option>`).join('')}
-        </select></td>
-        <td><button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button></td>
+        </select>`}</td>
+        <td>${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button>`}</td>
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
@@ -2334,6 +2335,8 @@ function apneNyeDetalj(id){
   document.getElementById('nye-detalj-meta').textContent=[n.orgNr,n.naeringsBeskrivelse||n.naeringskode,[n.postnummer,n.poststed].filter(Boolean).join(' ')||n.kommune,'registrert '+registrert].filter(Boolean).join(' · ');
   renderNyeDetaljLogg(n);
   document.getElementById('nye-detalj-loggtekst').value='';
+  const overforBtn=document.getElementById('nye-detalj-overfor-btn');
+  if(overforBtn)overforBtn.textContent=n.status==='Overført'?'➡️ Åpne kundekort':'➡️ Overfør til Kunder';
   document.getElementById('nye-detalj-modal').classList.add('open');
 }
 
@@ -2365,6 +2368,88 @@ function leggTilNyeLoggpost(){
 }
 
 function closeNyeDetaljModal(){document.getElementById('nye-detalj-modal').classList.remove('open');}
+
+// ===== OVERFØRING NYETABLERINGER → KUNDER =====
+// Lagt til 26.08.2026: når noen faktisk har ringt et selskap fra
+// Nyetableringer-lista og vil jobbe videre med det, skal det bli søkbart
+// SAMME sted som Visma-kundene (Kunder-fanen) — ikke en egen meny/visning.
+// Bevisst IKKE en ny SharePoint-liste for dette: en "overført" rad blir
+// stående i Nyetableringer (status settes til "Overført" — MÅ finnes som
+// choice-verdi på Status-kolonnen i SharePoint, se
+// Kunde360-oppsett-sjekkliste.md) og gjenskapes som en søkbar
+// pseudo-"kunde" av hentProspektKunder() hver gang noe rendres. Ingen
+// VismaKundeNummer finnes ennå for en fersk lead — vi bruker i stedet en
+// syntetisk nøkkel "LEAD-<orgnr>" som join-nøkkel i KundeNotater, nøyaktig
+// som med et ekte Visma-nummer (feltet bryr seg ikke om formatet).
+function prospektKundenummer(n){return 'LEAD-'+(n.orgNr||n.spId||n.id);}
+
+function hentProspektKunder(){
+  return nyetableringer.filter(n=>n.status==='Overført').map(n=>({
+    id:'lead-'+n.id,
+    vismaNummer:prospektKundenummer(n),
+    navn:n.tittel||'(uten navn)',
+    orgNr:n.orgNr||'',
+    status:'🆕 Ny etablering',
+    adresse:n.adresse||'',
+    postnr:n.postnummer||'',
+    sted:n.poststed||n.kommune||'',
+    kontaktNavn:'',kontaktEpost:'',kontaktTelefon:'',
+    kundeklasse:'',kredittgrense:0,kredittDagerForfalt:0,
+    saldo:0,saldoForfalt:0,sistOppdatertVisma:'',sistSynkronisert:'',
+    erProspekt:true
+  }));
+}
+
+function overforNyeTilKunder(id){
+  const n=nyetableringer.find(x=>x.id===id);if(!n)return;
+  if(n.status==='Overført'){apneOverfortKundeFraNye(id);return;}
+  if(!confirm(`Overføre «${n.tittel}» til Kunder?\n\nSelskapet blir søkbart under Kunder-fanen (samme sted som Visma-kunder), med et eget kundekort og «Salg & oppfølging»-loggen samlet der i stedet for her. Historikken du eventuelt har lagt inn her blir med over som en innledende oppføring.`))return;
+
+  closeNyeDetaljModal();
+
+  const loggTekst=(n.logg||[]).slice().sort((a,b)=>new Date(a.dato)-new Date(b.dato))
+    .map(l=>`${new Date(l.dato).toLocaleDateString('nb-NO')} (${l.forfatter||'Ukjent'}): ${l.tekst}`).join('\n');
+  const now=new Date().toISOString();
+  const bruker=currentUser?.name||currentUser?.username||'Ukjent';
+  const notat={
+    id:'tmp'+Math.random().toString(36).slice(2),spId:null,
+    vismaKundeNummer:prospektKundenummer(n),
+    kundeNavn:n.tittel,
+    type:'Notat',
+    tittel:'Overført fra Nyetableringer',
+    innhold:loggTekst?`Historikk fra «🏢 Nyetableringer»:\n${loggTekst}`:'Overført fra «🏢 Nyetableringer» — ingen tidligere notater.',
+    status:'Åpen',forfallsdato:'',
+    opprettetAv:bruker,opprettetAvEpost:currentUser?.username||'',
+    opprettetDato:now,varsleEpost:false,varsleDashbord:false,varselSendt:false,logg:[]
+  };
+  kundeNotater.push(notat);
+
+  setSPStatus('⏳ Lagrer…');
+  spCreate('KundeNotater',notatFieldsPayload(notat)).then(r=>{
+    notat.spId=r.id;notat.id=`sp${r.id}`;
+    if(!Array.isArray(n.logg))n.logg=[];
+    n.logg.push({dato:now,tekst:`Overført til Kunder av ${bruker}.`,forfatter:bruker});
+    n.status='Overført';
+    return spUpdate('Nyetableringer',n.spId,{Status:'Overført',Logg:JSON.stringify(n.logg)});
+  }).then(()=>{
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+    renderNyetableringer();
+    apneOverfortKundeFraNye(id);
+  }).catch(e=>{
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Overføring feilet underveis (kan ha blitt delvis lagret — sjekk «Kunder» og prøv evt. igjen):\n'+e.message);
+    renderNyetableringer();
+  });
+}
+
+// Navigerer rett til det (nå overførte) kundekortet på Kunder-fanen — samme
+// søk-og-åpne-mekanisme som et vanlig Visma-kundesøk.
+function apneOverfortKundeFraNye(id){
+  const n=nyetableringer.find(x=>x.id===id);if(!n)return;
+  showTab('kunder',document.getElementById('tab-kunder'));
+  document.getElementById('k360-search').value=n.tittel||'';
+  searchKunder360();
+}
 
 function toggleKunder360Sub(open){
   const sub=document.getElementById('kunder360-sub-nav');
@@ -2528,17 +2613,22 @@ function searchKunder360(){
   renderKunder360Oversikt(); // vis nøkkeltallene igjen (skjules kun mens en konkret kunde er valgt)
   if(!raw){resDiv.innerHTML='';return;}
 
-  if(vismaKunder.length===0){
+  // Søkbar pool = ekte Visma-kunder + selskaper overført fra Nyetableringer
+  // (se hentProspektKunder() — egen, syntetisk "kunde" uten VismaKundeNummer
+  // ennå, men søkbar/åpnes nøyaktig likt her, per Thomas' ønske 26.08.2026 om
+  // at dette skal skje SAMME sted som Visma-kundene, ikke en egen meny).
+  const alleKunder=[...vismaKunder,...hentProspektKunder()];
+  if(alleKunder.length===0){
     resDiv.innerHTML='<div class="card"><div class="empty">Ingen kunder synkronisert fra Visma ennå. Synk-jobben fyller denne listen automatisk hver natt når den er satt opp — inntil da er den tom.</div></div>';
     return;
   }
 
   const orgNrSok=normOrgNr(raw);
   let treff=[];
-  if(orgNrSok.length===9)treff=vismaKunder.filter(k=>normOrgNr(k.orgNr)===orgNrSok);
+  if(orgNrSok.length===9)treff=alleKunder.filter(k=>normOrgNr(k.orgNr)===orgNrSok);
   if(treff.length===0){
     const q=raw.toLowerCase();
-    treff=vismaKunder.filter(k=>(k.navn||'').toLowerCase().includes(q));
+    treff=alleKunder.filter(k=>(k.navn||'').toLowerCase().includes(q));
   }
 
   if(treff.length===0){
@@ -2553,7 +2643,7 @@ function searchKunder360(){
 }
 
 function velgKunde360FraId(id){
-  const k=vismaKunder.find(x=>x.id===id);
+  const k=vismaKunder.find(x=>x.id===id)||hentProspektKunder().find(x=>x.id===id);
   if(k)velgKunde360(k);
 }
 
@@ -2576,7 +2666,7 @@ function handleDeepLink(){
   const kundeParam=(params.get('kunde')||'').trim();
   if(!kundeParam)return;
 
-  const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===kundeParam);
+  const kunde=[...vismaKunder,...hentProspektKunder()].find(k=>String(k.vismaNummer||'').trim()===kundeParam);
   if(!kunde){console.warn('Deep link: fant ingen kunde med Visma-nr',kundeParam);return;}
 
   showTab('kunder');
@@ -2598,6 +2688,7 @@ function handleDeepLink(){
 }
 
 function renderKundeKort(k){
+  if(k.erProspekt){renderProspektKundeKort(k);return;}
   const kNr=String(k.vismaNummer||'').trim();
   const kontrakter=vismaKontrakter.filter(c=>String(c.vismaKundeNummer||'').trim()===kNr);
   const aktiveKontrakter=kontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';});
@@ -2663,6 +2754,42 @@ function renderKundeKort(k){
           ${utleieTreff.map(r=>{const u=units.find(x=>x.id===r.unitId);return `<tr><td>${u?u.name:r.unitId}</td><td>${r.fromDate||'—'}</td><td>${r.toDate||'—'}</td><td>${r.returnDate||'—'}</td></tr>`;}).join('')}
         </tbody></table>`}
       </div>
+    </div>
+  `;
+  document.getElementById('k360-kort').innerHTML=html;
+}
+
+// Forenklet kundekort for et selskap overført fra «🏢 Nyetableringer» (se
+// hentProspektKunder()) — samme kundekort-visning som en ekte Visma-kunde,
+// men uten omsetning/avtaler/Visma-kontaktinfo som rett og slett ikke finnes
+// ennå. Lagt til 26.08.2026, jf. ønske om at dette skal ligge SAMME sted som
+// Kunder, ikke en egen meny.
+function renderProspektKundeKort(k){
+  const html=`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:34px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.15">${k.navn||'(uten navn)'}</div>
+          <div class="muted">Org.nr ${k.orgNr||'ukjent'} · 🆕 Ny etablering — ikke registrert som kunde i Visma ennå</div>
+        </div>
+      </div>
+
+      <div class="hint" style="margin-bottom:16px">Overført fra «🏢 Nyetableringer» under Kunde 360. Viser derfor ikke omsetning, avtaler eller Visma-kontaktinfo — det finnes ikke ennå. Den dagen selskapet faktisk blir Visma-kunde, dukker et ordinært kundekort opp ved neste nattlige synk, og notatene under kan flyttes manuelt over til riktig Visma-kundenummer.</div>
+
+      ${renderKundeNotaterHTML(k)}
+
+      <p class="sec-title">Kontaktinfo (fra Brønnøysundregisteret)</p>
+      <div class="tbl-wrap" style="margin-bottom:20px">
+        <table><tbody>
+          <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
+        </tbody></table>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
+        <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>
+        <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>
+      </div>
+      <div id="k360-brreg" class="tbl-wrap"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
     </div>
   `;
   document.getElementById('k360-kort').innerHTML=html;
@@ -2739,7 +2866,7 @@ function renderKundeNotaterHTML(k){
   return `
     <p class="sec-title">📋 Salg & oppfølging (${notaterAlle.length})${antallForfalt>0?` <span style="color:#d03b3b;font-weight:600;font-size:12px">· ${antallForfalt} forfalt</span>`:''}</p>
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
-      ${salgTilgang?`<button class="btn-sm" onclick="openNyNotatModal('${kNr}')">+ Ny oppføring</button>`:'<span></span>'}
+      ${salgTilgang?`<button class="btn-sm" onclick="openNyNotatModal('${kNr}','${(k.navn||'').replace(/'/g,"\\'")}')">+ Ny oppføring</button>`:'<span></span>'}
       ${filterHtml}
     </div>
     <div style="margin-bottom:20px">
@@ -2848,7 +2975,7 @@ function initNotatDatePicker(){
   });
 }
 
-function openNyNotatModal(kNr){
+function openNyNotatModal(kNr,navn){
   document.getElementById('notat-modal-title').textContent='Ny oppføring';
   document.getElementById('n-type').value='Notat';
   document.getElementById('n-tittel').value='';
@@ -2860,9 +2987,12 @@ function openNyNotatModal(kNr){
   document.getElementById('n-kunde-nr').value=kNr;
   // Kundenavnet lagres direkte PÅ notatet (samme mønster som OpprettetAvEpost)
   // slik at varsel-e-posten (kbd-verifone-func/varsling.py) kan vise det i
-  // emnefeltet uten et ekstra Graph-kall mot VismaKunder — slått opp her via
-  // vismaKunder fremfor k360Valgt for å være robust uansett hvordan modalen åpnes.
-  document.getElementById('n-kunde-navn').value=(vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(kNr||'').trim())||{}).navn||'';
+  // emnefeltet uten et ekstra Graph-kall mot VismaKunder. `navn` sendes nå inn
+  // direkte fra kallstedet (lagt til 26.08.2026, for å også dekke prospekt-
+  // "kunder" overført fra Nyetableringer som ikke finnes i vismaKunder) — med
+  // fallback til det gamle VismaKunder-oppslaget for eventuelle andre
+  // kallsteder som ikke er oppdatert til å sende navnet med.
+  document.getElementById('n-kunde-navn').value=navn||(vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(kNr||'').trim())||{}).navn||'';
   updateNotatFormFields();
   document.getElementById('notat-modal').classList.add('open');
 }
