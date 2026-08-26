@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.45.0 · Oppdatert: 26. aug 2026 kl. 19:34</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.45.1 · Oppdatert: 26. aug 2026 kl. 20:23</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1589,7 +1589,7 @@ let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke a
 let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
 let nyeStedFilter='alle';    // 'alle', ellers en eksakt verdi fra _nyeStedVerdi() under
 let nyeKunKbdBransjer=false;   // "Vis kun bransjer KBD har kunder i"-bryter, lagt til 26.08.2026
-let nyeKbdBransjeMinAntall=10; // terskel (antall eksisterende kunder i samme NACE-hovedgruppe) for at en bransje regnes som "KBD-typisk" — justerbar i UI
+let nyeKbdBransjeMinAntall=100; // terskel (antall eksisterende kunder i samme NACE-hovedgruppe) for at en bransje regnes som "KBD-typisk" — justerbar i UI, default hevet fra 10 til 100 på Thomas' ønske 26.08.2026 (samme terskel som e-postvarselet i backend, se nyetableringer.py)
 
 // Fasit for "bransjer KBD har kunder i" — bygget 26.08.2026 fra en engangs-
 // analyse av 2406 unike org.numre i Visma-kundelisten (Kunder_20260826.xlsx),
