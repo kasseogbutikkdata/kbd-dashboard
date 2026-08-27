@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.46.0 · Oppdatert: 27. aug 2026 kl. 15:31</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.46.1 · Oppdatert: 27. aug 2026 kl. 15:49</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2423,11 +2423,18 @@ function renderNyetableringer(){
       <input type="checkbox" id="nye-skjul-enk-toggle" ${nyeSkjulEnkeltpersonforetak?'checked':''} onchange="setNyeSkjulEnkeltpersonforetak(this.checked)"/>
       Skjul enkeltpersonforetak
     </label>`;
+    // Engangsverktøy (kun admin) for å fylle inn Selskapsform/SelskapsformBeskrivelse
+    // på eksisterende rader som ble opprettet FØR disse SharePoint-kolonnene fantes
+    // (27.08.2026). Nye rader får dette automatisk fra backend fra og med
+    // nyetableringer.py-oppdateringen samme dato — se KBD-Command-Center-prosjektstatus.md.
+    const manglerSelskapsform=nyetableringerRenset.filter(n=>n.orgNr&&!n.selskapsform).length;
+    const backfillKnapp=(userRole==='admin'&&manglerSelskapsform>0)?`<button class="btn-sm" onclick="fyllInnSelskapsformForEksisterende()" title="Henter selskapsform fra Brønnøysundregisteret for eksisterende rader som mangler det, og lagrer til SharePoint. Trygt å kjøre flere ganger — rader som allerede har selskapsform blir ikke rørt.">🔧 Fyll inn selskapsform (${manglerSelskapsform} mangler)</button>`:'';
     dropdownDiv.innerHTML=
       `<select id="nye-bransje-filter" onchange="setNyeBransjeFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${opts(bransjer,nyeBransjeFilter,'Alle bransjer')}</select>`+
       `<select id="nye-sted-filter" onchange="setNyeStedFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts(steder,nyeStedFilter,'Alle steder')}</select>`+
       kbdToggle+kbdMin+enkForetakToggle+
-      (aktivtFilter?`<button class="btn-sm" onclick="nullstillNyeFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'');
+      (aktivtFilter?`<button class="btn-sm" onclick="nullstillNyeFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'')+
+      backfillKnapp;
   }
 
   const target=document.getElementById('nye-tabell');
@@ -2479,6 +2486,82 @@ function renderNyetableringer(){
 function apneGuleSider(navn){
   if(!navn)return;
   window.open('https://www.gulesider.no/'+encodeURIComponent(navn)+'/bedrifter','_blank','noopener');
+}
+
+// ---- Engangsverktøy: fyll inn Selskapsform for eksisterende Nyetableringer-rader ----
+// Lagt til 27.08.2026. Selskapsform/SelskapsformBeskrivelse er nye SharePoint-kolonner
+// (se Kunde360-oppsett-sjekkliste.md) — backend fyller dette inn automatisk for NYE
+// rader fra og med 27.08.2026, men de ~788 radene som allerede fantes får aldri dette
+// feltet utfylt av seg selv (dagsjobben oppretter kun nye rader, den oppdaterer aldri
+// eksisterende). Dette verktøyet gjør en engangs etteroppslag mot Brønnøysundregisteret
+// direkte fra nettleseren (samme mønster som bransje_analyse_verktoy.html — sandkassen
+// Claude kjører i når koden skrives har ikke tilgang til data.brreg.no, men nettleseren
+// til den som er logget inn har det).
+async function _hentOrganisasjonsform(orgnr){
+  // Prøver både /enheter (vanlige selskaper) og /underenheter (avdelinger/underenheter),
+  // siden Nyetableringer inneholder begge deler (se hent_nye_enheter/hent_nye_underenheter
+  // i nyetableringer.py).
+  for(const endepunkt of ['enheter','underenheter']){
+    try{
+      const res=await fetch(`https://data.brreg.no/enhetsregisteret/api/${endepunkt}/${orgnr}`);
+      if(res.ok){
+        const d=await res.json();
+        const of=d.organisasjonsform||{};
+        if(of.kode)return{kode:of.kode,beskrivelse:of.beskrivelse||''};
+      }
+    }catch(e){/* prøv neste endepunkt */}
+  }
+  return null;
+}
+
+// Enkel samtidighetsbegrenset kø — unngår å fyre av ~788 fetch-kall samtidig mot
+// Brreg/SharePoint. Samme mønster som bransje_analyse_verktoy.html.
+async function _kjorMedBegrensetSamtidighet(items,worker,concurrency){
+  const resultater=new Array(items.length);
+  let neste=0;
+  async function kjorEn(){
+    while(neste<items.length){
+      const i=neste++;
+      resultater[i]=await worker(items[i],i);
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(concurrency,items.length)},()=>kjorEn()));
+  return resultater;
+}
+
+async function fyllInnSelskapsformForEksisterende(){
+  const mangler=nyetableringer.filter(n=>n.orgNr&&!n.selskapsform);
+  if(mangler.length===0){alert('Alle rader har allerede selskapsform utfylt.');return;}
+  if(!confirm(`Dette henter selskapsform fra Brønnøysundregisteret for ${mangler.length} eksisterende selskaper, og lagrer det til SharePoint. Kan ta noen minutter — du kan trygt kjøre dette flere ganger, rader som allerede er utfylt blir ikke rørt. Fortsette?`))return;
+
+  let ok=0,feil=0,ferdig=0;
+  setSPStatus(`⏳ Fyller inn selskapsform… 0/${mangler.length}`);
+
+  await _kjorMedBegrensetSamtidighet(mangler,async(n)=>{
+    try{
+      const info=await _hentOrganisasjonsform(normOrgNr(n.orgNr));
+      if(info){
+        await spUpdate('Nyetableringer',n.spId,{Selskapsform:info.kode,SelskapsformBeskrivelse:info.beskrivelse});
+        n.selskapsform=info.kode;
+        n.selskapsformBeskrivelse=info.beskrivelse;
+        ok++;
+      }else{
+        feil++;
+      }
+    }catch(e){
+      feil++;
+      console.error('Selskapsform-oppslag feilet for',n.orgNr,e);
+    }
+    ferdig++;
+    if(ferdig%20===0||ferdig===mangler.length){
+      setSPStatus(`⏳ Fyller inn selskapsform… ${ferdig}/${mangler.length}`);
+    }
+  },6);
+
+  setSPStatus(ok>0?`✅ Ferdig: ${ok} oppdatert, ${feil} feilet`:`⚠️ Ferdig: 0 oppdatert, ${feil} feilet`,ok>0);
+  setTimeout(()=>setSPStatus(''),6000);
+  renderNyetableringer();
+  alert(`Ferdig!\n${ok} selskaper fikk selskapsform oppdatert.\n${feil} feilet (se konsollen for detaljer) — disse kan prøves på nytt ved å trykke knappen igjen.`);
 }
 
 function settNyStatus(id,status){
