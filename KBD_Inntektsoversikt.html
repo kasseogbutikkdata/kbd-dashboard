@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.45.2 · Oppdatert: 26. aug 2026 kl. 20:56</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.46.0 · Oppdatert: 27. aug 2026 kl. 15:31</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1590,6 +1590,7 @@ let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVe
 let nyeStedFilter='alle';    // 'alle', ellers en eksakt verdi fra _nyeStedVerdi() under
 let nyeKunKbdBransjer=true;    // "Vis kun bransjer KBD har kunder i"-bryter, lagt til 26.08.2026 — default satt til PÅ på Thomas' ønske 26.08.2026
 let nyeKbdBransjeMinAntall=100; // terskel (antall eksisterende kunder i samme NACE-hovedgruppe) for at en bransje regnes som "KBD-typisk" — justerbar i UI, default hevet fra 10 til 100 på Thomas' ønske 26.08.2026 (samme terskel som e-postvarselet i backend, se nyetableringer.py)
+let nyeSkjulEnkeltpersonforetak=false; // "Skjul enkeltpersonforetak"-bryter, lagt til 27.08.2026 — default AV (ny/uprøvd, i motsetning til KBD-bransje-bryteren over)
 
 // Fasit for "bransjer KBD har kunder i" — bygget 26.08.2026 fra en engangs-
 // analyse av 2406 unike org.numre i Visma-kundelisten (Kunder_20260826.xlsx),
@@ -1952,7 +1953,7 @@ async function loadDataFromSP(){
   // fra Status/Logg, som brukeren endrer herfra via settNyStatus()/
   // leggTilNyeLoggpost()). Verifisert 25.08.2026 via Graph Explorer: alle ni
   // kolonner fikk internt navn identisk med visningsnavnet — ingen avvik.
-  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -2341,11 +2342,17 @@ function setNyeKbdBransjeMin(v){
   renderNyetableringer();
 }
 
+function setNyeSkjulEnkeltpersonforetak(v){
+  nyeSkjulEnkeltpersonforetak=v;
+  renderNyetableringer();
+}
+
 function nullstillNyeFilter(){
   // nyeKunKbdBransjer tilbakestilles til TRUE (ikke false) — det er nå
   // default-tilstanden (satt 26.08.2026), så "nullstill" skal gå tilbake
-  // til default, ikke slå bryteren av.
-  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';nyeKunKbdBransjer=true;
+  // til default, ikke slå bryteren av. nyeSkjulEnkeltpersonforetak har
+  // default AV, så den nullstilles til false som vanlig.
+  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';nyeKunKbdBransjer=true;nyeSkjulEnkeltpersonforetak=false;
   renderNyetableringer();
 }
 
@@ -2356,35 +2363,55 @@ function nullstillNyeFilter(){
 function _nyeBransjeVerdi(n){return n.naeringsBeskrivelse||n.naeringskode||'Ukjent bransje';}
 function _nyeStedVerdi(n){return n.poststed?`${n.postnummer||''} ${n.poststed}`.trim():(n.kommune||'Ukjent sted');}
 
+// Konkursbo/tvangsavviklingsbo dukker opp som "nye" enheter i Brønnøysund-
+// registeret (boet får sitt eget org.nr), men er per definisjon selskaper på
+// vei UT av drift — aldri en reell salgsmulighet. Filtreres derfor alltid
+// bort, uten egen bryter (se renderNyetableringer()). Samme
+// navnemønster-sjekk som _skal_ekskluderes_navn() i backend (nyetableringer.py)
+// — begge må holdes i sync manuelt siden dette er to separate kodebaser.
+function _erKonkursboEllerTvangsavvikling(n){
+  const navn=(n.tittel||'').toUpperCase();
+  return navn.includes('KONKURSBO')||navn.includes('TVANGSAVVIKLING');
+}
+
 function renderNyetableringer(){
+  // Konkursbo/tvangsavviklingsbo fjernes HELT fra grunnlaget, alltid — de er
+  // aldri en reell salgsmulighet (selskapet er på vei ut av drift), så det er
+  // ingen vits i noen bryter for dette slik som bransje-/enkeltpersonforetak-
+  // filtrene under. Gjelder både tellerne på filterpillene og selve tabellen.
+  const nyetableringerRenset=nyetableringer.filter(n=>!_erKonkursboEllerTvangsavvikling(n));
+
   const filterDiv=document.getElementById('nye-filters');
   if(filterDiv){
-    const antall=s=>s==='alle'?nyetableringer.length:nyetableringer.filter(n=>n.status===s).length;
+    const antall=s=>s==='alle'?nyetableringerRenset.length:nyetableringerRenset.filter(n=>n.status===s).length;
     const pill=(val,lbl,farge)=>`<button class="fpill${nyeStatusFilter===val?' f-on':''}" style="${nyeStatusFilter===val?`border-color:${farge}`:''}" onclick="setNyeStatusFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${nyeStatusFilter===val?`font-weight:600;color:${farge}`:''}">${lbl} (${antall(val)})</span></button>`;
     filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Ikke kontaktet','Ikke kontaktet','#d03b3b')+pill('Kontaktet','Kontaktet','#eda100')+pill('Ikke aktuell','Ikke aktuell','#9ca3af')+pill('Overført','Overført',K360_NOTAT_FARGER.Oppfølging.c);
   }
 
-  // "KBD-bransje"-bryteren begrenser HELE grunnlaget (dropdown-alternativer
-  // OG tabellen) til rader hvor næringskoden hører til en NACE-hovedgruppe
-  // KBD faktisk har minst nyeKbdBransjeMinAntall eksisterende kunder i (se
-  // KBD_KUNDE_BRANSJER over). Rader uten næringskode ekskluderes når bryteren
-  // er på, siden vi da ikke kan bekrefte at de matcher.
-  const kbdBasis=nyeKunKbdBransjer?nyetableringer.filter(_erKbdTypiskBransje):nyetableringer;
+  // "KBD-bransje"-bryteren og "skjul enkeltpersonforetak"-bryteren begrenser
+  // begge HELE grunnlaget (dropdown-alternativer OG tabellen), lagt oppå
+  // hverandre. Rader uten næringskode ekskluderes når bransje-bryteren er på,
+  // siden vi da ikke kan bekrefte at de matcher.
+  let visningsBasis=nyetableringerRenset;
+  if(nyeKunKbdBransjer)visningsBasis=visningsBasis.filter(_erKbdTypiskBransje);
+  if(nyeSkjulEnkeltpersonforetak)visningsBasis=visningsBasis.filter(n=>n.selskapsform!=='ENK');
 
   const dropdownDiv=document.getElementById('nye-dropdown-filters');
   if(dropdownDiv){
-    const bransjer=[...new Set(kbdBasis.map(_nyeBransjeVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
-    const steder=[...new Set(kbdBasis.map(_nyeStedVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
-    // Hvis dataene har endret seg (f.eks. ny dagskjøring, eller bryteren over
-    // ble slått på/av) slik at en tidligere valgt verdi ikke lenger finnes i
-    // lista, nullstill filteret til "alle" i stedet for å vise en tabell som
-    // ser feilaktig tom ut.
+    const bransjer=[...new Set(visningsBasis.map(_nyeBransjeVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
+    const steder=[...new Set(visningsBasis.map(_nyeStedVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
+    // Hvis dataene har endret seg (f.eks. ny dagskjøring, eller en av bryterne
+    // over ble slått på/av) slik at en tidligere valgt verdi ikke lenger
+    // finnes i lista, nullstill filteret til "alle" i stedet for å vise en
+    // tabell som ser feilaktig tom ut.
     if(nyeBransjeFilter!=='alle'&&!bransjer.includes(nyeBransjeFilter))nyeBransjeFilter='alle';
     if(nyeStedFilter!=='alle'&&!steder.includes(nyeStedFilter))nyeStedFilter='alle';
     const opts=(liste,valgt,alleLabel)=>`<option value="alle"${valgt==='alle'?' selected':''}>${alleLabel}</option>`+liste.map(v=>`<option value="${v.replace(/"/g,'&quot;')}"${valgt===v?' selected':''}>${v}</option>`).join('');
-    // nyeKunKbdBransjer er nå default PÅ (26.08.2026) — det er altså å SLÅ DEN
-    // AV som er avviket fra default og skal vise "Nullstill filtre", ikke omvendt.
-    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle'||!nyeKunKbdBransjer;
+    // nyeKunKbdBransjer er default PÅ (26.08.2026) — det er altså å SLÅ DEN AV
+    // som er avviket fra default og skal vise "Nullstill filtre", ikke
+    // omvendt. nyeSkjulEnkeltpersonforetak er default AV, så den følger vanlig
+    // logikk (PÅ = avvik).
+    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle'||!nyeKunKbdBransjer||nyeSkjulEnkeltpersonforetak;
     const kbdToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
       <input type="checkbox" id="nye-kbd-bransje-toggle" ${nyeKunKbdBransjer?'checked':''} onchange="setNyeKunKbdBransjer(this.checked)"/>
       Vis kun bransjer KBD har kunder i
@@ -2392,22 +2419,26 @@ function renderNyetableringer(){
     const kbdMin=nyeKunKbdBransjer?`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6b7280;white-space:nowrap">
       min. antall kunder <input type="number" id="nye-kbd-bransje-min" value="${nyeKbdBransjeMinAntall}" min="1" style="width:56px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onchange="setNyeKbdBransjeMin(this.value)"/>
     </label>`:'';
+    const enkForetakToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
+      <input type="checkbox" id="nye-skjul-enk-toggle" ${nyeSkjulEnkeltpersonforetak?'checked':''} onchange="setNyeSkjulEnkeltpersonforetak(this.checked)"/>
+      Skjul enkeltpersonforetak
+    </label>`;
     dropdownDiv.innerHTML=
       `<select id="nye-bransje-filter" onchange="setNyeBransjeFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${opts(bransjer,nyeBransjeFilter,'Alle bransjer')}</select>`+
       `<select id="nye-sted-filter" onchange="setNyeStedFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts(steder,nyeStedFilter,'Alle steder')}</select>`+
-      kbdToggle+kbdMin+
+      kbdToggle+kbdMin+enkForetakToggle+
       (aktivtFilter?`<button class="btn-sm" onclick="nullstillNyeFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'');
   }
 
   const target=document.getElementById('nye-tabell');
   if(!target)return;
 
-  if(nyetableringer.length===0){
+  if(nyetableringerRenset.length===0){
     target.innerHTML=`<div class="empty">Ingen nyetableringer hentet ennå — jobben kjører daglig, sjekk igjen i morgen, eller se Application Insights på kbd-verifone-func hvis dette vedvarer over flere dager.</div>`;
     return;
   }
 
-  const liste=kbdBasis.filter(n=>
+  const liste=visningsBasis.filter(n=>
       (nyeStatusFilter==='alle'||n.status===nyeStatusFilter)&&
       (nyeBransjeFilter==='alle'||_nyeBransjeVerdi(n)===nyeBransjeFilter)&&
       (nyeStedFilter==='alle'||_nyeStedVerdi(n)===nyeStedFilter)
@@ -2430,13 +2461,24 @@ function renderNyetableringer(){
         <td>${n.status==='Overført'?`<span style="font-size:11px;font-weight:700;color:${K360_NOTAT_FARGER.Oppfølging.c};background:${K360_NOTAT_FARGER.Oppfølging.bg};padding:4px 10px;border-radius:20px;white-space:nowrap">✅ Overført</span>`:`<select onchange="settNyStatus('${n.id}',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
           ${['Ikke kontaktet','Kontaktet','Ikke aktuell'].map(s=>`<option value="${s}"${n.status===s?' selected':''}>${s}</option>`).join('')}
         </select>`}</td>
-        <td style="white-space:nowrap">${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<div style="display:flex;gap:6px;flex-wrap:nowrap">
-          <button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button>
-          <button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>
-        </div>`}</td>
+        <td style="white-space:nowrap"><div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center">
+          ${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button>
+          <button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>`}
+          <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(n.tittel||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+        </div></td>
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
+}
+
+// Åpner et manuelt Gule Sider-firmasøk på selskapsnavnet i en ny fane — IKKE
+// automatisert henting/scraping (det er verken teknisk trygt eller innenfor
+// Gule Sider sine bruksvilkår i noe volum), bare en snarvei for selgeren til
+// selv å slå opp kontaktinfo/daglig leder når de faktisk skal ta kontakt.
+// Lagt til 27.08.2026 etter drøfting med Thomas.
+function apneGuleSider(navn){
+  if(!navn)return;
+  window.open('https://www.gulesider.no/'+encodeURIComponent(navn)+'/bedrifter','_blank','noopener');
 }
 
 function settNyStatus(id,status){
