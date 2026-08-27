@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.46.1 · Oppdatert: 27. aug 2026 kl. 15:49</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.46.2 · Oppdatert: 27. aug 2026 kl. 16:02</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1013,25 +1013,6 @@ tr:hover td{background:#fafafa}
       <div id="kg-popup-innhold" style="font-size:13.5px;color:#374151;white-space:pre-wrap;margin-bottom:16px;line-height:1.5"></div>
       <div class="modal-footer">
         <button class="prim" onclick="lukkKunngjoringPopup()">Jeg har lest dette</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- NYETABLERINGER — DETALJVISNING/SALGSNOTATER MODAL, lagt til 25.08.2026 -->
-  <div class="modal-overlay" id="nye-detalj-modal" onclick="if(event.target===this)closeNyeDetaljModal()">
-    <div class="modal" style="max-width:520px">
-      <h3 id="nye-detalj-tittel" style="margin-bottom:4px"></h3>
-      <div id="nye-detalj-meta" style="font-size:12px;color:#9ca3af;margin-bottom:16px"></div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Salgsnotater</label>
-        <div id="nye-detalj-logg-liste" style="margin-bottom:8px"></div>
-        <div style="display:flex;gap:6px">
-          <input type="text" id="nye-detalj-loggtekst" placeholder="Legg til et notat, f.eks. «ringte, ønsker tilbud»…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilNyeLoggpost();}"/>
-          <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilNyeLoggpost()">Legg til</button>
-        </div>
-      </div>
-      <input type="hidden" id="nye-detalj-id"/>
-      <div class="modal-footer">
-        <button class="prim" onclick="closeNyeDetaljModal()">Lukk</button>
       </div>
     </div>
   </div>
@@ -1950,9 +1931,14 @@ async function loadDataFromSP(){
   kunngjoringer=kgItems.map(i=>({id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',innhold:i.fields.Innhold||'',patrengende:i.fields.PatrengendePopup===true,opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''})).sort((a,b)=>new Date(b.opprettetDato)-new Date(a.opprettetDato));
   // Nyetableringer (lagt til 25.08.2026) — fylt av backend-jobben
   // hent_nyetableringer i kbd-verifone-func, IKKE av dashbordet selv (bortsett
-  // fra Status/Logg, som brukeren endrer herfra via settNyStatus()/
-  // leggTilNyeLoggpost()). Verifisert 25.08.2026 via Graph Explorer: alle ni
-  // kolonner fikk internt navn identisk med visningsnavnet — ingen avvik.
+  // fra Status, som brukeren endrer herfra via settNyStatus()). Verifisert
+  // 25.08.2026 via Graph Explorer: alle ni kolonner fikk internt navn
+  // identisk med visningsnavnet — ingen avvik. «📝 Notater»-knappen (og
+  // muligheten til å legge inn logg direkte her) ble fjernet 27.08.2026 på
+  // Thomas' ønske — arbeidsflyten er nå at man overfører til Kunder-fanen
+  // først (➡️ Overfør), og noterer videre der i stedet. Logg-feltet leses
+  // fortsatt (overforNyeTilKunder() limer inn ev. gammel logg som en
+  // innledende KundeNotater-oppføring), men fylles ikke lenger på herfra.
   nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
@@ -2469,8 +2455,7 @@ function renderNyetableringer(){
           ${['Ikke kontaktet','Kontaktet','Ikke aktuell'].map(s=>`<option value="${s}"${n.status===s?' selected':''}>${s}</option>`).join('')}
         </select>`}</td>
         <td style="white-space:nowrap"><div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center">
-          ${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<button class="btn-sm" onclick="apneNyeDetalj('${n.id}')">📝 Notater${(n.logg||[]).length?` (${n.logg.length})`:''}</button>
-          <button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>`}
+          ${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>`}
           <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(n.tittel||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
         </div></td>
       </tr>`;
@@ -2574,46 +2559,6 @@ function settNyStatus(id,status){
   renderNyetableringer(); // oppdaterer filterpillenes tellere med det samme
 }
 
-function apneNyeDetalj(id){
-  const n=nyetableringer.find(x=>x.id===id);if(!n)return;
-  document.getElementById('nye-detalj-id').value=id;
-  document.getElementById('nye-detalj-tittel').textContent=n.tittel||'(uten navn)';
-  const registrert=n.registreringsDato&&!isNaN(new Date(n.registreringsDato))?new Date(n.registreringsDato).toLocaleDateString('nb-NO'):'ukjent dato';
-  document.getElementById('nye-detalj-meta').textContent=[n.orgNr,n.naeringsBeskrivelse||n.naeringskode,[n.postnummer,n.poststed].filter(Boolean).join(' ')||n.kommune,'registrert '+registrert].filter(Boolean).join(' · ');
-  renderNyeDetaljLogg(n);
-  document.getElementById('nye-detalj-loggtekst').value='';
-  document.getElementById('nye-detalj-modal').classList.add('open');
-}
-
-function renderNyeDetaljLogg(n){
-  const el=document.getElementById('nye-detalj-logg-liste');
-  if(!el)return;
-  const logg=(n.logg||[]).slice().sort((a,b)=>new Date(b.dato)-new Date(a.dato));
-  el.innerHTML=logg.length===0?`<div style="font-size:12px;color:#9ca3af;padding:4px 0">Ingen notater ennå.</div>`:logg.map(l=>`<div style="font-size:12.5px;color:#374151;padding:6px 0;border-bottom:1px solid #f1f1f1">
-    <div>${l.tekst}</div>
-    <div style="font-size:11px;color:#9ca3af;margin-top:2px">${l.forfatter||'Ukjent'} · ${l.dato&&!isNaN(new Date(l.dato))?new Date(l.dato).toLocaleDateString('nb-NO')+' kl. '+new Date(l.dato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):''}</div>
-  </div>`).join('');
-}
-
-function leggTilNyeLoggpost(){
-  const id=document.getElementById('nye-detalj-id').value;
-  const n=nyetableringer.find(x=>x.id===id);if(!n)return;
-  const input=document.getElementById('nye-detalj-loggtekst');
-  const tekst=input.value.trim();
-  if(!tekst)return;
-  if(!Array.isArray(n.logg))n.logg=[];
-  n.logg.push({dato:new Date().toISOString(),tekst,forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
-  input.value='';
-  renderNyeDetaljLogg(n);
-  renderNyetableringer(); // oppdaterer notat-telleren på raden i tabellen
-  if(n.spId){
-    setSPStatus('⏳ Lagrer…');
-    spUpdate('Nyetableringer',n.spId,{Logg:JSON.stringify(n.logg)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Notatet ble ikke lagret til SharePoint:\n'+e.message);});
-  }
-}
-
-function closeNyeDetaljModal(){document.getElementById('nye-detalj-modal').classList.remove('open');}
-
 // ===== OVERFØRING NYETABLERINGER → KUNDER =====
 // Lagt til 26.08.2026: når noen faktisk har ringt et selskap fra
 // Nyetableringer-lista og vil jobbe videre med det, skal det bli søkbart
@@ -2649,8 +2594,6 @@ function overforNyeTilKunder(id){
   const n=nyetableringer.find(x=>x.id===id);if(!n)return;
   if(n.status==='Overført'){apneOverfortKundeFraNye(id);return;}
   if(!confirm(`Overføre «${n.tittel}» til Kunder?\n\nSelskapet blir søkbart under Kunder-fanen (samme sted som Visma-kunder), med et eget kundekort og «Salg & oppfølging»-loggen samlet der i stedet for her. Historikken du eventuelt har lagt inn her blir med over som en innledende oppføring.`))return;
-
-  closeNyeDetaljModal();
 
   const loggTekst=(n.logg||[]).slice().sort((a,b)=>new Date(a.dato)-new Date(b.dato))
     .map(l=>`${new Date(l.dato).toLocaleDateString('nb-NO')} (${l.forfatter||'Ukjent'}): ${l.tekst}`).join('\n');
