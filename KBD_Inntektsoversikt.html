@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.46.2 · Oppdatert: 27. aug 2026 kl. 16:02</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.47.0 · Oppdatert: 28. aug 2026 kl. 07:17</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -449,9 +449,15 @@ tr:hover td{background:#fafafa}
       <!-- Undermeny lagt til 25.08.2026: skiller dagens kundesøk/-oppfølging
            ("Kunder") fra den nye leadgenererings-lista fra Brønnøysund
            ("Nyetableringer") — samme nav-sub/toggleXSub-mønster som
-           Lisenser/Kickback/Utleie/Arbeidstid/Innstillinger allerede bruker. -->
+           Lisenser/Kickback/Utleie/Arbeidstid/Innstillinger allerede bruker.
+           28.08.2026: "Kunder" peker nå på den nye samlede kundesaker-fanen
+           (tp-kundesaker, sorterbar oversikt over alle Notat/Tilbud/
+           Oppfølging på tvers av kunder) i stedet for søke-/kundekortsiden
+           (tp-kunder) — på Thomas' eksplisitte ønske om at hovedpunktet
+           "Kunde360 (BETA)" over skal beholde søke-/kundekortsiden uendret
+           for seg selv, som en egen forside til videre utvikling senere. -->
       <div class="nav-sub" id="kunder360-sub-nav">
-        <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kunder',document.getElementById('tab-kunder'))">🧑‍💼 Kunder</div>
+        <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kundesaker',document.getElementById('tab-kunder'))">🗂️ Kunder</div>
         <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="showTab('nyetableringer',document.getElementById('tab-kunder'))">🏢 Nyetableringer</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
@@ -544,6 +550,26 @@ tr:hover td{background:#fafafa}
     <div id="k360-oversikt"></div>
     <div id="k360-resultater"></div>
     <div id="k360-kort"></div>
+  </div>
+
+  <!-- KUNDESAKER (lagt til 28.08.2026) — samlet, sorterbar oversikt over ALLE
+       Notat/Tilbud/Oppfølging på tvers av kunder, uavhengig av hvilken kunde de
+       hører til. Formålet er en rask "hvilke saker har jeg/vi gående"-oversikt,
+       til forskjell fra "Kunde 360 — søk" (tp-kunder) som er organisert PER
+       kunde og krever at man vet/søker opp firmaet først. Egen fane på Thomas'
+       eksplisitte ønske 28.08.2026 — "Kunder" i undermenyen peker nå hit,
+       mens selve "Kunde360 (BETA)"-hovedpunktet fortsatt åpner tp-kunder som
+       før (uendret, forbeholdt videre utvikling senere). Leser samme
+       kundeNotater-datagrunnlag som kundekortets "Salg & oppfølging"-fane —
+       ingen ny SharePoint-liste. -->
+  <div id="tp-kundesaker" class="tp">
+    <div class="card">
+      <div class="card-title">🗂️ Kundesaker — alle Notat/Tilbud/Oppfølging</div>
+      <div class="hint">Samlet oversikt over alle salgsnotater, tilbud og oppfølginger på tvers av alle kunder — uavhengig av hvem som opprettet dem. Klikk en kolonneoverskrift for å sortere, eller bruk filtrene under for å se kun én type eller én ansvarlig.</div>
+      <div class="filters" id="kundesaker-filters" style="margin-top:10px"></div>
+      <div id="kundesaker-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
+    </div>
+    <div id="kundesaker-tabell"></div>
   </div>
 
   <!-- NYETABLERINGER (leadgenerering fra Brønnøysund, lagt til 25.08.2026) —
@@ -2646,8 +2672,12 @@ function toggleKunder360Sub(open){
 
 function setKunder360SubActive(view){
   document.querySelectorAll('#kunder360-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  const el=document.getElementById(view==='nyetableringer'?'ksub360-nyetableringer':'ksub360-kunder');
-  if(el)el.classList.add('active');
+  // 'kunder' (søke-/kundekortsiden, nås nå kun via selve "Kunde360 (BETA)"-
+  // hovedpunktet) har bevisst INGEN tilsvarende underpunkt lenger — se
+  // kommentaren ved kunder360-sub-nav i HTML-en. Ingen av underpunktene
+  // markeres da aktive, siden ingen av dem faktisk viser innholdet man ser.
+  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':null;
+  if(id){const el=document.getElementById(id);if(el)el.classList.add('active');}
 }
 
 // Produktnøkkelord vi teller aktive avtaler for — basert på kontraktBeskrivelse.
@@ -3020,6 +3050,146 @@ function lagreProspektKontaktinfo(nyetableringId){
 // salgTilgang=true (egen tilgangsflagg, se Innstillinger → Brukertilgang) kan
 // legge til/redigere/lukke/slette — alle andre med tilgang til Kunde 360 kan lese.
 const K360_NOTAT_FARGER={Notat:{c:'#6b7280',bg:'#f3f4f6'},Tilbud:{c:'#6d28d9',bg:'#f5f0ff'},Oppfølging:{c:'#0f766e',bg:'#effaf8'}};
+
+// ===== KUNDESAKER (lagt til 28.08.2026) =====
+// Samlet, sorterbar oversikt over ALLE Notat/Tilbud/Oppfølging på tvers av
+// kunder (motsatt av kundekortets "Salg & oppfølging"-fane, som viser dette
+// PER kunde). Formål: en rask "hvilke saker har jeg/vi gående"-oversikt uten
+// å måtte søke opp hver enkelt kunde for seg. Leser samme kundeNotater/
+// K360_NOTAT_FARGER som resten av Salg & oppfølging-funksjonaliteten over —
+// ingen ny SharePoint-liste, ingen nye felt. "Ansvarlig" i UI-et er samme
+// person som opprettet oppføringen (n.opprettetAv) — det finnes ikke noe eget
+// tildelings-/eierskapsfelt i datamodellen ennå, kun "hvem skrev dette".
+// Sortering: samme mønster som Utleie-fanens sortUtleieBy()/sh-*-spennene.
+let kundesakerSort={col:'forfallsdato',dir:'asc'};
+let kundesakerTypeFilter='alle'; // 'alle'/'Notat'/'Tilbud'/'Oppfølging'
+let kundesakerBrukerFilter='alle';
+let kundesakerVisLukkede=false;
+
+function sortKundesakerBy(col){
+  if(kundesakerSort.col===col){kundesakerSort.dir=kundesakerSort.dir==='asc'?'desc':'asc';}else{kundesakerSort.col=col;kundesakerSort.dir='asc';}
+  renderKundesaker();
+}
+function setKundesakerTypeFilter(t){kundesakerTypeFilter=t;renderKundesaker();}
+function setKundesakerBrukerFilter(b){kundesakerBrukerFilter=b;renderKundesaker();}
+function setKundesakerVisLukkede(v){kundesakerVisLukkede=v;renderKundesaker();}
+
+function renderKundesaker(){
+  const grunnlag=kundesakerVisLukkede?kundeNotater:kundeNotater.filter(n=>n.status==='Åpen');
+
+  const filterDiv=document.getElementById('kundesaker-filters');
+  if(filterDiv){
+    const antall=t=>t==='alle'?grunnlag.length:grunnlag.filter(n=>n.type===t).length;
+    const pill=(val,lbl,farge)=>`<button class="fpill${kundesakerTypeFilter===val?' f-on':''}" style="${kundesakerTypeFilter===val?`border-color:${farge}`:''}" onclick="setKundesakerTypeFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${kundesakerTypeFilter===val?`font-weight:600;color:${farge}`:''}">${lbl} (${antall(val)})</span></button>`;
+    filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Notat','Notat',K360_NOTAT_FARGER.Notat.c)+pill('Tilbud','Tilbud',K360_NOTAT_FARGER.Tilbud.c)+pill('Oppfølging','Oppfølging',K360_NOTAT_FARGER.Oppfølging.c);
+  }
+
+  const dropdownDiv=document.getElementById('kundesaker-dropdown-filters');
+  if(dropdownDiv){
+    const brukerListe=[...new Set(kundeNotater.map(n=>n.opprettetAv).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nb'));
+    if(kundesakerBrukerFilter!=='alle'&&!brukerListe.includes(kundesakerBrukerFilter))kundesakerBrukerFilter='alle';
+    const opts=`<option value="alle"${kundesakerBrukerFilter==='alle'?' selected':''}>Alle ansvarlige</option>`+brukerListe.map(b=>`<option value="${b.replace(/"/g,'&quot;')}"${kundesakerBrukerFilter===b?' selected':''}>${b}</option>`).join('');
+    const lukketToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
+      <input type="checkbox" id="kundesaker-lukket-toggle" ${kundesakerVisLukkede?'checked':''} onchange="setKundesakerVisLukkede(this.checked)"/>
+      Vis også lukkede
+    </label>`;
+    const aktivtFilter=kundesakerTypeFilter!=='alle'||kundesakerBrukerFilter!=='alle'||kundesakerVisLukkede;
+    dropdownDiv.innerHTML=
+      `<select id="kundesaker-bruker-filter" onchange="setKundesakerBrukerFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts}</select>`+
+      lukketToggle+
+      (aktivtFilter?`<button class="btn-sm" onclick="nullstillKundesakerFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'');
+  }
+
+  const target=document.getElementById('kundesaker-tabell');
+  if(!target)return;
+
+  const alleKunder=[...vismaKunder,...hentProspektKunder()];
+  const finnKunde=n=>alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+
+  let rader=grunnlag.slice();
+  if(kundesakerTypeFilter!=='alle')rader=rader.filter(n=>n.type===kundesakerTypeFilter);
+  if(kundesakerBrukerFilter!=='alle')rader=rader.filter(n=>n.opprettetAv===kundesakerBrukerFilter);
+
+  if(rader.length===0){
+    target.innerHTML=`<div class="empty">Ingen ${kundesakerVisLukkede?'':'åpne '}saker matcher valgte filtre.</div>`;
+    return;
+  }
+
+  const dir=kundesakerSort.dir==='asc'?1:-1;
+  const navnFor=n=>n.kundeNavn||finnKunde(n)?.navn||'Ukjent kunde';
+  rader.sort((a,b)=>{
+    switch(kundesakerSort.col){
+      case 'firma': return dir*navnFor(a).localeCompare(navnFor(b));
+      case 'type': return dir*(a.type||'').localeCompare(b.type||'');
+      case 'tittel': return dir*(a.tittel||'').localeCompare(b.tittel||'');
+      case 'ansvarlig': return dir*(a.opprettetAv||'').localeCompare(b.opprettetAv||'');
+      case 'status': return dir*(a.status||'').localeCompare(b.status||'');
+      case 'forfallsdato': default: return dir*(new Date(a.forfallsdato||0)-new Date(b.forfallsdato||0));
+    }
+  });
+
+  const idag=new Date();
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+      <th style="cursor:pointer" onclick="sortKundesakerBy('firma')">Firma <span id="ksh-firma"></span></th>
+      <th style="cursor:pointer" onclick="sortKundesakerBy('type')">Type <span id="ksh-type"></span></th>
+      <th style="cursor:pointer" onclick="sortKundesakerBy('tittel')">Tittel <span id="ksh-tittel"></span></th>
+      <th style="cursor:pointer" onclick="sortKundesakerBy('ansvarlig')">Ansvarlig <span id="ksh-ansvarlig"></span></th>
+      <th style="cursor:pointer" onclick="sortKundesakerBy('forfallsdato')">Neste varsel/oppfølging <span id="ksh-forfallsdato"></span></th>
+      <th style="cursor:pointer" onclick="sortKundesakerBy('status')">Status <span id="ksh-status"></span></th>
+      <th></th>
+    </tr></thead><tbody>
+    ${rader.map(n=>{
+      const farge=K360_NOTAT_FARGER[n.type]||K360_NOTAT_FARGER.Notat;
+      const gyldigDato=n.forfallsdato&&!isNaN(new Date(n.forfallsdato));
+      const forfalt=gyldigDato&&n.status==='Åpen'&&new Date(n.forfallsdato)<idag;
+      const datoTxt=gyldigDato?new Date(n.forfallsdato).toLocaleDateString('nb-NO')+' kl. '+new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):'—';
+      return `<tr>
+        <td><strong>${navnFor(n)}</strong></td>
+        <td><span style="font-size:11px;font-weight:700;color:${farge.c};background:${farge.bg};padding:3px 9px;border-radius:20px;white-space:nowrap">${n.type}</span></td>
+        <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.tittel||'(uten tittel)'}</td>
+        <td>${n.opprettetAv||'—'}</td>
+        <td style="white-space:nowrap${forfalt?';color:#d03b3b;font-weight:600':''}">${forfalt?'⏰ ':''}${datoTxt}</td>
+        <td style="white-space:nowrap">${n.status==='Åpen'?'🟢 Åpen':'⚪ Lukket'}</td>
+        <td><button class="btn-sm" onclick="gaTilKundeFraSak('${n.id}')">Åpne</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table></div>`;
+
+  ['firma','type','tittel','ansvarlig','forfallsdato','status'].forEach(c=>{
+    const el=document.getElementById('ksh-'+c);
+    if(el)el.innerHTML=kundesakerSort.col===c?(kundesakerSort.dir==='asc'?'↑':'↓'):'↕';
+  });
+}
+
+function nullstillKundesakerFilter(){
+  kundesakerTypeFilter='alle';kundesakerBrukerFilter='alle';kundesakerVisLukkede=false;
+  renderKundesaker();
+}
+
+// Åpner kunden bak en gitt kundesak (samme kundekort-mekanisme som
+// varsel-bjellens gaTilNotatFraVarsel()), og fremhever selve
+// notat-/tilbuds-/oppfølgingskortet i "Salg & oppfølging"-fanen kort etterpå.
+// Fungerer også for prospekter overført fra Nyetableringer (hentProspektKunder()),
+// siden søkepoolen er den samme som searchKunder360() bruker.
+function gaTilKundeFraSak(id){
+  const n=kundeNotater.find(x=>x.id===id);
+  if(!n)return;
+  const alleKunder=[...vismaKunder,...hentProspektKunder()];
+  const kunde=alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+  if(!kunde){alert('Fant ikke kunden i Visma-synken (eller blant overførte prospekter) for denne saken — kan skyldes at kunden ikke er synkronisert ennå.');return;}
+  showTab('kunder',document.getElementById('tab-kunder'));
+  document.getElementById('k360-search').value=kunde.navn||'';
+  velgKunde360(kunde);
+  if(!n.spId)return;
+  setTimeout(()=>{
+    const el=document.getElementById('notat-'+n.spId);
+    if(!el)return;
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.style.transition='box-shadow .3s ease';
+    el.style.boxShadow='0 0 0 3px #f5a623';
+    setTimeout(()=>{el.style.boxShadow='';},3000);
+  },150);
+}
 
 // Liten tidslinje av daterte oppdateringer PÅ én oppføring (f.eks. flere
 // "ringte kunden"/"sendte tilbud"-innlegg på samme Tilbud over tid), i stedet
@@ -4488,7 +4658,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':name==='nyetableringer'?'kunder':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker')?'kunder':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -4496,7 +4666,7 @@ function showTab(name,btn){
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
-  toggleKunder360Sub(name==='kunder'||name==='nyetableringer');
+  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -4507,6 +4677,7 @@ function showTab(name,btn){
   if(name==='arbeidstid')showArbeidstidView('oversikt',document.getElementById('asub-oversikt'));
   if(name==='hjem')renderHjem();
   if(name==='kunder'){renderKunder360();setKunder360SubActive('kunder');}
+  if(name==='kundesaker'){renderKundesaker();setKunder360SubActive('kundesaker');}
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
