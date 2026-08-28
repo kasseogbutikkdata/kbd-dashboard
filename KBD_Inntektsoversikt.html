@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.47.1 · Oppdatert: 28. aug 2026 kl. 07:25</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.0 · Oppdatert: 28. aug 2026 kl. 07:36</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -544,6 +544,7 @@ tr:hover td{background:#fafafa}
       <div class="frow" style="margin-bottom:4px">
         <input type="text" id="k360-search" placeholder="Søk på org.nr (9 siffer) eller firmanavn…" style="flex:1" onkeydown="if(event.key==='Enter')searchKunder360()"/>
         <button class="prim" onclick="searchKunder360()">Søk</button>
+        <button class="btn-sm" id="k360-ny-kunde-btn" style="display:none" onclick="openNyKundeModal()" title="For kunder som tar kontakt selv og ikke finnes i Visma eller Nyetableringer ennå">➕ Ny kunde</button>
       </div>
       <div class="hint" id="k360-hint">Kundedata hentes fra Visma.net (synkes automatisk hver natt) og suppleres live med Brønnøysundregistrene.</div>
     </div>
@@ -568,6 +569,7 @@ tr:hover td{background:#fafafa}
       <div class="frow" style="margin-bottom:4px">
         <input type="text" id="kundesaker-search" placeholder="Søk på firmanavn eller tittel…" style="flex:1" oninput="setKundesakerSearch(this.value)" onkeydown="if(event.key==='Enter')setKundesakerSearch(this.value)"/>
         <button class="prim" onclick="setKundesakerSearch(document.getElementById('kundesaker-search').value)">Søk</button>
+        <button class="btn-sm" id="kundesaker-ny-kunde-btn" style="display:none" onclick="openNyKundeModal()" title="For kunder som tar kontakt selv og ikke finnes i Visma eller Nyetableringer ennå">➕ Ny kunde</button>
       </div>
       <div class="hint">Samlet oversikt over alle salgsnotater, tilbud og oppfølginger på tvers av alle kunder — uavhengig av hvem som opprettet dem. Klikk en kolonneoverskrift for å sortere, eller bruk filtrene under for å se kun én type eller én ansvarlig.</div>
       <div class="filters" id="kundesaker-filters" style="margin-top:10px"></div>
@@ -998,6 +1000,35 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeNotatModal()">Avbryt</button>
         <button class="prim" onclick="saveNotat()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NY KUNDE (manuell registrering, lagt til 28.08.2026) MODAL — for kunder
+       som tar kontakt selv og ikke finnes i Visma eller Nyetableringer ennå.
+       Se openNyKundeModal()/lagreNyKunde(). -->
+  <div class="modal-overlay" id="ny-kunde-modal" onclick="if(event.target===this)closeNyKundeModal()">
+    <div class="modal" style="max-width:520px">
+      <h3 style="margin-bottom:4px">➕ Ny kunde/case</h3>
+      <div class="hint" style="margin-bottom:14px">For kunder som tar kontakt selv (telefon/e-post) og som ikke allerede finnes i Visma eller Nyetableringer-lista. Opprettes umiddelbart som en søkbar kunde i Kunde 360, med et eget kundekort du kan legge notater/tilbud/oppfølging på.</div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Firmanavn *</label><input type="text" id="nk-navn" placeholder="Firmanavn"/></div>
+      <div class="fg" style="grid-template-columns:1fr auto;margin-bottom:10px;align-items:end;gap:8px">
+        <div class="fgrp" style="margin-bottom:0"><label>Org.nr (valgfritt)</label><input type="text" id="nk-orgnr" placeholder="9 siffer" maxlength="9"/></div>
+        <button class="btn-sm" onclick="hentBrregForNyKunde()">🔎 Hent fra Brreg</button>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Adresse</label><input type="text" id="nk-adresse" placeholder="Gate/vei og nr"/></div>
+      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>Postnummer</label><input type="text" id="nk-postnr" placeholder="0000"/></div>
+        <div class="fgrp"><label>Poststed</label><input type="text" id="nk-poststed" placeholder="Sted"/></div>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>Kontaktperson</label><input type="text" id="nk-kontakt-navn" placeholder="Navn"/></div>
+        <div class="fgrp"><label>Telefon</label><input type="text" id="nk-kontakt-telefon" placeholder="12345678"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>E-post</label><input type="email" id="nk-kontakt-epost" placeholder="navn@firma.no"/></div>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeNyKundeModal()">Avbryt</button>
+        <button class="prim" onclick="lagreNyKunde()">Opprett</button>
       </div>
     </div>
   </div>
@@ -2007,6 +2038,8 @@ function renderKunder360(){
   renderKunder360Oversikt();
   document.getElementById('k360-resultater').innerHTML='';
   if(k360Valgt)renderKundeKort(k360Valgt);
+  const nyKundeBtn=document.getElementById('k360-ny-kunde-btn');
+  if(nyKundeBtn)nyKundeBtn.style.display=salgTilgang?'':'none';
 }
 
 // "Sett"-sporing for varsler (lagt til 24.08.2026): når du klikker deg inn på
@@ -2604,20 +2637,30 @@ function settNyStatus(id,status){
 function prospektKundenummer(n){return 'LEAD-'+(n.orgNr||n.spId||n.id);}
 
 function hentProspektKunder(){
-  return nyetableringer.filter(n=>n.status==='Overført').map(n=>({
-    id:'lead-'+n.id,
-    vismaNummer:prospektKundenummer(n),
-    navn:n.tittel||'(uten navn)',
-    orgNr:n.orgNr||'',
-    status:'🆕 Ny etablering',
-    adresse:n.adresse||'',
-    postnr:n.postnummer||'',
-    sted:n.poststed||n.kommune||'',
-    kontaktNavn:n.kontaktNavn||'',kontaktEpost:n.kontaktEpost||'',kontaktTelefon:n.kontaktTelefon||'',
-    kundeklasse:'',kredittgrense:0,kredittDagerForfalt:0,
-    saldo:0,saldoForfalt:0,sistOppdatertVisma:'',sistSynkronisert:'',
-    erProspekt:true,nyetableringId:n.id
-  }));
+  // manueltOpprettet: skiller "🆕 Ny etablering" (kom via Nyetableringer/Brreg)
+  // fra "📞 Manuelt registrert" (opprettet direkte via lagreNyKunde(), lagt til
+  // 28.08.2026, for kunder som tar kontakt selv). Ingen ny SharePoint-kolonne —
+  // bruker at RegistreringsDato ALLTID er satt av backend for ekte Brreg-
+  // funn (_til_item_felter() i nyetableringer.py), men aldri for en manuelt
+  // opprettet rad.
+  return nyetableringer.filter(n=>n.status==='Overført').map(n=>{
+    const manueltOpprettet=!n.registreringsDato;
+    return{
+      id:'lead-'+n.id,
+      vismaNummer:prospektKundenummer(n),
+      navn:n.tittel||'(uten navn)',
+      orgNr:n.orgNr||'',
+      status:manueltOpprettet?'📞 Manuelt registrert':'🆕 Ny etablering',
+      manueltOpprettet,
+      adresse:n.adresse||'',
+      postnr:n.postnummer||'',
+      sted:n.poststed||n.kommune||'',
+      kontaktNavn:n.kontaktNavn||'',kontaktEpost:n.kontaktEpost||'',kontaktTelefon:n.kontaktTelefon||'',
+      kundeklasse:'',kredittgrense:0,kredittDagerForfalt:0,
+      saldo:0,saldoForfalt:0,sistOppdatertVisma:'',sistSynkronisert:'',
+      erProspekt:true,nyetableringId:n.id
+    };
+  });
 }
 
 function overforNyeTilKunder(id){
@@ -2854,7 +2897,13 @@ function searchKunder360(){
   }
 
   if(treff.length===0){
-    resDiv.innerHTML=`<div class="card"><div class="empty">Ingen treff på «${raw}».</div></div>`;
+    // Var søket et gyldig org.nr (9 siffer)? Forhåndsutfyll da org.nr-feltet i
+    // stedet for firmanavn-feltet i "Ny kunde"-modalen — raw er et tallsett,
+    // ikke et firmanavn, i det tilfellet.
+    const erOrgNrSok=orgNrSok.length===9;
+    const navnArg=erOrgNrSok?'':raw.replace(/'/g,"\\'");
+    const orgnrArg=erOrgNrSok?orgNrSok:'';
+    resDiv.innerHTML=`<div class="card"><div class="empty">Ingen treff på «${raw}».${salgTilgang?`<div style="margin-top:10px"><button class="btn-sm" onclick="openNyKundeModal('${navnArg}','${orgnrArg}')">➕ Opprett som ny kunde</button></div>`:''}</div></div>`;
     return;
   }
   if(treff.length===1){velgKunde360(treff[0]);return;}
@@ -2992,19 +3041,19 @@ function renderProspektKundeKort(k){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div>
           <div style="font-size:34px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.15">${k.navn||'(uten navn)'}</div>
-          <div class="muted">Org.nr ${k.orgNr||'ukjent'} · 🆕 Ny etablering — ikke registrert som kunde i Visma ennå</div>
+          <div class="muted">Org.nr ${k.orgNr||'ukjent'} · ${k.manueltOpprettet?'📞 Manuelt registrert':'🆕 Ny etablering'} — ikke registrert som kunde i Visma ennå</div>
         </div>
       </div>
 
-      <div class="hint" style="margin-bottom:16px">Overført fra «🏢 Nyetableringer» under Kunde 360. Viser derfor ikke omsetning, avtaler eller Visma-kontaktinfo — det finnes ikke ennå. Den dagen selskapet faktisk blir Visma-kunde, dukker et ordinært kundekort opp ved neste nattlige synk, og notatene under kan flyttes manuelt over til riktig Visma-kundenummer.</div>
+      <div class="hint" style="margin-bottom:16px">${k.manueltOpprettet?'Opprettet manuelt (f.eks. en kunde som tok kontakt selv) — ikke hentet fra Nyetableringer/Brønnøysund.':'Overført fra «🏢 Nyetableringer» under Kunde 360.'} Viser derfor ikke omsetning, avtaler eller Visma-kontaktinfo — det finnes ikke ennå. Den dagen selskapet faktisk blir Visma-kunde, dukker et ordinært kundekort opp ved neste nattlige synk, og notatene under kan flyttes manuelt over til riktig Visma-kundenummer.</div>
 
       ${renderKundeNotaterHTML(k)}
 
       <p class="sec-title">Kontaktinfo</p>
-      <div class="hint" style="margin-bottom:8px">Adressen er hentet fra Brønnøysundregisteret. Kontaktperson/e-post/telefon finnes ikke der — legg inn manuelt etter hvert som dere får det fra selskapet.</div>
+      <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
       <div class="tbl-wrap" style="margin-bottom:20px">
         <table><tbody>
-          <tr><td class="muted" style="width:160px">Adresse (Brreg)</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
+          <tr><td class="muted" style="width:160px">Adresse${k.manueltOpprettet?'':' (Brreg)'}</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
           <tr><td class="muted">Kontaktperson</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-navn" value="${(k.kontaktNavn||'').replace(/"/g,'&quot;')}" placeholder="Navn" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktNavn||'—')}</td></tr>
           <tr><td class="muted">E-post</td><td>${salgTilgang?`<input type="email" id="prospekt-kontakt-epost" value="${(k.kontaktEpost||'').replace(/"/g,'&quot;')}" placeholder="navn@firma.no" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktEpost||'—')}</td></tr>
           <tr><td class="muted">Telefon</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-telefon" value="${(k.kontaktTelefon||'').replace(/"/g,'&quot;')}" placeholder="12345678" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktTelefon||'—')}</td></tr>
@@ -3047,6 +3096,93 @@ function lagreProspektKontaktinfo(nyetableringId){
   }
 }
 
+// ===== NY KUNDE (manuell registrering, lagt til 28.08.2026) =====
+// For kunder som tar kontakt selv (telefon/e-post) og som verken finnes i
+// Visma-synken eller i Nyetableringer-lista ennå. I stedet for å bygge en
+// helt ny datamodell/SharePoint-liste for dette, gjenbrukes nøyaktig samme
+// mekanisme som "➡️ Overfør"-knappen på Nyetableringer allerede har: en ny
+// rad opprettes direkte i SharePoint-lista "Nyetableringer" med
+// Status="Overført" fra start, og dukker dermed umiddelbart opp som en
+// søkbar prospekt-"kunde" i Kunde 360 via hentProspektKunder() — helt likt en
+// nyetablering som noen har ringt til og overført manuelt, bare uten
+// mellomsteget. Skiller seg fra en ekte Brreg-nyetablering ved at
+// RegistreringsDato aldri settes (se manueltOpprettet-logikken i
+// hentProspektKunder() over).
+function openNyKundeModal(forhaandsutfyltNavn,forhaandsutfyltOrgnr){
+  document.getElementById('nk-navn').value=forhaandsutfyltNavn||'';
+  document.getElementById('nk-orgnr').value=forhaandsutfyltOrgnr||'';
+  document.getElementById('nk-adresse').value='';
+  document.getElementById('nk-postnr').value='';
+  document.getElementById('nk-poststed').value='';
+  document.getElementById('nk-kontakt-navn').value='';
+  document.getElementById('nk-kontakt-epost').value='';
+  document.getElementById('nk-kontakt-telefon').value='';
+  document.getElementById('ny-kunde-modal').classList.add('open');
+}
+function closeNyKundeModal(){document.getElementById('ny-kunde-modal').classList.remove('open');}
+
+// Valgfri hjelp: slår opp org.nr mot Brreg og forhåndsutfyller navn/adresse —
+// samme to-endepunkts mønster (enheter/underenheter) som resten av appen.
+// Rent en snarvei; feltene kan alltid fylles inn manuelt uansett utfall.
+async function hentBrregForNyKunde(){
+  const nr=normOrgNr(document.getElementById('nk-orgnr').value);
+  if(nr.length!==9){alert('Skriv inn et gyldig org.nr (9 siffer) i feltet over først — eller la det stå tomt og fyll inn resten manuelt.');return;}
+  try{
+    let enhet=null;
+    for(const endepunkt of['enheter','underenheter']){
+      const res=await fetch(`https://data.brreg.no/enhetsregisteret/api/${endepunkt}/${nr}`);
+      if(res.ok){enhet=await res.json();break;}
+    }
+    if(!enhet){alert('Fant ingen enhet med dette org.nummeret i Brønnøysundregisteret. Sjekk nummeret, eller fyll inn resten manuelt.');return;}
+    if(!document.getElementById('nk-navn').value.trim())document.getElementById('nk-navn').value=enhet.navn||'';
+    const adr=enhet.forretningsadresse||enhet.beliggenhetsadresse||{};
+    document.getElementById('nk-adresse').value=(adr.adresse||[]).join(' ');
+    document.getElementById('nk-postnr').value=adr.postnummer||'';
+    document.getElementById('nk-poststed').value=adr.poststed||'';
+  }catch(e){
+    alert('Klarte ikke hente fra Brønnøysundregisteret akkurat nå:\n'+e.message+'\n\nDu kan fylle inn feltene manuelt i stedet.');
+  }
+}
+
+async function lagreNyKunde(){
+  const navn=document.getElementById('nk-navn').value.trim();
+  if(!navn){alert('Firmanavn er påkrevd.');return;}
+  const orgnr=normOrgNr(document.getElementById('nk-orgnr').value);
+  if(orgnr&&orgnr.length!==9){alert('Org.nr må være 9 siffer, eller la feltet stå helt tomt.');return;}
+  // Varsler (ikke blokkerer) hvis org.nummeret allerede finnes et annet sted,
+  // slik at man ikke ved et uhell oppretter en duplikat-case for en kunde/lead
+  // som allerede ligger i Visma eller Nyetableringer fra før.
+  if(orgnr){
+    const finnesAllerede=[...vismaKunder,...nyetableringer].some(k=>normOrgNr(k.orgNr)===orgnr);
+    if(finnesAllerede&&!confirm('Dette org.nummeret finnes allerede blant Visma-kundene eller i Nyetableringer-lista fra før. Opprette likevel som en ny, separat case?'))return;
+  }
+  const felter={
+    Title:navn,OrgNr:orgnr,
+    Adresse:document.getElementById('nk-adresse').value.trim(),
+    Postnummer:document.getElementById('nk-postnr').value.trim(),
+    Poststed:document.getElementById('nk-poststed').value.trim(),
+    Status:'Overført',
+    KontaktpersonNavn:document.getElementById('nk-kontakt-navn').value.trim(),
+    KontaktEpost:document.getElementById('nk-kontakt-epost').value.trim(),
+    KontaktTelefon:document.getElementById('nk-kontakt-telefon').value.trim()
+  };
+  setSPStatus('⏳ Oppretter…');
+  try{
+    const r=await spCreate('Nyetableringer',felter);
+    const nyRad={id:`sp${r.id}`,spId:r.id,orgNr:orgnr,tittel:navn,naeringskode:'',naeringsBeskrivelse:'',selskapsform:'',selskapsformBeskrivelse:'',kommune:'',adresse:felter.Adresse,postnummer:felter.Postnummer,poststed:felter.Poststed,registreringsDato:'',status:'Overført',kontaktNavn:felter.KontaktpersonNavn,kontaktEpost:felter.KontaktEpost,kontaktTelefon:felter.KontaktTelefon,logg:[]};
+    nyetableringer.push(nyRad);
+    setSPStatus('✅ Opprettet');setTimeout(()=>setSPStatus(''),3000);
+    closeNyKundeModal();
+    const kunde=hentProspektKunder().find(k=>k.nyetableringId===nyRad.id);
+    showTab('kunder',document.getElementById('tab-kunder'));
+    document.getElementById('k360-search').value=navn;
+    if(kunde)velgKunde360(kunde);
+  }catch(e){
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Kunne ikke opprette ny kunde i SharePoint:\n'+e.message);
+  }
+}
+
 // ===== SALG & OPPFØLGING =====
 // Felles logg (notater/tilbud/oppfølging) synlig for hele KBD på kundekortet —
 // ikke bare salgsavdelingens eget CRM. Lagres i SharePoint-listen "KundeNotater"
@@ -3081,6 +3217,9 @@ function setKundesakerVisLukkede(v){kundesakerVisLukkede=v;renderKundesaker();}
 function setKundesakerSearch(v){kundesakerSearch=(v||'').trim().toLowerCase();renderKundesaker();}
 
 function renderKundesaker(){
+  const nyKundeBtn=document.getElementById('kundesaker-ny-kunde-btn');
+  if(nyKundeBtn)nyKundeBtn.style.display=salgTilgang?'':'none';
+
   const grunnlag=kundesakerVisLukkede?kundeNotater:kundeNotater.filter(n=>n.status==='Åpen');
 
   const filterDiv=document.getElementById('kundesaker-filters');
