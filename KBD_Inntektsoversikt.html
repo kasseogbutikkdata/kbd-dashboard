@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.8 · Oppdatert: 28. aug 2026 kl. 10:48</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.9 · Oppdatert: 28. aug 2026 kl. 13:21</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3277,7 +3277,10 @@ function renderKundesaker(){
   if(kundesakerSearch)rader=rader.filter(n=>navnFor(n).toLowerCase().includes(kundesakerSearch)||(n.tittel||'').toLowerCase().includes(kundesakerSearch));
 
   if(rader.length===0){
-    target.innerHTML=`<div class="empty">Ingen ${kundesakerVisLukkede?'':'åpne '}saker matcher valgte filtre${kundesakerSearch?'/søket':''}.</div>`;
+    target.innerHTML=`<div class="empty">Ingen ${kundesakerVisLukkede?'':'åpne '}saker matcher valgte filtre${kundesakerSearch?'/søket':''}.
+      ${kundesakerSearch?`<div style="margin-top:10px"><button class="btn-sm" onclick="sokBrregEtterFirmanavn('${kundesakerSearch.replace(/'/g,"\\'")}')">🔎 Søk «${kundesakerSearch}» i Brønnøysundregisteret</button></div>
+      <div id="kundesaker-brreg-treff" style="margin-top:10px;text-align:left"></div>`:''}
+    </div>`;
     return;
   }
 
@@ -3328,6 +3331,50 @@ function renderKundesaker(){
     const el=document.getElementById('ksh-'+c);
     if(el)el.innerHTML=kundesakerSort.col===c?(kundesakerSort.dir==='asc'?'↑':'↓'):'↕';
   });
+}
+
+// Søk i Brønnøysundregisteret på firmanavn — vises som et alternativ når et
+// søk på Kundesaker-siden ikke gir treff blant eksisterende saker (kunden har
+// rett og slett ingen registrert sak ennå). Helt åpent API, ingen nøkkel —
+// samme kilde (data.brreg.no) som resten av Brreg-oppslagene i appen, og
+// samme «kun ved eksplisitt knappetrykk»-filosofi som Gule Sider/Proff-
+// lenkene (ingen automatisk oppslag mens man skriver). Lagt til 28.08.2026.
+// Slår opp BÅDE /enheter og /underenheter, samme to-endepunkts-mønster som
+// resten av appens Brreg-oppslag, siden Nyetableringer/nye kunder kan være
+// begge deler.
+async function sokBrregEtterFirmanavn(navn){
+  const target=document.getElementById('kundesaker-brreg-treff');
+  if(!target)return;
+  const q=(navn||'').trim();
+  if(q.length<2){target.innerHTML='<div class="empty">Skriv minst 2 tegn for å søke.</div>';return;}
+  target.innerHTML='<div class="empty">Søker i Brønnøysundregisteret…</div>';
+  try{
+    const[enhRes,underRes]=await Promise.all([
+      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter?navn=${encodeURIComponent(q)}&size=10`),
+      fetch(`https://data.brreg.no/enhetsregisteret/api/underenheter?navn=${encodeURIComponent(q)}&size=10`)
+    ]);
+    const enhData=enhRes.ok?await enhRes.json():null;
+    const underData=underRes.ok?await underRes.json():null;
+    const treff=[...((enhData?._embedded?.enheter)||[]),...((underData?._embedded?.underenheter)||[])];
+    if(treff.length===0){
+      target.innerHTML=`<div class="empty">Ingen treff i Brønnøysundregisteret på «${q}».</div>`;
+      return;
+    }
+    target.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Firma</th><th>Org.nr</th><th>Sted</th><th></th></tr></thead><tbody>
+      ${treff.slice(0,15).map(e=>{
+        const adr=e.forretningsadresse||e.beliggenhetsadresse||{};
+        const navnArg=(e.navn||'').replace(/'/g,"\\'");
+        return `<tr>
+          <td>${e.navn||'—'}</td>
+          <td>${e.organisasjonsnummer||'—'}</td>
+          <td>${adr.poststed||'—'}</td>
+          <td>${salgTilgang?`<button class="btn-sm" onclick="openNyKundeModal('${navnArg}','${e.organisasjonsnummer||''}')">➕ Opprett som ny kunde</button>`:''}</td>
+        </tr>`;
+      }).join('')}
+    </tbody></table></div>`;
+  }catch(e){
+    target.innerHTML=`<div class="empty">Klarte ikke søke i Brønnøysundregisteret: ${e.message}</div>`;
+  }
 }
 
 function nullstillKundesakerFilter(){
