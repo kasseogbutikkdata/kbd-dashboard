@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.47.0 · Oppdatert: 28. aug 2026 kl. 07:17</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.47.1 · Oppdatert: 28. aug 2026 kl. 07:25</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -565,6 +565,10 @@ tr:hover td{background:#fafafa}
   <div id="tp-kundesaker" class="tp">
     <div class="card">
       <div class="card-title">🗂️ Kundesaker — alle Notat/Tilbud/Oppfølging</div>
+      <div class="frow" style="margin-bottom:4px">
+        <input type="text" id="kundesaker-search" placeholder="Søk på firmanavn eller tittel…" style="flex:1" oninput="setKundesakerSearch(this.value)" onkeydown="if(event.key==='Enter')setKundesakerSearch(this.value)"/>
+        <button class="prim" onclick="setKundesakerSearch(document.getElementById('kundesaker-search').value)">Søk</button>
+      </div>
       <div class="hint">Samlet oversikt over alle salgsnotater, tilbud og oppfølginger på tvers av alle kunder — uavhengig av hvem som opprettet dem. Klikk en kolonneoverskrift for å sortere, eller bruk filtrene under for å se kun én type eller én ansvarlig.</div>
       <div class="filters" id="kundesaker-filters" style="margin-top:10px"></div>
       <div id="kundesaker-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
@@ -3063,8 +3067,9 @@ const K360_NOTAT_FARGER={Notat:{c:'#6b7280',bg:'#f3f4f6'},Tilbud:{c:'#6d28d9',bg
 // Sortering: samme mønster som Utleie-fanens sortUtleieBy()/sh-*-spennene.
 let kundesakerSort={col:'forfallsdato',dir:'asc'};
 let kundesakerTypeFilter='alle'; // 'alle'/'Notat'/'Tilbud'/'Oppfølging'
-let kundesakerBrukerFilter='alle';
+let kundesakerBrukerFilter='alle'; // 'alle' viser ALLE kollegers saker, ikke bare innlogget bruker — se renderKundesaker()
 let kundesakerVisLukkede=false;
+let kundesakerSearch=''; // fritekstsøk på firmanavn/tittel, samme "likt søkefelt"-ønske som Kunde 360-forsiden, 28.08.2026
 
 function sortKundesakerBy(col){
   if(kundesakerSort.col===col){kundesakerSort.dir=kundesakerSort.dir==='asc'?'desc':'asc';}else{kundesakerSort.col=col;kundesakerSort.dir='asc';}
@@ -3073,6 +3078,7 @@ function sortKundesakerBy(col){
 function setKundesakerTypeFilter(t){kundesakerTypeFilter=t;renderKundesaker();}
 function setKundesakerBrukerFilter(b){kundesakerBrukerFilter=b;renderKundesaker();}
 function setKundesakerVisLukkede(v){kundesakerVisLukkede=v;renderKundesaker();}
+function setKundesakerSearch(v){kundesakerSearch=(v||'').trim().toLowerCase();renderKundesaker();}
 
 function renderKundesaker(){
   const grunnlag=kundesakerVisLukkede?kundeNotater:kundeNotater.filter(n=>n.status==='Åpen');
@@ -3093,7 +3099,7 @@ function renderKundesaker(){
       <input type="checkbox" id="kundesaker-lukket-toggle" ${kundesakerVisLukkede?'checked':''} onchange="setKundesakerVisLukkede(this.checked)"/>
       Vis også lukkede
     </label>`;
-    const aktivtFilter=kundesakerTypeFilter!=='alle'||kundesakerBrukerFilter!=='alle'||kundesakerVisLukkede;
+    const aktivtFilter=kundesakerTypeFilter!=='alle'||kundesakerBrukerFilter!=='alle'||kundesakerVisLukkede||!!kundesakerSearch;
     dropdownDiv.innerHTML=
       `<select id="kundesaker-bruker-filter" onchange="setKundesakerBrukerFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts}</select>`+
       lukketToggle+
@@ -3103,26 +3109,31 @@ function renderKundesaker(){
   const target=document.getElementById('kundesaker-tabell');
   if(!target)return;
 
+  // Søkbar kunde-pool = ekte Visma-kunder + prospekter overført fra
+  // Nyetableringer, samme mønster som searchKunder360() — slik at "Ansvarlig"
+  // og firmanavnet stemmer uansett om Visma-synken har kjørt for kunden ennå.
   const alleKunder=[...vismaKunder,...hentProspektKunder()];
   const finnKunde=n=>alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+  const navnFor=n=>n.kundeNavn||finnKunde(n)?.navn||'Ukjent kunde';
 
   let rader=grunnlag.slice();
   if(kundesakerTypeFilter!=='alle')rader=rader.filter(n=>n.type===kundesakerTypeFilter);
   if(kundesakerBrukerFilter!=='alle')rader=rader.filter(n=>n.opprettetAv===kundesakerBrukerFilter);
+  if(kundesakerSearch)rader=rader.filter(n=>navnFor(n).toLowerCase().includes(kundesakerSearch)||(n.tittel||'').toLowerCase().includes(kundesakerSearch));
 
   if(rader.length===0){
-    target.innerHTML=`<div class="empty">Ingen ${kundesakerVisLukkede?'':'åpne '}saker matcher valgte filtre.</div>`;
+    target.innerHTML=`<div class="empty">Ingen ${kundesakerVisLukkede?'':'åpne '}saker matcher valgte filtre${kundesakerSearch?'/søket':''}.</div>`;
     return;
   }
 
   const dir=kundesakerSort.dir==='asc'?1:-1;
-  const navnFor=n=>n.kundeNavn||finnKunde(n)?.navn||'Ukjent kunde';
   rader.sort((a,b)=>{
     switch(kundesakerSort.col){
       case 'firma': return dir*navnFor(a).localeCompare(navnFor(b));
       case 'type': return dir*(a.type||'').localeCompare(b.type||'');
       case 'tittel': return dir*(a.tittel||'').localeCompare(b.tittel||'');
       case 'ansvarlig': return dir*(a.opprettetAv||'').localeCompare(b.opprettetAv||'');
+      case 'opprettet': return dir*(new Date(a.opprettetDato||0)-new Date(b.opprettetDato||0));
       case 'status': return dir*(a.status||'').localeCompare(b.status||'');
       case 'forfallsdato': default: return dir*(new Date(a.forfallsdato||0)-new Date(b.forfallsdato||0));
     }
@@ -3134,6 +3145,7 @@ function renderKundesaker(){
       <th style="cursor:pointer" onclick="sortKundesakerBy('type')">Type <span id="ksh-type"></span></th>
       <th style="cursor:pointer" onclick="sortKundesakerBy('tittel')">Tittel <span id="ksh-tittel"></span></th>
       <th style="cursor:pointer" onclick="sortKundesakerBy('ansvarlig')">Ansvarlig <span id="ksh-ansvarlig"></span></th>
+      <th style="cursor:pointer" onclick="sortKundesakerBy('opprettet')">Opprettet dato <span id="ksh-opprettet"></span></th>
       <th style="cursor:pointer" onclick="sortKundesakerBy('forfallsdato')">Neste varsel/oppfølging <span id="ksh-forfallsdato"></span></th>
       <th style="cursor:pointer" onclick="sortKundesakerBy('status')">Status <span id="ksh-status"></span></th>
       <th></th>
@@ -3143,11 +3155,13 @@ function renderKundesaker(){
       const gyldigDato=n.forfallsdato&&!isNaN(new Date(n.forfallsdato));
       const forfalt=gyldigDato&&n.status==='Åpen'&&new Date(n.forfallsdato)<idag;
       const datoTxt=gyldigDato?new Date(n.forfallsdato).toLocaleDateString('nb-NO')+' kl. '+new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):'—';
+      const opprettetTxt=n.opprettetDato&&!isNaN(new Date(n.opprettetDato))?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—';
       return `<tr>
         <td><strong>${navnFor(n)}</strong></td>
         <td><span style="font-size:11px;font-weight:700;color:${farge.c};background:${farge.bg};padding:3px 9px;border-radius:20px;white-space:nowrap">${n.type}</span></td>
         <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.tittel||'(uten tittel)'}</td>
         <td>${n.opprettetAv||'—'}</td>
+        <td style="white-space:nowrap">${opprettetTxt}</td>
         <td style="white-space:nowrap${forfalt?';color:#d03b3b;font-weight:600':''}">${forfalt?'⏰ ':''}${datoTxt}</td>
         <td style="white-space:nowrap">${n.status==='Åpen'?'🟢 Åpen':'⚪ Lukket'}</td>
         <td><button class="btn-sm" onclick="gaTilKundeFraSak('${n.id}')">Åpne</button></td>
@@ -3155,14 +3169,15 @@ function renderKundesaker(){
     }).join('')}
   </tbody></table></div>`;
 
-  ['firma','type','tittel','ansvarlig','forfallsdato','status'].forEach(c=>{
+  ['firma','type','tittel','ansvarlig','opprettet','forfallsdato','status'].forEach(c=>{
     const el=document.getElementById('ksh-'+c);
     if(el)el.innerHTML=kundesakerSort.col===c?(kundesakerSort.dir==='asc'?'↑':'↓'):'↕';
   });
 }
 
 function nullstillKundesakerFilter(){
-  kundesakerTypeFilter='alle';kundesakerBrukerFilter='alle';kundesakerVisLukkede=false;
+  kundesakerTypeFilter='alle';kundesakerBrukerFilter='alle';kundesakerVisLukkede=false;kundesakerSearch='';
+  const inp=document.getElementById('kundesaker-search');if(inp)inp.value='';
   renderKundesaker();
 }
 
