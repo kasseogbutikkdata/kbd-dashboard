@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.5 · Oppdatert: 28. aug 2026 kl. 09:56</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.6 · Oppdatert: 28. aug 2026 kl. 10:04</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2981,6 +2981,28 @@ function renderKundeKort(k){
         <div class="kpi" style="${k.saldoForfalt>0?'border-left:4px solid #d03b3b':''}"><div class="kpi-lbl">Herav forfalt</div><div class="kpi-val">${k.saldoForfalt?k.saldoForfalt.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
       </div>
 
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
+        <div>
+          <p class="sec-title">Kontaktinfo (Visma)</p>
+          <div class="tbl-wrap" style="margin-bottom:0">
+            <table><tbody>
+              <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
+              <tr><td class="muted">Kontaktperson</td><td>${k.kontaktNavn||'—'}</td></tr>
+              <tr><td class="muted">E-post</td><td>${k.kontaktEpost||'—'}</td></tr>
+              <tr><td class="muted">Telefon</td><td>${k.kontaktTelefon||'—'}</td></tr>
+              <tr><td class="muted">Sist oppdatert i Visma</td><td>${k.sistOppdatertVisma?new Date(k.sistOppdatertVisma).toLocaleDateString('nb-NO'):'—'}</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
+            <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>
+            <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>
+          </div>
+          <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
+        </div>
+      </div>
+
       ${renderKundeNotaterHTML(k)}
 
       <p class="sec-title">Aktive avtaler (${aktiveKontrakter.length})</p>
@@ -2999,23 +3021,6 @@ function renderKundeKort(k){
           </tbody></table>
         </div>
       </details>`:''}
-
-      <p class="sec-title">Kontaktinfo (Visma)</p>
-      <div class="tbl-wrap" style="margin-bottom:20px">
-        <table><tbody>
-          <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
-          <tr><td class="muted">Kontaktperson</td><td>${k.kontaktNavn||'—'}</td></tr>
-          <tr><td class="muted">E-post</td><td>${k.kontaktEpost||'—'}</td></tr>
-          <tr><td class="muted">Telefon</td><td>${k.kontaktTelefon||'—'}</td></tr>
-          <tr><td class="muted">Sist oppdatert i Visma</td><td>${k.sistOppdatertVisma?new Date(k.sistOppdatertVisma).toLocaleDateString('nb-NO'):'—'}</td></tr>
-        </tbody></table>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
-        <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>
-        <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>
-      </div>
-      <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:20px"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
 
       <div id="k360-nokkeltall"></div>
 
@@ -3048,25 +3053,30 @@ function renderProspektKundeKort(k){
 
       <div class="hint" style="margin-bottom:16px">${k.manueltOpprettet?'Opprettet manuelt (f.eks. en kunde som tok kontakt selv) — ikke hentet fra Nyetableringer/Brønnøysund.':'Overført fra «🏢 Nyetableringer» under Kunde 360.'} Viser derfor ikke omsetning, avtaler eller Visma-kontaktinfo — det finnes ikke ennå. Den dagen selskapet faktisk blir Visma-kunde, dukker et ordinært kundekort opp ved neste nattlige synk, og notatene under kan flyttes manuelt over til riktig Visma-kundenummer.</div>
 
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
+        <div>
+          <p class="sec-title">Kontaktinfo</p>
+          <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
+          <div class="tbl-wrap" style="margin-bottom:0">
+            <table><tbody>
+              <tr><td class="muted" style="width:160px">Adresse${k.manueltOpprettet?'':' (Brreg)'}</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
+              <tr><td class="muted">Kontaktperson</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-navn" value="${(k.kontaktNavn||'').replace(/"/g,'&quot;')}" placeholder="Navn" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktNavn||'—')}</td></tr>
+              <tr><td class="muted">E-post</td><td>${salgTilgang?`<input type="email" id="prospekt-kontakt-epost" value="${(k.kontaktEpost||'').replace(/"/g,'&quot;')}" placeholder="navn@firma.no" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktEpost||'—')}</td></tr>
+              <tr><td class="muted">Telefon</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-telefon" value="${(k.kontaktTelefon||'').replace(/"/g,'&quot;')}" placeholder="12345678" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktTelefon||'—')}</td></tr>
+            </tbody></table>
+            ${salgTilgang?`<div style="padding:10px 14px;border-top:1px solid #f3f4f6"><button class="btn-sm" onclick="lagreProspektKontaktinfo('${k.nyetableringId}')">💾 Lagre kontaktinfo</button></div>`:''}
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
+            <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>
+            <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>
+          </div>
+          <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
+        </div>
+      </div>
+
       ${renderKundeNotaterHTML(k)}
-
-      <p class="sec-title">Kontaktinfo</p>
-      <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
-      <div class="tbl-wrap" style="margin-bottom:20px">
-        <table><tbody>
-          <tr><td class="muted" style="width:160px">Adresse${k.manueltOpprettet?'':' (Brreg)'}</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
-          <tr><td class="muted">Kontaktperson</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-navn" value="${(k.kontaktNavn||'').replace(/"/g,'&quot;')}" placeholder="Navn" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktNavn||'—')}</td></tr>
-          <tr><td class="muted">E-post</td><td>${salgTilgang?`<input type="email" id="prospekt-kontakt-epost" value="${(k.kontaktEpost||'').replace(/"/g,'&quot;')}" placeholder="navn@firma.no" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktEpost||'—')}</td></tr>
-          <tr><td class="muted">Telefon</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-telefon" value="${(k.kontaktTelefon||'').replace(/"/g,'&quot;')}" placeholder="12345678" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktTelefon||'—')}</td></tr>
-        </tbody></table>
-        ${salgTilgang?`<div style="padding:10px 14px;border-top:1px solid #f3f4f6"><button class="btn-sm" onclick="lagreProspektKontaktinfo('${k.nyetableringId}')">💾 Lagre kontaktinfo</button></div>`:''}
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
-        <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>
-        <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>
-      </div>
-      <div id="k360-brreg" class="tbl-wrap"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
     </div>
   `;
   document.getElementById('k360-kort').innerHTML=html;
