@@ -61,7 +61,8 @@ button{font-family:inherit;cursor:pointer}
 .fg4b{grid-template-columns:100px 100px 1fr 1fr}
 .fgrp{display:flex;flex-direction:column;gap:4px}
 label{font-size:12px;color:#6b7280;font-weight:500}
-input[type=text],input[type=number],select{padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;font-size:14px;font-family:inherit;background:white;color:#111;width:100%}
+input[type=text],input[type=number],input[type=email],select{padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;font-size:14px;font-family:inherit;background:white;color:#111;width:100%}
+input[type=email]:invalid:not(:placeholder-shown):not(:focus){border-color:#d03b3b}
 input[type=date]{padding:9px 12px;border:1.5px solid #d0d5dd;border-radius:8px;font-size:14px;font-family:inherit;background:#f9fafb;color:#111;width:100%;transition:border-color .15s,background .15s,box-shadow .15s;color-scheme:light}
 input[type=date]:hover{border-color:#9ca3af;background:white}
 input[type=date]:focus{outline:none;border-color:#1A3A6B;background:white;box-shadow:0 0 0 3px rgba(26,58,107,.12)}
@@ -407,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.2 · Oppdatert: 28. aug 2026 kl. 07:44</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.3 · Oppdatert: 28. aug 2026 kl. 08:08</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
