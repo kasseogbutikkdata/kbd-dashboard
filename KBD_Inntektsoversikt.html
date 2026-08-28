@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.3 · Oppdatert: 28. aug 2026 kl. 08:08</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.4 · Oppdatert: 28. aug 2026 kl. 08:19</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3618,7 +3618,32 @@ function saveNotat(){
     kundeNotater.push(nyNotat);
     if(k360Valgt)renderKundeKort(k360Valgt);
     setSPStatus('⏳ Lagrer…');
-    spCreate('KundeNotater',notatFieldsPayload(nyNotat)).then(r=>{nyNotat.spId=r.id;nyNotat.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppføringen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);});
+    spCreate('KundeNotater',notatFieldsPayload(nyNotat)).then(r=>{
+      const midlertidigId=nyNotat.id;
+      nyNotat.spId=r.id;nyNotat.id=`sp${r.id}`;
+      setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+      // VIKTIG: kortet ble tegnet rett over (linje "if(k360Valgt)renderKundeKort")
+      // med den midlertidige "tmp…"-IDen bakt inn i alle onclick-attributter på
+      // kortet (Lukk/Rediger/Slett/Legg til-loggpost, se renderKundeNotaterHTML/
+      // renderNotatLoggHTML). Nå som objektets .id er byttet ut med den ekte
+      // SharePoint-IDen, vil ALLE disse knappene være "døde" (finner ingen
+      // match i kundeNotater ved klikk) helt til kortet tegnes på nytt — noe
+      // som ellers ikke skjer før man ved en tilfeldighet trigger en annen
+      // rendering (bytter fane og går tilbake, e.l.). Dette var årsaken til at
+      // "Legg til"-knappen for en logg-kommentar kunne slutte å reagere rett
+      // etter at en helt ny oppføring ble opprettet (oppdaget 28.08.2026).
+      // Bevarer en eventuell påbegynt logg-kommentar, siden re-rendering lager
+      // et helt nytt <input>-element.
+      if(k360Valgt){
+        const gammeltInput=document.getElementById('logg-input-'+midlertidigId);
+        const paabegynt=gammeltInput?gammeltInput.value:'';
+        renderKundeKort(k360Valgt);
+        if(paabegynt){
+          const nyttInput=document.getElementById('logg-input-'+nyNotat.id);
+          if(nyttInput)nyttInput.value=paabegynt;
+        }
+      }
+    }).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppføringen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);});
   }
   renderVarselMeny(); // varsel-bjellen skal reflektere endringen umiddelbart, ikke vente på neste 30-sekunders tikk
 }
