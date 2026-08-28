@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.6 · Oppdatert: 28. aug 2026 kl. 10:04</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.7 · Oppdatert: 28. aug 2026 kl. 10:44</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2520,7 +2520,6 @@ function renderNyetableringer(){
         </select>`}</td>
         <td style="white-space:nowrap"><div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center">
           ${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>`}
-          <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(n.tittel||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
         </div></td>
       </tr>`;
     }).join('')}
@@ -2983,7 +2982,10 @@ function renderKundeKort(k){
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
-          <p class="sec-title">Kontaktinfo (Visma)</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
+            <p class="sec-title" style="margin-bottom:0">Kontaktinfo (Visma)</p>
+            <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+          </div>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
               <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
@@ -3055,7 +3057,10 @@ function renderProspektKundeKort(k){
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
-          <p class="sec-title">Kontaktinfo</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
+            <p class="sec-title" style="margin-bottom:0">Kontaktinfo</p>
+            <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+          </div>
           <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
@@ -4170,10 +4175,19 @@ async function hentBrregInfo(orgNr){
     const enhet=await enhetRes.json();
     const roller=rollerRes.ok?await rollerRes.json():null;
 
-    const rollerHtml=(roller&&roller.rollegrupper)?roller.rollegrupper.map(g=>`
-      <div style="margin-bottom:6px"><strong>${g.type?.beskrivelse||g.type?.kode||'Rolle'}:</strong> ${
-        (g.roller||[]).map(r=>r.person?`${r.person.navn?.fornavn||''} ${r.person.navn?.etternavn||''}`.trim():((r.enhet?.navn||[]).join(', ')||'—')).join(', ')||'—'
-      }</div>`).join(''):'<div class="muted">Ingen rolleinformasjon tilgjengelig (eller enkeltpersonforetak uten styre).</div>';
+    // Daglig leder får i tillegg en direkte søkelenke til Proff.no (åpner i ny
+    // fane, ingen automatisk henting) — det er som regel akkurat den personen
+    // selgerne trenger å finne mer kontaktinfo om. Lagt til 28.08.2026.
+    const rollerHtml=(roller&&roller.rollegrupper)?roller.rollegrupper.map(g=>{
+      const erDagligLeder=g.type?.kode==='DAGL';
+      const navnListe=(g.roller||[]).map(r=>{
+        if(!r.person)return (r.enhet?.navn||[]).join(', ')||'—';
+        const navn=`${r.person.navn?.fornavn||''} ${r.person.navn?.etternavn||''}`.trim();
+        if(!navn)return '—';
+        return erDagligLeder?`${navn} <a href="https://www.proff.no/bransjes%C3%B8k?q=${encodeURIComponent(navn)}" target="_blank" rel="noopener" style="font-size:11px;color:#1A3A6B;text-decoration:none;white-space:nowrap" title="Søk «${navn}» på Proff.no (åpner i ny fane, ingen automatisk henting)">🔍 Proff</a>`:navn;
+      });
+      return `<div style="margin-bottom:6px"><strong>${g.type?.beskrivelse||g.type?.kode||'Rolle'}:</strong> ${navnListe.join(', ')||'—'}</div>`;
+    }).join(''):'<div class="muted">Ingen rolleinformasjon tilgjengelig (eller enkeltpersonforetak uten styre).</div>';
 
     target.innerHTML=`
       <table><tbody>
