@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.1 · Oppdatert: 28. aug 2026 kl. 07:40</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.2 · Oppdatert: 28. aug 2026 kl. 07:44</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3393,8 +3393,8 @@ function renderKundeNotaterHTML(k){
           ${forfalt?'<span style="font-size:11px;color:#d03b3b;font-weight:600">⚠️ Forfalt</span>':''}
           <span style="font-weight:600;font-size:13px;color:#111">${n.tittel||'(uten tittel)'}</span>
         </div>
-        ${salgTilgang?`<div class="action-btns">
-          <button class="btn-icon" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne':'Merk som lukket'}">${lukket?'↺':'✓'}</button>
+        ${salgTilgang?`<div class="action-btns" style="align-items:center">
+          <button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne saken':'Merk saken som lukket'}" style="white-space:nowrap">${lukket?'↺ Gjenåpne':'✓ Lukk'}</button>
           <button class="btn-icon" onclick="openRedigerNotat('${n.id}')" title="Rediger">✎</button>
           <button class="btn-icon del" onclick="deleteNotat('${n.id}')" title="Slett">✕</button>
         </div>`:''}
