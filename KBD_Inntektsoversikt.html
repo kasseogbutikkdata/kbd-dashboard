@@ -407,7 +407,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.0 · Oppdatert: 28. aug 2026 kl. 07:36</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.1 · Oppdatert: 28. aug 2026 kl. 07:40</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3302,7 +3302,7 @@ function renderKundesaker(){
         <td>${n.opprettetAv||'—'}</td>
         <td style="white-space:nowrap">${opprettetTxt}</td>
         <td style="white-space:nowrap${forfalt?';color:#d03b3b;font-weight:600':''}">${forfalt?'⏰ ':''}${datoTxt}</td>
-        <td style="white-space:nowrap">${n.status==='Åpen'?'🟢 Åpen':'⚪ Lukket'}</td>
+        <td style="white-space:nowrap">${salgTilgang?`<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${n.status==='Åpen'?'Merk som lukket':'Gjenåpne'}">${n.status==='Åpen'?'🟢 Åpen':'⚪ Lukket'}</button>`:(n.status==='Åpen'?'🟢 Åpen':'⚪ Lukket')}</td>
         <td><button class="btn-sm" onclick="gaTilKundeFraSak('${n.id}')">Åpne</button></td>
       </tr>`;
     }).join('')}
@@ -3626,6 +3626,11 @@ function toggleNotatStatus(id){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   n.status=n.status==='Åpen'?'Lukket':'Åpen';
   if(k360Valgt)renderKundeKort(k360Valgt);
+  // Samme kundeNotater-datagrunnlag vises nå OGSÅ i den samlede "🗂️ Kundesaker"
+  // -fanen (lagt til 28.08.2026) — oppdater den også, uansett om den fanen er
+  // synlig akkurat nå eller ikke (renderKundesaker() sjekker selv om elementene
+  // finnes i DOM-en, samme mønster som renderVarselMeny() under).
+  renderKundesaker();
   if(n.spId){
     setSPStatus('⏳ Lagrer…');
     spUpdate('KundeNotater',n.spId,{Status:n.status}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Statusendring ble ikke lagret til SharePoint:\n'+e.message);});
