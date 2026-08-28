@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.4 · Oppdatert: 28. aug 2026 kl. 08:19</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.5 · Oppdatert: 28. aug 2026 kl. 09:56</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3364,6 +3364,36 @@ function renderNotatLoggHTML(n){
   return `${loggBlokk}${loggInput}`;
 }
 
+const NOTAT_INNHOLD_TERSKEL=280; // tegn før innholdet i et notat/tilbud/oppfølging vises forkortet med "Vis mer"
+function renderNotatInnholdHTML(n){
+  if(!n.innhold)return '';
+  const langt=n.innhold.length>NOTAT_INNHOLD_TERSKEL||(n.innhold.match(/\n/g)||[]).length>4;
+  if(!langt){
+    return `<div style="font-size:13px;color:#374151;white-space:pre-wrap;margin-bottom:6px">${n.innhold}</div>`;
+  }
+  const boksId='innhold-'+n.id;
+  return `<div style="margin-bottom:6px">
+    <div id="${boksId}" class="notat-innhold-kort" style="font-size:13px;color:#374151;white-space:pre-wrap;max-height:4.6em;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 65%,transparent 100%);mask-image:linear-gradient(to bottom,#000 65%,transparent 100%)">${n.innhold}</div>
+    <button class="btn-sm" style="margin-top:4px;padding:2px 10px;font-size:11px" onclick="toggleNotatInnhold('${boksId}',this)">Vis mer ▾</button>
+  </div>`;
+}
+function toggleNotatInnhold(boksId,btn){
+  const el=document.getElementById(boksId);
+  if(!el)return;
+  const erUtvidet=el.style.maxHeight==='none';
+  if(erUtvidet){
+    el.style.maxHeight='4.6em';
+    el.style.webkitMaskImage='linear-gradient(to bottom,#000 65%,transparent 100%)';
+    el.style.maskImage='linear-gradient(to bottom,#000 65%,transparent 100%)';
+    if(btn)btn.textContent='Vis mer ▾';
+  }else{
+    el.style.maxHeight='none';
+    el.style.webkitMaskImage='none';
+    el.style.maskImage='none';
+    if(btn)btn.textContent='Vis mindre ▴';
+  }
+}
+
 function renderKundeNotaterHTML(k){
   const kNr=String(k.vismaNummer||'').trim();
   const notaterAlle=kundeNotater.filter(n=>String(n.vismaKundeNummer||'').trim()===kNr)
@@ -3400,7 +3430,7 @@ function renderKundeNotaterHTML(k){
           <button class="btn-icon del" onclick="deleteNotat('${n.id}')" title="Slett">✕</button>
         </div>`:''}
       </div>
-      ${n.innhold?`<div style="font-size:13px;color:#374151;white-space:pre-wrap;margin-bottom:6px">${n.innhold}</div>`:''}
+      ${renderNotatInnholdHTML(n)}
       <div style="font-size:11px;color:#9ca3af">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · Forfallsdato: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · ${[n.varsleEpost?'✉️':'',n.varsleDashbord?'🔔':''].filter(Boolean).join(' ')}`:''}`:''}</div>
       ${renderNotatLoggHTML(n)}
     </div>`;
