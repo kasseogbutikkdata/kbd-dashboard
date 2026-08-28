@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.7 · Oppdatert: 28. aug 2026 kl. 10:44</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.8 · Oppdatert: 28. aug 2026 kl. 10:48</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4184,7 +4184,7 @@ async function hentBrregInfo(orgNr){
         if(!r.person)return (r.enhet?.navn||[]).join(', ')||'—';
         const navn=`${r.person.navn?.fornavn||''} ${r.person.navn?.etternavn||''}`.trim();
         if(!navn)return '—';
-        return erDagligLeder?`${navn} <a href="https://www.proff.no/bransjes%C3%B8k?q=${encodeURIComponent(navn)}" target="_blank" rel="noopener" style="font-size:11px;color:#1A3A6B;text-decoration:none;white-space:nowrap" title="Søk «${navn}» på Proff.no (åpner i ny fane, ingen automatisk henting)">🔍 Proff</a>`:navn;
+        return erDagligLeder?`${navn} <a href="https://www.proff.no/rolles%C3%B8k?q=${encodeURIComponent(navn)}" target="_blank" rel="noopener" style="font-size:11px;color:#1A3A6B;text-decoration:none;white-space:nowrap" title="Søk «${navn}» blant roller på Proff.no (åpner i ny fane, ingen automatisk henting)">🔍 Proff</a>`:navn;
       });
       return `<div style="margin-bottom:6px"><strong>${g.type?.beskrivelse||g.type?.kode||'Rolle'}:</strong> ${navnListe.join(', ')||'—'}</div>`;
     }).join(''):'<div class="muted">Ingen rolleinformasjon tilgjengelig (eller enkeltpersonforetak uten styre).</div>';
