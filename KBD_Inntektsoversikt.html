@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.18 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.19 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -461,6 +461,7 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kundesaker',document.getElementById('tab-kunder'))">🗂️ Kundesaker</div>
         <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="showTab('nyetableringer',document.getElementById('tab-kunder'))">🏢 Nyetableringer</div>
         <div class="nav-sub-item" id="ksub360-konkurser" onclick="showTab('konkurser',document.getElementById('tab-kunder'))">⚠️ Konkurser</div>
+        <div class="nav-sub-item" id="ksub360-smsutsendelse" onclick="showTab('smsutsendelse',document.getElementById('tab-kunder'))">📱 SMS utsendelse</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -605,6 +606,26 @@ tr:hover td{background:#fafafa}
       <div class="hint">Kunder som Brønnøysundregisteret viser er registrert konkurs, oppdaget automatisk hver natt (kl. 05:30) av backend-jobben «Konkursvarsel». Når en kunde oppdages, opprettes det samtidig et Oppfølging-notat på kundekortet (synlig for alle ansatte via bjella) og en e-post til kundeservice@kbd.as — denne oversikten viser status på tvers av alle kunder som er rammet, med lenke rett til kundekortet for videre oppfølging.</div>
     </div>
     <div id="konkurser-tabell"></div>
+  </div>
+
+  <!-- SMS UTSENDELSE (Sveve, lagt til 31.08.2026) — se renderSmsUtsendelse()
+       og smsHentKundegruppe() lenger ned i scriptet. Egen meny fra
+       Thomas' eksplisitte ønske 31.08.2026 om å kunne sende SMS til HELE
+       kundegrupper (i motsetning til enkelt-SMS-knappen på det ordinære
+       kundekortet, se openSmsModal()) — gruppene er bevisst de samme
+       (Susoft/Nets/Verifone) som allerede telles i produktoversikten på
+       Kunde 360-forsiden (K360_PRODUKTNOKKELORD), ikke en ny, parallell
+       kategorisering. -->
+  <div id="tp-smsutsendelse" class="tp">
+    <div class="card">
+      <div class="card-title">📱 SMS utsendelse til kundegrupper</div>
+      <div class="hint">Send samme SMS til alle kunder med minst én AKTIV avtale som matcher en kundegruppe (Susoft/Nets/Verifone, basert på kontraktens beskrivelsesfelt fra Visma — samme grunnlag som produktoversikten på Kunde 360-forsiden). Du velger gruppe, ser nøyaktig hvem som vil motta meldingen, og kan fjerne enkeltkunder før du sender. Ren manuell utsending — ingenting sendes automatisk.</div>
+    </div>
+    <div id="smsu-innhold"></div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-title">🕘 Tidligere utsendelser</div>
+      <div id="smsu-historikk"></div>
+    </div>
   </div>
 
   <!-- IDÉBANK -->
@@ -1034,6 +1055,23 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeSmsModal()">Avbryt</button>
         <button class="prim" id="sms-send-btn" onclick="sendSmsFraKundekort()">Send SMS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SMS-MAL (lagt til 31.08.2026) MODAL — opprett/rediger en lagret
+       meldingsmal for «📱 SMS utsendelse»-menyen. Se openNySmsMalModal()/
+       openRedigerSmsMalModal()/lagreSmsMal(). -->
+  <div class="modal-overlay" id="sms-mal-modal" onclick="if(event.target===this)closeSmsMalModal()">
+    <div class="modal" style="max-width:480px">
+      <h3 id="sms-mal-modal-title" style="margin-bottom:16px">Ny SMS-mal</h3>
+      <div class="fgrp" style="margin-bottom:10px"><label>Navn på mal</label><input type="text" id="sm-navn" placeholder="F.eks. Betalingspåminnelse" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px"/></div>
+      <div class="fgrp" style="margin-bottom:4px"><label>Tekst</label><textarea id="sm-tekst" rows="5" oninput="oppdaterSmsMalTegnteller()" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div id="sm-tegnteller" class="muted" style="font-size:12px;margin-bottom:10px"></div>
+      <input type="hidden" id="sm-edit-id"/>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeSmsMalModal()">Avbryt</button>
+        <button class="prim" onclick="lagreSmsMal()">Lagre</button>
       </div>
     </div>
   </div>
@@ -1952,8 +1990,8 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItems('SmsMaler').catch(()=>[]),spGetItems('SmsUtsendelser').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2035,6 +2073,14 @@ async function loadDataFromSP(){
   // fortsatt (overforNyeTilKunder() limer inn ev. gammel logg som en
   // innledende KundeNotater-oppføring), men fylles ikke lenger på herfra.
   nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // SmsMaler/SmsUtsendelser (lagt til 31.08.2026) — lagrede meldingsmaler og
+  // en historikk-logg for «📱 SMS utsendelse»-menyen under Kunde 360. Fylles
+  // og leses DIREKTE av dashbordet selv (brukerens egen innlogging), ikke av
+  // en backend-synk — samme mønster som KundeNotater/Idebank/Kunngjoringer.
+  // .catch(()=>[]) over gjør at menyen fungerer (viser tom liste) selv før
+  // listene faktisk er opprettet i SharePoint.
+  smsMaler=smItems.map(i=>({id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',tekst:i.fields.Tekst||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
+  smsUtsendelser=suItems.map(i=>({id:`sp${i.id}`,spId:i.id,gruppe:i.fields.Gruppe||'',malNavn:i.fields.MalNavn||'',tekst:i.fields.Tekst||'',antallMottakere:parseInt(i.fields.AntallMottakere)||0,antallVellykket:parseInt(i.fields.AntallVellykket)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,sendtAv:i.fields.SendtAv||'',sendtDato:i.fields.SendtDato||''})).sort((a,b)=>new Date(b.sendtDato)-new Date(a.sendtDato));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -2825,7 +2871,7 @@ function setKunder360SubActive(view){
   // hovedpunktet) har bevisst INGEN tilsvarende underpunkt lenger — se
   // kommentaren ved kunder360-sub-nav i HTML-en. Ingen av underpunktene
   // markeres da aktive, siden ingen av dem faktisk viser innholdet man ser.
-  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':view==='konkurser'?'ksub360-konkurser':null;
+  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':view==='konkurser'?'ksub360-konkurser':view==='smsutsendelse'?'ksub360-smsutsendelse':null;
   if(id){const el=document.getElementById(id);if(el)el.classList.add('active');}
 }
 
@@ -3802,17 +3848,25 @@ function closeSmsModal(){document.getElementById('sms-modal').classList.remove('
 // (UCS-2): 70 tegn i én melding / 67 tegn per del. Se sveve_client.py sin
 // docstring for kilden til disse grensene.
 const _SMS_GSM7=/^[A-Za-z0-9 \r\n@£$¥èéùìòÇØøÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ!"#¤%&'()*+,\-./:;<=>?¡ÄÖÑÜ§¿äöñüà^{}\\\[~\]|€]*$/;
-function oppdaterSmsTegnteller(){
-  const tekst=document.getElementById('sms-melding').value||'';
+// Ren beregning (lagt til 31.08.2026, utskilt fra oppdaterSmsTegnteller under
+// da «📱 SMS utsendelse»-menyen fikk to EGNE tekstfelt som trenger nøyaktig
+// samme teller — se smsVisTegnteller()). Ingen DOM-tilgang her, kun tall inn/ut.
+function smsBeregnSegmenter(tekst){
   const erGsm7=_SMS_GSM7.test(tekst);
   const lengde=tekst.length;
   const enkelGrense=erGsm7?160:70;
   const delGrense=erGsm7?153:67;
   const antallDeler=lengde===0?0:(lengde<=enkelGrense?1:Math.ceil(lengde/delGrense));
-  const el=document.getElementById('sms-tegnteller');
+  return{lengde,erGsm7,antallDeler};
+}
+function smsVisTegnteller(tekstElId,tellerElId){
+  const tekst=document.getElementById(tekstElId).value||'';
+  const{lengde,erGsm7,antallDeler}=smsBeregnSegmenter(tekst);
+  const el=document.getElementById(tellerElId);
   el.textContent=`${lengde} tegn · ${erGsm7?'standard (GSM-7)':'utvidet tegnsett (Unicode)'} · ${antallDeler||1} SMS-del${antallDeler===1?'':'er'}`;
   el.style.color=antallDeler>1?'#b45309':'#6b7280';
 }
+function oppdaterSmsTegnteller(){smsVisTegnteller('sms-melding','sms-tegnteller');}
 
 async function sendSmsFraKundekort(){
   const til=normTlf(document.getElementById('sms-til').value);
@@ -3846,6 +3900,309 @@ async function sendSmsFraKundekort(){
     feilEl.style.display='block';
     btn.disabled=false;btn.textContent='Send SMS';
   }
+}
+
+// ===== SMS UTSENDELSE til kundegrupper (Sveve, lagt til 31.08.2026) =====
+// Forespørsel fra Thomas 31.08.2026: en egen meny under Kunde 360 for å sende
+// SMS til HELE kundegrupper på én gang (i motsetning til enkelt-SMS-knappen
+// over, som sender til ÉN kunde om gangen). Gjenbruker BEVISST samme
+// gruppering (K360_PRODUKTNOKKELORD = Susoft/Nets/Verifone, matchet mot
+// aktive kontrakters Beskrivelse-felt) som allerede telles i
+// renderKunder360Oversikt() sin produktoversikt — én kilde til sannhet for
+// hva som regnes som en "Susoft-kunde" osv., i stedet for å finne opp en ny,
+// parallell definisjon her. Krever to nye SharePoint-lister, SmsMaler og
+// SmsUtsendelser — se Kunde360-oppsett-sjekkliste.md. Begge lastes med
+// .catch(()=>[]) i loadDataFromSP() slik at menyen fungerer (viser tomt) selv
+// før listene er opprettet.
+let smsMaler=[],smsUtsendelser=[],smsValgtGruppe=null,smsGruppeMottakere=[],smsValgteMottakere=new Set();
+
+// Finner alle kunder med minst én AKTIV kontrakt hvis Beskrivelse-felt
+// inneholder nøkkelordet (case-insensitive) — nøyaktig samme matchekriterium
+// som K360_PRODUKTNOKKELORD-tellingen i renderKunder360Oversikt() (linje med
+// aktiveAvtaler.filter over). Dedupliserer på vismaKundeNummer: en kunde med
+// flere matchende kontrakter (f.eks. to Susoft-avdelinger) skal likevel bare
+// motta ÉN SMS.
+function smsHentKundegruppe(nokkel){
+  const treff=vismaKontrakter.filter(c=>{
+    const s=(c.status||'').toLowerCase();
+    const aktiv=s==='active'||s==='aktiv';
+    return aktiv&&(c.beskrivelse||'').toLowerCase().includes(nokkel.toLowerCase());
+  });
+  const numre=[...new Set(treff.map(c=>String(c.vismaKundeNummer||'').trim()).filter(Boolean))];
+  return numre.map(nr=>{
+    const k=vismaKunder.find(x=>String(x.vismaNummer||'').trim()===nr);
+    if(!k)return null;
+    const kontraktTreff=[...new Set(treff.filter(c=>String(c.vismaKundeNummer||'').trim()===nr).map(c=>c.beskrivelse))].join(', ');
+    return{vismaNummer:nr,navn:k.navn||'(uten navn)',telefon:normTlf(k.kontaktTelefon),kontraktTreff};
+  }).filter(Boolean).sort((a,b)=>a.navn.localeCompare(b.navn,'nb'));
+}
+
+function renderSmsUtsendelse(){
+  renderSmsHistorikk();
+  const target=document.getElementById('smsu-innhold');
+  if(!salgTilgang){
+    target.innerHTML='<div class="card"><div class="empty">Du har ikke tilgang til å sende SMS-utsendelser. Kontakt en administrator for salgstilgang («📋 Kan skrive salgsnotater» e.l. i Innstillinger → Brukertilgang).</div></div>';
+    return;
+  }
+  const gruppeKnapper=K360_PRODUKTNOKKELORD.map(nokkel=>{
+    const antall=smsHentKundegruppe(nokkel).length;
+    const aktiv=smsValgtGruppe===nokkel;
+    return `<button class="btn-sm" style="${aktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}" onclick="smsVelgGruppe('${nokkel}')">${nokkel} (${antall})</button>`;
+  }).join('');
+  const malOpsjoner=smsMaler.map(m=>`<option value="${m.id}"${document.getElementById('smsu-mal-select')?.value===m.id?' selected':''}>${(m.navn||'(uten navn)').replace(/"/g,'&quot;')}</option>`).join('');
+
+  target.innerHTML=`
+    <div class="card">
+      <p class="sec-title">1. Velg kundegruppe</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">${gruppeKnapper}</div>
+      <div class="hint">Gruppene bygger på aktive kontrakters beskrivelsesfelt fra Visma (samme grunnlag som produktoversikten på Kunde 360-forsiden) — ikke en egen kategorisering du må vedlikeholde.</div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <p class="sec-title">2. Meldingstekst</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <select id="smsu-mal-select" onchange="smsMalValgt(this.value)" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+          <option value="">— Velg lagret mal (valgfritt) —</option>
+          ${malOpsjoner}
+        </select>
+        <button class="btn-sm" onclick="openNySmsMalModal()">➕ Ny mal</button>
+        <button class="btn-sm" id="smsu-rediger-mal-btn" style="display:none" onclick="smsRedigerValgtMal()">✏️ Rediger mal</button>
+        <button class="btn-sm" id="smsu-slett-mal-btn" style="display:none" onclick="smsSlettValgtMal()">🗑️ Slett mal</button>
+      </div>
+      <textarea id="smsu-tekst" rows="5" oninput="oppdaterSmsuTegnteller()" placeholder="Skriv meldingen som skal sendes til alle valgte mottakere…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+      <div id="smsu-tegnteller" class="muted" style="font-size:12px;margin-top:4px"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <p class="sec-title">3. Mottakere</p>
+      <div id="smsu-mottakere"><div class="empty">Velg en kundegruppe over for å se mottakerlisten.</div></div>
+    </div>
+  `;
+  smsRenderMottakere();
+  oppdaterSmsuTegnteller();
+}
+
+function smsVelgGruppe(nokkel){
+  smsValgtGruppe=nokkel;
+  smsGruppeMottakere=smsHentKundegruppe(nokkel);
+  // Forhåndshaket: alle mottakere MED gyldig telefonnummer. De uten telefon
+  // vises likevel i listen (slik at man SER at de finnes og evt. må
+  // kontaktes på annen måte), men kan ikke velges — ingenting å sende til.
+  smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.vismaNummer));
+  renderSmsUtsendelse();
+}
+
+function smsRenderMottakere(){
+  const wrap=document.getElementById('smsu-mottakere');
+  if(!wrap)return;
+  if(!smsValgtGruppe){wrap.innerHTML='<div class="empty">Velg en kundegruppe over for å se mottakerlisten.</div>';return;}
+  if(smsGruppeMottakere.length===0){wrap.innerHTML=`<div class="empty">Ingen kunder med aktiv «${smsValgtGruppe}»-avtale funnet.</div>`;return;}
+  const mangler=smsGruppeMottakere.filter(m=>!m.telefon).length;
+  wrap.innerHTML=`
+    <div class="hint" style="margin-bottom:8px">${smsGruppeMottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»${mangler>0?`, herav <strong>${mangler} uten registrert telefonnummer</strong> (kan ikke velges)`:''}. Fjern eventuelt enkeltkunder under før sending.</div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th style="width:30px"><input type="checkbox" id="smsu-velg-alle" onchange="smsVelgAlleMottakere(this.checked)"/></th>
+        <th>Kunde</th><th>Telefon</th><th>Kontrakt-treff</th>
+      </tr></thead><tbody>
+        ${smsGruppeMottakere.map(m=>`<tr style="${m.telefon?'':'opacity:.5'}">
+          <td><input type="checkbox" ${smsValgteMottakere.has(m.vismaNummer)?'checked':''} ${m.telefon?'':'disabled'} onchange="smsToggleMottaker('${m.vismaNummer}',this.checked)"/></td>
+          <td>${m.navn}</td>
+          <td>${m.telefon||'<span style="color:#d03b3b">mangler</span>'}</td>
+          <td class="muted">${m.kontraktTreff}</td>
+        </tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px">
+      <div id="smsu-valgt-antall" class="muted"></div>
+      <button class="prim" id="smsu-send-btn" onclick="sendSmsGruppe()">📤 Send til valgte</button>
+    </div>
+  `;
+  smsOppdaterValgtAntall();
+}
+
+function smsToggleMottaker(vismaNummer,checked){
+  if(checked)smsValgteMottakere.add(vismaNummer);else smsValgteMottakere.delete(vismaNummer);
+  const velgbare=smsGruppeMottakere.filter(m=>m.telefon);
+  const alleBoks=document.getElementById('smsu-velg-alle');
+  if(alleBoks)alleBoks.checked=velgbare.length>0&&velgbare.every(m=>smsValgteMottakere.has(m.vismaNummer));
+  smsOppdaterValgtAntall();
+}
+
+function smsVelgAlleMottakere(checked){
+  smsGruppeMottakere.filter(m=>m.telefon).forEach(m=>{
+    if(checked)smsValgteMottakere.add(m.vismaNummer);else smsValgteMottakere.delete(m.vismaNummer);
+  });
+  document.querySelectorAll('#smsu-mottakere tbody input[type=checkbox]:not(:disabled)').forEach(cb=>{cb.checked=checked;});
+  smsOppdaterValgtAntall();
+}
+
+function smsOppdaterValgtAntall(){
+  const el=document.getElementById('smsu-valgt-antall');
+  if(el)el.textContent=`${smsValgteMottakere.size} av ${smsGruppeMottakere.length} valgt`;
+  const btn=document.getElementById('smsu-send-btn');
+  if(btn)btn.textContent=`📤 Send til ${smsValgteMottakere.size} valgte`;
+}
+
+function oppdaterSmsuTegnteller(){smsVisTegnteller('smsu-tekst','smsu-tegnteller');}
+function oppdaterSmsMalTegnteller(){smsVisTegnteller('sm-tekst','sm-tegnteller');}
+
+function smsMalValgt(malId){
+  const btnRediger=document.getElementById('smsu-rediger-mal-btn');
+  const btnSlett=document.getElementById('smsu-slett-mal-btn');
+  if(!malId){if(btnRediger)btnRediger.style.display='none';if(btnSlett)btnSlett.style.display='none';return;}
+  const mal=smsMaler.find(m=>m.id===malId);if(!mal)return;
+  document.getElementById('smsu-tekst').value=mal.tekst||'';
+  oppdaterSmsuTegnteller();
+  if(btnRediger)btnRediger.style.display='';
+  if(btnSlett)btnSlett.style.display='';
+}
+function smsRedigerValgtMal(){
+  const id=document.getElementById('smsu-mal-select')?.value;
+  if(id)openRedigerSmsMalModal(id);
+}
+function smsSlettValgtMal(){
+  const id=document.getElementById('smsu-mal-select')?.value;
+  if(id)slettSmsMal(id);
+}
+
+function openNySmsMalModal(){
+  document.getElementById('sms-mal-modal-title').textContent='Ny SMS-mal';
+  document.getElementById('sm-navn').value='';
+  document.getElementById('sm-tekst').value=document.getElementById('smsu-tekst')?.value||'';
+  document.getElementById('sm-edit-id').value='';
+  oppdaterSmsMalTegnteller();
+  document.getElementById('sms-mal-modal').classList.add('open');
+}
+function openRedigerSmsMalModal(id){
+  const mal=smsMaler.find(m=>m.id===id);if(!mal)return;
+  document.getElementById('sms-mal-modal-title').textContent='Rediger SMS-mal';
+  document.getElementById('sm-navn').value=mal.navn||'';
+  document.getElementById('sm-tekst').value=mal.tekst||'';
+  document.getElementById('sm-edit-id').value=id;
+  oppdaterSmsMalTegnteller();
+  document.getElementById('sms-mal-modal').classList.add('open');
+}
+function closeSmsMalModal(){document.getElementById('sms-mal-modal').classList.remove('open');}
+
+async function lagreSmsMal(){
+  const navn=(document.getElementById('sm-navn').value||'').trim();
+  const tekst=(document.getElementById('sm-tekst').value||'').trim();
+  if(!navn){alert('Malen må ha et navn.');return;}
+  if(!tekst){alert('Meldingsteksten kan ikke være tom.');return;}
+  const editId=document.getElementById('sm-edit-id').value;
+  const felter={Title:navn,Tekst:tekst};
+  try{
+    if(editId){
+      const mal=smsMaler.find(m=>m.id===editId);if(!mal)return;
+      await spUpdate('SmsMaler',mal.spId,felter);
+      mal.navn=navn;mal.tekst=tekst;
+    }else{
+      felter.OpprettetAv=currentUser?.name||currentUser?.username||'Ukjent';
+      felter.OpprettetDato=new Date().toISOString();
+      const r=await spCreate('SmsMaler',felter);
+      smsMaler.push({id:`sp${r.id}`,spId:r.id,navn,tekst,opprettetAv:felter.OpprettetAv,opprettetDato:felter.OpprettetDato});
+    }
+    closeSmsMalModal();
+    renderSmsUtsendelse();
+  }catch(e){alert('Kunne ikke lagre malen: '+e.message);}
+}
+
+async function slettSmsMal(id){
+  const mal=smsMaler.find(m=>m.id===id);if(!mal)return;
+  if(!confirm(`Slette malen «${mal.navn}»?`))return;
+  try{
+    await spDelete('SmsMaler',mal.spId);
+    smsMaler=smsMaler.filter(m=>m.id!==id);
+    renderSmsUtsendelse();
+  }catch(e){alert('Kunne ikke slette malen: '+e.message);}
+}
+
+// Selve gruppe-utsendingen. Sender i bolker (CHUNK) mot /api/send_sms_bulk i
+// stedet for ett stort kall, for å holde hvert enkelt HTTP-kall raskt og
+// unngå å risikere Azure Function-timeout ved en stor kundegruppe — se
+// send_sms_bulk_endpoint i function_app.py (som uansett sender sekvensielt,
+// aldri parallelt, av hensyn til Sveve sin grense på 5 samtidige
+// forespørsler per konto).
+async function sendSmsGruppe(){
+  const melding=(document.getElementById('smsu-tekst').value||'').trim();
+  const mottakere=smsGruppeMottakere.filter(m=>smsValgteMottakere.has(m.vismaNummer)&&m.telefon);
+  if(!melding){alert('Meldingsteksten kan ikke være tom.');return;}
+  if(mottakere.length===0){alert('Ingen mottakere valgt.');return;}
+  if(!VF_CONFIG.baseUrl){alert('Ikke koblet til Azure Function ennå.');return;}
+  if(!confirm(`Sende SMS til ${mottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»?\n\nMeldingen som sendes:\n"${melding}"\n\nDette kan IKKE angres.`))return;
+
+  const btn=document.getElementById('smsu-send-btn');
+  const CHUNK=20;
+  let resultater=[];
+  try{
+    const vfToken=await vfGetApiToken();
+    for(let i=0;i<mottakere.length;i+=CHUNK){
+      const batch=mottakere.slice(i,i+CHUNK);
+      if(btn){btn.disabled=true;btn.textContent=`Sender ${Math.min(i+CHUNK,mottakere.length)} av ${mottakere.length}…`;}
+      const resp=await fetch(vfApiUrl('/api/send_sms_bulk'),{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${vfToken}`},
+        body:JSON.stringify({mottakere:batch.map(m=>({til:m.telefon,navn:m.navn})),melding}),
+      });
+      const data=await resp.json();
+      if(!resp.ok)throw new Error(data.error||`Feil fra server (${resp.status})`);
+      resultater=resultater.concat(data.resultater||[]);
+    }
+  }catch(err){
+    if(resultater.length>0)await smsLoggUtsendelse(melding,resultater,mottakere.length);
+    alert(`Utsendelsen stoppet før alle var forsøkt sendt: ${err.message}\n\n${resultater.length} av ${mottakere.length} rakk å bli forsøkt før feilen oppstod${resultater.length>0?' (logget under Tidligere utsendelser)':''}.`);
+    if(btn){btn.disabled=false;}
+    smsOppdaterValgtAntall();
+    return;
+  }
+
+  const vellykket=resultater.filter(r=>r.status==='ok').length;
+  const feilet=resultater.filter(r=>r.status!=='ok');
+  await smsLoggUtsendelse(melding,resultater,mottakere.length);
+  vfShowToast(`${vellykket} av ${mottakere.length} SMS sendt${feilet.length?`, ${feilet.length} feilet`:''}`);
+  if(feilet.length>0)console.warn('SMS som feilet i gruppeutsendingen:',feilet);
+  smsValgteMottakere.clear();
+  renderSmsUtsendelse();
+}
+
+async function smsLoggUtsendelse(melding,resultater,antallForsokt){
+  const vellykket=resultater.filter(r=>r.status==='ok').length;
+  const feilet=resultater.length-vellykket;
+  const malSelect=document.getElementById('smsu-mal-select');
+  const malNavn=malSelect&&malSelect.value?(smsMaler.find(m=>m.id===malSelect.value)?.navn||''):'';
+  const felter={
+    Title:`${smsValgtGruppe} – ${new Date().toLocaleDateString('nb-NO')}`,
+    Gruppe:smsValgtGruppe,MalNavn:malNavn,Tekst:melding,
+    AntallMottakere:antallForsokt,AntallVellykket:vellykket,AntallFeilet:feilet,
+    SendtAv:currentUser?.name||currentUser?.username||'Ukjent',SendtDato:new Date().toISOString(),
+  };
+  try{
+    const r=await spCreate('SmsUtsendelser',felter);
+    smsUtsendelser.unshift({id:`sp${r.id}`,spId:r.id,gruppe:smsValgtGruppe,malNavn,tekst:melding,antallMottakere:antallForsokt,antallVellykket:vellykket,antallFeilet:feilet,sendtAv:felter.SendtAv,sendtDato:felter.SendtDato});
+    renderSmsHistorikk();
+  }catch(e){
+    console.error('Kunne ikke logge SMS-utsendelsen til SharePoint (selve SMS-sendingen er likevel gjennomført):',e);
+  }
+}
+
+function renderSmsHistorikk(){
+  const target=document.getElementById('smsu-historikk');
+  if(!target)return;
+  if(smsUtsendelser.length===0){target.innerHTML='<div class="empty">Ingen utsendelser registrert ennå.</div>';return;}
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+    <th>Dato</th><th>Gruppe</th><th>Mal</th><th>Mottakere</th><th>Vellykket</th><th>Feilet</th><th>Sendt av</th>
+  </tr></thead><tbody>
+    ${smsUtsendelser.map(u=>`<tr>
+      <td>${u.sendtDato?new Date(u.sendtDato).toLocaleString('nb-NO'):'—'}</td>
+      <td>${u.gruppe||'—'}</td>
+      <td>${u.malNavn||'<span class="muted">Fritekst</span>'}</td>
+      <td>${u.antallMottakere}</td>
+      <td>${u.antallVellykket}</td>
+      <td style="${u.antallFeilet>0?'color:#d03b3b;font-weight:700':''}">${u.antallFeilet}</td>
+      <td>${u.sendtAv||'—'}</td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
 }
 
 function updateNotatFormFields(){
@@ -5171,7 +5528,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser'||name==='smsutsendelse')?'kunder':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -5179,7 +5536,7 @@ function showTab(name,btn){
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
-  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
+  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser'||name==='smsutsendelse');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -5193,6 +5550,7 @@ function showTab(name,btn){
   if(name==='kundesaker'){renderKundesaker();setKunder360SubActive('kundesaker');}
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
   if(name==='konkurser'){renderKonkurser();setKunder360SubActive('konkurser');}
+  if(name==='smsutsendelse'){renderSmsUtsendelse();setKunder360SubActive('smsutsendelse');}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
@@ -7279,7 +7637,7 @@ function startAutoRefresh(){
 // ===== INIT =====
 initNotatDatePicker();
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
 
 
 /* ===== Verifone trans.avgift (vf-namespace) ===== */
