@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.14 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.15 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -460,6 +460,7 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="kunder360-sub-nav">
         <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kundesaker',document.getElementById('tab-kunder'))">🗂️ Kundesaker</div>
         <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="showTab('nyetableringer',document.getElementById('tab-kunder'))">🏢 Nyetableringer</div>
+        <div class="nav-sub-item" id="ksub360-konkurser" onclick="showTab('konkurser',document.getElementById('tab-kunder'))">⚠️ Konkurser</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -595,6 +596,15 @@ tr:hover td{background:#fafafa}
       <div id="nye-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
     </div>
     <div id="nye-tabell"></div>
+  </div>
+
+  <!-- KONKURSER -->
+  <div id="tp-konkurser" class="tp">
+    <div class="card">
+      <div class="card-title">⚠️ Konkurser blant KBD sine kunder</div>
+      <div class="hint">Kunder som Brønnøysundregisteret viser er registrert konkurs, oppdaget automatisk hver natt (kl. 05:30) av backend-jobben «Konkursvarsel». Når en kunde oppdages, opprettes det samtidig et Oppfølging-notat på kundekortet (synlig for alle ansatte via bjella) og en e-post til kundeservice@kbd.as — denne oversikten viser status på tvers av alle kunder som er rammet, med lenke rett til kundekortet for videre oppfølging.</div>
+    </div>
+    <div id="konkurser-tabell"></div>
   </div>
 
   <!-- IDÉBANK -->
@@ -1928,7 +1938,7 @@ async function loadDataFromSP(){
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   aging=agItems.map(i=>({id:`sp${i.id}`,spId:i.id,date:i.fields.Dato||'',d1_30:parseFloat(i.fields.D1_30)||0,d31_60:parseFloat(i.fields.D31_60)||0,d61_90:parseFloat(i.fields.D61_90)||0,d90plus:parseFloat(i.fields.D90plus)||0,note:i.fields.Note||''}));
   omsetning=omsItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
-  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,saldoForfalt:parseFloat(i.fields.SaldoForfalt)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||''}));
+  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,saldoForfalt:parseFloat(i.fields.SaldoForfalt)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||'',brregKonkursVarslet:i.fields.BrregKonkursVarslet===true}));
   // MERK: SharePoint-kolonnen som vises som "KontraktId" har internt feltnavn
   // "VismaKontrakter" (bekreftet 20.08.2026 via rå Graph-respons — trolig fordi
   // kolonnen opprinnelig ble opprettet med det navnet og senere bare fikk
@@ -2538,6 +2548,65 @@ function renderNyetableringer(){
   </tbody></table></div>`;
 }
 
+// ---- Konkurser blant KBD sine kunder (lagt til 31.08.2026) ----------------
+// Rent leseorientert oversikt — selve oppdagelsen/varslingen gjøres av
+// backend-jobben sjekk_konkurser (konkursvarsling.py), som setter
+// BrregKonkursVarslet=true på VismaKunder-rada OG oppretter et vanlig
+// Oppfølging-notat (se KundeNotater) med tittel "Konkursvarsel: ...". Denne
+// fanen gjør ingen egne skriveoperasjoner — kun visning + en snarvei til
+// kundekortet, der selve oppfølgingen (lukk notatet når håndtert, osv.)
+// allerede skjer via det ordinære Salg & oppfølging-grensesnittet.
+//
+// "Dato oppdaget"/oppfølgingsstatus hentes fra det tilhørende
+// KundeNotater-notatet (matchet på VismaKundeNummer + tittel-prefiks) i
+// stedet for en ny SharePoint-kolonne på VismaKunder — notatet har uansett
+// allerede et tidsstempel (OpprettetDato) og en Åpen/Lukket-status, så
+// ingen ny kolonne var nødvendig for dette.
+function renderKonkurser(){
+  const target=document.getElementById('konkurser-tabell');
+  if(!target)return;
+
+  const rammede=vismaKunder.filter(k=>k.brregKonkursVarslet===true);
+  if(rammede.length===0){
+    target.innerHTML=`<div class="empty">Ingen kunder er registrert konkurs foreløpig. Sjekkes automatisk hver natt kl. 05:30 mot Brønnøysundregisteret.</div>`;
+    return;
+  }
+
+  const finnVarsel=k=>kundeNotater.find(n=>
+    String(n.vismaKundeNummer||'').trim()===String(k.vismaNummer||'').trim()&&
+    (n.tittel||'').startsWith('Konkursvarsel:')
+  );
+
+  const liste=rammede.map(k=>({kunde:k,varsel:finnVarsel(k)}))
+    .sort((a,b)=>new Date(b.varsel?.opprettetDato||0)-new Date(a.varsel?.opprettetDato||0));
+
+  const fmtKr=v=>(v?v.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2}):'0,00')+' kr';
+
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Kunde</th><th>Visma-nr</th><th>Saldo</th><th>Herav forfalt</th><th>Dato oppdaget</th><th>Oppfølging</th><th></th></tr></thead><tbody>
+    ${liste.map(({kunde:k,varsel:v})=>{
+      const dato=v&&v.opprettetDato&&!isNaN(new Date(v.opprettetDato))?new Date(v.opprettetDato).toLocaleDateString('nb-NO'):'—';
+      const oppfolging=v?(v.status==='Åpen'?'🟢 Åpen':'⚪ Lukket'):'<span style="color:#9ca3af">— (ikke funnet)</span>';
+      return `<tr>
+        <td><strong>${k.navn||'(uten navn)'}</strong><div style="font-size:11px;color:#9ca3af">${k.orgNr||'—'}</div></td>
+        <td>${k.vismaNummer||'—'}</td>
+        <td>${fmtKr(k.saldo)}</td>
+        <td style="${k.saldoForfalt>0?'color:#d03b3b;font-weight:700':''}">${fmtKr(k.saldoForfalt)}</td>
+        <td>${dato}</td>
+        <td>${oppfolging}</td>
+        <td><button class="btn-sm" onclick="apneKonkursKundeFraId('${k.id}')">➡️ Åpne kundekort</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table></div>`;
+}
+
+// Hopper rett til kundekortet på Kunde 360 — samme direkte oppslag (uten
+// tekstsøk) som resten av dashbordet bruker når man allerede har id-en til
+// en kjent Visma-kunde (se velgKunde360FraId()).
+function apneKonkursKundeFraId(id){
+  showTab('kunder',document.getElementById('tab-kunder'));
+  velgKunde360FraId(id);
+}
+
 // Åpner et manuelt Gule Sider-firmasøk på selskapsnavnet i en ny fane — IKKE
 // automatisert henting/scraping (det er verken teknisk trygt eller innenfor
 // Gule Sider sine bruksvilkår i noe volum), bare en snarvei for selgeren til
@@ -2735,7 +2804,7 @@ function setKunder360SubActive(view){
   // hovedpunktet) har bevisst INGEN tilsvarende underpunkt lenger — se
   // kommentaren ved kunder360-sub-nav i HTML-en. Ingen av underpunktene
   // markeres da aktive, siden ingen av dem faktisk viser innholdet man ser.
-  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':null;
+  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':view==='konkurser'?'ksub360-konkurser':null;
   if(id){const el=document.getElementById(id);if(el)el.classList.add('active');}
 }
 
@@ -4956,7 +5025,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker')?'kunder':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -4964,7 +5033,7 @@ function showTab(name,btn){
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
-  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker');
+  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -4977,6 +5046,7 @@ function showTab(name,btn){
   if(name==='kunder'){renderKunder360();setKunder360SubActive('kunder');}
   if(name==='kundesaker'){renderKundesaker();setKunder360SubActive('kundesaker');}
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
+  if(name==='konkurser'){renderKonkurser();setKunder360SubActive('konkurser');}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
