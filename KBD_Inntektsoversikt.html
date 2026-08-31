@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.17 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.18 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1031,7 +1031,6 @@ tr:hover td{background:#fafafa}
       <div class="fgrp" style="margin-bottom:4px"><label>Melding</label><textarea id="sms-melding" rows="5" oninput="oppdaterSmsTegnteller()" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <div id="sms-tegnteller" class="muted" style="font-size:12px;margin-bottom:10px"></div>
       <div id="sms-feil" style="display:none;color:#d03b3b;font-size:12px;margin-bottom:10px"></div>
-      <input type="hidden" id="sms-kunde-nr"/>
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeSmsModal()">Avbryt</button>
         <button class="prim" id="sms-send-btn" onclick="sendSmsFraKundekort()">Send SMS</button>
@@ -3089,7 +3088,7 @@ function renderKundeKort(k){
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
             <p class="sec-title" style="margin-bottom:0">Kontaktinfo (Visma)</p>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${kNr}')">📱 Send SMS</button>`:''}
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
               <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
             </div>
           </div>
@@ -3166,7 +3165,10 @@ function renderProspektKundeKort(k){
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
             <p class="sec-title" style="margin-bottom:0">Kontaktinfo</p>
-            <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
+              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+            </div>
           </div>
           <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
           <div class="tbl-wrap" style="margin-bottom:0">
@@ -3770,13 +3772,18 @@ function smsGenererMal(k){
   return `Hei ${k.navn||''}! Hilsen KBD`;
 }
 
-function openSmsModal(kNr){
-  const k=vismaKunder.find(x=>String(x.vismaNummer||'').trim()===String(kNr||'').trim());
-  if(!k){alert('Fant ikke kunden.');return;}
-  document.getElementById('sms-modal-kunde').textContent=k.navn||'';
-  document.getElementById('sms-til').value=normTlf(k.kontaktTelefon);
-  document.getElementById('sms-melding').value=smsGenererMal(k);
-  document.getElementById('sms-kunde-nr').value=kNr;
+// Tar imot navn/telefon/saldoForfalt direkte (i stedet for å slå opp kunden
+// på nytt via et kundenummer) slik at DENNE ene modalen kan brukes fra BÅDE
+// et ordinært Visma-kundekort (renderKundeKort, har vismaNummer) OG et
+// forenklet prospekt-kundekort (renderProspektKundeKort — manuelt
+// registrerte kunder/leads uten Visma-nummer ennå, se lagt-til 31.08.2026-
+// feilen der SMS-knappen først manglet helt siden den opprinnelige
+// oppslags-logikken kun kjente til vismaKunder). saldoForfalt sendes inn som
+// 0 fra prospekt-kortet (prospekter har ingen omsetning/saldo ennå).
+function openSmsModal(navn,telefon,saldoForfalt){
+  document.getElementById('sms-modal-kunde').textContent=navn||'';
+  document.getElementById('sms-til').value=normTlf(telefon);
+  document.getElementById('sms-melding').value=smsGenererMal({navn,saldoForfalt:Number(saldoForfalt)||0});
   document.getElementById('sms-feil').style.display='none';
   document.getElementById('sms-feil').textContent='';
   const btn=document.getElementById('sms-send-btn');
