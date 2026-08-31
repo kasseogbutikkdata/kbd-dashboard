@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.23 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.24 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3947,6 +3947,41 @@ async function sendSmsFraKundekort(){
 // .catch(()=>[]) i loadDataFromSP() slik at menyen fungerer (viser tomt) selv
 // før listene er opprettet.
 let smsMaler=[],smsUtsendelser=[],smsValgtGruppe=null,smsGruppeMottakere=[],smsValgteMottakere=new Set();
+// Manuell mottaker-modus (lagt til 31.08.2026, på Thomas' ønske): i tillegg
+// til de tre Visma-baserte kundegruppene kan man skrive inn ett eller flere
+// telefonnumre for hånd — for eksempel når man vil sende til bare én kunde
+// uten aktiv avtale, eller et internt testnummer. Bruker samme
+// mottakerliste/avhukings-/sende-/logge-kode som de vanlige gruppene
+// (smsGruppeMottakere/smsValgteMottakere/sendSmsGruppe), med smsValgtGruppe
+// satt til det reserverte navnet 'Manuelt' i stedet for et av
+// K360_PRODUKTNOKKELORD — dette navnet kan aldri kollidere med en ekte
+// kundegruppe siden gruppeknappene kun genereres fra K360_PRODUKTNOKKELORD.
+let smsManuellRaw='',smsManuellMottakere=[];
+
+// Tolker fritekst med ett eller flere numre (skilt med komma, mellomrom,
+// semikolon eller linjeskift) til samme radformat som smsHentKundegruppe()
+// bruker, slik at resten av koden (mottakerliste, avhuking, sending, logging)
+// ikke trenger å vite forskjell på gruppe- og manuelle mottakere. Samme
+// mobilnummer-validering (erNorskMobilnummer) og telefonnummer-dedup som
+// gruppene brukes her også, slik at det samme nummeret skrevet inn flere
+// ganger kun blir én rad.
+function smsParseManuelleNumre(raw){
+  // Splittes KUN på komma/semikolon/linjeskift, ikke på mellomrom — norske
+  // numre skrives ofte gruppert med mellomrom (f.eks. «912 34 567»), og
+  // normTlf() under fjerner uansett alt som ikke er siffer per token.
+  const deler=(raw||'').split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean);
+  const perNokkel=new Map();
+  for(const d of deler){
+    const telefonRaw=normTlf(d);
+    if(!telefonRaw)continue;
+    const erMobil=erNorskMobilnummer(telefonRaw);
+    const nokkel=erMobil?telefonRaw:`ugyldig-${telefonRaw}`;
+    if(!perNokkel.has(nokkel)){
+      perNokkel.set(nokkel,{navn:'Manuelt nummer',telefon:erMobil?telefonRaw:'',telefonRaw,erMobil,kontraktTreff:'Manuelt lagt til',kunder:[{navn:'Manuelt nummer'}],key:nokkel});
+    }
+  }
+  return[...perNokkel.values()];
+}
 
 // Finner alle kunder med minst én AKTIV kontrakt hvis Beskrivelse-felt
 // inneholder nøkkelordet (case-insensitive) — nøyaktig samme matchekriterium
@@ -4014,13 +4049,20 @@ function renderSmsUtsendelse(){
     const aktiv=smsValgtGruppe===nokkel;
     return `<button class="btn-sm" style="${aktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}" onclick="smsVelgGruppe('${nokkel}')">${nokkel} (${antall})</button>`;
   }).join('');
+  const manuellAktiv=smsValgtGruppe==='Manuelt';
   const malOpsjoner=smsMaler.map(m=>`<option value="${m.id}"${document.getElementById('smsu-mal-select')?.value===m.id?' selected':''}>${(m.navn||'(uten navn)').replace(/"/g,'&quot;')}</option>`).join('');
 
   target.innerHTML=`
     <div class="card">
       <p class="sec-title">1. Velg kundegruppe</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">${gruppeKnapper}</div>
-      <div class="hint">Gruppene bygger på aktive kontrakters beskrivelsesfelt fra Visma (samme grunnlag som produktoversikten på Kunde 360-forsiden) — ikke en egen kategorisering du må vedlikeholde.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">${gruppeKnapper}
+        <button class="btn-sm" style="${manuellAktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}" onclick="smsVisManuellInput()">✍️ Skriv inn nummer manuelt</button>
+      </div>
+      <div class="hint">Gruppene bygger på aktive kontrakters beskrivelsesfelt fra Visma (samme grunnlag som produktoversikten på Kunde 360-forsiden) — ikke en egen kategorisering du må vedlikeholde. Skal du bare sende til ett eller noen få numre (f.eks. én kunde uten aktiv avtale, eller et internt testnummer), bruk «Skriv inn nummer manuelt» i stedet.</div>
+      <div id="smsu-manuell-panel" style="${manuellAktiv?'':'display:none'};margin-top:10px">
+        <textarea id="smsu-manuell-tekst" rows="2" oninput="smsManuellRaw=this.value" placeholder="Ett eller flere numre, skilt med komma eller linjeskift (f.eks. 912 34 567, 98765432)" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px">${manuellAktiv?smsManuellRaw:''}</textarea>
+        <button class="btn-sm" style="margin-top:6px" onclick="smsBrukManuelleNumre()">Bruk disse numrene</button>
+      </div>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -4061,11 +4103,40 @@ function smsVelgGruppe(nokkel){
   renderSmsUtsendelse();
 }
 
+// Bytter til manuell mottaker-modus (se kommentar ved smsManuellRaw over).
+// Viser eventuelle tidligere innlagte manuelle numre igjen (smsManuellMottakere)
+// i stedet for å nullstille dem, i tilfelle brukeren ved et uhell klikker seg
+// vekk til en gruppe og tilbake igjen.
+function smsVisManuellInput(){
+  smsValgtGruppe='Manuelt';
+  smsGruppeMottakere=smsManuellMottakere;
+  smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.key));
+  renderSmsUtsendelse();
+  document.getElementById('smsu-manuell-tekst')?.focus();
+}
+
+function smsBrukManuelleNumre(){
+  const raw=document.getElementById('smsu-manuell-tekst')?.value||'';
+  smsManuellRaw=raw;
+  smsManuellMottakere=smsParseManuelleNumre(raw);
+  smsValgtGruppe='Manuelt';
+  smsGruppeMottakere=smsManuellMottakere;
+  smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.key));
+  renderSmsUtsendelse();
+  if(raw.trim()&&smsManuellMottakere.length===0)alert('Fant ingen numre i teksten.');
+}
+
 function smsRenderMottakere(){
   const wrap=document.getElementById('smsu-mottakere');
   if(!wrap)return;
-  if(!smsValgtGruppe){wrap.innerHTML='<div class="empty">Velg en kundegruppe over for å se mottakerlisten.</div>';return;}
-  if(smsGruppeMottakere.length===0){wrap.innerHTML=`<div class="empty">Ingen kunder med aktiv «${smsValgtGruppe}»-avtale funnet.</div>`;return;}
+  if(!smsValgtGruppe){wrap.innerHTML='<div class="empty">Velg en kundegruppe over, eller skriv inn numre manuelt, for å se mottakerlisten.</div>';return;}
+  const erManuell=smsValgtGruppe==='Manuelt';
+  if(smsGruppeMottakere.length===0){
+    wrap.innerHTML=erManuell
+      ?'<div class="empty">Skriv inn ett eller flere numre over og trykk «Bruk disse numrene».</div>'
+      :`<div class="empty">Ingen kunder med aktiv «${smsValgtGruppe}»-avtale funnet.</div>`;
+    return;
+  }
   const totalKunder=smsGruppeMottakere.reduce((s,m)=>s+m.kunder.length,0);
   const sammenslatt=totalKunder-smsGruppeMottakere.length;
   const mangler=smsGruppeMottakere.filter(m=>!m.telefonRaw).length;
@@ -4073,12 +4144,15 @@ function smsRenderMottakere(){
   const merknader=[];
   if(mangler>0)merknader.push(`<strong>${mangler} uten registrert telefonnummer</strong>`);
   if(ikkeMobil>0)merknader.push(`<strong>${ikkeMobil} med et nummer som ikke er et mobilnummer</strong> (fasttelefon/servicenummer — kan uansett ikke motta SMS)`);
+  const hintTekst=erManuell
+    ?`${smsGruppeMottakere.length} manuelt innlagt${smsGruppeMottakere.length===1?'':'e'} nummer${smsGruppeMottakere.length===1?'':''}${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.`
+    :`${totalKunder} kunde(r) i gruppen «${smsValgtGruppe}»${sammenslatt>0?`, slått sammen til <strong>${smsGruppeMottakere.length} unike mottakernumre</strong> (${sammenslatt} kunde(r) deler telefonnummer med en annen kunde i lista, f.eks. flere butikker/avdelinger)`:''}${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.`;
   wrap.innerHTML=`
-    <div class="hint" style="margin-bottom:8px">${totalKunder} kunde(r) i gruppen «${smsValgtGruppe}»${sammenslatt>0?`, slått sammen til <strong>${smsGruppeMottakere.length} unike mottakernumre</strong> (${sammenslatt} kunde(r) deler telefonnummer med en annen kunde i lista, f.eks. flere butikker/avdelinger)`:''}${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.</div>
+    <div class="hint" style="margin-bottom:8px">${hintTekst}</div>
     <div class="tbl-wrap">
       <table><thead><tr>
         <th style="width:30px"><input type="checkbox" id="smsu-velg-alle" onchange="smsVelgAlleMottakere(this.checked)"/></th>
-        <th>Kunde(r)</th><th>Telefon</th><th>Kontrakt-treff</th>
+        <th>${erManuell?'Merknad':'Kunde(r)'}</th><th>Telefon</th><th>Kontrakt-treff</th>
       </tr></thead><tbody>
         ${smsGruppeMottakere.map(m=>`<tr style="${m.telefon?'':'opacity:.5'}">
           <td><input type="checkbox" ${smsValgteMottakere.has(m.key)?'checked':''} ${m.telefon?'':'disabled'} onchange="smsToggleMottaker('${m.key}',this.checked)"/></td>
@@ -4205,7 +4279,8 @@ async function sendSmsGruppe(){
   if(!melding){alert('Meldingsteksten kan ikke være tom.');return;}
   if(mottakere.length===0){alert('Ingen mottakere valgt.');return;}
   if(!VF_CONFIG.baseUrl){alert('Ikke koblet til Azure Function ennå.');return;}
-  if(!confirm(`Sende SMS til ${mottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»?\n\nMeldingen som sendes:\n"${melding}"\n\nDette kan IKKE angres.`))return;
+  const mottakerLabel=smsValgtGruppe==='Manuelt'?`${mottakere.length} manuelt innlagt${mottakere.length===1?'':'e'} nummer`:`${mottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»`;
+  if(!confirm(`Sende SMS til ${mottakerLabel}?\n\nMeldingen som sendes:\n"${melding}"\n\nDette kan IKKE angres.`))return;
 
   const btn=document.getElementById('smsu-send-btn');
   const CHUNK=20;
