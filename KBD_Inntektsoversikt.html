@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.11 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.13 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -445,7 +445,7 @@ tr:hover td{background:#fafafa}
         <span class="nav-item-icon">⏱️</span>Aldersfordelt
       </div>
       <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this);toggleKunder360Sub(true)">
-        <span class="nav-item-icon">🧑‍💼</span>Kunde360 (BETA)
+        <span class="nav-item-icon">🧑‍💼</span>Kunde360
       </div>
       <!-- Undermeny lagt til 25.08.2026: skiller dagens kundesøk/-oppfølging
            ("Kunder") fra den nye leadgenererings-lista fra Brønnøysund
@@ -455,10 +455,10 @@ tr:hover td{background:#fafafa}
            (tp-kundesaker, sorterbar oversikt over alle Notat/Tilbud/
            Oppfølging på tvers av kunder) i stedet for søke-/kundekortsiden
            (tp-kunder) — på Thomas' eksplisitte ønske om at hovedpunktet
-           "Kunde360 (BETA)" over skal beholde søke-/kundekortsiden uendret
+           "Kunde360" over skal beholde søke-/kundekortsiden uendret
            for seg selv, som en egen forside til videre utvikling senere. -->
       <div class="nav-sub" id="kunder360-sub-nav">
-        <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kundesaker',document.getElementById('tab-kunder'))">🗂️ Kunder</div>
+        <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kundesaker',document.getElementById('tab-kunder'))">🗂️ Kundesaker</div>
         <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="showTab('nyetableringer',document.getElementById('tab-kunder'))">🏢 Nyetableringer</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
@@ -559,9 +559,11 @@ tr:hover td{background:#fafafa}
        hører til. Formålet er en rask "hvilke saker har jeg/vi gående"-oversikt,
        til forskjell fra "Kunde 360 — søk" (tp-kunder) som er organisert PER
        kunde og krever at man vet/søker opp firmaet først. Egen fane på Thomas'
-       eksplisitte ønske 28.08.2026 — "Kunder" i undermenyen peker nå hit,
-       mens selve "Kunde360 (BETA)"-hovedpunktet fortsatt åpner tp-kunder som
-       før (uendret, forbeholdt videre utvikling senere). Leser samme
+       eksplisitte ønske 28.08.2026 — "Kundesaker" i undermenyen peker nå hit
+       (het "Kunder" fram til 31.08.2026, omdøpt for å slippe forveksling med
+       søke-/kundekortsiden), mens selve "Kunde360"-hovedpunktet ("(BETA)"
+       fjernet fra navnet 31.08.2026) fortsatt åpner tp-kunder som før
+       (uendret, forbeholdt videre utvikling senere). Leser samme
        kundeNotater-datagrunnlag som kundekortets "Salg & oppfølging"-fane —
        ingen ny SharePoint-liste. -->
   <div id="tp-kundesaker" class="tp">
@@ -2728,7 +2730,7 @@ function toggleKunder360Sub(open){
 
 function setKunder360SubActive(view){
   document.querySelectorAll('#kunder360-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  // 'kunder' (søke-/kundekortsiden, nås nå kun via selve "Kunde360 (BETA)"-
+  // 'kunder' (søke-/kundekortsiden, nås nå kun via selve "Kunde360"-
   // hovedpunktet) har bevisst INGEN tilsvarende underpunkt lenger — se
   // kommentaren ved kunder360-sub-nav i HTML-en. Ingen av underpunktene
   // markeres da aktive, siden ingen av dem faktisk viser innholdet man ser.
