@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.13 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.14 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1981,7 +1981,7 @@ async function loadDataFromSP(){
   // varslingsjobben i backend (varsling.py) skal slippe å slå opp navnet fra
   // VismaKunder-lista på hver 5-minutters kjøring bare for å sette det i
   // e-postens emnefelt.
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -2082,7 +2082,8 @@ function hentMineVarsler(){
   return kundeNotater.filter(n=>{
     if(n.status!=='Åpen'||!n.varsleDashbord||!n.forfallsdato)return false;
     const erMin=(n.opprettetAvEpost&&currentUser?.username&&n.opprettetAvEpost.toLowerCase()===currentUser.username.toLowerCase())
-      ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name); // eldre oppføringer uten lagret e-post: fall tilbake på navn
+      ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name) // eldre oppføringer uten lagret e-post: fall tilbake på navn
+      ||n.varsleAlle; // 31.08.2026: automatiske varsler (f.eks. konkursvarsel) skal vises til ALLE ansatte, ikke bare "eieren" av notatet
     if(!erMin)return false;
     if(erVarselSett(n))return false;
     const d=new Date(n.forfallsdato);
