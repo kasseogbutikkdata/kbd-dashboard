@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.16 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.17 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1013,6 +1013,28 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeNotatModal()">Avbryt</button>
         <button class="prim" onclick="saveNotat()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEND SMS (Sveve-integrasjon, lagt til 31.08.2026) MODAL — manuell
+       SMS-utsending til én kunde fra Kunde 360-kundekortet. Se
+       sveve_client.py/function_app.py (/api/send_sms) på backend-siden.
+       Bevisst mal+fritekst-hybrid (drøftet med Thomas 31.08.2026): et forslag
+       fylles inn automatisk, men den ansatte kan redigere fritt før sending —
+       IKKE en automatisk jobb. -->
+  <div class="modal-overlay" id="sms-modal" onclick="if(event.target===this)closeSmsModal()">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:4px">📱 Send SMS</h3>
+      <div class="muted" id="sms-modal-kunde" style="margin-bottom:14px"></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Mottakernummer</label><input type="tel" id="sms-til" placeholder="12345678" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px"/></div>
+      <div class="fgrp" style="margin-bottom:4px"><label>Melding</label><textarea id="sms-melding" rows="5" oninput="oppdaterSmsTegnteller()" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div id="sms-tegnteller" class="muted" style="font-size:12px;margin-bottom:10px"></div>
+      <div id="sms-feil" style="display:none;color:#d03b3b;font-size:12px;margin-bottom:10px"></div>
+      <input type="hidden" id="sms-kunde-nr"/>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeSmsModal()">Avbryt</button>
+        <button class="prim" id="sms-send-btn" onclick="sendSmsFraKundekort()">Send SMS</button>
       </div>
     </div>
   </div>
@@ -2950,6 +2972,7 @@ function renderKunder360Trend(kontrakterMedDato){
 }
 
 function normOrgNr(s){return (s||'').replace(/[^0-9]/g,'');}
+function normTlf(s){return (s||'').replace(/[^0-9]/g,'');}
 
 function searchKunder360(){
   const raw=(document.getElementById('k360-search').value||'').trim();
@@ -3065,7 +3088,10 @@ function renderKundeKort(k){
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
             <p class="sec-title" style="margin-bottom:0">Kontaktinfo (Visma)</p>
-            <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${kNr}')">📱 Send SMS</button>`:''}
+              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+            </div>
           </div>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
@@ -3731,6 +3757,89 @@ function openRedigerNotat(id){
 }
 
 function closeNotatModal(){document.getElementById('notat-modal').classList.remove('open');}
+
+// SEND SMS (Sveve, lagt til 31.08.2026) — se modal-kommentaren i HTML-en over
+// og sveve_client.py for hele bakgrunnen. Malen under er BEVISST bare et
+// FORSLAG (drøftet med Thomas 31.08.2026: "Begge deler" — mal OG fritekst) —
+// den ansatte kan redigere alt før sending, ingenting sendes automatisk.
+function smsGenererMal(k){
+  if((k.saldoForfalt||0)>0){
+    const belop=k.saldoForfalt.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return `Hei! Vi ser at ${k.navn||'dere'} har en forfalt saldo på ${belop} kr hos KBD. Ta gjerne kontakt om dere har spørsmål. Hilsen KBD`;
+  }
+  return `Hei ${k.navn||''}! Hilsen KBD`;
+}
+
+function openSmsModal(kNr){
+  const k=vismaKunder.find(x=>String(x.vismaNummer||'').trim()===String(kNr||'').trim());
+  if(!k){alert('Fant ikke kunden.');return;}
+  document.getElementById('sms-modal-kunde').textContent=k.navn||'';
+  document.getElementById('sms-til').value=normTlf(k.kontaktTelefon);
+  document.getElementById('sms-melding').value=smsGenererMal(k);
+  document.getElementById('sms-kunde-nr').value=kNr;
+  document.getElementById('sms-feil').style.display='none';
+  document.getElementById('sms-feil').textContent='';
+  const btn=document.getElementById('sms-send-btn');
+  btn.disabled=false;btn.textContent='Send SMS';
+  oppdaterSmsTegnteller();
+  document.getElementById('sms-modal').classList.add('open');
+}
+
+function closeSmsModal(){document.getElementById('sms-modal').classList.remove('open');}
+
+// SMS-segmentering: GSM-7 (kun standard latinske tegn) gir 160 tegn i én
+// melding / 153 tegn per del ved flerdels-SMS (7 tegn går med til
+// sammenkoblingshode). Så snart teksten inneholder tegn UTENFOR GSM-7 (bl.a.
+// norske æøå/ÆØÅ er IKKE i GSM-7, kun tilsvarende med Sveve-spesifikk
+// escaping — vi regner konservativt) må HELE meldingen sendes som Unicode
+// (UCS-2): 70 tegn i én melding / 67 tegn per del. Se sveve_client.py sin
+// docstring for kilden til disse grensene.
+const _SMS_GSM7=/^[A-Za-z0-9 \r\n@£$¥èéùìòÇØøÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ!"#¤%&'()*+,\-./:;<=>?¡ÄÖÑÜ§¿äöñüà^{}\\\[~\]|€]*$/;
+function oppdaterSmsTegnteller(){
+  const tekst=document.getElementById('sms-melding').value||'';
+  const erGsm7=_SMS_GSM7.test(tekst);
+  const lengde=tekst.length;
+  const enkelGrense=erGsm7?160:70;
+  const delGrense=erGsm7?153:67;
+  const antallDeler=lengde===0?0:(lengde<=enkelGrense?1:Math.ceil(lengde/delGrense));
+  const el=document.getElementById('sms-tegnteller');
+  el.textContent=`${lengde} tegn · ${erGsm7?'standard (GSM-7)':'utvidet tegnsett (Unicode)'} · ${antallDeler||1} SMS-del${antallDeler===1?'':'er'}`;
+  el.style.color=antallDeler>1?'#b45309':'#6b7280';
+}
+
+async function sendSmsFraKundekort(){
+  const til=normTlf(document.getElementById('sms-til').value);
+  const melding=(document.getElementById('sms-melding').value||'').trim();
+  const feilEl=document.getElementById('sms-feil');
+  feilEl.style.display='none';feilEl.textContent='';
+  if(!til){feilEl.textContent='Mangler mottakernummer.';feilEl.style.display='block';return;}
+  if(!melding){feilEl.textContent='Meldingen kan ikke være tom.';feilEl.style.display='block';return;}
+  if(!VF_CONFIG.baseUrl){feilEl.textContent='Ikke koblet til Azure Function ennå.';feilEl.style.display='block';return;}
+
+  const btn=document.getElementById('sms-send-btn');
+  btn.disabled=true;btn.textContent='Sender…';
+  try{
+    const vfToken=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/send_sms'),{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${vfToken}`},
+      body:JSON.stringify({til,melding}),
+    });
+    const data=await resp.json();
+    if(!resp.ok){
+      feilEl.textContent=data.error||`Feil fra server (${resp.status})`;
+      feilEl.style.display='block';
+      btn.disabled=false;btn.textContent='Send SMS';
+      return;
+    }
+    vfShowToast(`SMS sendt til ${til}`);
+    closeSmsModal();
+  }catch(err){
+    feilEl.textContent=`Kunne ikke nå Azure Function: ${err.message}`;
+    feilEl.style.display='block';
+    btn.disabled=false;btn.textContent='Send SMS';
+  }
+}
 
 function updateNotatFormFields(){
   // Forfallsdato + varsling (e-post/dashbord) er tilgjengelig for ALLE typer
@@ -7163,7 +7272,7 @@ function startAutoRefresh(){
 // ===== INIT =====
 initNotatDatePicker();
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
 
 
 /* ===== Verifone trans.avgift (vf-namespace) ===== */
