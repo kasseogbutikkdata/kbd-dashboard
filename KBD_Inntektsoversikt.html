@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.15 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.16 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3889,7 +3889,7 @@ function leggTilLoggpost(id){
 // hvor mange delmål (sjekkliste-punkter) som er avkrysset, se
 // ideFullforing(). En idé uten delmål vises som "ingen delmål lagt til"
 // fremfor 0 %, slik at det ikke ser ut som om arbeidet har startet.
-let ideBank=[],ideBankFilter='alle',ideModalDelmaal=[];
+let ideBank=[],ideBankVisAvsluttede=false,ideModalDelmaal=[];
 const IDEBANK_STATUSER={
   'Idé':{c:'#6b7280',bg:'#f3f4f6'},
   'Under vurdering':{c:'#b45309',bg:'#fef3e2'},
@@ -3905,34 +3905,62 @@ function ideFullforing(idea){
   if(!d.length)return null;
   return Math.round(d.filter(x=>x.checked).length/d.length*100);
 }
-function ideSortert(){
-  return ideBank.slice().sort((a,b)=>{
+// Gruppert visning per status (lagt til 31.08.2026, etter drøfting med
+// Thomas om bedre sortering) — erstatter den tidligere flate lista med
+// status-filterpiller. AKTIVE_STATUSER står i en bevisst "arbeidsflyt"-
+// rekkefølge (det som pågår nå øverst, rene tanker nederst), mens
+// AVSLUTTEDE_STATUSER (Ferdig/Forkastet) regnes som arkiv og er skjult som
+// standard bak en "Vis avsluttede"-knapp — samme prinsipp som "Skjul
+// enkeltpersonforetak" i Nyetableringer: ikke fjernet, bare default-skjult
+// for å holde den aktive lista ryddig.
+const IDEBANK_AKTIVE_STATUSER=['Under arbeid','Planlagt','Under vurdering','Idé'];
+const IDEBANK_AVSLUTTEDE_STATUSER=['Ferdig','Forkastet'];
+
+function ideSorterListe(liste){
+  return liste.slice().sort((a,b)=>{
     const pa=a.prioritet==null?Infinity:a.prioritet,pb=b.prioritet==null?Infinity:b.prioritet;
     if(pa!==pb)return pa-pb;
     return new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0);
   });
 }
+// Prioritet-tallet er fortsatt ett delt tallrom på tvers av HELE ideBank i
+// datamodellen, men siden ideer nå vises og flyttes (▲▼) kun INNAD i egen
+// status-gruppe (se moveIdePriority under), har det i praksis kun betydning
+// relativt til andre ideer med samme status.
+function ideGruppe(status){return ideSorterListe(ideBank.filter(i=>i.status===status));}
+
+function setIdeBankVisAvsluttede(v){ideBankVisAvsluttede=v;renderIdeBank();}
+
+function renderIdeGruppe(status,kanStyre){
+  const gruppe=ideGruppe(status);
+  if(gruppe.length===0)return''; // ingen tom seksjon for en status uten ideer
+  const st=IDEBANK_STATUSER[status]||IDEBANK_STATUSER['Idé'];
+  const rader=gruppe.map((idea,idx)=>renderIdeCard(idea,idx,gruppe,kanStyre)).join('');
+  return `<div style="margin-bottom:22px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:11px;font-weight:700;color:${st.c};background:${st.bg};padding:3px 10px;border-radius:20px;letter-spacing:.3px">${status.toUpperCase()}</span>
+      <span style="font-size:12px;color:#9ca3af">${gruppe.length}</span>
+    </div>
+    ${rader}
+  </div>`;
+}
 
 function renderIdeBank(){
   const el=document.getElementById('idebank-liste');if(!el)return;
   const kanStyre=ideBankKanStyre();
-  const alle=ideSortert();
-  const filtrert=ideBankFilter==='alle'?alle:alle.filter(i=>i.status===ideBankFilter);
 
-  const filterPill=(val,lbl,farge)=>`<button class="fpill${ideBankFilter===val?' f-on':''}" style="${ideBankFilter===val?`border-color:${farge}`:''}" onclick="setIdeBankFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${ideBankFilter===val?`font-weight:600;color:${farge}`:''}">${lbl}</span></button>`;
-  const filterHtml=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-    ${filterPill('alle',`Alle (${alle.length})`,'#1A3A6B')}
-    ${Object.keys(IDEBANK_STATUSER).map(s=>filterPill(s,`${s} (${alle.filter(i=>i.status===s).length})`,IDEBANK_STATUSER[s].c)).join('')}
-  </div>`;
-
-  const rader=filtrert.map((idea,idx)=>renderIdeCard(idea,idx,filtrert,kanStyre)).join('');
+  const antallAvsluttet=ideBank.filter(i=>IDEBANK_AVSLUTTEDE_STATUSER.includes(i.status)).length;
+  const grupperHtml=IDEBANK_AKTIVE_STATUSER.map(s=>renderIdeGruppe(s,kanStyre)).join('');
+  const avsluttetHtml=ideBankVisAvsluttede?IDEBANK_AVSLUTTEDE_STATUSER.map(s=>renderIdeGruppe(s,kanStyre)).join(''):'';
+  const toggleKnapp=antallAvsluttet>0?`<button class="btn-sm" onclick="setIdeBankVisAvsluttede(${!ideBankVisAvsluttede})" style="margin-bottom:14px">${ideBankVisAvsluttede?'▲ Skjul avsluttede':`▼ Vis avsluttede (${antallAvsluttet})`}</button>`:'';
 
   el.innerHTML=`
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
       <button class="btn-sm" onclick="openNyIdeModal()">+ Ny idé</button>
     </div>
-    ${filterHtml}
-    <div>${filtrert.length===0?`<div class="empty">${alle.length===0?'Ingen ideer registrert ennå. Legg til den første!':'Ingen ideer med denne statusen.'}</div>`:rader}</div>
+    ${ideBank.length===0?`<div class="empty">Ingen ideer registrert ennå. Legg til den første!</div>`:grupperHtml}
+    ${toggleKnapp}
+    ${avsluttetHtml}
   `;
 }
 
@@ -4021,12 +4049,16 @@ function toggleIdeDelmaalLive(id,idx){
 
 function moveIdePriority(id,dir){
   if(!ideBankKanStyre())return;
-  const sortert=ideSortert();
-  const idx=sortert.findIndex(i=>i.id===id);if(idx<0)return;
-  const swapIdx=idx+dir;if(swapIdx<0||swapIdx>=sortert.length)return;
-  const a=sortert[idx],b=sortert[swapIdx];
-  const pa=a.prioritet==null?sortert.length:a.prioritet;
-  const pb=b.prioritet==null?sortert.length:b.prioritet;
+  const idea=ideBank.find(i=>i.id===id);if(!idea)return;
+  // Flytter KUN innad i egen status-gruppe, siden ideer nå vises gruppert per
+  // status (se renderIdeGruppe over) — ▲▼-knappene sitter uansett bare
+  // mellom kort i samme gruppe, så det er der flyttingen skal ha effekt.
+  const gruppe=ideGruppe(idea.status);
+  const idx=gruppe.findIndex(i=>i.id===id);if(idx<0)return;
+  const swapIdx=idx+dir;if(swapIdx<0||swapIdx>=gruppe.length)return;
+  const a=gruppe[idx],b=gruppe[swapIdx];
+  const pa=a.prioritet==null?gruppe.length:a.prioritet;
+  const pb=b.prioritet==null?gruppe.length:b.prioritet;
   a.prioritet=pb;b.prioritet=pa;
   renderIdeBank();
   const jobs=[];
@@ -4037,8 +4069,6 @@ function moveIdePriority(id,dir){
     Promise.all(jobs).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);});
   }
 }
-
-function setIdeBankFilter(f){ideBankFilter=f;renderIdeBank();}
 
 function openNyIdeModal(){
   document.getElementById('idebank-modal-title').textContent='Ny idé';
