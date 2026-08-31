@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.20 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.21 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3030,6 +3030,21 @@ function renderKunder360Trend(kontrakterMedDato){
 function normOrgNr(s){return (s||'').replace(/[^0-9]/g,'');}
 function normTlf(s){return (s||'').replace(/[^0-9]/g,'');}
 
+// Skiller mobilnumre fra fasttelefon/servicenumre — lagt til 31.08.2026 på
+// Thomas' ønske om at «📱 SMS utsendelse» (gruppe-utsending) IKKE skal telle
+// numre som uansett ikke kan motta SMS som gyldige mottakere. Etter Nkom sin
+// norske nummerplan er et mobilnummer 8 sifre som starter på 4 eller 9 —
+// fasttelefon starter på 2/3/5/6/7, og numre som starter på 8 er service-/
+// betalingsnumre (heller ikke mobil). Håndterer også et evt. landskode-
+// prefiks (+47/0047/47) foran selve 8-sifferet, siden noen Visma-kontakter
+// er registrert med det.
+function erNorskMobilnummer(telefonRaw){
+  let s=normTlf(telefonRaw);
+  if(s.length===12&&s.startsWith('0047'))s=s.slice(4);
+  else if(s.length===10&&s.startsWith('47'))s=s.slice(2);
+  return s.length===8&&/^[49]/.test(s);
+}
+
 function searchKunder360(){
   const raw=(document.getElementById('k360-search').value||'').trim();
   const resDiv=document.getElementById('k360-resultater');
@@ -3950,7 +3965,14 @@ function smsHentKundegruppe(nokkel){
     const k=vismaKunder.find(x=>String(x.vismaNummer||'').trim()===nr);
     if(!k)return null;
     const kontraktTreff=[...new Set(treff.filter(c=>String(c.vismaKundeNummer||'').trim()===nr).map(c=>c.beskrivelse))].join(', ');
-    return{vismaNummer:nr,navn:k.navn||'(uten navn)',telefon:normTlf(k.kontaktTelefon),kontraktTreff};
+    // telefonRaw = det som faktisk står i Visma (til visning, selv om det
+    // ikke er et mobilnummer). telefon = KUN satt når det er et gyldig norsk
+    // mobilnummer — dette er feltet resten av koden (avhukingsbokser,
+    // forhåndshaking, selve sendingen) bruker som "kan velges"-kriterium, se
+    // erNorskMobilnummer() over.
+    const telefonRaw=normTlf(k.kontaktTelefon);
+    const erMobil=erNorskMobilnummer(telefonRaw);
+    return{vismaNummer:nr,navn:k.navn||'(uten navn)',telefon:erMobil?telefonRaw:'',telefonRaw,erMobil,kontraktTreff};
   }).filter(Boolean).sort((a,b)=>a.navn.localeCompare(b.navn,'nb'));
 }
 
@@ -4002,9 +4024,11 @@ function renderSmsUtsendelse(){
 function smsVelgGruppe(nokkel){
   smsValgtGruppe=nokkel;
   smsGruppeMottakere=smsHentKundegruppe(nokkel);
-  // Forhåndshaket: alle mottakere MED gyldig telefonnummer. De uten telefon
-  // vises likevel i listen (slik at man SER at de finnes og evt. må
-  // kontaktes på annen måte), men kan ikke velges — ingenting å sende til.
+  // Forhåndshaket: alle mottakere MED et gyldig norsk MOBILnummer (se
+  // erNorskMobilnummer()). De uten telefon, eller med et nummer som ikke er
+  // mobil (fasttelefon/servicenummer), vises likevel i listen (slik at man
+  // SER at de finnes og evt. må kontaktes på annen måte), men kan ikke
+  // velges — ingenting å sende SMS til.
   smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.vismaNummer));
   renderSmsUtsendelse();
 }
@@ -4014,9 +4038,13 @@ function smsRenderMottakere(){
   if(!wrap)return;
   if(!smsValgtGruppe){wrap.innerHTML='<div class="empty">Velg en kundegruppe over for å se mottakerlisten.</div>';return;}
   if(smsGruppeMottakere.length===0){wrap.innerHTML=`<div class="empty">Ingen kunder med aktiv «${smsValgtGruppe}»-avtale funnet.</div>`;return;}
-  const mangler=smsGruppeMottakere.filter(m=>!m.telefon).length;
+  const mangler=smsGruppeMottakere.filter(m=>!m.telefonRaw).length;
+  const ikkeMobil=smsGruppeMottakere.filter(m=>m.telefonRaw&&!m.erMobil).length;
+  const merknader=[];
+  if(mangler>0)merknader.push(`<strong>${mangler} uten registrert telefonnummer</strong>`);
+  if(ikkeMobil>0)merknader.push(`<strong>${ikkeMobil} med et nummer som ikke er et mobilnummer</strong> (fasttelefon/servicenummer — kan uansett ikke motta SMS)`);
   wrap.innerHTML=`
-    <div class="hint" style="margin-bottom:8px">${smsGruppeMottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»${mangler>0?`, herav <strong>${mangler} uten registrert telefonnummer</strong> (kan ikke velges)`:''}. Fjern eventuelt enkeltkunder under før sending.</div>
+    <div class="hint" style="margin-bottom:8px">${smsGruppeMottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltkunder under før sending.</div>
     <div class="tbl-wrap">
       <table><thead><tr>
         <th style="width:30px"><input type="checkbox" id="smsu-velg-alle" onchange="smsVelgAlleMottakere(this.checked)"/></th>
@@ -4025,7 +4053,7 @@ function smsRenderMottakere(){
         ${smsGruppeMottakere.map(m=>`<tr style="${m.telefon?'':'opacity:.5'}">
           <td><input type="checkbox" ${smsValgteMottakere.has(m.vismaNummer)?'checked':''} ${m.telefon?'':'disabled'} onchange="smsToggleMottaker('${m.vismaNummer}',this.checked)"/></td>
           <td>${m.navn}</td>
-          <td>${m.telefon||'<span style="color:#d03b3b">mangler</span>'}</td>
+          <td>${m.erMobil?m.telefon:m.telefonRaw?`<span style="color:#d03b3b">${m.telefonRaw} (ikke mobil)</span>`:'<span style="color:#d03b3b">mangler</span>'}</td>
           <td class="muted">${m.kontraktTreff}</td>
         </tr>`).join('')}
       </tbody></table>
