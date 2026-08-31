@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.26 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.27 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3994,6 +3994,15 @@ let smsMaler=[],smsUtsendelser=[],smsGrupper=[],smsValgteKilder=new Set(),smsGru
 // hvordan flere valgte kilder slås sammen til én mottakerliste.
 let smsManuellRaw='';
 
+// SMS-saldo (lagt til 31.08.2026, på Thomas' ønske etter at han aktiverte
+// Sveve sitt API) — gjenværende SMS-krediter på Sveve-kontoen, hentet fra
+// det nye /api/sms_saldo-endepunktet (se sveve_client.hent_sms_saldo()).
+// Hentes IKKE på hver eneste re-rendering av siden (ville spammet Sveve sitt
+// API unødvendig hver gang man f.eks. huker av en mottaker) — kun når
+// «📱 SMS utsendelse»-fanen faktisk åpnes (se showTab()) eller ved manuelt
+// klikk på 🔄. smsSaldo forblir null helt til første vellykkede henting.
+let smsSaldo=null,smsSaldoTidspunkt=null,smsSaldoLaster=false,smsSaldoFeil='';
+
 // Tolker fritekst med ett eller flere numre (skilt med komma, mellomrom,
 // semikolon eller linjeskift) til samme radformat som smsHentKundegruppe()
 // bruker, slik at resten av koden (mottakerliste, avhuking, sending, logging)
@@ -4017,6 +4026,43 @@ function smsParseManuelleNumre(raw){
     }
   }
   return[...perNokkel.values()];
+}
+
+// Henter gjenværende SMS-krediter fra Sveve via /api/sms_saldo (lagt til
+// 31.08.2026, se sveve_client.hent_sms_saldo() i backend). Kalles KUN når
+// «📱 SMS utsendelse»-fanen åpnes (showTab()) eller ved klikk på 🔄 — IKKE
+// på hver eneste re-rendering av siden, for å ikke spamme Sveve sitt API
+// hver gang man f.eks. huker av én mottaker.
+async function smsHentSaldo(){
+  if(!VF_CONFIG.baseUrl){smsSaldoFeil='ikke koblet til Azure Function ennå';smsRenderSaldoVisning();return;}
+  smsSaldoLaster=true;smsSaldoFeil='';
+  smsRenderSaldoVisning();
+  try{
+    const vfToken=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/sms_saldo'),{headers:{'Authorization':`Bearer ${vfToken}`}});
+    const data=await resp.json();
+    if(!resp.ok)throw new Error(data.error||`Feil fra server (${resp.status})`);
+    smsSaldo=data.saldo;
+    smsSaldoTidspunkt=new Date();
+  }catch(e){
+    smsSaldoFeil=e.message;
+  }finally{
+    smsSaldoLaster=false;
+    smsRenderSaldoVisning();
+  }
+}
+
+function smsSaldoVisningTekst(){
+  if(smsSaldoLaster)return '💳 Henter SMS-saldo…';
+  if(smsSaldoFeil)return `💳 Kunne ikke hente SMS-saldo (${smsSaldoFeil})`;
+  if(smsSaldo===null)return '💳 SMS-saldo: ukjent — trykk 🔄 for å hente';
+  const kl=smsSaldoTidspunkt?smsSaldoTidspunkt.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):'';
+  return `💳 SMS-saldo: <strong>${smsSaldo.toLocaleString('nb-NO')}</strong> krediter${kl?` (oppdatert kl. ${kl})`:''}`;
+}
+
+function smsRenderSaldoVisning(){
+  const el=document.getElementById('smsu-saldo-tekst');
+  if(el)el.innerHTML=smsSaldoVisningTekst();
 }
 
 // Finner RÅ kandidatrader (FØR sammenslåing på telefonnummer) for ett
@@ -4155,6 +4201,10 @@ function renderSmsUtsendelse(){
   const malOpsjoner=smsMaler.map(m=>`<option value="${m.id}"${document.getElementById('smsu-mal-select')?.value===m.id?' selected':''}>${(m.navn||'(uten navn)').replace(/"/g,'&quot;')}</option>`).join('');
 
   target.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12.5px;color:#4b5563">
+      <span id="smsu-saldo-tekst">${smsSaldoVisningTekst()}</span>
+      <button class="btn-icon" title="Oppdater SMS-saldo" onclick="smsHentSaldo()">🔄</button>
+    </div>
     <div class="card">
       <p class="sec-title">1. Velg kundegruppe(r)</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">${gruppeKnapper}${lagretGruppeKnapper}
@@ -4518,7 +4568,14 @@ async function sendSmsGruppe(){
   if(!melding){alert('Meldingsteksten kan ikke være tom.');return;}
   if(mottakere.length===0){alert('Ingen mottakere valgt.');return;}
   if(!VF_CONFIG.baseUrl){alert('Ikke koblet til Azure Function ennå.');return;}
-  if(!confirm(`Sende SMS til ${mottakere.length} mottaker(e) (${smsGruppeVisningsnavn()})?\n\nMeldingen som sendes:\n"${melding}"\n\nDette kan IKKE angres.`))return;
+  // Myk advarsel (ikke en blokkering) hvis vi kjenner SMS-saldoen og
+  // utsendingen ser ut til å overstige den — saldoen kan uansett være noe
+  // gammel (hentes kun ved fane-åpning/🔄, se smsHentSaldo()), så brukeren
+  // kan fortsatt velge å sende likevel.
+  const saldoAdvarsel=(typeof smsSaldo==='number'&&mottakere.length>smsSaldo)
+    ?`\n\n⚠️ OBS: SMS-saldoen viste sist ${smsSaldo.toLocaleString('nb-NO')} krediter, men du skal sende til ${mottakere.length} mottakere — utsendingen vil sannsynligvis stoppe før alle har fått meldingen.`
+    :'';
+  if(!confirm(`Sende SMS til ${mottakere.length} mottaker(e) (${smsGruppeVisningsnavn()})?${saldoAdvarsel}\n\nMeldingen som sendes:\n"${melding}"\n\nDette kan IKKE angres.`))return;
 
   const btn=document.getElementById('smsu-send-btn');
   const CHUNK=20;
@@ -4542,6 +4599,7 @@ async function sendSmsGruppe(){
     alert(`Utsendelsen stoppet før alle var forsøkt sendt: ${err.message}\n\n${resultater.length} av ${mottakere.length} rakk å bli forsøkt før feilen oppstod${resultater.length>0?' (logget under Tidligere utsendelser)':''}.`);
     if(btn){btn.disabled=false;}
     smsOppdaterValgtAntall();
+    smsHentSaldo(); // saldoen har uansett endret seg av det som rakk å bli sendt
     return;
   }
 
@@ -4552,6 +4610,7 @@ async function sendSmsGruppe(){
   if(feilet.length>0)console.warn('SMS som feilet i gruppeutsendingen:',feilet);
   smsValgteMottakere.clear();
   renderSmsUtsendelse();
+  smsHentSaldo(); // oppdater saldovisningen med det som faktisk ble brukt
 }
 
 async function smsLoggUtsendelse(melding,resultater,antallForsokt){
@@ -5938,7 +5997,7 @@ function showTab(name,btn){
   if(name==='kundesaker'){renderKundesaker();setKunder360SubActive('kundesaker');}
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
   if(name==='konkurser'){renderKonkurser();setKunder360SubActive('konkurser');}
-  if(name==='smsutsendelse')renderSmsUtsendelse();
+  if(name==='smsutsendelse'){renderSmsUtsendelse();smsHentSaldo();}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
