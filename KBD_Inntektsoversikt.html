@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.9 · Oppdatert: 28. aug 2026 kl. 13:21</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.10 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2171,9 +2171,18 @@ function startVarselPolling(){
 function gaTilNotatFraVarsel(id){
   const n=kundeNotater.find(x=>x.id===id);
   if(!n)return;
-  const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+  // Bugfix 31.08.2026: søkte tidligere KUN i vismaKunder, så et varsel for en
+  // prospekt/manuelt opprettet kunde (overført fra Nyetableringer, eller via
+  // «➕ Ny kunde» — finnes kun i hentProspektKunder(), ikke i vismaKunder) ble
+  // aldri funnet. Konsekvens: klikk på varselet gjorde ingenting synlig (kun en
+  // console.warn), OG viktigst — markerVarselSett() ble aldri kalt, så varselet
+  // forsvant heller ikke fra bjellen. Samme søkepool som gaTilKundeFraSak()
+  // (Kundesaker-fanens "Åpne"-knapp) bruker, som alltid har fungert korrekt for
+  // prospekter.
+  const alleKunder=[...vismaKunder,...hentProspektKunder()];
+  const kunde=alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
   closeVarselMeny();
-  if(!kunde){console.warn('Fant ikke kunden for varselet i vismaKunder-lista (Visma-synk kan mangle denne kunden ennå):',n.vismaKundeNummer);return;}
+  if(!kunde){console.warn('Fant ikke kunden for varselet i vismaKunder-lista eller blant overførte prospekter:',n.vismaKundeNummer);return;}
   markerVarselSett(n);
   renderVarselMeny();
   showTab('kunder');
