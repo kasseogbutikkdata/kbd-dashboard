@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.27 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.28 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -470,8 +470,12 @@ tr:hover td{background:#fafafa}
            kunde om gangen slik Kundesaker/Nyetableringer/Konkurser er. Gir
            også rom for videre utvidelse (flere maler, flere grupperinger)
            uten å tynge ned Kunde 360-undermenyen. -->
-      <div class="nav-item" id="tab-smsutsendelse" onclick="showTab('smsutsendelse',this)">
+      <div class="nav-item" id="tab-smsutsendelse" onclick="showTab('smsutsendelse',this);toggleSmsUtsendelseSub(true)">
         <span class="nav-item-icon">📱</span>SMS utsendelse
+      </div>
+      <div class="nav-sub" id="smsutsendelse-sub-nav">
+        <div class="nav-sub-item active" id="smssub-smsutsendelse" onclick="showTab('smsutsendelse',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsutsendelse')">📤 Ny utsendelse</div>
+        <div class="nav-sub-item" id="smssub-smshistorikk" onclick="showTab('smshistorikk',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smshistorikk')">🕘 Tidligere utsendelser</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -632,7 +636,14 @@ tr:hover td{background:#fafafa}
       <div class="hint">Send samme SMS til alle kunder med minst én AKTIV avtale som matcher en kundegruppe (Susoft/Nets/Verifone, basert på kontraktens beskrivelsesfelt fra Visma — samme grunnlag som produktoversikten på Kunde 360-forsiden). Telefonnummeret hentes fra kundens hovedkontakt i Visma (samme nummer som vises som kontakttelefon på Kunde 360-kortet), og synkroniseres inn hver natt sammen med resten av kundedataene. Visma skiller ikke mellom mobil- og fastnummer i dette feltet, så dashbordet sjekker selv at nummeret har riktig format for norske mobilnumre (8 sifre som starter på 4 eller 9) før det regnes som sendbart — numre som ikke ser ut som mobil merkes «ikke mobil» og hukes automatisk ut. Kunder som deler samme telefonnummer (for eksempel flere butikker registrert under samme eier) slås sammen til én mottaker, slik at ingen får meldingen flere ganger. Du velger gruppe, ser nøyaktig hvem som vil motta meldingen, og kan fjerne enkeltkunder før du sender. Ren manuell utsending — ingenting sendes automatisk.</div>
     </div>
     <div id="smsu-innhold"></div>
-    <div class="card" style="margin-top:20px">
+  </div>
+
+  <!-- SMS UTSENDELSE — Tidligere utsendelser (undermeny, skilt ut fra
+       tp-smsutsendelse 31.08.2026 på Thomas' ønske, slik at kompose-visningen
+       og historikken kan åpnes hver for seg fra sub-navigasjonen i stedet for
+       å ligge stablet i samme panel. -->
+  <div id="tp-smshistorikk" class="tp">
+    <div class="card">
       <div class="card-title">🕘 Tidligere utsendelser</div>
       <div id="smsu-historikk"></div>
     </div>
@@ -4171,7 +4182,6 @@ function smsOppdaterMottakereFraKilder(){
 }
 
 function renderSmsUtsendelse(){
-  renderSmsHistorikk();
   const target=document.getElementById('smsu-innhold');
   if(!salgTilgang){
     target.innerHTML='<div class="card"><div class="empty">Du har ikke tilgang til å sende SMS-utsendelser. Kontakt en administrator for salgstilgang («📋 Kan skrive salgsnotater» e.l. i Innstillinger → Brukertilgang).</div></div>';
@@ -5975,7 +5985,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':name==='smshistorikk'?'smsutsendelse':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -5984,6 +5994,7 @@ function showTab(name,btn){
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
+  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smshistorikk');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -5997,7 +6008,8 @@ function showTab(name,btn){
   if(name==='kundesaker'){renderKundesaker();setKunder360SubActive('kundesaker');}
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
   if(name==='konkurser'){renderKonkurser();setKunder360SubActive('konkurser');}
-  if(name==='smsutsendelse'){renderSmsUtsendelse();smsHentSaldo();}
+  if(name==='smsutsendelse'){setSmsUtsendelseSubActive('smsutsendelse');renderSmsUtsendelse();smsHentSaldo();}
+  if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
@@ -6016,6 +6028,17 @@ function toggleLisenserSub(open){
 function setLisenserSubActive(view){
   document.querySelectorAll('#lisenser-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
   const el=document.getElementById('lsub-'+view);
+  if(el)el.classList.add('active');
+}
+
+function toggleSmsUtsendelseSub(open){
+  const sub=document.getElementById('smsutsendelse-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function setSmsUtsendelseSubActive(view){
+  document.querySelectorAll('#smsutsendelse-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById(view==='smshistorikk'?'smssub-smshistorikk':'smssub-smsutsendelse');
   if(el)el.classList.add('active');
 }
 
