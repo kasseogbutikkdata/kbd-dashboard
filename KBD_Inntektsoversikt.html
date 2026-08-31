@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.19 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.20 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -461,7 +461,17 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kundesaker',document.getElementById('tab-kunder'))">🗂️ Kundesaker</div>
         <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="showTab('nyetableringer',document.getElementById('tab-kunder'))">🏢 Nyetableringer</div>
         <div class="nav-sub-item" id="ksub360-konkurser" onclick="showTab('konkurser',document.getElementById('tab-kunder'))">⚠️ Konkurser</div>
-        <div class="nav-sub-item" id="ksub360-smsutsendelse" onclick="showTab('smsutsendelse',document.getElementById('tab-kunder'))">📱 SMS utsendelse</div>
+      </div>
+      <!-- Eget toppnivå-menypunkt, IKKE et undermenypunkt under Kunde 360
+           (flyttet ut 31.08.2026 på Thomas' ønske, samme dag som funksjonen
+           ble bygget) — samme resonnement som Verifone trans.avgift under:
+           bruker Kunde 360 sine data (vismaKunder/vismaKontrakter), men er en
+           egen kommunikasjons-/utsendingsfunksjon, ikke sakssporing på én
+           kunde om gangen slik Kundesaker/Nyetableringer/Konkurser er. Gir
+           også rom for videre utvidelse (flere maler, flere grupperinger)
+           uten å tynge ned Kunde 360-undermenyen. -->
+      <div class="nav-item" id="tab-smsutsendelse" onclick="showTab('smsutsendelse',this)">
+        <span class="nav-item-icon">📱</span>SMS utsendelse
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -2074,7 +2084,8 @@ async function loadDataFromSP(){
   // innledende KundeNotater-oppføring), men fylles ikke lenger på herfra.
   nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // SmsMaler/SmsUtsendelser (lagt til 31.08.2026) — lagrede meldingsmaler og
-  // en historikk-logg for «📱 SMS utsendelse»-menyen under Kunde 360. Fylles
+  // en historikk-logg for «📱 SMS utsendelse»-menyen (eget toppnivå-
+  // menypunkt, se kommentaren ved tab-smsutsendelse i HTML-en). Fylles
   // og leses DIREKTE av dashbordet selv (brukerens egen innlogging), ikke av
   // en backend-synk — samme mønster som KundeNotater/Idebank/Kunngjoringer.
   // .catch(()=>[]) over gjør at menyen fungerer (viser tom liste) selv før
@@ -2871,7 +2882,7 @@ function setKunder360SubActive(view){
   // hovedpunktet) har bevisst INGEN tilsvarende underpunkt lenger — se
   // kommentaren ved kunder360-sub-nav i HTML-en. Ingen av underpunktene
   // markeres da aktive, siden ingen av dem faktisk viser innholdet man ser.
-  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':view==='konkurser'?'ksub360-konkurser':view==='smsutsendelse'?'ksub360-smsutsendelse':null;
+  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':view==='konkurser'?'ksub360-konkurser':null;
   if(id){const el=document.getElementById(id);if(el)el.classList.add('active');}
 }
 
@@ -3903,11 +3914,17 @@ async function sendSmsFraKundekort(){
 }
 
 // ===== SMS UTSENDELSE til kundegrupper (Sveve, lagt til 31.08.2026) =====
-// Forespørsel fra Thomas 31.08.2026: en egen meny under Kunde 360 for å sende
-// SMS til HELE kundegrupper på én gang (i motsetning til enkelt-SMS-knappen
-// over, som sender til ÉN kunde om gangen). Gjenbruker BEVISST samme
-// gruppering (K360_PRODUKTNOKKELORD = Susoft/Nets/Verifone, matchet mot
-// aktive kontrakters Beskrivelse-felt) som allerede telles i
+// Forespørsel fra Thomas 31.08.2026: en egen meny for å sende SMS til HELE
+// kundegrupper på én gang (i motsetning til enkelt-SMS-knappen over, som
+// sender til ÉN kunde om gangen). Startet som et undermenypunkt under Kunde
+// 360, men flyttet SAMME DAG til et eget toppnivå-menypunkt (se
+// tab-smsutsendelse i HTML-en) — Thomas' vurdering, som Claude støttet: dette
+// er en kommunikasjons-/utsendingsfunksjon, ikke sakssporing på én kunde om
+// gangen slik Kundesaker/Nyetableringer/Konkurser er, og planlagt videre
+// utvidelse (flere maler, flere grupperinger) trengte ikke tynge ned Kunde
+// 360-undermenyen. Gjenbruker BEVISST samme gruppering
+// (K360_PRODUKTNOKKELORD = Susoft/Nets/Verifone, matchet mot aktive
+// kontrakters Beskrivelse-felt) som allerede telles i
 // renderKunder360Oversikt() sin produktoversikt — én kilde til sannhet for
 // hva som regnes som en "Susoft-kunde" osv., i stedet for å finne opp en ny,
 // parallell definisjon her. Krever to nye SharePoint-lister, SmsMaler og
@@ -5528,7 +5545,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser'||name==='smsutsendelse')?'kunder':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -5536,7 +5553,7 @@ function showTab(name,btn){
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
-  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser'||name==='smsutsendelse');
+  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -5550,7 +5567,7 @@ function showTab(name,btn){
   if(name==='kundesaker'){renderKundesaker();setKunder360SubActive('kundesaker');}
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
   if(name==='konkurser'){renderKonkurser();setKunder360SubActive('konkurser');}
-  if(name==='smsutsendelse'){renderSmsUtsendelse();setKunder360SubActive('smsutsendelse');}
+  if(name==='smsutsendelse')renderSmsUtsendelse();
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
