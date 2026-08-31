@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.24 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.25 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1082,6 +1082,26 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeSmsMalModal()">Avbryt</button>
         <button class="prim" onclick="lagreSmsMal()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SMS-GRUPPE (lagt til 31.08.2026) MODAL — opprett/rediger en lagret,
+       manuelt vedlikeholdt mottakergruppe (numre som ikke nødvendigvis
+       matcher en Visma-kontrakt) for «📱 SMS utsendelse»-menyen. Erstatter de
+       tre gruppene som tidligere lå i Sveve sin egen portal — Thomas ønsket
+       dem flyttet inn i KBD CC. Se openNySmsGruppeModal()/
+       openRedigerSmsGruppeModal()/smsLagreGruppe(). -->
+  <div class="modal-overlay" id="sms-gruppe-modal" onclick="if(event.target===this)closeSmsGruppeModal()">
+    <div class="modal" style="max-width:480px">
+      <h3 id="sms-gruppe-modal-title" style="margin-bottom:16px">Ny SMS-gruppe</h3>
+      <div class="fgrp" style="margin-bottom:10px"><label>Navn på gruppe</label><input type="text" id="sg-navn" placeholder="F.eks. VIP-kunder" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px"/></div>
+      <div class="fgrp" style="margin-bottom:4px"><label>Numre (ett eller flere, skilt med komma eller linjeskift)</label><textarea id="sg-numre" rows="6" oninput="smsOppdaterGruppeTelling()" placeholder="912 34 567, 98765432" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div id="sg-telling" class="muted" style="font-size:12px;margin-bottom:10px"></div>
+      <input type="hidden" id="sg-edit-id"/>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeSmsGruppeModal()">Avbryt</button>
+        <button class="prim" onclick="smsLagreGruppe()">Lagre</button>
       </div>
     </div>
   </div>
@@ -2000,8 +2020,8 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItems('SmsMaler').catch(()=>[]),spGetItems('SmsUtsendelser').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItems('SmsMaler').catch(()=>[]),spGetItems('SmsUtsendelser').catch(()=>[]),spGetItems('SmsGrupper').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2092,6 +2112,16 @@ async function loadDataFromSP(){
   // listene faktisk er opprettet i SharePoint.
   smsMaler=smItems.map(i=>({id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',tekst:i.fields.Tekst||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
   smsUtsendelser=suItems.map(i=>({id:`sp${i.id}`,spId:i.id,gruppe:i.fields.Gruppe||'',malNavn:i.fields.MalNavn||'',tekst:i.fields.Tekst||'',antallMottakere:parseInt(i.fields.AntallMottakere)||0,antallVellykket:parseInt(i.fields.AntallVellykket)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,sendtAv:i.fields.SendtAv||'',sendtDato:i.fields.SendtDato||''})).sort((a,b)=>new Date(b.sendtDato)-new Date(a.sendtDato));
+  // SmsGrupper (lagt til 31.08.2026) — lagrede, manuelt vedlikeholdte
+  // mottakergrupper (numre som ikke nødvendigvis matcher noen av
+  // K360_PRODUKTNOKKELORD-kategoriene). Erstatter de tre gruppene som til nå
+  // har ligget i Sveve sin egen portal — Thomas ønsket dem flyttet inn i KBD
+  // CC slik at gruppene vedlikeholdes samme sted som resten av
+  // utsendingsflyten (mal, mottakerliste, historikk). "Numre"-feltet lagres
+  // som fritekst (samme format som smsManuellRaw) og tolkes med
+  // smsParseManuelleNumre() — samme funksjon som den manuelle
+  // engangsinntastingen bruker, se smsVelgLagretGruppe().
+  smsGrupper=sgItems.map(i=>({id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',numre:i.fields.Numre||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -3946,7 +3976,7 @@ async function sendSmsFraKundekort(){
 // SmsUtsendelser — se Kunde360-oppsett-sjekkliste.md. Begge lastes med
 // .catch(()=>[]) i loadDataFromSP() slik at menyen fungerer (viser tomt) selv
 // før listene er opprettet.
-let smsMaler=[],smsUtsendelser=[],smsValgtGruppe=null,smsGruppeMottakere=[],smsValgteMottakere=new Set();
+let smsMaler=[],smsUtsendelser=[],smsGrupper=[],smsValgtGruppe=null,smsGruppeMottakere=[],smsValgteMottakere=new Set();
 // Manuell mottaker-modus (lagt til 31.08.2026, på Thomas' ønske): i tillegg
 // til de tre Visma-baserte kundegruppene kan man skrive inn ett eller flere
 // telefonnumre for hånd — for eksempel når man vil sende til bare én kunde
@@ -4050,15 +4080,28 @@ function renderSmsUtsendelse(){
     return `<button class="btn-sm" style="${aktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}" onclick="smsVelgGruppe('${nokkel}')">${nokkel} (${antall})</button>`;
   }).join('');
   const manuellAktiv=smsValgtGruppe==='Manuelt';
+  // Lagrede grupper (lagt til 31.08.2026) — se smsGrupper/smsVelgLagretGruppe().
+  // aktivGruppeId = id-en på den lagrede gruppen som er valgt akkurat nå (om
+  // noen), brukt til å style den aktive knappen og til å styre synligheten på
+  // Rediger/Slett-knappene under.
+  const aktivGruppeId=typeof smsValgtGruppe==='string'&&smsValgtGruppe.startsWith('gruppe:')?smsValgtGruppe.slice(7):null;
+  const lagretGruppeKnapper=smsGrupper.map(g=>{
+    const antall=smsParseManuelleNumre(g.numre).filter(m=>m.telefon).length;
+    const aktiv=aktivGruppeId===g.id;
+    return `<button class="btn-sm" style="${aktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}" onclick="smsVelgLagretGruppe('${g.id}')">📁 ${(g.navn||'(uten navn)').replace(/"/g,'&quot;')} (${antall})</button>`;
+  }).join('');
   const malOpsjoner=smsMaler.map(m=>`<option value="${m.id}"${document.getElementById('smsu-mal-select')?.value===m.id?' selected':''}>${(m.navn||'(uten navn)').replace(/"/g,'&quot;')}</option>`).join('');
 
   target.innerHTML=`
     <div class="card">
       <p class="sec-title">1. Velg kundegruppe</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">${gruppeKnapper}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">${gruppeKnapper}${lagretGruppeKnapper}
         <button class="btn-sm" style="${manuellAktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}" onclick="smsVisManuellInput()">✍️ Skriv inn nummer manuelt</button>
+        <button class="btn-sm" onclick="openNySmsGruppeModal()">➕ Ny gruppe</button>
+        <button class="btn-sm" id="smsu-rediger-gruppe-btn" style="display:${aktivGruppeId?'':'none'}" onclick="openRedigerSmsGruppeModal('${aktivGruppeId||''}')">✏️ Rediger gruppe</button>
+        <button class="btn-sm" id="smsu-slett-gruppe-btn" style="display:${aktivGruppeId?'':'none'}" onclick="smsSlettGruppe('${aktivGruppeId||''}')">🗑️ Slett gruppe</button>
       </div>
-      <div class="hint">Gruppene bygger på aktive kontrakters beskrivelsesfelt fra Visma (samme grunnlag som produktoversikten på Kunde 360-forsiden) — ikke en egen kategorisering du må vedlikeholde. Skal du bare sende til ett eller noen få numre (f.eks. én kunde uten aktiv avtale, eller et internt testnummer), bruk «Skriv inn nummer manuelt» i stedet.</div>
+      <div class="hint">Gruppene Susoft/Nets/Verifone bygger på aktive kontrakters beskrivelsesfelt fra Visma (samme grunnlag som produktoversikten på Kunde 360-forsiden) — ikke en egen kategorisering du må vedlikeholde. 📁-gruppene er derimot lagrede, egendefinerte nummerlister du selv oppretter og vedlikeholder med «➕ Ny gruppe» — bruk dem til lister som ikke matcher noen Visma-kategori (dette erstatter gruppene som tidligere lå i Sveve sin egen portal). Skal du bare sende til ett eller noen få numre denne ene gangen, bruk «Skriv inn nummer manuelt» i stedet for å lagre en egen gruppe.</div>
       <div id="smsu-manuell-panel" style="${manuellAktiv?'':'display:none'};margin-top:10px">
         <textarea id="smsu-manuell-tekst" rows="2" oninput="smsManuellRaw=this.value" placeholder="Ett eller flere numre, skilt med komma eller linjeskift (f.eks. 912 34 567, 98765432)" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px">${manuellAktiv?smsManuellRaw:''}</textarea>
         <button class="btn-sm" style="margin-top:6px" onclick="smsBrukManuelleNumre()">Bruk disse numrene</button>
@@ -4082,7 +4125,7 @@ function renderSmsUtsendelse(){
 
     <div class="card" style="margin-top:16px">
       <p class="sec-title">3. Mottakere</p>
-      <div id="smsu-mottakere"><div class="empty">Velg en kundegruppe over for å se mottakerlisten.</div></div>
+      <div id="smsu-mottakere"><div class="empty">Velg en kundegruppe, en lagret gruppe, eller skriv inn numre manuelt, for å se mottakerlisten.</div></div>
     </div>
   `;
   smsRenderMottakere();
@@ -4126,15 +4169,34 @@ function smsBrukManuelleNumre(){
   if(raw.trim()&&smsManuellMottakere.length===0)alert('Fant ingen numre i teksten.');
 }
 
+// Bytter til en lagret gruppe (se smsGrupper/smsLagreGruppe()) — tolker
+// gruppens lagrede fritekst-nummerliste med samme smsParseManuelleNumre()
+// som den manuelle engangsinntastingen bruker, slik at mottakerliste,
+// avhuking, sending og logging fungerer identisk uansett hvor numrene kom
+// fra.
+function smsVelgLagretGruppe(id){
+  const g=smsGrupper.find(x=>x.id===id);if(!g)return;
+  smsValgtGruppe=`gruppe:${id}`;
+  smsGruppeMottakere=smsParseManuelleNumre(g.numre);
+  smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.key));
+  renderSmsUtsendelse();
+}
+
 function smsRenderMottakere(){
   const wrap=document.getElementById('smsu-mottakere');
   if(!wrap)return;
-  if(!smsValgtGruppe){wrap.innerHTML='<div class="empty">Velg en kundegruppe over, eller skriv inn numre manuelt, for å se mottakerlisten.</div>';return;}
+  if(!smsValgtGruppe){wrap.innerHTML='<div class="empty">Velg en kundegruppe, en lagret gruppe, eller skriv inn numre manuelt, for å se mottakerlisten.</div>';return;}
   const erManuell=smsValgtGruppe==='Manuelt';
+  const lagretGruppeId=typeof smsValgtGruppe==='string'&&smsValgtGruppe.startsWith('gruppe:')?smsValgtGruppe.slice(7):null;
+  const lagretGruppe=lagretGruppeId?smsGrupper.find(g=>g.id===lagretGruppeId):null;
+  const erLagretGruppe=!!lagretGruppeId;
+  const fritekstModus=erManuell||erLagretGruppe;
   if(smsGruppeMottakere.length===0){
     wrap.innerHTML=erManuell
       ?'<div class="empty">Skriv inn ett eller flere numre over og trykk «Bruk disse numrene».</div>'
-      :`<div class="empty">Ingen kunder med aktiv «${smsValgtGruppe}»-avtale funnet.</div>`;
+      :erLagretGruppe
+        ?`<div class="empty">Gruppen «${lagretGruppe?.navn||'(slettet gruppe)'}» inneholder ingen gyldige numre ennå. Klikk «✏️ Rediger gruppe» for å legge til numre.</div>`
+        :`<div class="empty">Ingen kunder med aktiv «${smsValgtGruppe}»-avtale funnet.</div>`;
     return;
   }
   const totalKunder=smsGruppeMottakere.reduce((s,m)=>s+m.kunder.length,0);
@@ -4145,14 +4207,16 @@ function smsRenderMottakere(){
   if(mangler>0)merknader.push(`<strong>${mangler} uten registrert telefonnummer</strong>`);
   if(ikkeMobil>0)merknader.push(`<strong>${ikkeMobil} med et nummer som ikke er et mobilnummer</strong> (fasttelefon/servicenummer — kan uansett ikke motta SMS)`);
   const hintTekst=erManuell
-    ?`${smsGruppeMottakere.length} manuelt innlagt${smsGruppeMottakere.length===1?'':'e'} nummer${smsGruppeMottakere.length===1?'':''}${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.`
-    :`${totalKunder} kunde(r) i gruppen «${smsValgtGruppe}»${sammenslatt>0?`, slått sammen til <strong>${smsGruppeMottakere.length} unike mottakernumre</strong> (${sammenslatt} kunde(r) deler telefonnummer med en annen kunde i lista, f.eks. flere butikker/avdelinger)`:''}${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.`;
+    ?`${smsGruppeMottakere.length} manuelt innlagt${smsGruppeMottakere.length===1?'':'e'} nummer${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.`
+    :erLagretGruppe
+      ?`${smsGruppeMottakere.length} nummer i gruppen «${lagretGruppe?.navn||'(slettet gruppe)'}»${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending, eller klikk «✏️ Rediger gruppe» for å oppdatere selve den lagrede listen.`
+      :`${totalKunder} kunde(r) i gruppen «${smsValgtGruppe}»${sammenslatt>0?`, slått sammen til <strong>${smsGruppeMottakere.length} unike mottakernumre</strong> (${sammenslatt} kunde(r) deler telefonnummer med en annen kunde i lista, f.eks. flere butikker/avdelinger)`:''}${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.`;
   wrap.innerHTML=`
     <div class="hint" style="margin-bottom:8px">${hintTekst}</div>
     <div class="tbl-wrap">
       <table><thead><tr>
         <th style="width:30px"><input type="checkbox" id="smsu-velg-alle" onchange="smsVelgAlleMottakere(this.checked)"/></th>
-        <th>${erManuell?'Merknad':'Kunde(r)'}</th><th>Telefon</th><th>Kontrakt-treff</th>
+        <th>${fritekstModus?'Merknad':'Kunde(r)'}</th><th>Telefon</th><th>Kontrakt-treff</th>
       </tr></thead><tbody>
         ${smsGruppeMottakere.map(m=>`<tr style="${m.telefon?'':'opacity:.5'}">
           <td><input type="checkbox" ${smsValgteMottakere.has(m.key)?'checked':''} ${m.telefon?'':'disabled'} onchange="smsToggleMottaker('${m.key}',this.checked)"/></td>
@@ -4267,19 +4331,113 @@ async function slettSmsMal(id){
   }catch(e){alert('Kunne ikke slette malen: '+e.message);}
 }
 
+// Live telling av antall gyldige mobilnumre mens man skriver i gruppe-
+// modalens tekstfelt — samme parsing (smsParseManuelleNumre) som brukes når
+// gruppen faktisk lastes/sendes, slik at det man ser her stemmer med det som
+// faktisk havner i mottakerlisten.
+function smsOppdaterGruppeTelling(){
+  const raw=document.getElementById('sg-numre')?.value||'';
+  const el=document.getElementById('sg-telling');
+  if(!el)return;
+  if(!raw.trim()){el.textContent='';return;}
+  const rader=smsParseManuelleNumre(raw);
+  const gyldige=rader.filter(m=>m.telefon).length;
+  const ugyldige=rader.length-gyldige;
+  el.textContent=`${gyldige} gyldig${gyldige===1?'':'e'} mobilnummer${gyldige===1?'':'e'}${ugyldige>0?`, ${ugyldige} ugyldig${ugyldige===1?'':'e'}/ikke-mobil (ignoreres ved sending)`:''}`;
+}
+
+function openNySmsGruppeModal(){
+  document.getElementById('sms-gruppe-modal-title').textContent='Ny SMS-gruppe';
+  document.getElementById('sg-navn').value='';
+  document.getElementById('sg-numre').value='';
+  document.getElementById('sg-edit-id').value='';
+  smsOppdaterGruppeTelling();
+  document.getElementById('sms-gruppe-modal').classList.add('open');
+}
+function openRedigerSmsGruppeModal(id){
+  const g=smsGrupper.find(x=>x.id===id);if(!g)return;
+  document.getElementById('sms-gruppe-modal-title').textContent='Rediger SMS-gruppe';
+  document.getElementById('sg-navn').value=g.navn||'';
+  document.getElementById('sg-numre').value=g.numre||'';
+  document.getElementById('sg-edit-id').value=id;
+  smsOppdaterGruppeTelling();
+  document.getElementById('sms-gruppe-modal').classList.add('open');
+}
+function closeSmsGruppeModal(){document.getElementById('sms-gruppe-modal').classList.remove('open');}
+
+async function smsLagreGruppe(){
+  const navn=(document.getElementById('sg-navn').value||'').trim();
+  const numre=(document.getElementById('sg-numre').value||'').trim();
+  if(!navn){alert('Gruppen må ha et navn.');return;}
+  if(!numre){alert('Legg inn minst ett telefonnummer.');return;}
+  const editId=document.getElementById('sg-edit-id').value;
+  const felter={Title:navn,Numre:numre};
+  try{
+    if(editId){
+      const g=smsGrupper.find(x=>x.id===editId);if(!g)return;
+      await spUpdate('SmsGrupper',g.spId,felter);
+      g.navn=navn;g.numre=numre;
+      // Er denne gruppen valgt i mottakerlisten akkurat nå, oppdater den med
+      // de nye numrene med det samme i stedet for å vente på neste klikk.
+      if(smsValgtGruppe===`gruppe:${editId}`){
+        closeSmsGruppeModal();
+        smsVelgLagretGruppe(editId);
+        return;
+      }
+    }else{
+      felter.OpprettetAv=currentUser?.name||currentUser?.username||'Ukjent';
+      felter.OpprettetDato=new Date().toISOString();
+      const r=await spCreate('SmsGrupper',felter);
+      smsGrupper.push({id:`sp${r.id}`,spId:r.id,navn,numre,opprettetAv:felter.OpprettetAv,opprettetDato:felter.OpprettetDato});
+    }
+    closeSmsGruppeModal();
+    renderSmsUtsendelse();
+  }catch(e){alert('Kunne ikke lagre gruppen: '+e.message);}
+}
+
+async function smsSlettGruppe(id){
+  const g=smsGrupper.find(x=>x.id===id);if(!g)return;
+  if(!confirm(`Slette gruppen «${g.navn}»? Dette sletter kun selve den lagrede nummerlisten — ingenting sendes, og tidligere utsendelser i historikken påvirkes ikke.`))return;
+  try{
+    await spDelete('SmsGrupper',g.spId);
+    smsGrupper=smsGrupper.filter(x=>x.id!==id);
+    if(smsValgtGruppe===`gruppe:${id}`){smsValgtGruppe=null;smsGruppeMottakere=[];smsValgteMottakere=new Set();}
+    renderSmsUtsendelse();
+  }catch(e){alert('Kunne ikke slette gruppen: '+e.message);}
+}
+
 // Selve gruppe-utsendingen. Sender i bolker (CHUNK) mot /api/send_sms_bulk i
 // stedet for ett stort kall, for å holde hvert enkelt HTTP-kall raskt og
 // unngå å risikere Azure Function-timeout ved en stor kundegruppe — se
 // send_sms_bulk_endpoint i function_app.py (som uansett sender sekvensielt,
 // aldri parallelt, av hensyn til Sveve sin grense på 5 samtidige
 // forespørsler per konto).
+// Gir et lesbart navn på gjeldende gruppevalg for bruk i bekreftelsesdialoger
+// og loggføring (SmsUtsendelser.Gruppe/Title) — uansett om valget er en
+// Visma-basert gruppe (Susoft/Nets/Verifone), manuell engangsinntasting,
+// eller en lagret gruppe (smsValgtGruppe='gruppe:<id>', se
+// smsVelgLagretGruppe()).
+function smsGruppeVisningsnavn(){
+  if(smsValgtGruppe==='Manuelt')return 'Manuelt';
+  if(typeof smsValgtGruppe==='string'&&smsValgtGruppe.startsWith('gruppe:')){
+    const g=smsGrupper.find(x=>x.id===smsValgtGruppe.slice(7));
+    return g?g.navn:'(slettet gruppe)';
+  }
+  return smsValgtGruppe||'';
+}
+
 async function sendSmsGruppe(){
   const melding=(document.getElementById('smsu-tekst').value||'').trim();
   const mottakere=smsGruppeMottakere.filter(m=>smsValgteMottakere.has(m.key)&&m.telefon);
   if(!melding){alert('Meldingsteksten kan ikke være tom.');return;}
   if(mottakere.length===0){alert('Ingen mottakere valgt.');return;}
   if(!VF_CONFIG.baseUrl){alert('Ikke koblet til Azure Function ennå.');return;}
-  const mottakerLabel=smsValgtGruppe==='Manuelt'?`${mottakere.length} manuelt innlagt${mottakere.length===1?'':'e'} nummer`:`${mottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»`;
+  const erFritekstGruppe=smsValgtGruppe==='Manuelt'||(typeof smsValgtGruppe==='string'&&smsValgtGruppe.startsWith('gruppe:'));
+  const mottakerLabel=smsValgtGruppe==='Manuelt'
+    ?`${mottakere.length} manuelt innlagt${mottakere.length===1?'':'e'} nummer`
+    :erFritekstGruppe
+      ?`${mottakere.length} nummer i gruppen «${smsGruppeVisningsnavn()}»`
+      :`${mottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»`;
   if(!confirm(`Sende SMS til ${mottakerLabel}?\n\nMeldingen som sendes:\n"${melding}"\n\nDette kan IKKE angres.`))return;
 
   const btn=document.getElementById('smsu-send-btn');
@@ -4322,8 +4480,8 @@ async function smsLoggUtsendelse(melding,resultater,antallForsokt){
   const malSelect=document.getElementById('smsu-mal-select');
   const malNavn=malSelect&&malSelect.value?(smsMaler.find(m=>m.id===malSelect.value)?.navn||''):'';
   const felter={
-    Title:`${smsValgtGruppe} – ${new Date().toLocaleDateString('nb-NO')}`,
-    Gruppe:smsValgtGruppe,MalNavn:malNavn,Tekst:melding,
+    Title:`${smsGruppeVisningsnavn()} – ${new Date().toLocaleDateString('nb-NO')}`,
+    Gruppe:smsGruppeVisningsnavn(),MalNavn:malNavn,Tekst:melding,
     AntallMottakere:antallForsokt,AntallVellykket:vellykket,AntallFeilet:feilet,
     SendtAv:currentUser?.name||currentUser?.username||'Ukjent',SendtDato:new Date().toISOString(),
   };
@@ -7787,7 +7945,7 @@ function startAutoRefresh(){
 // ===== INIT =====
 initNotatDatePicker();
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeSmsGruppeModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
 
 
 /* ===== Verifone trans.avgift (vf-namespace) ===== */
