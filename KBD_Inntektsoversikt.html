@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.22 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.23 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -629,7 +629,7 @@ tr:hover td{background:#fafafa}
   <div id="tp-smsutsendelse" class="tp">
     <div class="card">
       <div class="card-title">📱 SMS utsendelse til kundegrupper</div>
-      <div class="hint">Send samme SMS til alle kunder med minst én AKTIV avtale som matcher en kundegruppe (Susoft/Nets/Verifone, basert på kontraktens beskrivelsesfelt fra Visma — samme grunnlag som produktoversikten på Kunde 360-forsiden). Du velger gruppe, ser nøyaktig hvem som vil motta meldingen, og kan fjerne enkeltkunder før du sender. Ren manuell utsending — ingenting sendes automatisk.</div>
+      <div class="hint">Send samme SMS til alle kunder med minst én AKTIV avtale som matcher en kundegruppe (Susoft/Nets/Verifone, basert på kontraktens beskrivelsesfelt fra Visma — samme grunnlag som produktoversikten på Kunde 360-forsiden). Telefonnummeret hentes fra kundens hovedkontakt i Visma (samme nummer som vises som kontakttelefon på Kunde 360-kortet), og synkroniseres inn hver natt sammen med resten av kundedataene. Visma skiller ikke mellom mobil- og fastnummer i dette feltet, så dashbordet sjekker selv at nummeret har riktig format for norske mobilnumre (8 sifre som starter på 4 eller 9) før det regnes som sendbart — numre som ikke ser ut som mobil merkes «ikke mobil» og hukes automatisk ut. Kunder som deler samme telefonnummer (for eksempel flere butikker registrert under samme eier) slås sammen til én mottaker, slik at ingen får meldingen flere ganger. Du velger gruppe, ser nøyaktig hvem som vil motta meldingen, og kan fjerne enkeltkunder før du sender. Ren manuell utsending — ingenting sendes automatisk.</div>
     </div>
     <div id="smsu-innhold"></div>
     <div class="card" style="margin-top:20px">
