@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.21 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.22 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3951,9 +3951,14 @@ let smsMaler=[],smsUtsendelser=[],smsValgtGruppe=null,smsGruppeMottakere=[],smsV
 // Finner alle kunder med minst én AKTIV kontrakt hvis Beskrivelse-felt
 // inneholder nøkkelordet (case-insensitive) — nøyaktig samme matchekriterium
 // som K360_PRODUKTNOKKELORD-tellingen i renderKunder360Oversikt() (linje med
-// aktiveAvtaler.filter over). Dedupliserer på vismaKundeNummer: en kunde med
-// flere matchende kontrakter (f.eks. to Susoft-avdelinger) skal likevel bare
-// motta ÉN SMS.
+// aktiveAvtaler.filter over). Dedupliserer FØRST på vismaKundeNummer (en
+// kunde med flere matchende kontrakter, f.eks. to Susoft-avdelinger, skal
+// likevel bare telle én gang), og SÅ på selve telefonnummeret (lagt til
+// 31.08.2026, på Thomas' ønske): flere Visma-"kunder" (typisk egne butikker/
+// avdelinger registrert hver for seg) kan dele samme kontaktnummer, og skal
+// da kun motta ÉN SMS, ikke én per butikk. Kunder UTEN gyldig mobilnummer får
+// beholde sin egen rad (kan uansett ikke velges/sendes til, men skal
+// fortsatt synes i listen som "mangler"/"ikke mobil" — se erNorskMobilnummer()).
 function smsHentKundegruppe(nokkel){
   const treff=vismaKontrakter.filter(c=>{
     const s=(c.status||'').toLowerCase();
@@ -3961,7 +3966,7 @@ function smsHentKundegruppe(nokkel){
     return aktiv&&(c.beskrivelse||'').toLowerCase().includes(nokkel.toLowerCase());
   });
   const numre=[...new Set(treff.map(c=>String(c.vismaKundeNummer||'').trim()).filter(Boolean))];
-  return numre.map(nr=>{
+  const perKunde=numre.map(nr=>{
     const k=vismaKunder.find(x=>String(x.vismaNummer||'').trim()===nr);
     if(!k)return null;
     const kontraktTreff=[...new Set(treff.filter(c=>String(c.vismaKundeNummer||'').trim()===nr).map(c=>c.beskrivelse))].join(', ');
@@ -3973,7 +3978,28 @@ function smsHentKundegruppe(nokkel){
     const telefonRaw=normTlf(k.kontaktTelefon);
     const erMobil=erNorskMobilnummer(telefonRaw);
     return{vismaNummer:nr,navn:k.navn||'(uten navn)',telefon:erMobil?telefonRaw:'',telefonRaw,erMobil,kontraktTreff};
-  }).filter(Boolean).sort((a,b)=>a.navn.localeCompare(b.navn,'nb'));
+  }).filter(Boolean);
+
+  const perTelefon=new Map(); // gyldig mobilnummer -> slått-sammen mottakerrad
+  const utenGyldigTelefon=[]; // beholdes som egne rader, kan uansett ikke velges
+  for(const p of perKunde){
+    if(!p.telefon){utenGyldigTelefon.push({...p,kunder:[{vismaNummer:p.vismaNummer,navn:p.navn}]});continue;}
+    if(!perTelefon.has(p.telefon)){
+      perTelefon.set(p.telefon,{...p,kunder:[{vismaNummer:p.vismaNummer,navn:p.navn}]});
+    }else{
+      const rad=perTelefon.get(p.telefon);
+      rad.kunder.push({vismaNummer:p.vismaNummer,navn:p.navn});
+      rad.navn=rad.kunder.map(x=>x.navn).join(', ');
+      rad.kontraktTreff=[...new Set([...rad.kontraktTreff.split(', ').filter(Boolean),...p.kontraktTreff.split(', ').filter(Boolean)])].join(', ');
+    }
+  }
+  // key = stabil identifikator for avhukingsbokser (smsValgteMottakere) —
+  // telefonnummeret når det finnes (siden det nå ER selve sendeenheten),
+  // ellers kundens vismaNummer (kan uansett ikke velges, men trenger en unik
+  // nøkkel i UI-et).
+  return[...perTelefon.values(),...utenGyldigTelefon]
+    .map(m=>({...m,key:m.telefon||`nokunde-${m.kunder[0].vismaNummer}`}))
+    .sort((a,b)=>a.navn.localeCompare(b.navn,'nb'));
 }
 
 function renderSmsUtsendelse(){
@@ -4028,8 +4054,10 @@ function smsVelgGruppe(nokkel){
   // erNorskMobilnummer()). De uten telefon, eller med et nummer som ikke er
   // mobil (fasttelefon/servicenummer), vises likevel i listen (slik at man
   // SER at de finnes og evt. må kontaktes på annen måte), men kan ikke
-  // velges — ingenting å sende SMS til.
-  smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.vismaNummer));
+  // velges — ingenting å sende SMS til. Nøkkelen er nå m.key (telefonnummer
+  // når det finnes, siden flere kunder kan dele samme telefon og da skal
+  // hukes av/på SAMMEN — se smsHentKundegruppe()), ikke lenger vismaNummer.
+  smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.key));
   renderSmsUtsendelse();
 }
 
@@ -4038,21 +4066,23 @@ function smsRenderMottakere(){
   if(!wrap)return;
   if(!smsValgtGruppe){wrap.innerHTML='<div class="empty">Velg en kundegruppe over for å se mottakerlisten.</div>';return;}
   if(smsGruppeMottakere.length===0){wrap.innerHTML=`<div class="empty">Ingen kunder med aktiv «${smsValgtGruppe}»-avtale funnet.</div>`;return;}
+  const totalKunder=smsGruppeMottakere.reduce((s,m)=>s+m.kunder.length,0);
+  const sammenslatt=totalKunder-smsGruppeMottakere.length;
   const mangler=smsGruppeMottakere.filter(m=>!m.telefonRaw).length;
   const ikkeMobil=smsGruppeMottakere.filter(m=>m.telefonRaw&&!m.erMobil).length;
   const merknader=[];
   if(mangler>0)merknader.push(`<strong>${mangler} uten registrert telefonnummer</strong>`);
   if(ikkeMobil>0)merknader.push(`<strong>${ikkeMobil} med et nummer som ikke er et mobilnummer</strong> (fasttelefon/servicenummer — kan uansett ikke motta SMS)`);
   wrap.innerHTML=`
-    <div class="hint" style="margin-bottom:8px">${smsGruppeMottakere.length} kunde(r) i gruppen «${smsValgtGruppe}»${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltkunder under før sending.</div>
+    <div class="hint" style="margin-bottom:8px">${totalKunder} kunde(r) i gruppen «${smsValgtGruppe}»${sammenslatt>0?`, slått sammen til <strong>${smsGruppeMottakere.length} unike mottakernumre</strong> (${sammenslatt} kunde(r) deler telefonnummer med en annen kunde i lista, f.eks. flere butikker/avdelinger)`:''}${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.</div>
     <div class="tbl-wrap">
       <table><thead><tr>
         <th style="width:30px"><input type="checkbox" id="smsu-velg-alle" onchange="smsVelgAlleMottakere(this.checked)"/></th>
-        <th>Kunde</th><th>Telefon</th><th>Kontrakt-treff</th>
+        <th>Kunde(r)</th><th>Telefon</th><th>Kontrakt-treff</th>
       </tr></thead><tbody>
         ${smsGruppeMottakere.map(m=>`<tr style="${m.telefon?'':'opacity:.5'}">
-          <td><input type="checkbox" ${smsValgteMottakere.has(m.vismaNummer)?'checked':''} ${m.telefon?'':'disabled'} onchange="smsToggleMottaker('${m.vismaNummer}',this.checked)"/></td>
-          <td>${m.navn}</td>
+          <td><input type="checkbox" ${smsValgteMottakere.has(m.key)?'checked':''} ${m.telefon?'':'disabled'} onchange="smsToggleMottaker('${m.key}',this.checked)"/></td>
+          <td>${m.navn}${m.kunder.length>1?`<span class="muted"> (${m.kunder.length} kunder, samme nummer)</span>`:''}</td>
           <td>${m.erMobil?m.telefon:m.telefonRaw?`<span style="color:#d03b3b">${m.telefonRaw} (ikke mobil)</span>`:'<span style="color:#d03b3b">mangler</span>'}</td>
           <td class="muted">${m.kontraktTreff}</td>
         </tr>`).join('')}
@@ -4066,17 +4096,17 @@ function smsRenderMottakere(){
   smsOppdaterValgtAntall();
 }
 
-function smsToggleMottaker(vismaNummer,checked){
-  if(checked)smsValgteMottakere.add(vismaNummer);else smsValgteMottakere.delete(vismaNummer);
+function smsToggleMottaker(key,checked){
+  if(checked)smsValgteMottakere.add(key);else smsValgteMottakere.delete(key);
   const velgbare=smsGruppeMottakere.filter(m=>m.telefon);
   const alleBoks=document.getElementById('smsu-velg-alle');
-  if(alleBoks)alleBoks.checked=velgbare.length>0&&velgbare.every(m=>smsValgteMottakere.has(m.vismaNummer));
+  if(alleBoks)alleBoks.checked=velgbare.length>0&&velgbare.every(m=>smsValgteMottakere.has(m.key));
   smsOppdaterValgtAntall();
 }
 
 function smsVelgAlleMottakere(checked){
   smsGruppeMottakere.filter(m=>m.telefon).forEach(m=>{
-    if(checked)smsValgteMottakere.add(m.vismaNummer);else smsValgteMottakere.delete(m.vismaNummer);
+    if(checked)smsValgteMottakere.add(m.key);else smsValgteMottakere.delete(m.key);
   });
   document.querySelectorAll('#smsu-mottakere tbody input[type=checkbox]:not(:disabled)').forEach(cb=>{cb.checked=checked;});
   smsOppdaterValgtAntall();
@@ -4171,7 +4201,7 @@ async function slettSmsMal(id){
 // forespørsler per konto).
 async function sendSmsGruppe(){
   const melding=(document.getElementById('smsu-tekst').value||'').trim();
-  const mottakere=smsGruppeMottakere.filter(m=>smsValgteMottakere.has(m.vismaNummer)&&m.telefon);
+  const mottakere=smsGruppeMottakere.filter(m=>smsValgteMottakere.has(m.key)&&m.telefon);
   if(!melding){alert('Meldingsteksten kan ikke være tom.');return;}
   if(mottakere.length===0){alert('Ingen mottakere valgt.');return;}
   if(!VF_CONFIG.baseUrl){alert('Ikke koblet til Azure Function ennå.');return;}
