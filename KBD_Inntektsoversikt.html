@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.36 · Oppdatert: 1. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.37 · Oppdatert: 1. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1145,7 +1145,7 @@ tr:hover td{background:#fafafa}
       <div class="fgrp" style="margin-bottom:10px"><label>Navn på gruppe</label><input type="text" id="sg-navn" placeholder="F.eks. VIP-kunder" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px"/></div>
       <div class="fgrp" style="margin-bottom:4px"><label>Numre (ett eller flere, skilt med komma eller linjeskift — valgfritt navn foran hvert nummer, adskilt med kolon)</label><textarea id="sg-numre" rows="6" oninput="smsOppdaterGruppeTelling()" placeholder="Ola Nordmann: 912 34 567&#10;Kari Nordmann: 98765432&#10;90000000" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <div id="sg-telling" class="muted" style="font-size:12px;margin-bottom:10px"></div>
-      <div class="fgrp" style="margin-bottom:6px"><input type="text" id="sg-sok" oninput="smsRenderGruppeNummerliste()" placeholder="🔍 Søk etter et nummer i lista over…" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px"/></div>
+      <div class="fgrp" style="margin-bottom:6px"><input type="text" id="sg-sok" oninput="smsRenderGruppeNummerliste()" placeholder="🔍 Søk etter navn eller nummer i lista over…" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px"/></div>
       <div id="sg-nummerliste" style="max-height:160px;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:2px 8px;margin-bottom:10px"></div>
       <input type="hidden" id="sg-edit-id"/>
       <div class="modal-footer">
@@ -4590,18 +4590,30 @@ function smsOppdaterGruppeTelling(){
 // bestemt nummer i en gruppe som kan ha mange numre — særlig nyttig når man
 // vil fjerne én enkelt oppføring uten å måtte lete gjennom hele
 // fritekstfeltet for hånd. Tolker sg-numre på nytt (samme
-// smsParseManuelleNumre() som brukes ved faktisk sending), filtrerer på
-// søketeksten (kun sifre — matcher uansett om søket skrives med eller uten
-// mellomrom/landskode), og viser hver treff-rad med en ✕-knapp som fjerner
-// akkurat det nummeret fra selve fritekstfeltet (se smsFjernGruppeNummer()).
+// smsParseManuelleNumre() som brukes ved faktisk sending), og viser hver
+// treff-rad med en ✕-knapp som fjerner akkurat det nummeret fra selve
+// fritekstfeltet (se smsFjernGruppeNummer()).
+// UTVIDET 01.09.2026: søket matcher nå BÅDE på siffer i telefonnummeret
+// (uansett om søket skrives med eller uten mellomrom/landskode) OG på
+// fritekst i navnet (case-insensitive), siden numre nå kan ha et navn
+// knyttet til seg — se smsParseManuelleNumre().
 function smsRenderGruppeNummerliste(){
   const wrap=document.getElementById('sg-nummerliste');
   if(!wrap)return;
   const raw=document.getElementById('sg-numre')?.value||'';
   const rader=smsParseManuelleNumre(raw);
   if(rader.length===0){wrap.innerHTML='<div class="muted" style="font-size:12px;padding:4px 0">Ingen numre lagt inn ennå.</div>';return;}
-  const sok=(document.getElementById('sg-sok')?.value||'').replace(/\D/g,'');
-  const filtrert=sok?rader.filter(r=>r.telefonRaw.includes(sok)):rader;
+  // UTVIDET 01.09.2026 (sammen med navnestøtten over): søkefeltet matcher nå
+  // BÅDE på siffer i telefonnummeret OG fritekst i navnet, ikke bare
+  // telefonnummeret som før — søket skiller ikke mellom store/små bokstaver
+  // på navnet, og et treff på ENTEN nummer eller navn holder.
+  const sokRaw=(document.getElementById('sg-sok')?.value||'').trim();
+  const sokSiffer=sokRaw.replace(/\D/g,'');
+  const sokTekst=sokRaw.toLowerCase();
+  const filtrert=sokRaw?rader.filter(r=>
+    (sokSiffer&&r.telefonRaw.includes(sokSiffer))||
+    (r.navn&&r.navn!=='Manuelt nummer'&&r.navn.toLowerCase().includes(sokTekst))
+  ):rader;
   if(filtrert.length===0){wrap.innerHTML=`<div class="muted" style="font-size:12px;padding:4px 0">Ingen numre matcher søket.</div>`;return;}
   wrap.innerHTML=filtrert.map(r=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f3f4f6;font-size:12px">
