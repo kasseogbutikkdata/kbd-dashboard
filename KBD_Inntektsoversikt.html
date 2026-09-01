@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.28 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.29 · Oppdatert: 31. aug 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -475,6 +475,7 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="nav-sub" id="smsutsendelse-sub-nav">
         <div class="nav-sub-item active" id="smssub-smsutsendelse" onclick="showTab('smsutsendelse',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsutsendelse')">📤 Ny utsendelse</div>
+        <div class="nav-sub-item" id="smssub-smsplanlagt" onclick="showTab('smsplanlagt',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsplanlagt')">🕐 Planlagt</div>
         <div class="nav-sub-item" id="smssub-smshistorikk" onclick="showTab('smshistorikk',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smshistorikk')">🕘 Tidligere utsendelser</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
@@ -633,9 +634,24 @@ tr:hover td{background:#fafafa}
   <div id="tp-smsutsendelse" class="tp">
     <div class="card">
       <div class="card-title">📱 SMS utsendelse til kundegrupper</div>
-      <div class="hint">Send samme SMS til alle kunder med minst én AKTIV avtale som matcher en kundegruppe (Susoft/Nets/Verifone, basert på kontraktens beskrivelsesfelt fra Visma — samme grunnlag som produktoversikten på Kunde 360-forsiden). Telefonnummeret hentes fra kundens hovedkontakt i Visma (samme nummer som vises som kontakttelefon på Kunde 360-kortet), og synkroniseres inn hver natt sammen med resten av kundedataene. Visma skiller ikke mellom mobil- og fastnummer i dette feltet, så dashbordet sjekker selv at nummeret har riktig format for norske mobilnumre (8 sifre som starter på 4 eller 9) før det regnes som sendbart — numre som ikke ser ut som mobil merkes «ikke mobil» og hukes automatisk ut. Kunder som deler samme telefonnummer (for eksempel flere butikker registrert under samme eier) slås sammen til én mottaker, slik at ingen får meldingen flere ganger. Du velger gruppe, ser nøyaktig hvem som vil motta meldingen, og kan fjerne enkeltkunder før du sender. Ren manuell utsending — ingenting sendes automatisk.</div>
+      <div class="hint">Send samme SMS til alle kunder med minst én AKTIV avtale som matcher en kundegruppe (Susoft/Nets/Verifone, basert på kontraktens beskrivelsesfelt fra Visma — samme grunnlag som produktoversikten på Kunde 360-forsiden). Telefonnummeret hentes fra kundens hovedkontakt i Visma (samme nummer som vises som kontakttelefon på Kunde 360-kortet), og synkroniseres inn hver natt sammen med resten av kundedataene. Visma skiller ikke mellom mobil- og fastnummer i dette feltet, så dashbordet sjekker selv at nummeret har riktig format for norske mobilnumre (8 sifre som starter på 4 eller 9) før det regnes som sendbart — numre som ikke ser ut som mobil merkes «ikke mobil» og hukes automatisk ut. Kunder som deler samme telefonnummer (for eksempel flere butikker registrert under samme eier) slås sammen til én mottaker, slik at ingen får meldingen flere ganger. Du velger gruppe, ser nøyaktig hvem som vil motta meldingen, og kan fjerne enkeltkunder før du sender. Utsendingen er alltid manuelt igangsatt av en ansatt — du kan velge å sende med det samme, eller planlegge sendingen til et senere tidspunkt (se «🕐 Planlegg sending» under mottakerlisten og «🕐 Planlagt» i undermenyen) — men ingenting sendes uten at noen aktivt har satt det i gang.</div>
     </div>
     <div id="smsu-innhold"></div>
+  </div>
+
+  <!-- SMS UTSENDELSE — Planlagte utsendelser (undermeny, lagt til 31.08.2026
+       på Thomas' ønske om en planlagt-utsendelse-funksjon). Viser KUN
+       utsendelser som ennå ikke er sendt (Status="Planlagt") — en gang de
+       faktisk sendes av backend-timertriggeren, "graduerer" de inn i den
+       vanlige historikk-lista (SmsUtsendelser/«🕘 Tidligere utsendelser») i
+       stedet for å vises to steder. Se renderSmsPlanlagt()/
+       smsPlanleggSending() i frontend og sms_planlegging.py i backend. -->
+  <div id="tp-smsplanlagt" class="tp">
+    <div class="card">
+      <div class="card-title">🕐 Planlagte utsendelser</div>
+      <div class="hint">SMS-utsendelser du har planlagt til et senere tidspunkt, men som ikke er sendt ennå. Mottakerlisten ble frosset da utsendelsen ble planlagt — den endres ikke selv om kundegruppen endrer seg før sendetidspunktet. Sendingen skjer automatisk innen ca. 5 minutter etter valgt tidspunkt (samme presisjon som de andre automatiske jobbene i KBD CC). Du kan kansellere helt frem til da.</div>
+      <div id="smsu-planlagt"></div>
+    </div>
   </div>
 
   <!-- SMS UTSENDELSE — Tidligere utsendelser (undermeny, skilt ut fra
@@ -2038,8 +2054,8 @@ async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${enco
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItems('SmsMaler').catch(()=>[]),spGetItems('SmsUtsendelser').catch(()=>[]),spGetItems('SmsGrupper').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItems('SmsMaler').catch(()=>[]),spGetItems('SmsUtsendelser').catch(()=>[]),spGetItems('SmsGrupper').catch(()=>[]),spGetItems('SmsPlanlagteUtsendelser').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2140,6 +2156,12 @@ async function loadDataFromSP(){
   // smsParseManuelleNumre() — samme funksjon som den manuelle
   // engangsinntastingen bruker, se smsOppdaterMottakereFraKilder().
   smsGrupper=sgItems.map(i=>({id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',numre:i.fields.Numre||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
+  // SmsPlanlagteUtsendelser (lagt til 31.08.2026) — planlagte gruppe-
+  // utsendelser som ennå ikke er sendt, se smsPlanleggSending()/
+  // renderSmsPlanlagt() og backend-modulen sms_planlegging.py. Mottakere
+  // lagres som JSON-tekst (frosset mottakerliste, se state-kommentaren ved
+  // smsPlanlagteUtsendelser over) og tolkes tilbake til en array her.
+  smsPlanlagteUtsendelser=spuItems.map(i=>({id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',mottakere:(()=>{try{const p=JSON.parse(i.fields.Mottakere||'[]');return Array.isArray(p)?p:[];}catch{return[];}})(),melding:i.fields.Melding||'',gruppe:i.fields.Gruppe||'',malNavn:i.fields.MalNavn||'',planlagtTidspunkt:i.fields.PlanlagtTidspunkt||'',status:i.fields.Status||'Planlagt',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||'',sendtDato:i.fields.SendtDato||'',antallVellykket:parseInt(i.fields.AntallVellykket)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -4014,6 +4036,16 @@ let smsManuellRaw='';
 // klikk på 🔄. smsSaldo forblir null helt til første vellykkede henting.
 let smsSaldo=null,smsSaldoTidspunkt=null,smsSaldoLaster=false,smsSaldoFeil='';
 
+// Planlagt utsendelse (lagt til 31.08.2026, på Thomas' spørsmål "er det mulig
+// å lage en funksjon for planlagt utsendelse av SMS"). Mottakerlisten FRYSES
+// på planleggingstidspunktet (avklart med Thomas) — se smsPlanleggSending()
+// og backend-modulen sms_planlegging.py (ny timer-trigger send_planlagte_sms,
+// kjører hvert 5. minutt, samme mønster/presisjon som sjekk_varslinger).
+// smsPlanleggingApen/smsPlanlagtTidValgt holder UI-tilstanden til
+// dato/tid-panelet i steg 3 i live gjennom re-renderinger av
+// renderSmsUtsendelse() (samme prinsipp som smsManuellRaw over).
+let smsPlanlagteUtsendelser=[],smsPlanleggingApen=false,smsPlanlagtTidValgt='';
+
 // Tolker fritekst med ett eller flere numre (skilt med komma, mellomrom,
 // semikolon eller linjeskift) til samme radformat som smsHentKundegruppe()
 // bruker, slik at resten av koden (mottakerliste, avhuking, sending, logging)
@@ -4322,10 +4354,39 @@ function smsRenderMottakere(){
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px">
       <div id="smsu-valgt-antall" class="muted"></div>
-      <button class="prim" id="smsu-send-btn" onclick="sendSmsGruppe()">📤 Send til valgte</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-sm" onclick="smsTogglePlanleggingPanel()">🕐 Planlegg sending</button>
+        <button class="prim" id="smsu-send-btn" onclick="sendSmsGruppe()">📤 Send til valgte</button>
+      </div>
+    </div>
+    <div id="smsu-planlegging-panel" style="${smsPlanleggingApen?'':'display:none'};margin-top:10px;padding:10px;background:#f8fafc;border-radius:8px">
+      <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">Send på et senere tidspunkt i stedet</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="datetime-local" id="smsu-planlagt-tid" value="${smsPlanlagtTidValgt}" min="${smsDatetimeLocalMin()}" oninput="smsPlanlagtTidValgt=this.value" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>
+        <button class="btn-sm" onclick="smsPlanleggSending()">🕐 Planlegg utsendelse</button>
+      </div>
+      <div class="hint" style="margin-top:6px">Meldingen sendes automatisk innen ca. 5 minutter etter valgt tidspunkt. Mottakerlisten fryses NÅ (nøyaktig de du har huket av over) og endres ikke selv om kundegruppen endrer seg før den tid. Planlagte utsendelser kan ses og kanselleres under «🕐 Planlagt».</div>
     </div>
   `;
   smsOppdaterValgtAntall();
+}
+
+// Minste tillatte verdi for <input type="datetime-local"> — 2 minutter frem i
+// tid (liten margin mot at klokka rekker å passere valgt tidspunkt mens man
+// fortsatt sitter og velger). datetime-local tolkes i NETTLESERENS lokale
+// tidssone (ikke UTC), så dette bygges fra lokale Date-komponenter, ikke
+// toISOString() (som ville gitt UTC og dermed feil klokkeslett vist i feltet).
+function smsDatetimeLocalMin(){
+  const d=new Date(Date.now()+2*60000);
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function smsTogglePlanleggingPanel(){
+  smsPlanleggingApen=!smsPlanleggingApen;
+  const panel=document.getElementById('smsu-planlegging-panel');
+  if(panel)panel.style.display=smsPlanleggingApen?'':'none';
+  if(smsPlanleggingApen)setTimeout(()=>document.getElementById('smsu-planlagt-tid')?.focus(),0);
 }
 
 function smsToggleMottaker(key,checked){
@@ -4621,6 +4682,86 @@ async function sendSmsGruppe(){
   smsValgteMottakere.clear();
   renderSmsUtsendelse();
   smsHentSaldo(); // oppdater saldovisningen med det som faktisk ble brukt
+}
+
+// Planlagt utsendelse (lagt til 31.08.2026) — alternativ til sendSmsGruppe()
+// over: i stedet for å sende med det samme, lagres en rad DIREKTE (brukerens
+// egen Graph-token, samme mønster som SmsMaler/SmsGrupper) i SharePoint-lista
+// SmsPlanlagteUtsendelser med Status="Planlagt". Selve sendingen skjer senere
+// av backend-timertriggeren send_planlagte_sms (se sms_planlegging.py) — se
+// state-kommentaren ved smsPlanlagteUtsendelser lenger opp for hele
+// arkitekturen og hvorfor mottakerlisten fryses her og ikke regnes på nytt
+// ved sendetidspunktet.
+async function smsPlanleggSending(){
+  const melding=(document.getElementById('smsu-tekst').value||'').trim();
+  const mottakere=smsGruppeMottakere.filter(m=>smsValgteMottakere.has(m.key)&&m.telefon);
+  const tidRaw=document.getElementById('smsu-planlagt-tid')?.value||'';
+  if(!melding){alert('Meldingsteksten kan ikke være tom.');return;}
+  if(mottakere.length===0){alert('Ingen mottakere valgt.');return;}
+  if(!tidRaw){alert('Velg et tidspunkt for utsendingen.');return;}
+  const planlagtDato=new Date(tidRaw); // datetime-local tolkes i nettleserens lokale tidssone
+  if(isNaN(planlagtDato.getTime())||planlagtDato.getTime()<=Date.now()){
+    alert('Velg et tidspunkt som ligger frem i tid.');
+    return;
+  }
+  const malSelect=document.getElementById('smsu-mal-select');
+  const malNavn=malSelect&&malSelect.value?(smsMaler.find(m=>m.id===malSelect.value)?.navn||''):'';
+  const visningsnavn=smsGruppeVisningsnavn();
+  const tidTekst=planlagtDato.toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'});
+  if(!confirm(`Planlegge SMS til ${mottakere.length} mottaker(e) (${visningsnavn})?\n\nSendes: ${tidTekst} (± noen minutter)\n\nMeldingen som sendes:\n"${melding}"\n\nMottakerlisten fryses NÅ — den endres ikke selv om kundegruppen endrer seg før sending. Du kan kansellere helt frem til da under «🕐 Planlagt».`))return;
+
+  const felter={
+    Title:`${visningsnavn} – ${tidTekst}`,
+    Mottakere:JSON.stringify(mottakere.map(m=>({til:m.telefon,navn:m.navn}))),
+    Melding:melding,
+    Gruppe:visningsnavn,
+    MalNavn:malNavn,
+    PlanlagtTidspunkt:planlagtDato.toISOString(),
+    Status:'Planlagt',
+    OpprettetAv:currentUser?.name||currentUser?.username||'Ukjent',
+    OpprettetDato:new Date().toISOString(),
+  };
+  try{
+    const r=await spCreate('SmsPlanlagteUtsendelser',felter);
+    smsPlanlagteUtsendelser.unshift({id:`sp${r.id}`,spId:r.id,tittel:felter.Title,mottakere:JSON.parse(felter.Mottakere),melding:felter.Melding,gruppe:felter.Gruppe,malNavn:felter.MalNavn,planlagtTidspunkt:felter.PlanlagtTidspunkt,status:felter.Status,opprettetAv:felter.OpprettetAv,opprettetDato:felter.OpprettetDato,sendtDato:'',antallVellykket:0,antallFeilet:0});
+    smsPlanleggingApen=false;
+    smsPlanlagtTidValgt='';
+    smsValgteMottakere.clear();
+    renderSmsUtsendelse();
+    vfShowToast(`✅ Utsendelse planlagt til ${tidTekst}`);
+  }catch(e){
+    alert('Kunne ikke lagre den planlagte utsendelsen: '+e.message);
+  }
+}
+
+function renderSmsPlanlagt(){
+  const target=document.getElementById('smsu-planlagt');
+  if(!target)return;
+  const ventende=smsPlanlagteUtsendelser.filter(p=>p.status==='Planlagt').sort((a,b)=>new Date(a.planlagtTidspunkt)-new Date(b.planlagtTidspunkt));
+  if(ventende.length===0){target.innerHTML='<div class="empty">Ingen planlagte utsendelser akkurat nå.</div>';return;}
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+    <th>Sendes</th><th>Gruppe</th><th>Mal</th><th>Melding</th><th>Mottakere</th><th>Opprettet av</th><th></th>
+  </tr></thead><tbody>
+    ${ventende.map(p=>`<tr>
+      <td>${p.planlagtTidspunkt?new Date(p.planlagtTidspunkt).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'}):'—'}</td>
+      <td>${p.gruppe||'—'}</td>
+      <td>${p.malNavn||'<span class="muted">Fritekst</span>'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(p.melding||'').replace(/"/g,'&quot;')}">${p.melding||'—'}</td>
+      <td>${p.mottakere.length}</td>
+      <td>${p.opprettetAv||'—'}</td>
+      <td><button class="btn-icon del" title="Kanseller denne planlagte utsendelsen" onclick="smsKansellerPlanlagt('${p.id}')">✕</button></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+async function smsKansellerPlanlagt(id){
+  const p=smsPlanlagteUtsendelser.find(x=>x.id===id);if(!p)return;
+  if(!confirm(`Kansellere den planlagte utsendelsen til ${p.mottakere.length} mottaker(e) (${p.gruppe})? Meldingen sendes IKKE.`))return;
+  try{
+    await spUpdate('SmsPlanlagteUtsendelser',p.spId,{Status:'Kansellert'});
+    p.status='Kansellert';
+    renderSmsPlanlagt();
+  }catch(e){alert('Kunne ikke kansellere: '+e.message);}
 }
 
 async function smsLoggUtsendelse(melding,resultater,antallForsokt){
@@ -5985,7 +6126,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':name==='smshistorikk'?'smsutsendelse':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -5994,7 +6135,7 @@ function showTab(name,btn){
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
-  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smshistorikk');
+  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -6009,6 +6150,7 @@ function showTab(name,btn){
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
   if(name==='konkurser'){renderKonkurser();setKunder360SubActive('konkurser');}
   if(name==='smsutsendelse'){setSmsUtsendelseSubActive('smsutsendelse');renderSmsUtsendelse();smsHentSaldo();}
+  if(name==='smsplanlagt'){setSmsUtsendelseSubActive('smsplanlagt');renderSmsPlanlagt();}
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
@@ -6038,7 +6180,8 @@ function toggleSmsUtsendelseSub(open){
 
 function setSmsUtsendelseSubActive(view){
   document.querySelectorAll('#smsutsendelse-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  const el=document.getElementById(view==='smshistorikk'?'smssub-smshistorikk':'smssub-smsutsendelse');
+  const idMap={smsutsendelse:'smssub-smsutsendelse',smsplanlagt:'smssub-smsplanlagt',smshistorikk:'smssub-smshistorikk'};
+  const el=document.getElementById(idMap[view]||'smssub-smsutsendelse');
   if(el)el.classList.add('active');
 }
 
