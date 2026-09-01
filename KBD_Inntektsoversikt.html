@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.29 · Oppdatert: 31. aug 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.30 · Oppdatert: 1. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4338,7 +4338,22 @@ function smsRenderMottakere(){
   if(ikkeMobil>0)merknader.push(`<strong>${ikkeMobil} med et nummer som ikke er et mobilnummer</strong> (fasttelefon/servicenummer — kan uansett ikke motta SMS)`);
   const hintTekst=`${totalKunder} kunde(r)/nummer fra <strong>${smsGruppeVisningsnavn()}</strong>${sammenslatt>0?`, slått sammen til <strong>${smsGruppeMottakere.length} unike mottakernumre</strong> (${sammenslatt} deler telefonnummer med en annen oppføring i lista — enten flere butikker/avdelinger på samme kunde, eller samme nummer funnet i mer enn én av de valgte kildene)`:''}${merknader.length?`, herav ${merknader.join(' og ')} (kan ikke velges)`:''}. Fjern eventuelt enkeltrader under før sending.`;
   wrap.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+      <div id="smsu-valgt-antall" class="muted"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-sm" onclick="smsTogglePlanleggingPanel()">🕐 Planlegg sending</button>
+        <button class="prim" id="smsu-send-btn" onclick="sendSmsGruppe()">📤 Send til valgte</button>
+      </div>
+    </div>
     <div class="hint" style="margin-bottom:8px">${hintTekst}</div>
+    <div id="smsu-planlegging-panel" style="${smsPlanleggingApen?'':'display:none'};margin-bottom:10px;padding:10px;background:#f8fafc;border-radius:8px">
+      <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">Send på et senere tidspunkt i stedet</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="datetime-local" id="smsu-planlagt-tid" value="${smsPlanlagtTidValgt}" min="${smsDatetimeLocalMin()}" oninput="smsPlanlagtTidValgt=this.value" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>
+        <button class="btn-sm" onclick="smsPlanleggSending()">🕐 Planlegg utsendelse</button>
+      </div>
+      <div class="hint" style="margin-top:6px">Meldingen sendes automatisk innen ca. 5 minutter etter valgt tidspunkt. Mottakerlisten fryses NÅ (nøyaktig de du har huket av over) og endres ikke selv om kundegruppen endrer seg før den tid. Planlagte utsendelser kan ses og kanselleres under «🕐 Planlagt».</div>
+    </div>
     <div class="tbl-wrap">
       <table><thead><tr>
         <th style="width:30px"><input type="checkbox" id="smsu-velg-alle" onchange="smsVelgAlleMottakere(this.checked)"/></th>
@@ -4351,21 +4366,6 @@ function smsRenderMottakere(){
           <td class="muted">${m.kontraktTreff}</td>
         </tr>`).join('')}
       </tbody></table>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px">
-      <div id="smsu-valgt-antall" class="muted"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-sm" onclick="smsTogglePlanleggingPanel()">🕐 Planlegg sending</button>
-        <button class="prim" id="smsu-send-btn" onclick="sendSmsGruppe()">📤 Send til valgte</button>
-      </div>
-    </div>
-    <div id="smsu-planlegging-panel" style="${smsPlanleggingApen?'':'display:none'};margin-top:10px;padding:10px;background:#f8fafc;border-radius:8px">
-      <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">Send på et senere tidspunkt i stedet</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input type="datetime-local" id="smsu-planlagt-tid" value="${smsPlanlagtTidValgt}" min="${smsDatetimeLocalMin()}" oninput="smsPlanlagtTidValgt=this.value" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>
-        <button class="btn-sm" onclick="smsPlanleggSending()">🕐 Planlegg utsendelse</button>
-      </div>
-      <div class="hint" style="margin-top:6px">Meldingen sendes automatisk innen ca. 5 minutter etter valgt tidspunkt. Mottakerlisten fryses NÅ (nøyaktig de du har huket av over) og endres ikke selv om kundegruppen endrer seg før den tid. Planlagte utsendelser kan ses og kanselleres under «🕐 Planlagt».</div>
     </div>
   `;
   smsOppdaterValgtAntall();
