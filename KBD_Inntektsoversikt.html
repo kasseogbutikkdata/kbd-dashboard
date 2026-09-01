@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.32 · Oppdatert: 1. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.33 · Oppdatert: 1. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2052,10 +2052,27 @@ async function spCreate(list,fields){return graphReq(`sites/${siteId}/lists/${en
 async function spUpdate(list,spId,fields){return graphReq(`sites/${siteId}/lists/${encodeURIComponent(list)}/items/${spId}/fields`,'PATCH',fields);}
 async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${encodeURIComponent(list)}/items/${spId}`,'DELETE');}
 
+// Samme "fail soft, vis tom liste i stedet for å knekke hele innlastingen"-
+// oppførsel som de vanlige .catch(()=>[]) under, MEN logger den faktiske
+// feilen til konsollen (lagt til 01.09.2026). Bakgrunn: Casper fikk tilgang
+// til «SMS utsendelse»-menyen (v1.48.32), men «Tidligere utsendelser» viste
+// ingenting for ham selv om Thomas ser data der — uten denne loggingen er et
+// evt. Graph/SharePoint-tilgangsavslag (403) på selve SmsUtsendelser-lista
+// for HANS brukerkonto helt usynlig (samme tomme liste vises enten årsaken
+// er "ingen data" eller "fikk ikke lov til å lese"). Brukt kun for
+// SMS-listene her — resten av loadDataFromSP() bruker fortsatt det stille
+// mønsteret, siden dette er en spesifikk feilsøking, ikke en generell endring.
+function spGetItemsLoggetFeil(liste){
+  return spGetItems(liste).catch(e=>{
+    console.error(`Feil ved lasting av SharePoint-lista "${liste}" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):`,e);
+    return[];
+  });
+}
+
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
   const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItems('SmsMaler').catch(()=>[]),spGetItems('SmsUtsendelser').catch(()=>[]),spGetItems('SmsGrupper').catch(()=>[]),spGetItems('SmsPlanlagteUtsendelser').catch(()=>[])
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser')
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -4017,6 +4034,14 @@ async function sendSmsFraKundekort(){
 // .catch(()=>[]) i loadDataFromSP() slik at menyen fungerer (viser tomt) selv
 // før listene er opprettet.
 let smsMaler=[],smsUtsendelser=[],smsGrupper=[],smsValgteKilder=new Set(),smsGruppeMottakere=[],smsValgteMottakere=new Set();
+// smsUtsendelserLastingFeilet (lagt til 01.09.2026): true hvis selve
+// henting av SmsUtsendelser fra SharePoint feilet (f.eks. et Graph 403 —
+// den innloggede brukeren mangler lesetilgang til NETTOPP denne lista, som
+// kan avvike fra tilgang til andre lister på samme site). Skiller «feilet»
+// fra «faktisk tom liste» i renderSmsHistorikk(), slik at en bruker uten
+// tilgang (se Casper-saken 01.09.2026) ser en tydelig feilmelding i stedet
+// for den misvisende «Ingen utsendelser registrert ennå».
+let smsUtsendelserLastingFeilet=false;
 // smsValgteKilder = settet med kilder som er valgt AKKURAT NÅ i steg 1 —
 // lagt om 31.08.2026 fra ett enkelt valg til et sett, på Thomas' ønske om å
 // kunne sende til flere kundegrupper samtidig (f.eks. Susoft OG Verifone i
@@ -4792,6 +4817,10 @@ async function smsLoggUtsendelse(melding,resultater,antallForsokt){
 function renderSmsHistorikk(){
   const target=document.getElementById('smsu-historikk');
   if(!target)return;
+  if(smsUtsendelserLastingFeilet){
+    target.innerHTML='<div class="empty">⚠️ Fikk ikke lastet utsendelseshistorikken. Dette skyldes vanligvis at den innloggede brukeren mangler lesetilgang til SharePoint-lista «SmsUtsendelser» (kan avvike fra tilgang til andre lister på samme site, selv om «📱 SMS utsendelse»-menyen er tilgjengelig). Kontakt en administrator.</div>';
+    return;
+  }
   if(smsUtsendelser.length===0){target.innerHTML='<div class="empty">Ingen utsendelser registrert ennå.</div>';return;}
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
     <th>Dato</th><th>Gruppe</th><th>Mal</th><th>Mottakere</th><th>Vellykket</th><th>Feilet</th><th>Sendt av</th>
