@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.31 · Oppdatert: 1. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.32 · Oppdatert: 1. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1857,7 +1857,7 @@ function _erKbdTypiskBransje(n){
 }
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
-const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
+const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'smsutsendelse',label:'📱 SMS utsendelse'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
 const CLIENT_ID="b0ff1861-62de-4ecc-8a13-fd463cb5af45";
 const TENANT_ID="c5f9c7ae-f91d-40e1-bbac-303409fa7a8d";
 const SP_SITE="kbd1.sharepoint.com:/sites/KBDDashboard";
@@ -4213,12 +4213,19 @@ function smsOppdaterMottakereFraKilder(){
   smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.key));
 }
 
+// MERK (lagt til 01.09.2026): «SMS utsendelse» styres nå av sin EGEN
+// modul-tilgang (tilgang.smsutsendelse, se MODULER over), IKKE lenger av
+// salgTilgang — Thomas oppdaget at Casper så menypunktet uten å ha tilgang,
+// siden nav-item og undermeny ikke ble skjult av MODULER-loopen i
+// applyAccessControl() (den lå ikke i MODULER-lista før). Løsningen er derfor
+// nav-nivå-skjuling (som alle andre moduler: Lisenser/Kickback/Utleie/osv.),
+// IKKE en intern blokkerings-melding her — en bruker uten tilgang ser rett
+// og slett ikke menypunktet i det hele tatt, samme mønster som resten av
+// dashbordet. Selve «📱 Send SMS»-knappen på ETT enkelt Kunde 360-kundekort
+// (openSmsModal) er en annen, separat funksjon og fortsatt styrt av
+// salgTilgang — ikke rørt av denne endringen.
 function renderSmsUtsendelse(){
   const target=document.getElementById('smsu-innhold');
-  if(!salgTilgang){
-    target.innerHTML='<div class="card"><div class="empty">Du har ikke tilgang til å sende SMS-utsendelser. Kontakt en administrator for salgstilgang («📋 Kan skrive salgsnotater» e.l. i Innstillinger → Brukertilgang).</div></div>';
-    return;
-  }
   const gruppeKnapper=K360_PRODUKTNOKKELORD.map(nokkel=>{
     const antall=smsHentKundegruppe(nokkel).length;
     const aktiv=smsValgteKilder.has(nokkel);
@@ -7655,7 +7662,7 @@ function applyAccessControl(){
     const tpEl=document.getElementById('tp-'+m.id);
     const har=tilgang[m.id]===true;
     if(navEl)navEl.style.display=har?'':'none';
-    // Skjul sub-items for lisenser/kickback/utleie
+    // Skjul sub-items for lisenser/kickback/utleie/smsutsendelse
     if(m.id==='lisenser'){
       const sub=document.getElementById('lisenser-sub-nav');
       if(sub)sub.style.display=har?'':'none';
@@ -7666,6 +7673,10 @@ function applyAccessControl(){
     }
     if(m.id==='utleie'){
       const sub=document.getElementById('utleie-sub-nav');
+      if(sub)sub.style.display=har?'':'none';
+    }
+    if(m.id==='smsutsendelse'){
+      const sub=document.getElementById('smsutsendelse-sub-nav');
       if(sub)sub.style.display=har?'':'none';
     }
   });
