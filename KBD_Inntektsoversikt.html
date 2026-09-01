@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.33 · Oppdatert: 1. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.34 · Oppdatert: 1. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1751,6 +1751,11 @@ let notatDatePicker=null; // flatpickr-instans for #n-forfallsdato, satt opp i i
 // applyAccessControl() basert på tilgang.salg for vanlige brukere, alltid true
 // for admin. kundeNotater = alle rader fra SharePoint-listen "KundeNotater".
 let salgTilgang=false,kundeNotater=[];
+// forsteTilgangssjekkGjort: styrer om applyAccessControl() skal tvinge brukeren
+// til Hjem-fanen. Satt til true etter FØRSTE gjennomkjøring (se bunnen av
+// applyAccessControl()). Lagt til 01.09.2026 som fix for feilrapport fra
+// Casper — se forklaring der.
+let forsteTilgangssjekkGjort=false;
 // kunngjoringer = felles nyheter/kunngjøringer til alle ansatte om KBD CC selv
 // (nye funksjoner, endringer o.l.), lagt til 24.08.2026. Opprettes kun av admin
 // (se renderKunngjoringsMeny()/lagreKunngjoring()), leses av alle. Uavhengig
@@ -7709,9 +7714,28 @@ function applyAccessControl(){
       if(sub)sub.style.display=har?'':'none';
     }
   });
-  // Alle lander på Hjem, uansett rolle og modul-tilgang
-  const hjemBtn=document.getElementById('tab-hjem');
-  if(hjemBtn)showTab('hjem',hjemBtn);
+  // Alle lander på Hjem ved FØRSTE innlasting, uansett rolle og modul-tilgang.
+  //
+  // RETTET 01.09.2026 (feilrapport fra Casper): Denne tvangs-navigeringen kjørte
+  // FØR uten noen sjekk, og loadDataFromSP() — som kaller applyAccessControl()
+  // helt til slutt — kalles ikke bare ved innlogging, men også hvert 5. minutt
+  // fra refreshData()/startAutoRefresh(). Resultatet var at IKKE-admin-brukere
+  // (f.eks. Casper) ble tvunget tilbake til Hjem-fanen midt i det de holdt på
+  // med, hvert 5. minutt — det så ut som fanen de sto på (f.eks. «Tidligere
+  // utsendelser» under SMS utsendelse) plutselig ble tom/nullstilt, fordi
+  // innholdet i realiteten var byttet ut med Hjem-panelet uten at brukeren
+  // selv klikket noe. Admin ble ALDRI rammet av dette, fordi
+  // applyAccessControl() returnerer tidlig for userRole==='admin' (se toppen
+  // av funksjonen) — derfor så ikke Thomas problemet selv ved egen testing.
+  // Fix: tvangsnavigeringen til Hjem skjer nå KUN ved aller første
+  // gjennomkjøring av applyAccessControl() i denne sideøkten (siden starter
+  // uansett statisk på Hjem-fanen i HTML-en, se tp-hjem/tab-hjem sin
+  // "active"-klasse), ikke ved hvert etterfølgende auto-refresh-kall.
+  if(!forsteTilgangssjekkGjort){
+    forsteTilgangssjekkGjort=true;
+    const hjemBtn=document.getElementById('tab-hjem');
+    if(hjemBtn)showTab('hjem',hjemBtn);
+  }
 }
 
 function renderBrukere(){
