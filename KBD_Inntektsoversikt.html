@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.34 · Oppdatert: 1. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.35 · Oppdatert: 1. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -647,7 +647,15 @@ tr:hover td{background:#fafafa}
        stedet for å vises to steder. Se renderSmsPlanlagt()/
        smsPlanleggSending() i frontend og sms_planlegging.py i backend. -->
   <div id="tp-smsplanlagt" class="tp">
-    <div class="card">
+    <!-- card-public lagt til 01.09.2026: uten denne blir HELE kortet (tittel
+         OG innhold) skjult for Leser-rollen av applyRoleUI() sin generelle
+         "skjul skjema-kort for lesere"-regel, siden dette panelet (i motsetning
+         til «Ny utsendelse», der selve innholdet ligger UTENFOR .card-elementet)
+         pakker både tittel og det dynamisk rendrede innholdet i ÉTT .card-div.
+         Dette er ren visning (ingen skjema/input), så det skal være synlig for
+         alle roller — se samme fiks på tp-smshistorikk nedenfor og feilrapport
+         fra Casper (Leser-rolle) samme dato. -->
+    <div class="card card-public">
       <div class="card-title">🕐 Planlagte utsendelser</div>
       <div class="hint">SMS-utsendelser du har planlagt til et senere tidspunkt, men som ikke er sendt ennå. Mottakerlisten ble frosset da utsendelsen ble planlagt — den endres ikke selv om kundegruppen endrer seg før sendetidspunktet. Sendingen skjer automatisk innen ca. 5 minutter etter valgt tidspunkt (samme presisjon som de andre automatiske jobbene i KBD CC). Du kan kansellere helt frem til da.</div>
       <div id="smsu-planlagt"></div>
@@ -659,7 +667,14 @@ tr:hover td{background:#fafafa}
        og historikken kan åpnes hver for seg fra sub-navigasjonen i stedet for
        å ligge stablet i samme panel. -->
   <div id="tp-smshistorikk" class="tp">
-    <div class="card">
+    <!-- card-public lagt til 01.09.2026 — se forklaring på tp-smsplanlagt over.
+         DETTE var den faktiske rotårsaken til at Casper (Leser-rolle) fikk en
+         HELT blank fane under «Tidligere utsendelser»: applyRoleUI() skjuler
+         (style.display='none') ethvert .card-element som ikke har
+         card-public, for alle som ikke er admin/redaktør — og siden både
+         tittelen OG selve historikk-innholdet lå i samme .card her, forsvant
+         alt, ikke bare dataene. -->
+    <div class="card card-public">
       <div class="card-title">🕘 Tidligere utsendelser</div>
       <div id="smsu-historikk"></div>
     </div>
