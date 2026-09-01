@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.35 · Oppdatert: 1. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.36 · Oppdatert: 1. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1143,7 +1143,7 @@ tr:hover td{background:#fafafa}
     <div class="modal" style="max-width:480px">
       <h3 id="sms-gruppe-modal-title" style="margin-bottom:16px">Ny SMS-gruppe</h3>
       <div class="fgrp" style="margin-bottom:10px"><label>Navn på gruppe</label><input type="text" id="sg-navn" placeholder="F.eks. VIP-kunder" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px"/></div>
-      <div class="fgrp" style="margin-bottom:4px"><label>Numre (ett eller flere, skilt med komma eller linjeskift)</label><textarea id="sg-numre" rows="6" oninput="smsOppdaterGruppeTelling()" placeholder="912 34 567, 98765432" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div class="fgrp" style="margin-bottom:4px"><label>Numre (ett eller flere, skilt med komma eller linjeskift — valgfritt navn foran hvert nummer, adskilt med kolon)</label><textarea id="sg-numre" rows="6" oninput="smsOppdaterGruppeTelling()" placeholder="Ola Nordmann: 912 34 567&#10;Kari Nordmann: 98765432&#10;90000000" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <div id="sg-telling" class="muted" style="font-size:12px;margin-bottom:10px"></div>
       <div class="fgrp" style="margin-bottom:6px"><input type="text" id="sg-sok" oninput="smsRenderGruppeNummerliste()" placeholder="🔍 Søk etter et nummer i lista over…" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px"/></div>
       <div id="sg-nummerliste" style="max-height:160px;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:2px 8px;margin-bottom:10px"></div>
@@ -4098,6 +4098,15 @@ let smsPlanlagteUtsendelser=[],smsPlanleggingApen=false,smsPlanlagtTidValgt='';
 // mobilnummer-validering (erNorskMobilnummer) og telefonnummer-dedup som
 // gruppene brukes her også, slik at det samme nummeret skrevet inn flere
 // ganger kun blir én rad.
+//
+// UTVIDET 01.09.2026 (Thomas' ønske): hver oppføring kan nå VALGFRITT ha et
+// navn foran nummeret, adskilt med kolon — f.eks. «Ola Nordmann: 912 34 567»
+// — slik at mottakerlisten/historikken viser et faktisk navn i stedet for
+// det generiske «Manuelt nummer» for alle manuelt innskrevne numre. Kolon
+// ble valgt som skilletegn nettopp fordi komma/semikolon/linjeskift allerede
+// er i bruk til å skille MELLOM flere oppføringer (se over) — en oppføring
+// UTEN kolon oppfører seg helt som før (rent nummer, viser «Manuelt nummer»),
+// så alle eksisterende lagrede grupper (uten navn) fungerer uendret.
 function smsParseManuelleNumre(raw){
   // Splittes KUN på komma/semikolon/linjeskift, ikke på mellomrom — norske
   // numre skrives ofte gruppert med mellomrom (f.eks. «912 34 567»), og
@@ -4105,12 +4114,24 @@ function smsParseManuelleNumre(raw){
   const deler=(raw||'').split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean);
   const perNokkel=new Map();
   for(const d of deler){
-    const telefonRaw=normTlf(d);
+    let navn='',telefonDel=d;
+    const kolonIdx=d.indexOf(':');
+    if(kolonIdx>-1){
+      navn=d.slice(0,kolonIdx).trim();
+      telefonDel=d.slice(kolonIdx+1).trim();
+    }
+    const telefonRaw=normTlf(telefonDel);
     if(!telefonRaw)continue;
     const erMobil=erNorskMobilnummer(telefonRaw);
     const nokkel=erMobil?telefonRaw:`ugyldig-${telefonRaw}`;
+    const visningsnavn=navn||'Manuelt nummer';
     if(!perNokkel.has(nokkel)){
-      perNokkel.set(nokkel,{navn:'Manuelt nummer',telefon:erMobil?telefonRaw:'',telefonRaw,erMobil,kontraktTreff:'Manuelt lagt til',kunder:[{navn:'Manuelt nummer'}],key:nokkel});
+      perNokkel.set(nokkel,{navn:visningsnavn,telefon:erMobil?telefonRaw:'',telefonRaw,erMobil,kontraktTreff:'Manuelt lagt til',kunder:[{navn:visningsnavn}],key:nokkel});
+    }else if(navn&&perNokkel.get(nokkel).navn==='Manuelt nummer'){
+      // Samme nummer skrevet inn flere ganger — hvis en senere oppføring har
+      // et navn mens den første ikke hadde det, bruk navnet.
+      const rad=perNokkel.get(nokkel);
+      rad.navn=navn;rad.kunder=[{navn}];
     }
   }
   return[...perNokkel.values()];
@@ -4246,10 +4267,14 @@ function smsOppdaterMottakereFraKilder(){
   let kandidater=[];
   for(const kilde of smsValgteKilder){
     if(kilde==='Manuelt'){
-      kandidater=kandidater.concat(smsParseManuelleNumre(smsManuellRaw).map(r=>({vismaNummer:null,navn:'Manuelt nummer',telefon:r.telefon,telefonRaw:r.telefonRaw,erMobil:r.erMobil,kontraktTreff:'Manuelt lagt til'})));
+      // MERK 01.09.2026: bruker r.navn (fra smsParseManuelleNumre, kan nå
+      // være et faktisk innskrevet navn) i stedet for å tvinge alle til det
+      // generiske «Manuelt nummer» her, slik at et navn faktisk gitt i
+      // fritekstfeltet vises videre i mottakerlisten/historikken.
+      kandidater=kandidater.concat(smsParseManuelleNumre(smsManuellRaw).map(r=>({vismaNummer:null,navn:r.navn,telefon:r.telefon,telefonRaw:r.telefonRaw,erMobil:r.erMobil,kontraktTreff:'Manuelt lagt til'})));
     }else if(kilde.startsWith('gruppe:')){
       const g=smsGrupper.find(x=>x.id===kilde.slice(7));
-      if(g)kandidater=kandidater.concat(smsParseManuelleNumre(g.numre).map(r=>({vismaNummer:null,navn:'Manuelt nummer',telefon:r.telefon,telefonRaw:r.telefonRaw,erMobil:r.erMobil,kontraktTreff:`Gruppe: ${g.navn}`})));
+      if(g)kandidater=kandidater.concat(smsParseManuelleNumre(g.numre).map(r=>({vismaNummer:null,navn:r.navn,telefon:r.telefon,telefonRaw:r.telefonRaw,erMobil:r.erMobil,kontraktTreff:`Gruppe: ${g.navn}`})));
     }else{
       kandidater=kandidater.concat(smsHentKandidaterForNokkel(kilde));
     }
@@ -4307,7 +4332,7 @@ function renderSmsUtsendelse(){
       </div>
       <div class="hint">Du kan velge <strong>flere grupper samtidig</strong> (f.eks. Susoft OG Verifone) — trykk på flere knapper, de forblir markert, og mottakerlisten under slår automatisk sammen alle valgte kilder og fjerner duplikater på telefonnummer. Susoft/Nets/Verifone bygger på aktive kontrakters beskrivelsesfelt fra Visma (samme grunnlag som produktoversikten på Kunde 360-forsiden). 📁-gruppene er lagrede, egendefinerte nummerlister du selv oppretter og vedlikeholder med «➕ Ny gruppe» (✏️/🗑️ på selve knappen) — bruk dem til lister som ikke matcher noen Visma-kategori (erstatter gruppene som tidligere lå i Sveve sin egen portal). Skal du bare sende til ett eller noen få numre denne ene gangen, bruk «Skriv inn nummer manuelt» i stedet for å lagre en egen gruppe.</div>
       <div id="smsu-manuell-panel" style="${manuellAktiv?'':'display:none'};margin-top:10px">
-        <textarea id="smsu-manuell-tekst" rows="2" oninput="smsManuellRaw=this.value" placeholder="Ett eller flere numre, skilt med komma eller linjeskift (f.eks. 912 34 567, 98765432)" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px">${manuellAktiv?smsManuellRaw:''}</textarea>
+        <textarea id="smsu-manuell-tekst" rows="2" oninput="smsManuellRaw=this.value" placeholder="Ett eller flere numre, skilt med komma eller linjeskift — legg evt. til navn foran med kolon (f.eks. Ola Nordmann: 912 34 567, 98765432)" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px">${manuellAktiv?smsManuellRaw:''}</textarea>
         <button class="btn-sm" style="margin-top:6px" onclick="smsBrukManuelleNumre()">Bruk disse numrene</button>
       </div>
     </div>
@@ -4580,7 +4605,7 @@ function smsRenderGruppeNummerliste(){
   if(filtrert.length===0){wrap.innerHTML=`<div class="muted" style="font-size:12px;padding:4px 0">Ingen numre matcher søket.</div>`;return;}
   wrap.innerHTML=filtrert.map(r=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f3f4f6;font-size:12px">
-      <span>${r.erMobil?r.telefonRaw:`<span style="color:#d03b3b">${r.telefonRaw||'?'} (ikke mobil)</span>`}</span>
+      <span>${r.navn&&r.navn!=='Manuelt nummer'?`<strong>${r.navn}</strong> — `:''}${r.erMobil?r.telefonRaw:`<span style="color:#d03b3b">${r.telefonRaw||'?'} (ikke mobil)</span>`}</span>
       <button class="btn-icon del" title="Fjern dette nummeret fra gruppen" onclick="smsFjernGruppeNummer('${r.key}')">✕</button>
     </div>`).join('');
 }
@@ -4594,7 +4619,10 @@ function smsRenderGruppeNummerliste(){
 function smsFjernGruppeNummer(key){
   const raw=document.getElementById('sg-numre')?.value||'';
   const gjenvarende=smsParseManuelleNumre(raw).filter(r=>r.key!==key);
-  document.getElementById('sg-numre').value=gjenvarende.map(r=>r.telefonRaw).join(', ');
+  // Bevar navnet (hvis noen er skrevet inn) når feltet bygges opp igjen uten
+  // den fjernede raden — lagt til 01.09.2026 sammen med navnestøtten, ellers
+  // ville alle navn gått tapt igjen med én gang man fjernet én enkelt rad.
+  document.getElementById('sg-numre').value=gjenvarende.map(r=>r.navn&&r.navn!=='Manuelt nummer'?`${r.navn}: ${r.telefonRaw}`:r.telefonRaw).join('\n');
   smsOppdaterGruppeTelling();
 }
 
