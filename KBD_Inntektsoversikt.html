@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.41 · Oppdatert: 2. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.42 · Oppdatert: 16. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3331,6 +3331,13 @@ function renderKundeKort(k){
           </div>
           <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
         </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
+            <p class="sec-title" style="margin-bottom:0">Pureservice-saker</p>
+            <button class="btn-sm" onclick="hentPureserviceSaker('${k.orgNr}')">🔎 Hent Pureservice-saker</button>
+          </div>
+          <div id="k360-pureservice" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent Pureservice-saker» over for en oversikt over kundens saker hos support (åpne og lukkede). Hentes live ved klikk, lagres ikke.</div></div>
+        </div>
       </div>
 
       ${renderKundeNotaterHTML(k)}
@@ -5675,6 +5682,63 @@ async function hentBrregInfo(orgNr){
   }catch(e){
     console.warn('Regnskapstall kunne ikke hentes direkte (trolig CORS):',e);
     renderNokkeltallCorsBlokkert();
+  }
+}
+
+// Pureservice-saker på kundekortet (lagt til 16.09.2026) — den opprinnelige
+// motivasjonen for hele Pureservice-integrasjonen (org.nr-synk-jobben kom
+// FØR dette, som et forutsetning-problem som måtte løses først, se
+// KBD-Command-Center-prosjektstatus.md seksjon 14). I MOTSETNING til
+// hentBrregInfo() over kan dette IKKE gå som et direkte fetch() fra
+// nettleseren — Pureservice krever en hemmelig API-nøkkel
+// (X-Authorization-Key), og kbd-dashboard er et OFFENTLIG GitHub-repo (se
+// VF_CONFIG sin kommentar lenger ned) — så oppslaget går via
+// kbd-verifone-func sitt nye /api/pureservice_saker-endepunkt, med samme
+// Azure AD-innlogging (vfGetApiToken()) som SMS-utsendingen fra dette
+// kundekortet allerede bruker.
+async function hentPureserviceSaker(orgNr){
+  const target=document.getElementById('k360-pureservice');
+  const nr=normOrgNr(orgNr);
+  if(nr.length!==9){target.innerHTML='<div class="empty">Mangler gyldig org.nr for oppslag.</div>';return;}
+  if(!VF_CONFIG.baseUrl){target.innerHTML='<div class="empty">Ikke koblet til Azure Function ennå.</div>';return;}
+  target.innerHTML='<div class="empty">Henter…</div>';
+  try{
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl(`/api/pureservice_saker?orgnr=${nr}`),{
+      headers:{'Authorization':`Bearer ${token}`},
+    });
+    const data=await resp.json();
+    if(!resp.ok){
+      target.innerHTML=`<div class="empty">Klarte ikke hente Pureservice-saker: ${data.error||`HTTP ${resp.status}`}</div>`;
+      return;
+    }
+    if(!data.funnet){
+      target.innerHTML='<div class="empty">Fant ikke dette firmaet i Pureservice ennå (org.nr-synken kjører hver natt — kan ta noen dager før nye/rettede firma dukker opp her).</div>';
+      return;
+    }
+    if(!data.saker||data.saker.length===0){
+      target.innerHTML='<div class="empty">Ingen saker registrert på dette firmaet i Pureservice.</div>';
+      return;
+    }
+    const apneSaker=data.saker.filter(s=>s.apen);
+    const lukkedeSaker=data.saker.filter(s=>!s.apen);
+    const sakRad=s=>`<tr><td>${s.saksnummer||'—'}</td><td>${(s.tittel||'').replace(/</g,'&lt;')}</td><td>${s.status||'—'}</td><td>${s.opprettet?new Date(s.opprettet).toLocaleDateString('nb-NO'):'—'}</td></tr>`;
+    const tabellHode='<table><thead><tr><th>Sak</th><th>Tittel</th><th>Status</th><th>Opprettet</th></tr></thead><tbody>';
+    let html='';
+    if(apneSaker.length>0){
+      html+=`${tabellHode}${apneSaker.map(sakRad).join('')}</tbody></table>`;
+    }else{
+      html+='<div class="empty">Ingen åpne saker.</div>';
+    }
+    if(lukkedeSaker.length>0){
+      html+=`<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:#6b7280;padding:4px 0">Vis lukkede saker (${lukkedeSaker.length})</summary>
+        <div style="margin-top:6px">${tabellHode}${lukkedeSaker.map(sakRad).join('')}</tbody></table></div>
+      </details>`;
+    }
+    target.innerHTML=html;
+  }catch(e){
+    target.innerHTML=`<div class="empty">Klarte ikke nå Azure Function: ${e.message}</div>`;
+    console.error('Pureservice-sak-oppslag feilet:',e);
   }
 }
 
