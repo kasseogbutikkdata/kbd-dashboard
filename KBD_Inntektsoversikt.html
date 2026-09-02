@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.42 · Oppdatert: 16. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.43 · Oppdatert: 2. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1819,6 +1819,15 @@ let nyetableringer=[];
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
 let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
 let nyeStedFilter='alle';    // 'alle', ellers en eksakt verdi fra _nyeStedVerdi() under
+// nyeForhandlerFilter, lagt til 02.09.2026: skiller KBDs egen leadgenerering
+// (Østfold/Akershus/Vestfold) fra de tre nye forhandler-pilotene (Next/
+// Inventum Bodø/Copysafe, se nyetableringer.py sin docstring), som fra og
+// med denne datoen skrives til SAMME SharePoint-liste, tagget med feltet
+// Forhandleromrade. Default 'KBD' (IKKE 'alle') på Thomas' eksplisitte
+// ønske 02.09.2026 — den daglige arbeidsflyten for salg skal fortsette å
+// vise akkurat det den viste før pilotene fantes, med pilot-radene bevisst
+// skjult til man aktivt velger å se dem.
+let nyeForhandlerFilter='KBD';
 let nyeKunKbdBransjer=true;    // "Vis kun bransjer KBD har kunder i"-bryter, lagt til 26.08.2026 — default satt til PÅ på Thomas' ønske 26.08.2026
 let nyeKbdBransjeMinAntall=100; // terskel (antall eksisterende kunder i samme NACE-hovedgruppe) for at en bransje regnes som "KBD-typisk" — justerbar i UI, default hevet fra 10 til 100 på Thomas' ønske 26.08.2026 (samme terskel som e-postvarselet i backend, se nyetableringer.py)
 let nyeSkjulEnkeltpersonforetak=false; // "Skjul enkeltpersonforetak"-bryter, lagt til 27.08.2026 — default AV (ny/uprøvd, i motsetning til KBD-bransje-bryteren over)
@@ -2206,7 +2215,12 @@ async function loadDataFromSP(){
   // først (➡️ Overfør), og noterer videre der i stedet. Logg-feltet leses
   // fortsatt (overforNyeTilKunder() limer inn ev. gammel logg som en
   // innledende KundeNotater-oppføring), men fylles ikke lenger på herfra.
-  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // forhandlerOmrade (lagt til 02.09.2026): feltet "Forhandleromrade" finnes
+  // ikke på rader opprettet før denne kolonnen ble lagt til i SharePoint —
+  // faller da tilbake til '' her, og _nyeForhandlerVerdi() under tolker det
+  // som 'KBD' (den opprinnelige jobbens eget område), ikke som en tom/femte
+  // kategori.
+  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',forhandlerOmrade:i.fields.Forhandleromrade||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // SmsMaler/SmsUtsendelser (lagt til 31.08.2026) — lagrede meldingsmaler og
   // en historikk-logg for «📱 SMS utsendelse»-menyen (eget toppnivå-
   // menypunkt, se kommentaren ved tab-smsutsendelse i HTML-en). Fylles
@@ -2631,6 +2645,11 @@ function setNyeStedFilter(f){
   renderNyetableringer();
 }
 
+function setNyeForhandlerFilter(f){
+  nyeForhandlerFilter=f;
+  renderNyetableringer();
+}
+
 function setNyeKunKbdBransjer(v){
   nyeKunKbdBransjer=v;
   renderNyetableringer();
@@ -2651,8 +2670,10 @@ function nullstillNyeFilter(){
   // nyeKunKbdBransjer tilbakestilles til TRUE (ikke false) — det er nå
   // default-tilstanden (satt 26.08.2026), så "nullstill" skal gå tilbake
   // til default, ikke slå bryteren av. nyeSkjulEnkeltpersonforetak har
-  // default AV, så den nullstilles til false som vanlig.
-  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';nyeKunKbdBransjer=true;nyeSkjulEnkeltpersonforetak=false;
+  // default AV, så den nullstilles til false som vanlig. nyeForhandlerFilter
+  // tilbakestilles til 'KBD' (lagt til 02.09.2026), av nøyaktig samme grunn
+  // — det er default-tilstanden, ikke 'alle'.
+  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';nyeForhandlerFilter='KBD';nyeKunKbdBransjer=true;nyeSkjulEnkeltpersonforetak=false;
   renderNyetableringer();
 }
 
@@ -2662,6 +2683,11 @@ function nullstillNyeFilter(){
 // bøtter for samme rad uten at man forstår hvorfor filteret ikke traff).
 function _nyeBransjeVerdi(n){return n.naeringsBeskrivelse||n.naeringskode||'Ukjent bransje';}
 function _nyeStedVerdi(n){return n.poststed?`${n.postnummer||''} ${n.poststed}`.trim():(n.kommune||'Ukjent sted');}
+// _nyeForhandlerVerdi (lagt til 02.09.2026): tomt/manglende Forhandleromrade
+// (rader fra FØR kolonnen fantes, eller fra den opprinnelige KBD-jobben før
+// den begynte å skrive 'KBD' eksplisitt) tolkes som 'KBD' — se
+// nyetableringer.py sin docstring for hele resonnementet.
+function _nyeForhandlerVerdi(n){return n.forhandlerOmrade||'KBD';}
 
 // Konkursbo/tvangsavviklingsbo dukker opp som "nye" enheter i Brønnøysund-
 // registeret (boet får sitt eget org.nr), men er per definisjon selskaper på
@@ -2688,11 +2714,18 @@ function renderNyetableringer(){
     filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Ikke kontaktet','Ikke kontaktet','#d03b3b')+pill('Kontaktet','Kontaktet','#eda100')+pill('Ikke aktuell','Ikke aktuell','#9ca3af')+pill('Overført','Overført',K360_NOTAT_FARGER.Oppfølging.c);
   }
 
+  // Forhandlerområde-filteret (lagt til 02.09.2026) begrenser HELE grunnlaget
+  // FØR bransje-/enkeltpersonforetak-bryterne under — det er den mest
+  // overordnede inndelingen (hvilken jobb/forhandler raden kom fra), ikke en
+  // visningsdetalj på toppen som de to andre. 'alle' viser alt på tvers av
+  // områder (nyttig når man faktisk vil sammenligne pilotene mot hverandre).
+  const omradeBasis=nyeForhandlerFilter==='alle'?nyetableringerRenset:nyetableringerRenset.filter(n=>_nyeForhandlerVerdi(n)===nyeForhandlerFilter);
+
   // "KBD-bransje"-bryteren og "skjul enkeltpersonforetak"-bryteren begrenser
   // begge HELE grunnlaget (dropdown-alternativer OG tabellen), lagt oppå
   // hverandre. Rader uten næringskode ekskluderes når bransje-bryteren er på,
   // siden vi da ikke kan bekrefte at de matcher.
-  let visningsBasis=nyetableringerRenset;
+  let visningsBasis=omradeBasis;
   if(nyeKunKbdBransjer)visningsBasis=visningsBasis.filter(_erKbdTypiskBransje);
   if(nyeSkjulEnkeltpersonforetak)visningsBasis=visningsBasis.filter(n=>n.selskapsform!=='ENK');
 
@@ -2700,18 +2733,27 @@ function renderNyetableringer(){
   if(dropdownDiv){
     const bransjer=[...new Set(visningsBasis.map(_nyeBransjeVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
     const steder=[...new Set(visningsBasis.map(_nyeStedVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
+    // Områdene bygges fra nyetableringerRenset (IKKE omradeBasis/visningsBasis)
+    // slik at man alltid kan bytte til et annet område i nedtrekket, uansett
+    // hvilket som er valgt nå. 'KBD' plasseres alltid først (uavhengig av
+    // alfabetisk rekkefølge) siden det er default og desidert mest brukt.
+    const omrader=[...new Set(nyetableringerRenset.map(_nyeForhandlerVerdi))].sort((a,b)=>a==='KBD'?-1:b==='KBD'?1:a.localeCompare(b,'nb'));
     // Hvis dataene har endret seg (f.eks. ny dagskjøring, eller en av bryterne
     // over ble slått på/av) slik at en tidligere valgt verdi ikke lenger
     // finnes i lista, nullstill filteret til "alle" i stedet for å vise en
-    // tabell som ser feilaktig tom ut.
+    // tabell som ser feilaktig tom ut. nyeForhandlerFilter nullstilles til
+    // 'KBD' (sitt eget default), ikke 'alle', av samme grunn som ellers.
     if(nyeBransjeFilter!=='alle'&&!bransjer.includes(nyeBransjeFilter))nyeBransjeFilter='alle';
     if(nyeStedFilter!=='alle'&&!steder.includes(nyeStedFilter))nyeStedFilter='alle';
+    if(nyeForhandlerFilter!=='alle'&&!omrader.includes(nyeForhandlerFilter))nyeForhandlerFilter='KBD';
     const opts=(liste,valgt,alleLabel)=>`<option value="alle"${valgt==='alle'?' selected':''}>${alleLabel}</option>`+liste.map(v=>`<option value="${v.replace(/"/g,'&quot;')}"${valgt===v?' selected':''}>${v}</option>`).join('');
     // nyeKunKbdBransjer er default PÅ (26.08.2026) — det er altså å SLÅ DEN AV
     // som er avviket fra default og skal vise "Nullstill filtre", ikke
     // omvendt. nyeSkjulEnkeltpersonforetak er default AV, så den følger vanlig
-    // logikk (PÅ = avvik).
-    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle'||!nyeKunKbdBransjer||nyeSkjulEnkeltpersonforetak;
+    // logikk (PÅ = avvik). nyeForhandlerFilter er default 'KBD' (02.09.2026),
+    // så det er å velge et ANNET område (inkl. 'alle') som er avviket.
+    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle'||nyeForhandlerFilter!=='KBD'||!nyeKunKbdBransjer||nyeSkjulEnkeltpersonforetak;
+    const omradeFilterHtml=`<select id="nye-omrade-filter" onchange="setNyeForhandlerFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${omrader.map(v=>`<option value="${v.replace(/"/g,'&quot;')}"${nyeForhandlerFilter===v?' selected':''}>${v}</option>`).join('')}<option value="alle"${nyeForhandlerFilter==='alle'?' selected':''}>Alle områder</option></select>`;
     const kbdToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
       <input type="checkbox" id="nye-kbd-bransje-toggle" ${nyeKunKbdBransjer?'checked':''} onchange="setNyeKunKbdBransjer(this.checked)"/>
       Vis kun bransjer KBD har kunder i
@@ -2730,6 +2772,7 @@ function renderNyetableringer(){
     const manglerSelskapsform=nyetableringerRenset.filter(n=>n.orgNr&&!n.selskapsform).length;
     const backfillKnapp=(userRole==='admin'&&manglerSelskapsform>0)?`<button class="btn-sm" onclick="fyllInnSelskapsformForEksisterende()" title="Henter selskapsform fra Brønnøysundregisteret for eksisterende rader som mangler det, og lagrer til SharePoint. Trygt å kjøre flere ganger — rader som allerede har selskapsform blir ikke rørt.">🔧 Fyll inn selskapsform (${manglerSelskapsform} mangler)</button>`:'';
     dropdownDiv.innerHTML=
+      omradeFilterHtml+
       `<select id="nye-bransje-filter" onchange="setNyeBransjeFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${opts(bransjer,nyeBransjeFilter,'Alle bransjer')}</select>`+
       `<select id="nye-sted-filter" onchange="setNyeStedFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts(steder,nyeStedFilter,'Alle steder')}</select>`+
       kbdToggle+kbdMin+enkForetakToggle+
@@ -2761,7 +2804,7 @@ function renderNyetableringer(){
     ${liste.map(n=>{
       const registrert=n.registreringsDato&&!isNaN(new Date(n.registreringsDato))?new Date(n.registreringsDato).toLocaleDateString('nb-NO'):'—';
       return `<tr>
-        <td><strong>${n.tittel||'(uten navn)'}</strong><div style="font-size:11px;color:#9ca3af">${n.orgNr||'—'}</div></td>
+        <td><strong>${n.tittel||'(uten navn)'}</strong><div style="font-size:11px;color:#9ca3af">${n.orgNr||'—'}${nyeForhandlerFilter==='alle'?` · ${_nyeForhandlerVerdi(n)}`:''}</div></td>
         <td>${_nyeBransjeVerdi(n)}</td>
         <td>${_nyeStedVerdi(n)}</td>
         <td>${registrert}</td>
