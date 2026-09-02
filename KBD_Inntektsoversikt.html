@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.48 · Oppdatert: 2. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.49 · Oppdatert: 2. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -477,6 +477,7 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="smssub-smsutsendelse" onclick="showTab('smsutsendelse',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsutsendelse')">📤 Ny utsendelse</div>
         <div class="nav-sub-item" id="smssub-smsplanlagt" onclick="showTab('smsplanlagt',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsplanlagt')">🕐 Planlagt</div>
         <div class="nav-sub-item" id="smssub-smshistorikk" onclick="showTab('smshistorikk',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smshistorikk')">🕘 Tidligere utsendelser</div>
+        <div class="nav-sub-item" id="smssub-purring" onclick="showTab('purring',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('purring')">🔔 Purring-SMS</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -511,7 +512,6 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="isub-produkter" onclick="showInnstillingerView('produkter',this)">🏷️ Produkter</div>
         <div class="nav-sub-item" id="isub-kickback" onclick="showInnstillingerView('kickback',this)">💳 Kickback-kilder</div>
         <div class="nav-sub-item" id="isub-dataimport" onclick="showInnstillingerView('dataimport',this)">📥 Dataimport</div>
-        <div class="nav-sub-item" id="isub-purring" onclick="showInnstillingerView('purring',this)">🔔 Purring-SMS</div>
         <div class="nav-sub-item" id="isub-farlig" onclick="showInnstillingerView('farlig',this)">⚠️ Farlige handlinger</div>
       </div>
     </div>
@@ -689,6 +689,94 @@ tr:hover td{background:#fafafa}
     <div class="card card-public">
       <div class="card-title">🕘 Tidligere utsendelser</div>
       <div id="smsu-historikk"></div>
+    </div>
+  </div>
+
+  <!-- SMS UTSENDELSE — Purring-SMS (flyttet hit 02.09.2026 fra Innstillinger,
+       på Thomas' eksplisitte ønske — hørte naturlig hjemme sammen med resten
+       av SMS-funksjonaliteten. MERK konsekvens for tilgangsstyring: styres nå
+       av tilgang.smsutsendelse (samme modul-tilgang som resten av denne
+       undermenyen) i stedet for tilgang.innstillinger — se
+       purring_sms.py sin docstring, avsnittet "SENDEMÅTE", for hele
+       bakgrunnen. Kortene mangler bevisst card-public (i likhet med
+       tp-smsutsendelse sin kompose-visning) siden dette er
+       skjema/handlingskort som fjerner/utløser ekte SMS-sending — skjules
+       dermed fortsatt for Leser-rollen av applyRoleUI(). -->
+  <div id="tp-purring" class="tp">
+    <div class="card" style="max-width:640px">
+      <div class="card-title">🔔 Automatisk SMS-påminnelse ved forfalt faktura</div>
+      <p class="hint" style="margin-bottom:14px">Sender en automatisk SMS til kunden når en faktura har vært forfalt i et gitt antall dager (kjøres én gang daglig i bakgrunnen, se <code>sjekk_og_send_purring_sms</code> i backend). Dette er en UFORMELL påminnelse, ikke en formell inkassomessig purring — den vanlige purre-/inkassoprosessen i regnskapssystemet påvirkes ikke av dette. Samme mottakernummer («Telefon 1» på kundekortet i Visma) som resten av SMS-funksjonaliteten i dashbordet bruker; kunder uten et gyldig norsk mobilnummer registrert hoppes automatisk over. Hver faktura får maks én SMS per terskel du setter under, uansett hvor lenge den forblir ubetalt.</p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:#f9fafb;border-radius:8px">
+        <input type="checkbox" id="purr-aktivert" style="width:18px;height:18px" onchange="smsPurringOppdaterAktivertHint()"/>
+        <label for="purr-aktivert" style="font-weight:600;cursor:pointer">Aktivert — send automatisk SMS til kunder med forfalte fakturaer</label>
+      </div>
+      <div id="purr-deaktivert-hint" class="hint" style="margin-bottom:14px;color:#b45309">⚠️ Avslått som standard. Kryss av og lagre når du har kontrollert ordlyden og antall dager under — se anbefalingen om å sammenligne de første automatiske utsendelsene mot en manuell kontroll før dette skrus på i produksjon.</div>
+      <!-- Sendemåte (lagt til 02.09.2026, Thomas' eksplisitte ønske: "sette
+           ett valg for om det skal gå automatisk eller med en sjekkliste
+           først"). Se purring_sms.py sin docstring, avsnittet "SENDEMÅTE",
+           for hele backend-logikken. -->
+      <div class="fgrp" style="margin-bottom:14px">
+        <label style="display:block;margin-bottom:8px">Sendemåte</label>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer">
+            <input type="radio" name="purr-sendemodus" id="purr-sendemodus-godkjenning" value="Godkjenning" style="margin-top:3px" onchange="smsPurringOppdaterSendemodusHint()"/>
+            <span><strong>Med godkjenningsliste (anbefalt)</strong> — nye kandidater legges i listen under for gjennomgang. Ingenting sendes før du selv trykker «Send godkjente SMS».</span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer">
+            <input type="radio" name="purr-sendemodus" id="purr-sendemodus-automatisk" value="Automatisk" style="margin-top:3px" onchange="smsPurringOppdaterSendemodusHint()"/>
+            <span><strong>Automatisk</strong> — SMS sendes samme dag uten gjennomgang. Flere fakturaer til samme kunde slås fortsatt sammen til én melding, og du får en kvitterings-e-post om hva som ble sendt.</span>
+          </label>
+        </div>
+        <div id="purr-automatisk-hint" class="hint" style="display:none;margin-top:8px;color:#b45309">⚠️ Ingen ser gjennom listen før sending i denne modusen. «✕ Fjern»-knappen under virker fortsatt for kandidater som IKKE er sendt ennå (f.eks. hvis backend fortsatt kjører i DRY RUN), men gir ingen beskyttelse mot en kunde som allerede har fått SMS-en.</div>
+      </div>
+      <div class="fgrp" style="margin-bottom:14px">
+        <label>Antall dager etter forfall</label>
+        <input type="text" id="purr-dager" placeholder="f.eks. 7 eller 7,21 for flere påminnelser" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px"/>
+        <div class="hint" style="margin-top:4px">Ett tall (f.eks. «7») for én påminnelse, eller flere tall skilt med komma (f.eks. «7,21») for opptrappende påminnelser ved flere terskler.</div>
+      </div>
+      <div class="fgrp" style="margin-bottom:14px">
+        <label>Meldingstekst (én faktura)</label>
+        <textarea id="purr-melding" rows="4" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+        <div class="hint" style="margin-top:4px">Bruk <code>{fakturanummer}</code> og <code>{belop}</code> som plassholdere — disse fylles inn automatisk per faktura ved sending.</div>
+      </div>
+      <div class="fgrp" style="margin-bottom:6px">
+        <label>Meldingstekst (flere fakturaer til samme kunde)</label>
+        <textarea id="purr-melding-flere" rows="4" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+        <div class="hint" style="margin-top:4px">Brukes automatisk i stedet for meldingen over når samme kunde/mobilnummer har flere godkjente kandidater samtidig — de slås da sammen til én SMS. Bruk <code>{antall}</code>, <code>{fakturaliste}</code> og <code>{totalbelop}</code> som plassholdere (lagt til 02.09.2026, etter at Thomas ba om at flere fakturaer til samme kunde skal samles i én melding i stedet for én SMS per faktura).</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="prim" onclick="lagrePurringInnstillinger()">Lagre</button>
+      </div>
+    </div>
+    <!-- Godkjenningsliste (lagt til 02.09.2026, Thomas' eksplisitte ønske:
+         "kunne vi laget en liste hvor vi kunne fjernet kunder før sending,
+         og med en notification til meg om at det ligger en liste klar for
+         utsending"). Bakgrunn: den automatiske jobben foreslår ÉN kandidat
+         per forfalt faktura — noen kunder med mange separate fakturaer
+         kunne ellers fått en bunke separate SMS i samme kjøring (observert
+         opptil 30 stk til samme mobilnummer i en testkjøring 02.09.2026).
+         Vises uansett Sendemåte — i «Automatisk» modus blir nye kandidater
+         normalt sendt med det samme og dukker sjelden opp her, med mindre en
+         sending feiler eller PURRING_SMS_DRY_RUN fortsatt er på i backend.
+         Se purring_sms.py sin docstring for hele arkitekturen. -->
+    <div class="card" style="max-width:900px;margin-top:16px">
+      <div class="card-title">📋 Kandidater klare for godkjenning</div>
+      <p class="hint" style="margin-bottom:14px">Foreslått av den automatiske sjekken (kjører daglig på hverdager) — ingenting sendes før du trykker «Send godkjente SMS» under (med mindre Sendemåte over er satt til «Automatisk», se advarselen der). Fjern kundene du ikke vil sende til med ✕ først.</p>
+      <div id="purr-kand-tom" class="hint" style="display:none;padding:10px 0">Ingen kandidater venter på godkjenning akkurat nå.</div>
+      <div id="purr-kand-tabell-wrap" style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px" id="purr-kand-tabell">
+          <thead><tr style="text-align:left;border-bottom:1px solid #e5e7eb">
+            <th style="padding:6px 8px">Kunde</th><th style="padding:6px 8px">Fakturanr.</th>
+            <th style="padding:6px 8px;text-align:right">Beløp</th><th style="padding:6px 8px;text-align:right">Dager forfalt</th>
+            <th style="padding:6px 8px">Mobil</th><th style="padding:6px 8px"></th>
+          </tr></thead>
+          <tbody id="purr-kand-tbody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
+        <span class="hint" id="purr-kand-antall-hint"></span>
+        <button class="prim" id="purr-kand-send-btn" onclick="purrKandSendGodkjente()">Send godkjente SMS</button>
+      </div>
     </div>
   </div>
 
@@ -1579,73 +1667,6 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
     </div>
-    <!-- PURRING-SMS (lagt til 01.09.2026, Thomas' ønske): styrer den nye
-         automatiske backend-jobben (sjekk_og_send_purring_sms(), se
-         purring_sms.py i kbd-verifone-func) som sender en SMS-påminnelse til
-         KUNDEN når en faktura har vært forfalt i et gitt antall dager.
-         Bevisst plassert under Innstillinger (KUN admin ser Innstillinger-
-         fanen i det hele tatt, se applyRoleUI()) fremfor under
-         «SMS utsendelse», siden dette styrer en AUTOMATISK utsendelse til
-         EKSTERNE kunder — strengere tilgang enn vanlig smsutsendelse-tilgang. -->
-    <div id="innst-purring">
-      <div class="card" style="max-width:640px">
-        <div class="card-title">🔔 Automatisk SMS-påminnelse ved forfalt faktura</div>
-        <p class="hint" style="margin-bottom:14px">Sender en automatisk SMS til kunden når en faktura har vært forfalt i et gitt antall dager (kjøres én gang daglig i bakgrunnen, se <code>sjekk_og_send_purring_sms</code> i backend). Dette er en UFORMELL påminnelse, ikke en formell inkassomessig purring — den vanlige purre-/inkassoprosessen i regnskapssystemet påvirkes ikke av dette. Samme mottakernummer («Telefon 1» på kundekortet i Visma) som resten av SMS-funksjonaliteten i dashbordet bruker; kunder uten et gyldig norsk mobilnummer registrert hoppes automatisk over. Hver faktura får maks én SMS per terskel du setter under, uansett hvor lenge den forblir ubetalt.</p>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:#f9fafb;border-radius:8px">
-          <input type="checkbox" id="purr-aktivert" style="width:18px;height:18px" onchange="smsPurringOppdaterAktivertHint()"/>
-          <label for="purr-aktivert" style="font-weight:600;cursor:pointer">Aktivert — send automatisk SMS til kunder med forfalte fakturaer</label>
-        </div>
-        <div id="purr-deaktivert-hint" class="hint" style="margin-bottom:14px;color:#b45309">⚠️ Avslått som standard. Kryss av og lagre når du har kontrollert ordlyden og antall dager under — se anbefalingen om å sammenligne de første automatiske utsendelsene mot en manuell kontroll før dette skrus på i produksjon.</div>
-        <div class="fgrp" style="margin-bottom:14px">
-          <label>Antall dager etter forfall</label>
-          <input type="text" id="purr-dager" placeholder="f.eks. 7 eller 7,21 for flere påminnelser" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px"/>
-          <div class="hint" style="margin-top:4px">Ett tall (f.eks. «7») for én påminnelse, eller flere tall skilt med komma (f.eks. «7,21») for opptrappende påminnelser ved flere terskler.</div>
-        </div>
-        <div class="fgrp" style="margin-bottom:14px">
-          <label>Meldingstekst (én faktura)</label>
-          <textarea id="purr-melding" rows="4" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
-          <div class="hint" style="margin-top:4px">Bruk <code>{fakturanummer}</code> og <code>{belop}</code> som plassholdere — disse fylles inn automatisk per faktura ved sending.</div>
-        </div>
-        <div class="fgrp" style="margin-bottom:6px">
-          <label>Meldingstekst (flere fakturaer til samme kunde)</label>
-          <textarea id="purr-melding-flere" rows="4" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
-          <div class="hint" style="margin-top:4px">Brukes automatisk i stedet for meldingen over når samme kunde/mobilnummer har flere godkjente kandidater samtidig — de slås da sammen til én SMS. Bruk <code>{antall}</code>, <code>{fakturaliste}</code> og <code>{totalbelop}</code> som plassholdere (lagt til 02.09.2026, etter at Thomas ba om at flere fakturaer til samme kunde skal samles i én melding i stedet for én SMS per faktura).</div>
-        </div>
-        <div style="display:flex;justify-content:flex-end">
-          <button class="prim" onclick="lagrePurringInnstillinger()">Lagre</button>
-        </div>
-      </div>
-      <!-- Godkjenningsliste (lagt til 02.09.2026, Thomas' eksplisitte ønske:
-           "kunne vi laget en liste hvor vi kunne fjernet kunder før sending,
-           og med en notification til meg om at det ligger en liste klar for
-           utsending"). Bakgrunn: den automatiske jobben foreslår ÉN kandidat
-           per forfalt faktura — noen kunder med mange separate fakturaer
-           kunne ellers fått en bunke separate SMS i samme kjøring (observert
-           opptil 30 stk til samme mobilnummer i en testkjøring 02.09.2026).
-           Nå sendes INGENTING automatisk uansett «Aktivert»-status — Thomas
-           ser gjennom lista her og fjerner det han ikke vil sende, deretter
-           trykker han «Send godkjente SMS» selv. Se purring_sms.py sin
-           docstring for hele arkitekturen. -->
-      <div class="card" style="max-width:900px;margin-top:16px">
-        <div class="card-title">📋 Kandidater klare for godkjenning</div>
-        <p class="hint" style="margin-bottom:14px">Foreslått av den automatiske sjekken (kjører daglig på hverdager) — ingenting sendes før du trykker «Send godkjente SMS» under. Fjern kundene du ikke vil sende til med ✕ først.</p>
-        <div id="purr-kand-tom" class="hint" style="display:none;padding:10px 0">Ingen kandidater venter på godkjenning akkurat nå.</div>
-        <div id="purr-kand-tabell-wrap" style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:13px" id="purr-kand-tabell">
-            <thead><tr style="text-align:left;border-bottom:1px solid #e5e7eb">
-              <th style="padding:6px 8px">Kunde</th><th style="padding:6px 8px">Fakturanr.</th>
-              <th style="padding:6px 8px;text-align:right">Beløp</th><th style="padding:6px 8px;text-align:right">Dager forfalt</th>
-              <th style="padding:6px 8px">Mobil</th><th style="padding:6px 8px"></th>
-            </tr></thead>
-            <tbody id="purr-kand-tbody"></tbody>
-          </table>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
-          <span class="hint" id="purr-kand-antall-hint"></span>
-          <button class="prim" id="purr-kand-send-btn" onclick="purrKandSendGodkjente()">Send godkjente SMS</button>
-        </div>
-      </div>
-    </div>
     <div id="innst-farlig">
       <div class="card" style="border-left:3px solid #dc2626">
         <div class="card-title" style="color:#dc2626">⚠️ Farlige handlinger</div>
@@ -2298,7 +2319,7 @@ async function loadDataFromSP(){
   if(spiItems.length>0){
     const f=spiItems[0].fields;
     smsPurringSpId=spiItems[0].id;
-    smsPurringInnstillinger={aktivert:f.Aktivert===true,dagerEtterForfall:f.DagerEtterForfall||'7',melding:f.Melding||smsPurringInnstillinger.melding,meldingFlere:f.MeldingFlere||smsPurringInnstillinger.meldingFlere};
+    smsPurringInnstillinger={aktivert:f.Aktivert===true,dagerEtterForfall:f.DagerEtterForfall||'7',melding:f.Melding||smsPurringInnstillinger.melding,meldingFlere:f.MeldingFlere||smsPurringInnstillinger.meldingFlere,sendemodus:(f.Sendemodus==='Automatisk'?'Automatisk':'Godkjenning')};
   }
   // SmsPurringKandidater (lagt til 02.09.2026, godkjenningsflyt) — foreslåtte
   // purring-SMS-kandidater fra backend-jobben sjekk_og_send_purring_sms()
@@ -4231,11 +4252,12 @@ let smsGlobalSokRaw='';
 // bekreftet — se docstringen i purring_sms.py for hele bakgrunnen.
 // smsPurringSpId=null så lenge ingen rad er lagret ennå (POST ved lagring),
 // ellers selve SharePoint-item-IDen (PATCH ved senere lagringer).
-let smsPurringInnstillinger={aktivert:false,dagerEtterForfall:'7',melding:'Hei, vi ser at faktura {fakturanummer} på {belop} kr ikke er betalt ennå, si ifra om noe er uklart. Mvh Kasse og Butikkdata AS',meldingFlere:'Hei, dere har {antall} ubetalte fakturaer hos oss: {fakturaliste}. Totalt {totalbelop} kr. Si ifra om noe er uklart. Mvh Kasse og Butikkdata AS'},smsPurringSpId=null;
+let smsPurringInnstillinger={aktivert:false,dagerEtterForfall:'7',melding:'Hei, vi ser at faktura {fakturanummer} på {belop} kr ikke er betalt ennå, si ifra om noe er uklart. Mvh Kasse og Butikkdata AS',meldingFlere:'Hei, dere har {antall} ubetalte fakturaer hos oss: {fakturaliste}. Totalt {totalbelop} kr. Si ifra om noe er uklart. Mvh Kasse og Butikkdata AS',sendemodus:'Godkjenning'},smsPurringSpId=null;
 // smsPurringKandidater (lagt til 02.09.2026, godkjenningsflyt — se
 // purring_sms.py sin docstring for hele bakgrunnen): foreslåtte purring-SMS-
 // kandidater fra backend, fylt av loadDataFromSP() over. Thomas ser gjennom
-// disse i innst-purring-panelet FØR noe faktisk sendes — se
+// disse i tp-purring-panelet (under «📱 SMS utsendelse», flyttet dit
+// 02.09.2026) FØR noe faktisk sendes — se
 // renderPurringKandidater()/purrKandFjern()/purrKandSendGodkjente() under.
 let smsPurringKandidater=[];
 // smsUtsendelserLastingFeilet (lagt til 01.09.2026): true hvis selve
@@ -6521,7 +6543,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt'||name==='purring')?'smsutsendelse':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -6530,7 +6552,7 @@ function showTab(name,btn){
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
-  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk');
+  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk'||name==='purring');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -6547,6 +6569,7 @@ function showTab(name,btn){
   if(name==='smsutsendelse'){setSmsUtsendelseSubActive('smsutsendelse');renderSmsUtsendelse();smsHentSaldo();}
   if(name==='smsplanlagt'){setSmsUtsendelseSubActive('smsplanlagt');renderSmsPlanlagt();}
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
+  if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
@@ -6575,7 +6598,7 @@ function toggleSmsUtsendelseSub(open){
 
 function setSmsUtsendelseSubActive(view){
   document.querySelectorAll('#smsutsendelse-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  const idMap={smsutsendelse:'smssub-smsutsendelse',smsplanlagt:'smssub-smsplanlagt',smshistorikk:'smssub-smshistorikk'};
+  const idMap={smsutsendelse:'smssub-smsutsendelse',smsplanlagt:'smssub-smsplanlagt',smshistorikk:'smssub-smshistorikk',purring:'smssub-purring'};
   const el=document.getElementById(idMap[view]||'smssub-smsutsendelse');
   if(el)el.classList.add('active');
 }
@@ -6591,7 +6614,9 @@ function toggleInnstillingerSub(open){
 }
 
 function showInnstillingerView(view,btn){
-  ['brukertilgang','produkter','kickback','dataimport','purring','farlig'].forEach(v=>{
+  // 'purring' fjernet herfra 02.09.2026 — Purring-SMS flyttet til en egen
+  // tp-purring-fane under «📱 SMS utsendelse», se showTab().
+  ['brukertilgang','produkter','kickback','dataimport','farlig'].forEach(v=>{
     const el=document.getElementById('innst-'+v);
     if(el)el.style.display=v===view?'':'none';
   });
@@ -6599,24 +6624,28 @@ function showInnstillingerView(view,btn){
   const subBtn=btn||document.getElementById('isub-'+view);
   if(subBtn)subBtn.classList.add('active');
   toggleInnstillingerSub(true);
-  if(view==='purring'){renderPurringInnstillinger();renderPurringKandidater();}
 }
 
 // ===== PURRING-SMS (automatisk SMS ved forfalt faktura) =====
-// Lagt til 01.09.2026 — se innst-purring-panelet og docstringen i
-// purring_sms.py (kbd-verifone-func) for hele bakgrunnen/arkitekturen.
+// Lagt til 01.09.2026, flyttet fra Innstillinger til tp-purring (under
+// «📱 SMS utsendelse») 02.09.2026 — se docstringen i purring_sms.py
+// (kbd-verifone-func) for hele bakgrunnen/arkitekturen.
 
 function renderPurringInnstillinger(){
   const aktivert=document.getElementById('purr-aktivert');
   const dager=document.getElementById('purr-dager');
   const melding=document.getElementById('purr-melding');
   const meldingFlere=document.getElementById('purr-melding-flere');
-  if(!aktivert||!dager||!melding||!meldingFlere)return;
+  const modusGodkjenning=document.getElementById('purr-sendemodus-godkjenning');
+  const modusAutomatisk=document.getElementById('purr-sendemodus-automatisk');
+  if(!aktivert||!dager||!melding||!meldingFlere||!modusGodkjenning||!modusAutomatisk)return;
   aktivert.checked=smsPurringInnstillinger.aktivert;
   dager.value=smsPurringInnstillinger.dagerEtterForfall;
   melding.value=smsPurringInnstillinger.melding;
   meldingFlere.value=smsPurringInnstillinger.meldingFlere;
+  if(smsPurringInnstillinger.sendemodus==='Automatisk'){modusAutomatisk.checked=true;}else{modusGodkjenning.checked=true;}
   smsPurringOppdaterAktivertHint();
+  smsPurringOppdaterSendemodusHint();
 }
 
 function smsPurringOppdaterAktivertHint(){
@@ -6626,17 +6655,32 @@ function smsPurringOppdaterAktivertHint(){
   hint.style.display=aktivert.checked?'none':'';
 }
 
+// Lagt til 02.09.2026 sammen med Sendemåte-valget — se
+// purring_sms.py sin docstring, avsnittet "SENDEMÅTE".
+function smsPurringOppdaterSendemodusHint(){
+  const automatisk=document.getElementById('purr-sendemodus-automatisk');
+  const hint=document.getElementById('purr-automatisk-hint');
+  if(!automatisk||!hint)return;
+  hint.style.display=automatisk.checked?'':'none';
+}
+
 async function lagrePurringInnstillinger(){
   const aktivert=document.getElementById('purr-aktivert')?.checked||false;
   const dagerRaw=(document.getElementById('purr-dager')?.value||'').trim();
   const melding=(document.getElementById('purr-melding')?.value||'').trim();
   const meldingFlere=(document.getElementById('purr-melding-flere')?.value||'').trim();
+  const sendemodus=document.getElementById('purr-sendemodus-automatisk')?.checked?'Automatisk':'Godkjenning';
   if(!melding){alert('Meldingsteksten (én faktura) kan ikke være tom.');return;}
   if(!meldingFlere){alert('Meldingsteksten (flere fakturaer) kan ikke være tom.');return;}
   const gyldigeDager=dagerRaw.split(/[,;]+/).map(s=>s.trim()).filter(Boolean).every(s=>/^\d+$/.test(s));
   if(!dagerRaw||!gyldigeDager){alert('«Antall dager etter forfall» må være ett eller flere hele tall, skilt med komma (f.eks. «7» eller «7,21»).');return;}
-  if(aktivert&&!confirm('Aktivere automatisk forslag til SMS-påminnelse for kunder med forfalte fakturaer nå?\n\nDette begynner å FORESLÅ kandidater i lista under ved neste kjøring av bakgrunnsjobben (kjører daglig) — ingenting sendes automatisk. Du ser gjennom og godkjenner selv før noe faktisk sendes.'))return;
-  const felter={Title:'Innstillinger',Aktivert:aktivert,DagerEtterForfall:dagerRaw,Melding:melding,MeldingFlere:meldingFlere};
+  if(aktivert){
+    const advarsel=sendemodus==='Automatisk'
+      ? 'Aktivere automatisk SMS-påminnelse for kunder med forfalte fakturaer nå?\n\nDu har valgt Sendemåte «Automatisk» — SMS sendes UTEN manuell gjennomgang ved neste kjøring av bakgrunnsjobben (kjører daglig). Flere fakturaer til samme kunde slås sammen til én melding, men INGEN ser gjennom listen først.'
+      : 'Aktivere automatisk forslag til SMS-påminnelse for kunder med forfalte fakturaer nå?\n\nDette begynner å FORESLÅ kandidater i lista under ved neste kjøring av bakgrunnsjobben (kjører daglig) — ingenting sendes automatisk. Du ser gjennom og godkjenner selv før noe faktisk sendes.';
+    if(!confirm(advarsel))return;
+  }
+  const felter={Title:'Innstillinger',Aktivert:aktivert,DagerEtterForfall:dagerRaw,Melding:melding,MeldingFlere:meldingFlere,Sendemodus:sendemodus};
   try{
     if(smsPurringSpId){
       await spUpdate('SmsPurringInnstillinger',smsPurringSpId,felter);
@@ -6644,14 +6688,15 @@ async function lagrePurringInnstillinger(){
       const r=await spCreate('SmsPurringInnstillinger',felter);
       smsPurringSpId=r.id;
     }
-    smsPurringInnstillinger={aktivert,dagerEtterForfall:dagerRaw,melding,meldingFlere};
+    smsPurringInnstillinger={aktivert,dagerEtterForfall:dagerRaw,melding,meldingFlere,sendemodus};
     smsPurringOppdaterAktivertHint();
+    smsPurringOppdaterSendemodusHint();
     vfShowToast('✅ Innstillinger for purring-SMS lagret');
   }catch(e){alert('Kunne ikke lagre innstillingene: '+e.message);}
 }
 
 // Godkjenningsliste (lagt til 02.09.2026) — se kommentaren ved
-// innst-purring-kortet "📋 Kandidater klare for godkjenning" i HTML-en, og
+// tp-purring-kortet "📋 Kandidater klare for godkjenning" i HTML-en, og
 // purring_sms.py sin docstring, for hele bakgrunnen. Viser KUN Status=
 // "Venter"-rader — "Avvist"/"Sendt"/"Feilet" er historikk, ikke noe å
 // handle på her.
