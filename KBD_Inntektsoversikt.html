@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.40 · Oppdatert: 2. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.41 · Oppdatert: 2. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4107,6 +4107,15 @@ let smsMaler=[],smsUtsendelser=[],smsGrupper=[],smsValgteKilder=new Set(),smsGru
 // problemet for "Skriv inn nummer manuelt"-feltet allerede 31.08.2026;
 // smsuTekstRaw gjør nå det samme for selve meldingsteksten.
 let smsuTekstRaw='';
+// smsGlobalSokRaw (lagt til 02.09.2026, på Thomas' ønske: "en søk funksjon...
+// som søker i alle gruppene, både de automatiske og manuelle"). Bevisst KUN
+// et oppslag i første omgang (Thomas' eget valg 02.09.2026) — viser hvilke
+// gruppe(r) et navn/nummer finnes i, uten å endre selve gruppevalget
+// (smsValgteKilder). Se smsRenderGlobaltSok(). Samme
+// bevar-tilstand-på-nytt-render-mønster som smsuTekstRaw/smsManuellRaw over,
+// av samme grunn: renderSmsUtsendelse() bygger hele panelet på nytt hver
+// gang en gruppe slås av/på.
+let smsGlobalSokRaw='';
 // smsPurringInnstillinger (lagt til 01.09.2026, Thomas' ønske om automatisk
 // SMS-påminnelse til kunder med forfalte, ubetalte fakturaer): innstillingene
 // for den nye backend-jobben sjekk_og_send_purring_sms() (se purring_sms.py i
@@ -4399,6 +4408,15 @@ function renderSmsUtsendelse(){
         <textarea id="smsu-manuell-tekst" rows="2" oninput="smsManuellRaw=this.value" placeholder="Ett eller flere numre, skilt med komma eller linjeskift — legg evt. til navn foran med kolon (f.eks. Ola Nordmann: 912 34 567, 98765432)" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px">${manuellAktiv?smsManuellRaw:''}</textarea>
         <button class="btn-sm" style="margin-top:6px" onclick="smsBrukManuelleNumre()">Bruk disse numrene</button>
       </div>
+      <!-- Globalt søk på tvers av ALLE grupper (lagt til 02.09.2026, se
+           smsRenderGlobaltSok()). Bevisst atskilt fra selve
+           gruppevalget/mottakerbyggingen over — dette er et rent oppslag
+           ("hvilken gruppe ligger denne kunden i?"), ikke en måte å velge
+           mottakere på. -->
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f3f4f6">
+        <input type="text" id="smsu-global-sok" oninput="smsGlobalSokRaw=this.value;smsRenderGlobaltSok()" value="${(smsGlobalSokRaw||'').replace(/"/g,'&quot;')}" placeholder="🔍 Søk navn eller nummer i ALLE grupper (automatiske og lagrede)…" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px"/>
+        <div id="smsu-global-sok-resultat" style="margin-top:6px"></div>
+      </div>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -4423,6 +4441,56 @@ function renderSmsUtsendelse(){
   `;
   smsRenderMottakere();
   oppdaterSmsuTegnteller();
+  smsRenderGlobaltSok();
+}
+
+// Globalt søk på tvers av ALLE grupper (automatiske Visma-kategorier OG
+// lagrede grupper), lagt til 02.09.2026 på Thomas' ønske: "en søk funksjon
+// (tilsvarende som er inne på de manuelle listene) men som søker i alle
+// gruppene, både de automatiske og manuelle". Bevisst KUN et oppslag i
+// første omgang (Thomas' eget valg) — viser hvilke gruppe(r) et navn/nummer
+// finnes i, og endrer IKKE selve gruppevalget (smsValgteKilder) eller
+// mottakerlisten. Gjenbruker samme kilder som selve utsendelsesvalget
+// (smsHentKundegruppe()/smsParseManuelleNumre()) og samme søkelogikk
+// (siffer i telefonnummer ELLER fritekst i navn) som sg-sok i
+// gruppe-redigeringen (se smsRenderGruppeNummerliste()).
+function smsRenderGlobaltSok(){
+  const target=document.getElementById('smsu-global-sok-resultat');
+  if(!target)return;
+  const sokRaw=smsGlobalSokRaw.trim();
+  if(sokRaw.length<2){target.innerHTML=sokRaw?'<div class="muted" style="font-size:12px;padding:4px 0">Skriv minst 2 tegn for å søke.</div>':'';return;}
+  const sokSiffer=sokRaw.replace(/\D/g,'');
+  const sokTekst=sokRaw.toLowerCase();
+  const matcher=r=>(sokSiffer&&r.telefonRaw&&r.telefonRaw.includes(sokSiffer))||(r.navn&&r.navn!=='Manuelt nummer'&&r.navn.toLowerCase().includes(sokTekst));
+
+  // Slår sammen treff PÅ TVERS av kilder til én rad per unike telefonnummer
+  // (eller navn, for rader uten gyldig mobilnummer) — samme kunde/nummer kan
+  // jo ligge i flere grupper samtidig (f.eks. både «Susoft» og en egen
+  // lagret liste), og da skal alle kildene vises samlet på treffet i stedet
+  // for som flere separate rader.
+  const perNokkel=new Map(); // telefonRaw (eller "navn-<navn>") -> {navn,telefonRaw,erMobil,kilder:Set}
+  const leggTil=(rad,kildeNavn)=>{
+    if(!matcher(rad))return;
+    const nokkel=rad.telefonRaw||`navn-${rad.navn}`;
+    if(!perNokkel.has(nokkel))perNokkel.set(nokkel,{navn:rad.navn,telefonRaw:rad.telefonRaw,erMobil:rad.erMobil,kilder:new Set()});
+    perNokkel.get(nokkel).kilder.add(kildeNavn);
+  };
+  K360_PRODUKTNOKKELORD.forEach(nokkel=>{
+    smsHentKundegruppe(nokkel).forEach(r=>leggTil(r,nokkel));
+  });
+  smsGrupper.forEach(g=>{
+    smsParseManuelleNumre(g.numre).forEach(r=>leggTil(r,`📁 ${g.navn||'(uten navn)'}`));
+  });
+
+  const treff=[...perNokkel.values()];
+  if(treff.length===0){target.innerHTML=`<div class="muted" style="font-size:12px;padding:4px 0">Ingen treff på «${sokRaw}» i noen gruppe.</div>`;return;}
+  target.innerHTML=`<div style="border:1px solid #e5e7eb;border-radius:8px;padding:2px 8px;max-height:220px;overflow-y:auto">
+    ${treff.map(t=>`
+      <div style="padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px">
+        <div>${t.navn&&t.navn!=='Manuelt nummer'?`<strong>${t.navn}</strong> — `:''}${t.erMobil?t.telefonRaw:`<span style="color:#d03b3b">${t.telefonRaw||'?'} (ikke mobil)</span>`}</div>
+        <div style="color:#6b7280;font-size:11px;margin-top:1px">Finnes i: ${[...t.kilder].join(', ')}</div>
+      </div>`).join('')}
+  </div>`;
 }
 
 // Slår en kilde av/på i valgsettet (Visma-nøkkelord eller 'gruppe:<id>') —
