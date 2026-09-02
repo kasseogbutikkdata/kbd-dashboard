@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.43 · Oppdatert: 2. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.44 · Oppdatert: 2. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2707,19 +2707,21 @@ function renderNyetableringer(){
   // filtrene under. Gjelder både tellerne på filterpillene og selve tabellen.
   const nyetableringerRenset=nyetableringer.filter(n=>!_erKonkursboEllerTvangsavvikling(n));
 
+  // Forhandlerområde-filteret (lagt til 02.09.2026) begrenser HELE grunnlaget,
+  // OGSÅ statuspillene under — flyttet opp foran filterDiv-blokken 02.09.2026
+  // (opprinnelig implementasjon lot pillene telle mot nyetableringerRenset
+  // uendret, altså PÅ TVERS av områder selv når et enkelt område er valgt —
+  // ufarlig så lenge alt var «KBD», men ville gitt misvisende «Alle»-tall i
+  // det øyeblikket forhandler-pilotene begynner å legge rader i samme liste).
+  // 'alle' viser alt på tvers av områder (nyttig for å sammenligne pilotene).
+  const omradeBasis=nyeForhandlerFilter==='alle'?nyetableringerRenset:nyetableringerRenset.filter(n=>_nyeForhandlerVerdi(n)===nyeForhandlerFilter);
+
   const filterDiv=document.getElementById('nye-filters');
   if(filterDiv){
-    const antall=s=>s==='alle'?nyetableringerRenset.length:nyetableringerRenset.filter(n=>n.status===s).length;
+    const antall=s=>s==='alle'?omradeBasis.length:omradeBasis.filter(n=>n.status===s).length;
     const pill=(val,lbl,farge)=>`<button class="fpill${nyeStatusFilter===val?' f-on':''}" style="${nyeStatusFilter===val?`border-color:${farge}`:''}" onclick="setNyeStatusFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${nyeStatusFilter===val?`font-weight:600;color:${farge}`:''}">${lbl} (${antall(val)})</span></button>`;
     filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Ikke kontaktet','Ikke kontaktet','#d03b3b')+pill('Kontaktet','Kontaktet','#eda100')+pill('Ikke aktuell','Ikke aktuell','#9ca3af')+pill('Overført','Overført',K360_NOTAT_FARGER.Oppfølging.c);
   }
-
-  // Forhandlerområde-filteret (lagt til 02.09.2026) begrenser HELE grunnlaget
-  // FØR bransje-/enkeltpersonforetak-bryterne under — det er den mest
-  // overordnede inndelingen (hvilken jobb/forhandler raden kom fra), ikke en
-  // visningsdetalj på toppen som de to andre. 'alle' viser alt på tvers av
-  // områder (nyttig når man faktisk vil sammenligne pilotene mot hverandre).
-  const omradeBasis=nyeForhandlerFilter==='alle'?nyetableringerRenset:nyetableringerRenset.filter(n=>_nyeForhandlerVerdi(n)===nyeForhandlerFilter);
 
   // "KBD-bransje"-bryteren og "skjul enkeltpersonforetak"-bryteren begrenser
   // begge HELE grunnlaget (dropdown-alternativer OG tabellen), lagt oppå
