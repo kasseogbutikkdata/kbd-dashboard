@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.44 · Oppdatert: 2. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.45 · Oppdatert: 2. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -606,7 +606,18 @@ tr:hover td{background:#fafafa}
        renderNyetableringer(). Fylles av den daglige backend-jobben
        hent_nyetableringer i kbd-verifone-func (se nyetableringer.py). -->
   <div id="tp-nyetableringer" class="tp">
-    <div class="card">
+    <!-- card-public lagt til 02.09.2026: SAMME bug som Casper (Leser-rolle)
+         rapporterte på SMS-fanene 01.09.2026 (se tp-smsplanlagt/tp-smshistorikk
+         over) — applyRoleUI() skjuler (style.display='none') ethvert
+         .card-element uten card-public for alle som ikke er admin/redaktør.
+         Tittel, hint-tekst, statuspillene OG hele filterraden (inkl. det nye
+         Forhandlerområde-filteret) lå alle i dette ÉNE .card-elementet, så alt
+         forsvant for Geir (Leser-rolle) — kun selve tabellen (nye-tabell,
+         UTENFOR .card) var igjen. Ren visning/filtrering her (ingen skjema
+         eller skriving), så det skal være synlig for alle roller — den
+         eneste faktisk admin-only handlingen inni (🔧 Fyll inn selskapsform)
+         har allerede sin egen userRole==='admin'-sjekk og påvirkes ikke. -->
+    <div class="card card-public">
       <div class="card-title">🏢 Nyetableringer</div>
       <div class="hint">Nyregistrerte selskaper (hoved- og underenheter) i Akershus, Østfold og Vestfold, hentet daglig fra Brønnøysundregistrenes åpne Enhetsregisteret — et grunnlag for å finne nye potensielle kunder til kasse-/betalingsløsninger. Egen liste, ikke koblet til det ordinære Kunde 360-kundekortet før noen faktisk blir kunde og flyttes over dit manuelt.</div>
       <div class="filters" id="nye-filters" style="margin-top:10px"></div>
