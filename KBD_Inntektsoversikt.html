@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.46 · Oppdatert: 2. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.47 · Oppdatert: 2. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1610,6 +1610,36 @@ tr:hover td{background:#fafafa}
           <button class="prim" onclick="lagrePurringInnstillinger()">Lagre</button>
         </div>
       </div>
+      <!-- Godkjenningsliste (lagt til 02.09.2026, Thomas' eksplisitte ønske:
+           "kunne vi laget en liste hvor vi kunne fjernet kunder før sending,
+           og med en notification til meg om at det ligger en liste klar for
+           utsending"). Bakgrunn: den automatiske jobben foreslår ÉN kandidat
+           per forfalt faktura — noen kunder med mange separate fakturaer
+           kunne ellers fått en bunke separate SMS i samme kjøring (observert
+           opptil 30 stk til samme mobilnummer i en testkjøring 02.09.2026).
+           Nå sendes INGENTING automatisk uansett «Aktivert»-status — Thomas
+           ser gjennom lista her og fjerner det han ikke vil sende, deretter
+           trykker han «Send godkjente SMS» selv. Se purring_sms.py sin
+           docstring for hele arkitekturen. -->
+      <div class="card" style="max-width:900px;margin-top:16px">
+        <div class="card-title">📋 Kandidater klare for godkjenning</div>
+        <p class="hint" style="margin-bottom:14px">Foreslått av den automatiske sjekken (kjører daglig på hverdager) — ingenting sendes før du trykker «Send godkjente SMS» under. Fjern kundene du ikke vil sende til med ✕ først.</p>
+        <div id="purr-kand-tom" class="hint" style="display:none;padding:10px 0">Ingen kandidater venter på godkjenning akkurat nå.</div>
+        <div id="purr-kand-tabell-wrap" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px" id="purr-kand-tabell">
+            <thead><tr style="text-align:left;border-bottom:1px solid #e5e7eb">
+              <th style="padding:6px 8px">Kunde</th><th style="padding:6px 8px">Fakturanr.</th>
+              <th style="padding:6px 8px;text-align:right">Beløp</th><th style="padding:6px 8px;text-align:right">Dager forfalt</th>
+              <th style="padding:6px 8px">Mobil</th><th style="padding:6px 8px"></th>
+            </tr></thead>
+            <tbody id="purr-kand-tbody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
+          <span class="hint" id="purr-kand-antall-hint"></span>
+          <button class="prim" id="purr-kand-send-btn" onclick="purrKandSendGodkjente()">Send godkjente SMS</button>
+        </div>
+      </div>
     </div>
     <div id="innst-farlig">
       <div class="card" style="border-left:3px solid #dc2626">
@@ -2142,8 +2172,8 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger')
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater')
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2265,6 +2295,15 @@ async function loadDataFromSP(){
     smsPurringSpId=spiItems[0].id;
     smsPurringInnstillinger={aktivert:f.Aktivert===true,dagerEtterForfall:f.DagerEtterForfall||'7',melding:f.Melding||smsPurringInnstillinger.melding};
   }
+  // SmsPurringKandidater (lagt til 02.09.2026, godkjenningsflyt) — foreslåtte
+  // purring-SMS-kandidater fra backend-jobben sjekk_og_send_purring_sms()
+  // (purring_sms.py), med Status="Venter" til Thomas enten fjerner dem
+  // ("Avvist", se purrKandFjern()) eller sender dem («Send godkjente SMS»,
+  // se purrKandSendGodkjente() — kaller /api/send_purring_sms_godkjente,
+  // som selv setter Status til "Sendt"/"Feilet"). Feltnavn MÅ stemme med
+  // FELT_KAND_*-konstantene i purring_sms.py — verifiser via Graph Explorer
+  // FØR lista tas i bruk, samme rutine som alle andre nye lister.
+  smsPurringKandidater=spkItems.map(i=>({id:`sp${i.id}`,spId:i.id,status:i.fields.Status||'Venter',fakturaId:i.fields.FakturaId||'',fakturanummer:i.fields.Fakturanummer||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',telefon:i.fields.Telefon||'',belop:parseFloat(i.fields.Belop)||0,dagerForfalt:parseInt(i.fields.DagerForfalt)||0,terskel:parseInt(i.fields.Terskel)||0,opprettetDato:i.fields.OpprettetDato||'',sendtDato:i.fields.SendtDato||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -4188,6 +4227,12 @@ let smsGlobalSokRaw='';
 // smsPurringSpId=null så lenge ingen rad er lagret ennå (POST ved lagring),
 // ellers selve SharePoint-item-IDen (PATCH ved senere lagringer).
 let smsPurringInnstillinger={aktivert:false,dagerEtterForfall:'7',melding:'Hei, vi ser at faktura {fakturanummer} på {belop} kr ikke er betalt ennå, si ifra om noe er uklart. Mvh Kasse og Butikkdata AS'},smsPurringSpId=null;
+// smsPurringKandidater (lagt til 02.09.2026, godkjenningsflyt — se
+// purring_sms.py sin docstring for hele bakgrunnen): foreslåtte purring-SMS-
+// kandidater fra backend, fylt av loadDataFromSP() over. Thomas ser gjennom
+// disse i innst-purring-panelet FØR noe faktisk sendes — se
+// renderPurringKandidater()/purrKandFjern()/purrKandSendGodkjente() under.
+let smsPurringKandidater=[];
 // smsUtsendelserLastingFeilet (lagt til 01.09.2026): true hvis selve
 // henting av SmsUtsendelser fra SharePoint feilet (f.eks. et Graph 403 —
 // den innloggede brukeren mangler lesetilgang til NETTOPP denne lista, som
@@ -6549,7 +6594,7 @@ function showInnstillingerView(view,btn){
   const subBtn=btn||document.getElementById('isub-'+view);
   if(subBtn)subBtn.classList.add('active');
   toggleInnstillingerSub(true);
-  if(view==='purring')renderPurringInnstillinger();
+  if(view==='purring'){renderPurringInnstillinger();renderPurringKandidater();}
 }
 
 // ===== PURRING-SMS (automatisk SMS ved forfalt faktura) =====
@@ -6581,7 +6626,7 @@ async function lagrePurringInnstillinger(){
   if(!melding){alert('Meldingsteksten kan ikke være tom.');return;}
   const gyldigeDager=dagerRaw.split(/[,;]+/).map(s=>s.trim()).filter(Boolean).every(s=>/^\d+$/.test(s));
   if(!dagerRaw||!gyldigeDager){alert('«Antall dager etter forfall» må være ett eller flere hele tall, skilt med komma (f.eks. «7» eller «7,21»).');return;}
-  if(aktivert&&!confirm('Aktivere automatisk SMS-påminnelse til kunder med forfalte fakturaer nå?\n\nDette vil begynne å sende ekte SMS til kunder ved neste kjøring av bakgrunnsjobben (kjører daglig). Har du kontrollert ordlyden og antall dager, og helst testet mot en kjent faktura først?'))return;
+  if(aktivert&&!confirm('Aktivere automatisk forslag til SMS-påminnelse for kunder med forfalte fakturaer nå?\n\nDette begynner å FORESLÅ kandidater i lista under ved neste kjøring av bakgrunnsjobben (kjører daglig) — ingenting sendes automatisk. Du ser gjennom og godkjenner selv før noe faktisk sendes.'))return;
   const felter={Title:'Innstillinger',Aktivert:aktivert,DagerEtterForfall:dagerRaw,Melding:melding};
   try{
     if(smsPurringSpId){
@@ -6594,6 +6639,90 @@ async function lagrePurringInnstillinger(){
     smsPurringOppdaterAktivertHint();
     vfShowToast('✅ Innstillinger for purring-SMS lagret');
   }catch(e){alert('Kunne ikke lagre innstillingene: '+e.message);}
+}
+
+// Godkjenningsliste (lagt til 02.09.2026) — se kommentaren ved
+// innst-purring-kortet "📋 Kandidater klare for godkjenning" i HTML-en, og
+// purring_sms.py sin docstring, for hele bakgrunnen. Viser KUN Status=
+// "Venter"-rader — "Avvist"/"Sendt"/"Feilet" er historikk, ikke noe å
+// handle på her.
+function renderPurringKandidater(){
+  const tbody=document.getElementById('purr-kand-tbody');
+  const tom=document.getElementById('purr-kand-tom');
+  const wrap=document.getElementById('purr-kand-tabell-wrap');
+  const antallHint=document.getElementById('purr-kand-antall-hint');
+  const sendBtn=document.getElementById('purr-kand-send-btn');
+  if(!tbody)return;
+  const ventende=smsPurringKandidater.filter(k=>k.status==='Venter').sort((a,b)=>b.dagerForfalt-a.dagerForfalt);
+  if(ventende.length===0){
+    if(tom)tom.style.display='';
+    if(wrap)wrap.style.display='none';
+    if(antallHint)antallHint.textContent='';
+    if(sendBtn)sendBtn.disabled=true;
+    return;
+  }
+  if(tom)tom.style.display='none';
+  if(wrap)wrap.style.display='';
+  if(sendBtn)sendBtn.disabled=false;
+  const totalBelop=ventende.reduce((s,k)=>s+k.belop,0);
+  if(antallHint)antallHint.textContent=`${ventende.length} kandidat(er), totalt ${totalBelop.toLocaleString('nb-NO')} kr`;
+  tbody.innerHTML=ventende.map(k=>`
+    <tr style="border-bottom:1px solid #f3f4f6">
+      <td style="padding:6px 8px">${k.kundenavn||'(ukjent)'}</td>
+      <td style="padding:6px 8px">${k.fakturanummer||'—'}</td>
+      <td style="padding:6px 8px;text-align:right">${k.belop.toLocaleString('nb-NO')} kr</td>
+      <td style="padding:6px 8px;text-align:right">${k.dagerForfalt}</td>
+      <td style="padding:6px 8px">${k.telefon||'—'}</td>
+      <td style="padding:6px 8px;text-align:right"><button class="sec" style="padding:3px 9px;font-size:12px" onclick="purrKandFjern('${k.spId}')" title="Fjern denne kandidaten — sendes ikke">✕ Fjern</button></td>
+    </tr>`).join('');
+}
+
+async function purrKandFjern(spId){
+  const kand=smsPurringKandidater.find(k=>String(k.spId)===String(spId));
+  if(!kand)return;
+  if(!confirm(`Fjerne «${kand.kundenavn}» (faktura ${kand.fakturanummer}) fra listen? Denne fakturaen/terskelen foreslås ikke på nytt automatisk.`))return;
+  try{
+    await spUpdate('SmsPurringKandidater',spId,{Status:'Avvist'});
+    kand.status='Avvist';
+    renderPurringKandidater();
+    vfShowToast('Kandidat fjernet');
+  }catch(e){alert('Kunne ikke fjerne kandidaten: '+e.message);}
+}
+
+// Selve sendingen skjer i backend (send_godkjente_purring_kandidater() i
+// purring_sms.py, kalt via /api/send_purring_sms_godkjente) — IKKE herfra
+// direkte, siden Sveve-credentials kun finnes i backend. Samme
+// token/fetch-mønster som sendSmsGruppe() bruker mot /api/send_sms_bulk.
+async function purrKandSendGodkjente(){
+  const ventende=smsPurringKandidater.filter(k=>k.status==='Venter');
+  if(ventende.length===0){alert('Ingen kandidater å sende til.');return;}
+  if(!VF_CONFIG.baseUrl){alert('Ikke koblet til Azure Function ennå.');return;}
+  if(!confirm(`Sende SMS til ${ventende.length} godkjente kandidat(er)?\n\nDette kan IKKE angres.`))return;
+  const btn=document.getElementById('purr-kand-send-btn');
+  if(btn){btn.disabled=true;btn.textContent='Sender…';}
+  try{
+    const vfToken=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/send_purring_sms_godkjente'),{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${vfToken}`},
+      body:JSON.stringify({}),
+    });
+    const data=await resp.json();
+    if(!resp.ok)throw new Error(data.error||`Feil fra server (${resp.status})`);
+    vfShowToast(`${data.sendt||0} av ${data.kandidater||0} SMS sendt${data.feilet?`, ${data.feilet} feilet`:''}${data.dryRun?' (DRY RUN — ingenting faktisk sendt, se Application Insights-loggen)':''}`);
+  }catch(e){
+    alert('Sendingen feilet eller ble avbrutt underveis: '+e.message+'\n\nSjekk Application Insights-loggen for detaljer — noen kan ha blitt sendt før feilen oppstod.');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Send godkjente SMS';}
+    // Hent fasiten på nytt fra SharePoint i stedet for å gjette lokalt hvilke
+    // rader som endte som "Sendt" vs. "Feilet" vs. fortsatt "Venter" (f.eks.
+    // ved en utsending som stoppet halvveis) — se loadDataFromSP().
+    try{
+      const spkItems=await spGetItemsLoggetFeil('SmsPurringKandidater');
+      smsPurringKandidater=spkItems.map(i=>({id:`sp${i.id}`,spId:i.id,status:i.fields.Status||'Venter',fakturaId:i.fields.FakturaId||'',fakturanummer:i.fields.Fakturanummer||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',telefon:i.fields.Telefon||'',belop:parseFloat(i.fields.Belop)||0,dagerForfalt:parseInt(i.fields.DagerForfalt)||0,terskel:parseInt(i.fields.Terskel)||0,opprettetDato:i.fields.OpprettetDato||'',sendtDato:i.fields.SendtDato||''}));
+    }catch(e){console.warn('Klarte ikke laste SmsPurringKandidater på nytt etter sending:',e);}
+    renderPurringKandidater();
+  }
 }
 
 // ===== ARBEIDSTID =====
