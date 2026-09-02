@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.39 · Oppdatert: 1. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.40 · Oppdatert: 2. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4097,6 +4097,16 @@ async function sendSmsFraKundekort(){
 // .catch(()=>[]) i loadDataFromSP() slik at menyen fungerer (viser tomt) selv
 // før listene er opprettet.
 let smsMaler=[],smsUtsendelser=[],smsGrupper=[],smsValgteKilder=new Set(),smsGruppeMottakere=[],smsValgteMottakere=new Set();
+// smsuTekstRaw (lagt til 02.09.2026, fiks for Thomas' bugrapport: skrev man
+// meldingsteksten FØR man valgte mottakergruppe, forsvant teksten idet man
+// trykket en gruppeknapp). Årsak: renderSmsUtsendelse() bygger HELE
+// «📱 SMS utsendelse»-panelet på nytt via innerHTML hver gang en kilde
+// slås av/på (smsToggleKilde() m.fl.), og selve <textarea id="smsu-tekst">
+// hadde ingen JS-tilstand å gjenopprette fra — den ble dermed alltid bygget
+// tom igjen. Samme mønster som smsManuellRaw under løste akkurat dette
+// problemet for "Skriv inn nummer manuelt"-feltet allerede 31.08.2026;
+// smsuTekstRaw gjør nå det samme for selve meldingsteksten.
+let smsuTekstRaw='';
 // smsPurringInnstillinger (lagt til 01.09.2026, Thomas' ønske om automatisk
 // SMS-påminnelse til kunder med forfalte, ubetalte fakturaer): innstillingene
 // for den nye backend-jobben sjekk_og_send_purring_sms() (se purring_sms.py i
@@ -4402,7 +4412,7 @@ function renderSmsUtsendelse(){
         <button class="btn-sm" id="smsu-rediger-mal-btn" style="display:none" onclick="smsRedigerValgtMal()">✏️ Rediger mal</button>
         <button class="btn-sm" id="smsu-slett-mal-btn" style="display:none" onclick="smsSlettValgtMal()">🗑️ Slett mal</button>
       </div>
-      <textarea id="smsu-tekst" rows="5" oninput="oppdaterSmsuTegnteller()" placeholder="Skriv meldingen som skal sendes til alle valgte mottakere…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+      <textarea id="smsu-tekst" rows="5" oninput="smsuTekstRaw=this.value;oppdaterSmsuTegnteller()" placeholder="Skriv meldingen som skal sendes til alle valgte mottakere…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical">${smsuTekstRaw||''}</textarea>
       <div id="smsu-tegnteller" class="muted" style="font-size:12px;margin-top:4px"></div>
     </div>
 
@@ -4549,7 +4559,8 @@ function smsMalValgt(malId){
   const btnSlett=document.getElementById('smsu-slett-mal-btn');
   if(!malId){if(btnRediger)btnRediger.style.display='none';if(btnSlett)btnSlett.style.display='none';return;}
   const mal=smsMaler.find(m=>m.id===malId);if(!mal)return;
-  document.getElementById('smsu-tekst').value=mal.tekst||'';
+  smsuTekstRaw=mal.tekst||'';
+  document.getElementById('smsu-tekst').value=smsuTekstRaw;
   oppdaterSmsuTegnteller();
   if(btnRediger)btnRediger.style.display='';
   if(btnSlett)btnSlett.style.display='';
