@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.47 · Oppdatert: 2. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.48 · Oppdatert: 2. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1601,10 +1601,15 @@ tr:hover td{background:#fafafa}
           <input type="text" id="purr-dager" placeholder="f.eks. 7 eller 7,21 for flere påminnelser" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px"/>
           <div class="hint" style="margin-top:4px">Ett tall (f.eks. «7») for én påminnelse, eller flere tall skilt med komma (f.eks. «7,21») for opptrappende påminnelser ved flere terskler.</div>
         </div>
-        <div class="fgrp" style="margin-bottom:6px">
-          <label>Meldingstekst</label>
+        <div class="fgrp" style="margin-bottom:14px">
+          <label>Meldingstekst (én faktura)</label>
           <textarea id="purr-melding" rows="4" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
           <div class="hint" style="margin-top:4px">Bruk <code>{fakturanummer}</code> og <code>{belop}</code> som plassholdere — disse fylles inn automatisk per faktura ved sending.</div>
+        </div>
+        <div class="fgrp" style="margin-bottom:6px">
+          <label>Meldingstekst (flere fakturaer til samme kunde)</label>
+          <textarea id="purr-melding-flere" rows="4" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+          <div class="hint" style="margin-top:4px">Brukes automatisk i stedet for meldingen over når samme kunde/mobilnummer har flere godkjente kandidater samtidig — de slås da sammen til én SMS. Bruk <code>{antall}</code>, <code>{fakturaliste}</code> og <code>{totalbelop}</code> som plassholdere (lagt til 02.09.2026, etter at Thomas ba om at flere fakturaer til samme kunde skal samles i én melding i stedet for én SMS per faktura).</div>
         </div>
         <div style="display:flex;justify-content:flex-end">
           <button class="prim" onclick="lagrePurringInnstillinger()">Lagre</button>
@@ -2293,7 +2298,7 @@ async function loadDataFromSP(){
   if(spiItems.length>0){
     const f=spiItems[0].fields;
     smsPurringSpId=spiItems[0].id;
-    smsPurringInnstillinger={aktivert:f.Aktivert===true,dagerEtterForfall:f.DagerEtterForfall||'7',melding:f.Melding||smsPurringInnstillinger.melding};
+    smsPurringInnstillinger={aktivert:f.Aktivert===true,dagerEtterForfall:f.DagerEtterForfall||'7',melding:f.Melding||smsPurringInnstillinger.melding,meldingFlere:f.MeldingFlere||smsPurringInnstillinger.meldingFlere};
   }
   // SmsPurringKandidater (lagt til 02.09.2026, godkjenningsflyt) — foreslåtte
   // purring-SMS-kandidater fra backend-jobben sjekk_og_send_purring_sms()
@@ -4226,7 +4231,7 @@ let smsGlobalSokRaw='';
 // bekreftet — se docstringen i purring_sms.py for hele bakgrunnen.
 // smsPurringSpId=null så lenge ingen rad er lagret ennå (POST ved lagring),
 // ellers selve SharePoint-item-IDen (PATCH ved senere lagringer).
-let smsPurringInnstillinger={aktivert:false,dagerEtterForfall:'7',melding:'Hei, vi ser at faktura {fakturanummer} på {belop} kr ikke er betalt ennå, si ifra om noe er uklart. Mvh Kasse og Butikkdata AS'},smsPurringSpId=null;
+let smsPurringInnstillinger={aktivert:false,dagerEtterForfall:'7',melding:'Hei, vi ser at faktura {fakturanummer} på {belop} kr ikke er betalt ennå, si ifra om noe er uklart. Mvh Kasse og Butikkdata AS',meldingFlere:'Hei, dere har {antall} ubetalte fakturaer hos oss: {fakturaliste}. Totalt {totalbelop} kr. Si ifra om noe er uklart. Mvh Kasse og Butikkdata AS'},smsPurringSpId=null;
 // smsPurringKandidater (lagt til 02.09.2026, godkjenningsflyt — se
 // purring_sms.py sin docstring for hele bakgrunnen): foreslåtte purring-SMS-
 // kandidater fra backend, fylt av loadDataFromSP() over. Thomas ser gjennom
@@ -6605,10 +6610,12 @@ function renderPurringInnstillinger(){
   const aktivert=document.getElementById('purr-aktivert');
   const dager=document.getElementById('purr-dager');
   const melding=document.getElementById('purr-melding');
-  if(!aktivert||!dager||!melding)return;
+  const meldingFlere=document.getElementById('purr-melding-flere');
+  if(!aktivert||!dager||!melding||!meldingFlere)return;
   aktivert.checked=smsPurringInnstillinger.aktivert;
   dager.value=smsPurringInnstillinger.dagerEtterForfall;
   melding.value=smsPurringInnstillinger.melding;
+  meldingFlere.value=smsPurringInnstillinger.meldingFlere;
   smsPurringOppdaterAktivertHint();
 }
 
@@ -6623,11 +6630,13 @@ async function lagrePurringInnstillinger(){
   const aktivert=document.getElementById('purr-aktivert')?.checked||false;
   const dagerRaw=(document.getElementById('purr-dager')?.value||'').trim();
   const melding=(document.getElementById('purr-melding')?.value||'').trim();
-  if(!melding){alert('Meldingsteksten kan ikke være tom.');return;}
+  const meldingFlere=(document.getElementById('purr-melding-flere')?.value||'').trim();
+  if(!melding){alert('Meldingsteksten (én faktura) kan ikke være tom.');return;}
+  if(!meldingFlere){alert('Meldingsteksten (flere fakturaer) kan ikke være tom.');return;}
   const gyldigeDager=dagerRaw.split(/[,;]+/).map(s=>s.trim()).filter(Boolean).every(s=>/^\d+$/.test(s));
   if(!dagerRaw||!gyldigeDager){alert('«Antall dager etter forfall» må være ett eller flere hele tall, skilt med komma (f.eks. «7» eller «7,21»).');return;}
   if(aktivert&&!confirm('Aktivere automatisk forslag til SMS-påminnelse for kunder med forfalte fakturaer nå?\n\nDette begynner å FORESLÅ kandidater i lista under ved neste kjøring av bakgrunnsjobben (kjører daglig) — ingenting sendes automatisk. Du ser gjennom og godkjenner selv før noe faktisk sendes.'))return;
-  const felter={Title:'Innstillinger',Aktivert:aktivert,DagerEtterForfall:dagerRaw,Melding:melding};
+  const felter={Title:'Innstillinger',Aktivert:aktivert,DagerEtterForfall:dagerRaw,Melding:melding,MeldingFlere:meldingFlere};
   try{
     if(smsPurringSpId){
       await spUpdate('SmsPurringInnstillinger',smsPurringSpId,felter);
@@ -6635,7 +6644,7 @@ async function lagrePurringInnstillinger(){
       const r=await spCreate('SmsPurringInnstillinger',felter);
       smsPurringSpId=r.id;
     }
-    smsPurringInnstillinger={aktivert,dagerEtterForfall:dagerRaw,melding};
+    smsPurringInnstillinger={aktivert,dagerEtterForfall:dagerRaw,melding,meldingFlere};
     smsPurringOppdaterAktivertHint();
     vfShowToast('✅ Innstillinger for purring-SMS lagret');
   }catch(e){alert('Kunne ikke lagre innstillingene: '+e.message);}
@@ -6697,7 +6706,7 @@ async function purrKandSendGodkjente(){
   const ventende=smsPurringKandidater.filter(k=>k.status==='Venter');
   if(ventende.length===0){alert('Ingen kandidater å sende til.');return;}
   if(!VF_CONFIG.baseUrl){alert('Ikke koblet til Azure Function ennå.');return;}
-  if(!confirm(`Sende SMS til ${ventende.length} godkjente kandidat(er)?\n\nDette kan IKKE angres.`))return;
+  if(!confirm(`Sende SMS for ${ventende.length} godkjente kandidat(er)?\n\nFlere fakturaer til samme mobilnummer slås automatisk sammen til én SMS.\n\nDette kan IKKE angres.`))return;
   const btn=document.getElementById('purr-kand-send-btn');
   if(btn){btn.disabled=true;btn.textContent='Sender…';}
   try{
@@ -6709,7 +6718,7 @@ async function purrKandSendGodkjente(){
     });
     const data=await resp.json();
     if(!resp.ok)throw new Error(data.error||`Feil fra server (${resp.status})`);
-    vfShowToast(`${data.sendt||0} av ${data.kandidater||0} SMS sendt${data.feilet?`, ${data.feilet} feilet`:''}${data.dryRun?' (DRY RUN — ingenting faktisk sendt, se Application Insights-loggen)':''}`);
+    vfShowToast(`${data.meldinger||0} SMS sendt (dekker ${data.sendt||0} av ${data.kandidater||0} fakturaer)${data.feilet?`, ${data.feilet} feilet`:''}${data.dryRun?' (DRY RUN — ingenting faktisk sendt, se Application Insights-loggen)':''}`);
   }catch(e){
     alert('Sendingen feilet eller ble avbrutt underveis: '+e.message+'\n\nSjekk Application Insights-loggen for detaljer — noen kan ha blitt sendt før feilen oppstod.');
   }finally{
