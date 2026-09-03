@@ -308,6 +308,15 @@ tr:hover td{background:#fafafa}
 .vf-ac-name{font-weight:600}
 .vf-ac-meta{color:#9ca3af;font-size:11px}
 .vf-ac-empty{padding:8px 12px;color:#9ca3af;font-size:13px}
+/* Bugfiks 03.09.2026 (funnet under Wenches live-test): .tbl-wrap har
+   overflow:hidden (brukt til å klippe avrundede hjørner på alle tabeller i
+   appen), som usynliggjorde hele vf-ac-treff-dropdownen — den ble rendret
+   riktig i DOM-et (med treff/"Ingen treff"), men klippet bort av forelderen
+   siden "Må avklares"-tabellen ofte bare har 1-2 rader og dropdownen stikker
+   utenfor tabellens egen høyde. Skalert kun til denne ene tabellen (ikke hele
+   .tbl-wrap-klassen) for å unngå å påvirke de avrundede hjørnene andre steder
+   i appen. */
+#vftp-unmatched .tbl-wrap{overflow:visible}
 .vf-link-btn{padding:6px 12px;background:#1A3A6B;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
 .vf-link-btn:hover{background:#142f58}
 .vf-link-btn:disabled{background:#d0d5dd;cursor:not-allowed}
@@ -408,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.52 · Oppdatert: 3. sep 2026 kl. 13:44</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.53 · Oppdatert: 3. sep 2026 kl. 14:35</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
