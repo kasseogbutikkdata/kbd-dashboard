@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.50 · Oppdatert: 3. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.51 · Oppdatert: 3. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -558,7 +558,12 @@ tr:hover td{background:#fafafa}
 
   <!-- KUNDER (Kunde 360) -->
   <div id="tp-kunder" class="tp">
-    <div class="card">
+    <!-- card-public lagt til 03.09.2026: samme bug som Kundesaker/Casper over —
+         uten card-public skjuler applyRoleUI() HELE dette kortet (selve
+         søkefeltet for Kunde 360!) for Leser-rollen. Trygt: søk er en ren
+         lesehandling, og "➕ Ny kunde"-knappen inni kortet styres uavhengig
+         av salgTilgang (se linje ~2413), ikke av rollen her. -->
+    <div class="card card-public">
       <div class="card-title">Kunde 360 — søk</div>
       <div class="frow" style="margin-bottom:4px">
         <input type="text" id="k360-search" placeholder="Søk på org.nr (9 siffer) eller firmanavn…" style="flex:1" onkeydown="if(event.key==='Enter')searchKunder360()"/>
@@ -585,7 +590,15 @@ tr:hover td{background:#fafafa}
        kundeNotater-datagrunnlag som kundekortets "Salg & oppfølging"-fane —
        ingen ny SharePoint-liste. -->
   <div id="tp-kundesaker" class="tp">
-    <div class="card">
+    <!-- card-public lagt til 03.09.2026: SAMME bug som Casper/Nyetableringer/SMS-planlagt
+         (se forklaringer lenger ned i filen) — uten card-public skjuler applyRoleUI()
+         HELE dette kortet (søkefelt, type-filtre, ansvarlig-filter, "vis lukkede") for
+         Leser-rollen, og bare den rå tabellen under (kundesaker-tabell, egen div,
+         UTENFOR kortet) blir stående igjen uten noen måte å filtrere/søke på. Oppdaget
+         av Thomas via Geir Hagen (Leser)'s visning 03.09.2026. Trygt å gjøre offentlig:
+         søk/sortering/filtrering er rene lesehandlinger, og "➕ Ny kunde"-knappen inni
+         kortet styres uavhengig av salgTilgang (renderKundesaker()), ikke av rollen her. -->
+    <div class="card card-public">
       <div class="card-title">🗂️ Kundesaker — alle Notat/Tilbud/Oppfølging</div>
       <div class="frow" style="margin-bottom:4px">
         <input type="text" id="kundesaker-search" placeholder="Søk på firmanavn eller tittel…" style="flex:1" oninput="setKundesakerSearch(this.value)" onkeydown="if(event.key==='Enter')setKundesakerSearch(this.value)"/>
@@ -628,7 +641,9 @@ tr:hover td{background:#fafafa}
 
   <!-- KONKURSER -->
   <div id="tp-konkurser" class="tp">
-    <div class="card">
+    <!-- card-public lagt til 03.09.2026: samme bug som over — ren visning
+         (kun tittel+hint, ingen skjema), skal derfor være synlig for alle. -->
+    <div class="card card-public">
       <div class="card-title">⚠️ Konkurser blant KBD sine kunder</div>
       <div class="hint">Kunder som Brønnøysundregisteret viser er registrert konkurs, oppdaget automatisk hver natt (kl. 05:30) av backend-jobben «Konkursvarsel». Når en kunde oppdages, opprettes det samtidig et Oppfølging-notat på kundekortet (synlig for alle ansatte via bjella) og en e-post til kundeservice@kbd.as — denne oversikten viser status på tvers av alle kunder som er rammet, med lenke rett til kundekortet for videre oppfølging.</div>
     </div>
@@ -807,7 +822,10 @@ tr:hover td{background:#fafafa}
 
   <!-- IDÉBANK -->
   <div id="tp-idebank" class="tp">
-    <div class="card">
+    <!-- card-public lagt til 03.09.2026: samme bug som over. Ekstra tydelig her
+         siden hint-teksten selv sier "Alle kan foreslå ideer" — det stemte ikke
+         for Leser-rollen så lenge kortet var skjult. -->
+    <div class="card card-public">
       <div class="card-title">💡 Idébank — videreutvikling av KBD Command Center</div>
       <div class="hint">Foreslå og følg opp ideer til nye funksjoner og forbedringer i selve dashbordet. Alle kan foreslå ideer og krysse av delmål; status, prioritet og sletting styres av admin/redaktør.</div>
     </div>
