@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.56 · Oppdatert: 3. sep 2026 kl. 18:28</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.57 · Oppdatert: 3. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1270,6 +1270,19 @@ tr:hover td{background:#fafafa}
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:#374151;cursor:pointer"><input type="checkbox" id="n-varsle-dashbord" style="width:15px;height:15px"/> 🔔 Varsle i dashbordet</label>
         </div>
       </div>
+      <!-- Ansvarlig/selger — lagt til 03.09.2026 på Terjes spørsmål om det er
+           mulig å endre "selger" på en kundesak overført fra Nyetableringer.
+           Før dette feltet fantes IKKE en måte å endre det på: "Ansvarlig" i
+           Kundesaker-tabellen er samme felt som n.opprettetAv (SharePoint sitt
+           interne "Innhold"-felt, se notatFieldsPayload) — for saker overført
+           fra Nyetableringer ble det automatisk satt til den som TRYKKET
+           "Overfør til Kunder" (overforNyeTilKunder()), ikke nødvendigvis den
+           som faktisk er selger/ansvarlig for kunden videre. Bruker samme
+           `brukere`-liste (Title/Epost fra "Brukere"-lista, lastet for alle
+           roller i loadBrukere()) som Brukertilgang-adminsiden, slik at
+           OpprettetAvEpost fortsatt kan oppdateres riktig ved endring (viktig
+           for "Mine saker"-filtrering, se erMin-sjekken i renderVarsler()). -->
+      <div class="fgrp" style="margin-bottom:10px"><label>Ansvarlig/selger</label><select id="n-ansvarlig"></select></div>
       <div class="fgrp" style="margin-bottom:10px"><label>Tittel</label><input type="text" id="n-tittel" placeholder="Kort overskrift"/></div>
       <div class="fgrp" style="margin-bottom:10px"><label>Innhold</label><textarea id="n-innhold" rows="4" placeholder="Notat, tilbudsdetaljer eller hva som skal følges opp…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <input type="hidden" id="n-edit-id"/>
@@ -4174,9 +4187,26 @@ function initNotatDatePicker(){
   });
 }
 
+// Bygger <option>-lista for "Ansvarlig/selger"-feltet i notat-modalen, fra
+// `brukere` (samme kilde som Brukertilgang-siden). Tar med `gjeldendeNavn`
+// som ekstra valg øverst dersom det ikke finnes i brukere-lista (f.eks. en
+// gammel fritekst-verdi eller en bruker som er fjernet fra Brukere-lista
+// siden), slik at vi aldri stille bytter ut en eksisterende verdi ved åpning.
+function fyllAnsvarligSelect(gjeldendeNavn){
+  const sel=document.getElementById('n-ansvarlig');if(!sel)return;
+  const navnSet=new Set(brukere.map(b=>b.navn).filter(Boolean));
+  let opts=brukere.slice().sort((a,b)=>(a.navn||'').localeCompare(b.navn||'','nb')).map(b=>`<option value="${(b.navn||'').replace(/"/g,'&quot;')}">${b.navn}</option>`).join('');
+  if(gjeldendeNavn&&!navnSet.has(gjeldendeNavn)){
+    opts=`<option value="${gjeldendeNavn.replace(/"/g,'&quot;')}">${gjeldendeNavn} (ikke i Brukere-lista)</option>`+opts;
+  }
+  sel.innerHTML=opts;
+  sel.value=gjeldendeNavn||currentUser?.name||currentUser?.username||'';
+}
+
 function openNyNotatModal(kNr,navn){
   document.getElementById('notat-modal-title').textContent='Ny oppføring';
   document.getElementById('n-type').value='Notat';
+  fyllAnsvarligSelect(currentUser?.name||currentUser?.username||'');
   document.getElementById('n-tittel').value='';
   document.getElementById('n-innhold').value='';
   if(notatDatePicker)notatDatePicker.clear();else document.getElementById('n-forfallsdato').value='';
@@ -4199,6 +4229,7 @@ function openNyNotatModal(kNr,navn){
 function openRedigerNotat(id){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   document.getElementById('notat-modal-title').textContent='Rediger oppføring';
+  fyllAnsvarligSelect(n.opprettetAv||'');
   document.getElementById('n-type').value=n.type;
   document.getElementById('n-tittel').value=n.tittel;
   document.getElementById('n-innhold').value=n.innhold;
@@ -5313,6 +5344,7 @@ function saveNotat(){
   const kNr=document.getElementById('n-kunde-nr').value;
   const kNavn=document.getElementById('n-kunde-navn').value;
   const editId=document.getElementById('n-edit-id').value;
+  const ansvarligNavn=(document.getElementById('n-ansvarlig')?.value||'').trim();
   if(!tittel){alert('Fyll inn en tittel');return;}
   if((varsleEpost||varsleDashbord)&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato/klokkeslett for å kunne varsle');return;}
   closeNotatModal();
@@ -5323,6 +5355,15 @@ function saveNotat(){
     // en endret/utsatt frist faktisk gir nytt varsel i stedet for å bli
     // stille undertrykt av at et tidligere (nå utdatert) varsel alt er sendt.
     n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;n.varsleEpost=varsleEpost;n.varsleDashbord=varsleDashbord;n.varselSendt=false;n.kundeNavn=kNavn;
+    // Ansvarlig/selger — lagt til 03.09.2026 (Terjes spørsmål om å kunne endre
+    // "selger" på saker overført fra Nyetableringer). Oppdaterer OGSÅ
+    // OpprettetAvEpost via oppslag i `brukere`, slik at "Mine saker"-visningen
+    // (erMin-sjekken) følger med når ansvarlig endres — ikke bare visningsnavnet.
+    if(ansvarligNavn&&ansvarligNavn!==n.opprettetAv){
+      n.opprettetAv=ansvarligNavn;
+      const match=brukere.find(b=>b.navn===ansvarligNavn);
+      n.opprettetAvEpost=match?.epost||'';
+    }
     if(k360Valgt)renderKundeKort(k360Valgt);
     if(n.spId){
       setSPStatus('⏳ Lagrer…');
@@ -5330,7 +5371,14 @@ function saveNotat(){
     }
   } else {
     const now=new Date().toISOString();
-    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetAvEpost:currentUser?.username||'',opprettetDato:now,logg:[]};
+    // Ansvarlig/selger — bruker det valgte navnet i select-en (default:
+    // innlogget bruker, satt av fyllAnsvarligSelect() ved åpning), med samme
+    // brukere-oppslag for e-post som redigeringsstien over. Faller tilbake på
+    // currentUser sin egen e-post kun når det faktisk ER currentUser selv.
+    const ansvarligValgt=ansvarligNavn||currentUser?.name||currentUser?.username||'Ukjent';
+    const ansvarligMatch=brukere.find(b=>b.navn===ansvarligValgt);
+    const ansvarligEpost=ansvarligMatch?.epost||(ansvarligValgt===(currentUser?.name||currentUser?.username)?(currentUser?.username||''):'');
+    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,logg:[]};
     kundeNotater.push(nyNotat);
     if(k360Valgt)renderKundeKort(k360Valgt);
     setSPStatus('⏳ Lagrer…');
