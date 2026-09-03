@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.51 · Oppdatert: 3. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.52 · Oppdatert: 3. sep 2026 kl. 13:44</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -489,8 +489,18 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="usub-enheter" onclick="showUtleieView('enheter',this)">🔧 Enheter</div>
         <div class="nav-sub-item" id="usub-logg" onclick="showUtleieView('logg',this)">📋 Logg</div>
       </div>
-      <div class="nav-item" id="tab-verifone" onclick="showTab('verifone',this)">
+      <div class="nav-item" id="tab-verifone" onclick="showTab('verifone',this);toggleVerifoneSub(true)">
         <span class="nav-item-icon">🧾</span>Verifone trans.avgift
+      </div>
+      <!-- Undermeny lagt til 03.09.2026: skiller selve arbeidsflyten (opplasting →
+           matching → godkjenning → salgsordre) fra historikken over allerede
+           kjørte fakturaer — samme nav-sub/toggleXSub-mønster som
+           Utleie/Kickback/Arbeidstid bruker. Se vfRenderHistorikk()/vfLoggHistorikk().
+           (Gjenopprettet 03.09.2026 — falt ut av en versjon som ble bygget videre
+           fra en fil eldre enn v1.46.0, der denne først ble lagt til.) -->
+      <div class="nav-sub" id="verifone-sub-nav">
+        <div class="nav-sub-item active" id="vsub-ny" onclick="showVerifoneView('ny',this)">📤 Ny faktura</div>
+        <div class="nav-sub-item" id="vsub-historikk" onclick="showVerifoneView('historikk',this)">📋 Historikk</div>
       </div>
       <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
         <span class="nav-item-icon">🏋️</span>Gymtimen
@@ -844,6 +854,7 @@ tr:hover td{background:#fafafa}
       </div>
     </div>
 
+    <div id="verifone-ny">
     <div class="vf-steps">
       <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Faktura lastet opp</div></div>
       <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Kunder matchet mot Visma</div></div>
@@ -932,6 +943,35 @@ tr:hover td{background:#fafafa}
         <span id="vf-approve-pending" style="display:block;color:#d97706;margin-top:2px"></span>
       </div>
       <button class="prim green" id="vf-approve-btn" onclick="vfApprove()" disabled>Opprett salgsordre-utkast i Visma.net →</button>
+    </div>
+    </div>
+
+    <!-- Historikk lagt til 03.09.2026: viser fakturakjøringer der salgsordre-utkast
+         faktisk er opprettet i Visma.net (se vfLoggHistorikk(), kalt fra vfApprove()
+         etter et fullført /api/create_sales_orders-kall). Bevisst IKKE logget ved
+         opplasting/matching alene — kun reelle, fullførte kjøringer skal telle med,
+         slik at historikken duger som grunnlag for statistikk senere. Data lagres i
+         SharePoint-lista VerifoneHistorikk (se loadDataFromSP()). -->
+    <div id="verifone-historikk" style="display:none">
+      <div class="card">
+        <div class="card-title">📋 Historikk — kjørte fakturaer</div>
+        <div class="hint">Fakturaer der salgsordre-utkast faktisk er opprettet i Visma.net. Grunnlag for statistikk over videreført Verifone-transaksjonsavgift over tid.</div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Dato</th>
+            <th>Fakturareferanse</th>
+            <th class="tr">Totalt beløp</th>
+            <th class="tr">Antall kunder</th>
+            <th class="tr">Opprettet</th>
+            <th class="tr">Feilet</th>
+            <th class="tr">Avklart manuelt</th>
+            <th>Opprettet av</th>
+          </tr></thead>
+          <tbody id="vf-historikk-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -2241,8 +2281,8 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt')
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2329,6 +2369,11 @@ async function loadDataFromSP(){
   // som 'KBD' (den opprinnelige jobbens eget område), ikke som en tom/femte
   // kategori.
   nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',forhandlerOmrade:i.fields.Forhandleromrade||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // VerifoneHistorikk (lagt til 03.09.2026) — én rad per fakturakjøring der
+  // salgsordre-utkast faktisk ble opprettet i Visma.net, skrevet av
+  // vfLoggHistorikk() (kalt fra vfApprove()). Kun summerte tall per faktura,
+  // ikke per-kunde-detalj — se vfRenderHistorikk().
+  vfHistorikk=vhItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturareferanse:i.fields.Title||'',dato:i.fields.Dato||'',totaltBelop:parseFloat(i.fields.TotaltBelop)||0,antallKunder:parseInt(i.fields.AntallKunder)||0,antallOpprettet:parseInt(i.fields.AntallOpprettet)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,antallManueltAvklart:parseInt(i.fields.AntallManueltAvklart)||0,opprettetAv:i.fields.OpprettetAv||''}));
   // SmsMaler/SmsUtsendelser (lagt til 31.08.2026) — lagrede meldingsmaler og
   // en historikk-logg for «📱 SMS utsendelse»-menyen (eget toppnivå-
   // menypunkt, se kommentaren ved tab-smsutsendelse i HTML-en). Fylles
@@ -6611,6 +6656,7 @@ function showTab(name,btn){
   toggleArbeidstidSub(name==='arbeidstid');
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
   toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk'||name==='purring');
+  toggleVerifoneSub(name==='verifone');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -6629,8 +6675,24 @@ function showTab(name,btn){
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
   if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();}
-  if(name==='verifone'){renderVerifone();}
+  if(name==='verifone'){renderVerifone();showVerifoneView('ny');}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
+}
+
+function toggleVerifoneSub(open){
+  const sub=document.getElementById('verifone-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function showVerifoneView(view,btn){
+  const nyEl=document.getElementById('verifone-ny');
+  const histEl=document.getElementById('verifone-historikk');
+  if(nyEl)nyEl.style.display=view==='ny'?'':'none';
+  if(histEl)histEl.style.display=view==='historikk'?'':'none';
+  document.querySelectorAll('#verifone-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const subBtn=document.getElementById('vsub-'+view);
+  if(subBtn)subBtn.classList.add('active');
+  if(view==='historikk')vfRenderHistorikk();
 }
 
 function toggleUtleieSub(open){
@@ -8971,6 +9033,7 @@ const VF_CONFIG = {
 };
 
 let vfData = { matched: [], unmatched: [], conflicts: [] };
+let vfHistorikk = []; // fylt av loadDataFromSP() (lista VerifoneHistorikk) — se vfRenderHistorikk()/vfLoggHistorikk()
 let vfSisteFakturaReferanse = "";
 const vfLinkedState = {};
 const vfNf = new Intl.NumberFormat('nb-NO', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -9262,6 +9325,7 @@ async function vfApprove(){
     }
     const ok = data.resultater.filter(r => r.status === 'ok').length;
     const feilet = data.resultater.filter(r => r.status === 'feil');
+    await vfLoggHistorikk(godkjente, data.resultater, payload.fakturareferanse);
     if (feilet.length === 0) {
       btn.textContent = '✓ Opprettet — se Visma.net for gjennomgang';
       vfShowToast(`${ok} salgsordre-utkast opprettet i Visma.net`);
@@ -9279,6 +9343,60 @@ async function vfApprove(){
 function renderVerifone(){
   vfRenderMatched();
   vfRenderUnmatched();
+}
+
+function vfRenderHistorikk(){
+  const tbody = document.getElementById('vf-historikk-body');
+  if (!tbody) return;
+  const sorted = [...vfHistorikk].sort((a,b) => new Date(b.dato) - new Date(a.dato));
+  if (!sorted.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Ingen fakturakjøringer registrert ennå — historikk logges automatisk når "Opprett salgsordre-utkast i Visma.net" kjøres.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sorted.map(h => `
+    <tr>
+      <td>${h.dato ? new Date(h.dato).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+      <td>${h.fakturareferanse || '—'}</td>
+      <td class="tr" style="font-weight:700">${vfKr(h.totaltBelop)}</td>
+      <td class="tr">${h.antallKunder}</td>
+      <td class="tr" style="color:#0e8a58;font-weight:600">${h.antallOpprettet}</td>
+      <td class="tr" style="color:${h.antallFeilet > 0 ? '#dc2626' : '#9ca3af'}">${h.antallFeilet}</td>
+      <td class="tr">${h.antallManueltAvklart}</td>
+      <td>${h.opprettetAv || '—'}</td>
+    </tr>`).join('');
+}
+
+// Logger én rad i VerifoneHistorikk-lista i SharePoint etter et fullført
+// (helt eller delvis) /api/create_sales_orders-kall — se vfApprove(). Skrives
+// bevisst KUN her, ikke ved opplasting/matching, slik at historikken duger
+// som grunnlag for statistikk (kun reelle, fullførte kjøringer telles).
+// Feiler denne SharePoint-skrivingen (f.eks. fordi lista ikke er opprettet
+// ennå), skal IKKE selve salgsordre-flyten stoppes eller vises som feilet —
+// salgsordrene er uansett allerede opprettet i Visma.net på dette tidspunktet.
+async function vfLoggHistorikk(godkjente, resultater, referanse){
+  try {
+    const totaltBelop = godkjente.reduce((s,k) => s + k.periods.reduce((s2,p) => s2 + p.belop, 0), 0);
+    const fields = {
+      Title: referanse,
+      Dato: new Date().toISOString(),
+      TotaltBelop: totaltBelop,
+      AntallKunder: godkjente.length,
+      AntallOpprettet: resultater.filter(r => r.status === 'ok').length,
+      AntallFeilet: resultater.filter(r => r.status === 'feil').length,
+      AntallManueltAvklart: Object.keys(vfLinkedState).length,
+      OpprettetAv: currentUser?.name || currentUser?.username || 'Ukjent',
+    };
+    const created = await spCreate('VerifoneHistorikk', fields);
+    vfHistorikk.push({
+      id: `sp${created.id}`, spId: created.id,
+      fakturareferanse: fields.Title, dato: fields.Dato, totaltBelop: fields.TotaltBelop,
+      antallKunder: fields.AntallKunder, antallOpprettet: fields.AntallOpprettet,
+      antallFeilet: fields.AntallFeilet, antallManueltAvklart: fields.AntallManueltAvklart,
+      opprettetAv: fields.OpprettetAv,
+    });
+  } catch (err) {
+    console.warn('Kunne ikke logge til VerifoneHistorikk (salgsordrene er uansett opprettet i Visma.net):', err);
+  }
 }
 
 </script>
