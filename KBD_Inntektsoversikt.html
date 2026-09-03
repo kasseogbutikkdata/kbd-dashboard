@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.54 · Oppdatert: 3. sep 2026 kl. 15:02</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.55 · Oppdatert: 3. sep 2026 kl. 15:49</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -9147,7 +9147,7 @@ function vfRenderMatched(){
       <tr class="rowhover" onclick="vfToggleDetail(${i})" style="cursor:pointer">
         <td><span class="vf-chev" id="vf-chev-${i}">▶</span></td>
         <td class="vf-kundenr">${m.kundenr}</td>
-        <td class="vf-kundenavn">${m.kundenavn}</td>
+        <td class="vf-kundenavn">${m.kundenavn}<div style="font-weight:400;font-size:11px;color:#9ca3af;margin-top:2px">${m.brukersted||''} · BAX: ${m.bax||''}</div></td>
         <td class="tr">${vfNfi.format(m.totalAntall)}</td>
         <td class="tr" style="color:#0e8a58;font-weight:700">${vfKr(m.totalBelop)}</td>
         <td><span class="vf-pill-status vf-pill-ok">✓ BAX-match</span></td>
@@ -9164,7 +9164,7 @@ function vfRenderMatched(){
   document.getElementById('vf-kpi-total-lines').textContent = vfNfi.format(totalLinjer);
   document.getElementById('vf-kpi-total-bax').textContent = (vfData.matched.length + vfData.unmatched.length) + ' unike BAX-numre';
   document.getElementById('vf-kpi-matched-sum').textContent = vfKr(totalBelop);
-  document.getElementById('vf-kpi-matched-count').textContent = vfData.matched.length + ' kunder · ' + vfNfi.format(totalAntall) + ' trans.';
+  document.getElementById('vf-kpi-matched-count').textContent = vfData.matched.length + ' salgsordre(r) · ' + vfNfi.format(totalAntall) + ' trans.';
   document.getElementById('vf-tab-count-matched').textContent = vfData.matched.length;
   vfUpdateApproveBar();
 }
@@ -9268,30 +9268,41 @@ function vfLinkCustomer(i){
 // Visma.net, ikke to. Brukes både til å vise riktig sum i godkjenn-linja og
 // til selve payload'en som sendes til /api/create_sales_orders.
 function vfBuildGodkjenteListe(){
-  const kundeMap = {};
+  // ENDRET 03.09.2026: grupperer nå per BAX-nummer i stedet for per kundenr,
+  // slik at det opprettes én salgsordre PR. BAX — selv når flere BAX-numre
+  // tilhører samme kundenr i Visma (kunde med flere lokasjoner/terminaler).
+  // Tidligere ble disse slått sammen til én kombinert salgsordre per kunde.
+  // Backend gir oss allerede matchede linjer gruppert per BAX (se
+  // matcher.grupper_per_bax_matched()), så hvert element i vfData.matched
+  // representerer allerede nøyaktig én kommende salgsordre — trenger bare å
+  // videreformidles, ikke slås sammen på nytt. Samme prinsipp for manuelt
+  // koblede BAX-numre fra "Må avklares" (vfData.unmatched er også allerede
+  // gruppert per BAX).
+  const baxMap = {};
   vfData.matched.forEach(m => {
-    const entry = kundeMap[m.kundenr] || (kundeMap[m.kundenr] = { kundenr: m.kundenr, kundenavn: m.kundenavn, periods: [] });
-    entry.periods.push(...m.periods);
+    baxMap[m.bax] = { kundenr: m.kundenr, kundenavn: m.kundenavn, bax: m.bax, brukersted: m.brukersted, periods: [...m.periods] };
   });
   Object.keys(vfLinkedState).forEach(i => {
     const link = vfLinkedState[i];
     const u = vfData.unmatched[i];
     if (!u) return; // forsiktighet i tilfelle unmatched-listen er re-rendret siden koblingen ble gjort
-    const entry = kundeMap[link.vismaNummer] || (kundeMap[link.vismaNummer] = { kundenr: link.vismaNummer, kundenavn: link.navn, periods: [] });
     // BAX-numrene i "Må avklares" er gruppert per BAX (ikke per periode), så
     // brukersted/bax/baxSuffix ligger på selve u-objektet, ikke på hver
     // periode — legges eksplisitt på hver periode her (03.09.2026) slik at
     // backend kan bygge riktig Beskrivelse-felt på salgsordren, se
     // visma_client._bygg_beskrivelse().
-    entry.periods.push(...u.periods.map(p => ({...p, bax: u.bax, brukersted: u.brukersted, baxSuffix: u.baxSuffix})));
+    baxMap[u.bax] = {
+      kundenr: link.vismaNummer, kundenavn: link.navn, bax: u.bax, brukersted: u.brukersted,
+      periods: u.periods.map(p => ({...p, bax: u.bax, brukersted: u.brukersted, baxSuffix: u.baxSuffix})),
+    };
   });
-  return Object.values(kundeMap);
+  return Object.values(baxMap);
 }
 
 function vfUpdateApproveBar(){
   const godkjente = vfBuildGodkjenteListe();
   const totalBelop = godkjente.reduce((s,k)=>s+k.periods.reduce((s2,p)=>s2+p.belop,0),0);
-  document.getElementById('vf-approve-total').textContent = vfKr(totalBelop) + ' (' + godkjente.length + ' kunder)';
+  document.getElementById('vf-approve-total').textContent = vfKr(totalBelop) + ' (' + godkjente.length + ' salgsordre)';
   const pendingCount = vfData.unmatched.length - Object.keys(vfLinkedState).length;
   const pendingEl = document.getElementById('vf-approve-pending');
   pendingEl.textContent = pendingCount > 0 ? `${pendingCount} BAX-numre venter fortsatt på kobling` : '';
@@ -9394,6 +9405,13 @@ async function vfLoggHistorikk(godkjente, resultater, referanse){
       Title: referanse,
       Dato: new Date().toISOString(),
       TotaltBelop: totaltBelop,
+      // OBS 03.09.2026: godkjente.length er nå antall SALGSORDRE (én pr.
+      // BAX-nummer), ikke lenger antall unike kunder — se
+      // vfBuildGodkjenteListe(). Feltnavnet "AntallKunder" i SharePoint er
+      // ikke endret (unngår skjemaendring), men tallet kan fra denne
+      // versjonen være høyere enn antall reelle kunder for fakturaer hvor
+      // samme kunde har flere BAX/terminaler. Relevant hvis dette feltet
+      // brukes videre til statistikk, se Wenche/Thomas' opprinnelige ønske.
       AntallKunder: godkjente.length,
       AntallOpprettet: resultater.filter(r => r.status === 'ok').length,
       AntallFeilet: resultater.filter(r => r.status === 'feil').length,
