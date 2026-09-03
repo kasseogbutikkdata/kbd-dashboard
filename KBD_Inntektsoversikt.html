@@ -408,7 +408,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.49 · Oppdatert: 2. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.50 · Oppdatert: 3. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -777,6 +777,31 @@ tr:hover td{background:#fafafa}
         <span class="hint" id="purr-kand-antall-hint"></span>
         <button class="prim" id="purr-kand-send-btn" onclick="purrKandSendGodkjente()">Send godkjente SMS</button>
       </div>
+    </div>
+    <!-- Logg over sendte purring-SMS (lagt til 03.09.2026, Thomas' ønske:
+         "kan vi lage en logg på sms som er sendt til kunder med forfalte
+         fakturaer"). Listen SmsPurringSendt har hele tiden blitt fylt av
+         backend (idempotens-logg, se purring_sms.py), men fantes ingen
+         visning for den i dashbordet før nå — ren historikk, ingen
+         handlingsknapper (i motsetning til kandidatlisten over). -->
+    <div class="card card-public" style="max-width:900px;margin-top:16px">
+      <div class="card-title">📜 Logg over sendte purring-SMS</div>
+      <p class="hint" style="margin-bottom:14px">Historikk over purring-SMS som faktisk er sendt til kunder (bekreftet av Sveve). Nyeste øverst.</p>
+      <div style="margin-bottom:10px">
+        <input type="text" id="purr-logg-sok" placeholder="Søk på kunde eller fakturanummer…" style="width:100%;max-width:320px;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px" oninput="renderPurringLogg()"/>
+      </div>
+      <div id="purr-logg-tom" class="hint" style="display:none;padding:10px 0">Ingen purring-SMS sendt ennå.</div>
+      <div id="purr-logg-tabell-wrap" style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px" id="purr-logg-tabell">
+          <thead><tr style="text-align:left;border-bottom:1px solid #e5e7eb">
+            <th style="padding:6px 8px">Sendt</th><th style="padding:6px 8px">Kunde</th><th style="padding:6px 8px">Fakturanr.</th>
+            <th style="padding:6px 8px;text-align:right">Beløp</th><th style="padding:6px 8px;text-align:right">Terskel</th>
+            <th style="padding:6px 8px">Mobil</th>
+          </tr></thead>
+          <tbody id="purr-logg-tbody"></tbody>
+        </table>
+      </div>
+      <div class="hint" id="purr-logg-antall-hint" style="margin-top:10px"></div>
     </div>
   </div>
 
@@ -2198,8 +2223,8 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater')
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt')
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2330,6 +2355,16 @@ async function loadDataFromSP(){
   // FELT_KAND_*-konstantene i purring_sms.py — verifiser via Graph Explorer
   // FØR lista tas i bruk, samme rutine som alle andre nye lister.
   smsPurringKandidater=spkItems.map(i=>({id:`sp${i.id}`,spId:i.id,status:i.fields.Status||'Venter',fakturaId:i.fields.FakturaId||'',fakturanummer:i.fields.Fakturanummer||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',telefon:i.fields.Telefon||'',belop:parseFloat(i.fields.Belop)||0,dagerForfalt:parseInt(i.fields.DagerForfalt)||0,terskel:parseInt(i.fields.Terskel)||0,opprettetDato:i.fields.OpprettetDato||'',sendtDato:i.fields.SendtDato||''}));
+  // SmsPurringSendt (lagt til 03.09.2026, Thomas' ønske: "kan vi lage en logg
+  // på sms som er sendt til kunder med forfalte fakturaer") — denne lista har
+  // FRA FØR blitt fylt av backend (purring_sms.py) hver gang en purring-SMS
+  // faktisk er bekreftet sendt (se _hent_allerede_sendt()/idempotens-
+  // begrunnelsen i den modulens docstring), men fantes ingen visning for den
+  // i dashbordet før nå — kun lesing lagt til her, INGEN skriving (backend
+  // eier denne lista helt og holdent). Feltnavn MÅ stemme med
+  // FELT_SENDT_*-konstantene i purring_sms.py, verifisert 01.09.2026 via
+  // Graph Explorer (se Kunde360-oppsett-sjekkliste.md «Liste 10»).
+  smsPurringSendt=spsItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturaId:i.fields.VismaFakturaId||'',fakturanummer:i.fields.Fakturanummer||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',terskel:parseInt(i.fields.Terskel)||0,telefon:i.fields.Telefon||'',belop:parseFloat(i.fields.Belop)||0,sendtDato:i.fields.SendtDato||''}));
   products=prodItems.length>0?prodItems.map(i=>i.fields.ProductName).filter(Boolean):[...DEFAULT_PRODUCTS];
   sources=srcItems.length>0?srcItems.map(i=>({name:i.fields.SourceName||'',freq:i.fields.Frequency||'monthly',color:i.fields.Color||'#1A3A6B',spId:i.id})):DEFAULT_SOURCES.map(s=>({...s,spId:null}));
   isSeed=false;
@@ -4260,6 +4295,11 @@ let smsPurringInnstillinger={aktivert:false,dagerEtterForfall:'7',melding:'Hei, 
 // 02.09.2026) FØR noe faktisk sendes — se
 // renderPurringKandidater()/purrKandFjern()/purrKandSendGodkjente() under.
 let smsPurringKandidater=[];
+// smsPurringSendt (lagt til 03.09.2026, Thomas' ønske om en logg over sendte
+// purring-SMS) — historikk over FAKTISK sendte purring-SMS, fylt av backend
+// (purring_sms.py) ved bekreftet suksess. Rent lesevisning, se
+// renderPurringLogg() under — dashbordet skriver aldri til denne lista.
+let smsPurringSendt=[];
 // smsUtsendelserLastingFeilet (lagt til 01.09.2026): true hvis selve
 // henting av SmsUtsendelser fra SharePoint feilet (f.eks. et Graph 403 —
 // den innloggede brukeren mangler lesetilgang til NETTOPP denne lista, som
@@ -6569,7 +6609,7 @@ function showTab(name,btn){
   if(name==='smsutsendelse'){setSmsUtsendelseSubActive('smsutsendelse');renderSmsUtsendelse();smsHentSaldo();}
   if(name==='smsplanlagt'){setSmsUtsendelseSubActive('smsplanlagt');renderSmsPlanlagt();}
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
-  if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();}
+  if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();}
   if(name==='verifone'){renderVerifone();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
@@ -6775,8 +6815,60 @@ async function purrKandSendGodkjente(){
       const spkItems=await spGetItemsLoggetFeil('SmsPurringKandidater');
       smsPurringKandidater=spkItems.map(i=>({id:`sp${i.id}`,spId:i.id,status:i.fields.Status||'Venter',fakturaId:i.fields.FakturaId||'',fakturanummer:i.fields.Fakturanummer||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',telefon:i.fields.Telefon||'',belop:parseFloat(i.fields.Belop)||0,dagerForfalt:parseInt(i.fields.DagerForfalt)||0,terskel:parseInt(i.fields.Terskel)||0,opprettetDato:i.fields.OpprettetDato||'',sendtDato:i.fields.SendtDato||''}));
     }catch(e){console.warn('Klarte ikke laste SmsPurringKandidater på nytt etter sending:',e);}
+    // Hent også loggen på nytt — nye rader i SmsPurringSendt kan ha dukket
+    // opp fra sendingen som nettopp skjedde.
+    try{
+      const spsItems=await spGetItemsLoggetFeil('SmsPurringSendt');
+      smsPurringSendt=spsItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturaId:i.fields.VismaFakturaId||'',fakturanummer:i.fields.Fakturanummer||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',terskel:parseInt(i.fields.Terskel)||0,telefon:i.fields.Telefon||'',belop:parseFloat(i.fields.Belop)||0,sendtDato:i.fields.SendtDato||''}));
+    }catch(e){console.warn('Klarte ikke laste SmsPurringSendt på nytt etter sending:',e);}
     renderPurringKandidater();
+    renderPurringLogg();
   }
+}
+
+// Logg over sendte purring-SMS (lagt til 03.09.2026, Thomas' ønske: "kan vi
+// lage en logg på sms som er sendt til kunder med forfalte fakturaer"). Ren
+// historikk-visning av SmsPurringSendt — ingen handlingsknapper, i motsetning
+// til godkjenningslisten over. Sortert nyeste først, med enkelt tekstsøk på
+// kunde/fakturanummer.
+function renderPurringLogg(){
+  const tbody=document.getElementById('purr-logg-tbody');
+  const tom=document.getElementById('purr-logg-tom');
+  const wrap=document.getElementById('purr-logg-tabell-wrap');
+  const antallHint=document.getElementById('purr-logg-antall-hint');
+  if(!tbody)return;
+  const sokRaw=(document.getElementById('purr-logg-sok')?.value||'').trim().toLowerCase();
+  let rader=[...smsPurringSendt].sort((a,b)=>new Date(b.sendtDato||0)-new Date(a.sendtDato||0));
+  if(sokRaw){
+    rader=rader.filter(r=>(r.kundenavn||'').toLowerCase().includes(sokRaw)||(r.fakturanummer||'').toLowerCase().includes(sokRaw));
+  }
+  if(smsPurringSendt.length===0){
+    if(tom){tom.style.display='';tom.textContent='Ingen purring-SMS sendt ennå.';}
+    if(wrap)wrap.style.display='none';
+    if(antallHint)antallHint.textContent='';
+    return;
+  }
+  if(rader.length===0){
+    if(tom){tom.style.display='';tom.textContent='Ingen treff på søket.';}
+    if(wrap)wrap.style.display='none';
+    if(antallHint)antallHint.textContent='';
+    return;
+  }
+  if(tom)tom.style.display='none';
+  if(wrap)wrap.style.display='';
+  const totalBelop=rader.reduce((s,r)=>s+r.belop,0);
+  antallHint.textContent=sokRaw
+    ? `${rader.length} av ${smsPurringSendt.length} sendt(e) SMS vist, totalt ${totalBelop.toLocaleString('nb-NO')} kr`
+    : `${rader.length} sendt(e) SMS totalt, totalt ${totalBelop.toLocaleString('nb-NO')} kr`;
+  tbody.innerHTML=rader.map(r=>`
+    <tr style="border-bottom:1px solid #f3f4f6">
+      <td style="padding:6px 8px">${r.sendtDato?new Date(r.sendtDato).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'}):'—'}</td>
+      <td style="padding:6px 8px">${r.kundenavn||'(ukjent)'}</td>
+      <td style="padding:6px 8px">${r.fakturanummer||'—'}</td>
+      <td style="padding:6px 8px;text-align:right">${r.belop.toLocaleString('nb-NO')} kr</td>
+      <td style="padding:6px 8px;text-align:right">${r.terskel||'—'}</td>
+      <td style="padding:6px 8px">${r.telefon||'—'}</td>
+    </tr>`).join('');
 }
 
 // ===== ARBEIDSTID =====
