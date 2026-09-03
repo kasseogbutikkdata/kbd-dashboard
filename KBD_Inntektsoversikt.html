@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.53 · Oppdatert: 3. sep 2026 kl. 14:35</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.54 · Oppdatert: 3. sep 2026 kl. 15:02</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -9278,7 +9278,12 @@ function vfBuildGodkjenteListe(){
     const u = vfData.unmatched[i];
     if (!u) return; // forsiktighet i tilfelle unmatched-listen er re-rendret siden koblingen ble gjort
     const entry = kundeMap[link.vismaNummer] || (kundeMap[link.vismaNummer] = { kundenr: link.vismaNummer, kundenavn: link.navn, periods: [] });
-    entry.periods.push(...u.periods);
+    // BAX-numrene i "Må avklares" er gruppert per BAX (ikke per periode), så
+    // brukersted/bax/baxSuffix ligger på selve u-objektet, ikke på hver
+    // periode — legges eksplisitt på hver periode her (03.09.2026) slik at
+    // backend kan bygge riktig Beskrivelse-felt på salgsordren, se
+    // visma_client._bygg_beskrivelse().
+    entry.periods.push(...u.periods.map(p => ({...p, bax: u.bax, brukersted: u.brukersted, baxSuffix: u.baxSuffix})));
   });
   return Object.values(kundeMap);
 }
