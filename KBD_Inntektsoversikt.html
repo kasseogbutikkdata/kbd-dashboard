@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.57 · Oppdatert: 3. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.58 · Oppdatert: 3. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -849,6 +849,22 @@ tr:hover td{background:#fafafa}
       <div class="hint">Foreslå og følg opp ideer til nye funksjoner og forbedringer i selve dashbordet. Alle kan foreslå ideer og krysse av delmål; status, prioritet og sletting styres av admin/redaktør.</div>
     </div>
     <div id="idebank-liste"></div>
+
+    <!-- VERSJONSLOGG — lagt til 03.09.2026 på Thomas' ønske om en logg/historikk
+         over versjoner med kort punktliste på endringer, plassert under Idébank
+         og utvikling. Bevisst IKKE en SharePoint-liste: innholdet er en statisk
+         `versjonslogg`-konstant i koden (se lenger ned), fylt ut av Claude i
+         samme leveranse som en ny versjon sendes — ingen ny liste å sette opp,
+         ingen skjema Thomas selv må fylle ut. card-public satt fra dag én
+         (Thomas ønsket dette synlig for ALLE roller, inkl. Leser). Loggen
+         dekker MENINGSFULLE/brukersynlige endringer, ikke hver eneste
+         mikro-patch — se kommentaren ved `versjonslogg`-konstanten for
+         retningslinjen som skal følges ved fremtidige tillegg. -->
+    <div class="card card-public" style="margin-top:16px">
+      <div class="card-title">📜 Versjonslogg — hva er nytt i KBD Command Center</div>
+      <div class="hint">Kort oversikt over de siste endringene i selve dashbordet, nyeste øverst.</div>
+    </div>
+    <div id="versjonslogg-liste"></div>
   </div>
 
   <!-- LISENSER -->
@@ -5480,6 +5496,63 @@ function leggTilLoggpost(id){
 // hvor mange delmål (sjekkliste-punkter) som er avkrysset, se
 // ideFullforing(). En idé uten delmål vises som "ingen delmål lagt til"
 // fremfor 0 %, slik at det ikke ser ut som om arbeidet har startet.
+// VERSJONSLOGG — statisk historikk over meningsfulle/brukersynlige endringer i
+// KBD Command Center, lagt til 03.09.2026 på Thomas' ønske (under "Idébank og
+// utvikling"). BEVISST ikke hver eneste patch-versjon — kun endringer en vanlig
+// bruker faktisk vil legge merke til eller ha nytte av å vite om. RETNINGSLINJE
+// for fremtidige tillegg (gjelder ALLE økter/Claude-instanser som jobber videre
+// på dette dashbordet): når du leverer en ny versjon med et brukersynlig
+// resultat, legg til ETT nytt element ØVERST i denne lista — kort tittel/
+// versjon + 2-4 korte punkter i vanlig språk (ikke tekniske detaljer som
+// funksjonsnavn, SharePoint-felt eller "div-balanse verifisert" — det hører
+// hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
+// interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
+const versjonslogg=[
+  {versjon:'v1.48.58',dato:'03.09.2026',punkter:[
+    'Ny versjonslogg her under Idébank og utvikling — kort oversikt over hva som er nytt i dashbordet, nyeste øverst.'
+  ]},
+  {versjon:'v1.48.57',dato:'03.09.2026',punkter:[
+    'Du kan nå endre hvem som er «Ansvarlig/selger» på en kundesak i etterkant — nyttig for saker overført fra Nyetableringer.',
+    'Ny historikk-fane under Verifone trans.avgift, for allerede kjørte fakturaer.'
+  ]},
+  {versjon:'v1.48.51',dato:'03.09.2026',punkter:[
+    'Ny logg som viser alle purring-SMS som faktisk er sendt til kunder, med søk.',
+    'Rettet en feil der Leser-rollen manglet søk/filtre på flere sider (Kundesaker, Kunde 360, Konkurser, Idébank).'
+  ]},
+  {versjon:'v1.48.49–50',dato:'02.09.2026',punkter:[
+    'Purring-SMS: kunder med flere forfalte fakturaer får nå én samlet SMS i stedet for flere.',
+    'Nytt valg for om purring-SMS skal sendes automatisk eller kreve godkjenning først («Sendemåte»).',
+    'Purring-SMS flyttet fra Innstillinger til egen fane under SMS utsendelse.'
+  ]},
+  {versjon:'v1.48.39',dato:'01.09.2026',punkter:[
+    '«Opprett som ny kunde»-knappen vises nå rett under søkefeltet i Kunde 360 ved nulltreff, ikke lengre nederst på siden.'
+  ]},
+  {versjon:'v1.47.0–v1.48.8',dato:'28.08.2026',punkter:[
+    'Ny samlet «Kundesaker»-fane: oversikt over alle salgsnotater/tilbud/oppfølginger på tvers av kunder, med søk og filtre.',
+    'Status (Åpen/Lukket) kan nå endres direkte fra Kundesaker-fanen.',
+    'Lange notater/tilbud vises nå forkortet med «Vis mer».',
+    'Kontaktinfo og Brønnøysundregistrene flyttet opp og lagt side om side på kundekortet.'
+  ]},
+  {versjon:'v1.46–v1.47',dato:'25.–28.08.2026',punkter:[
+    'Ny «Nyetableringer»-fane: automatisk leadgenerering fra Brønnøysundregisteret.',
+    'Automatisk konkursvarsel (bjelle + e-post) når en eksisterende kunde registreres konkurs.'
+  ]},
+];
+function renderVersjonslogg(){
+  // VIKTIG: bruker BEVISST IKKE .card-klassen på hvert element under — .card
+  // uten card-public skjules helt for Leser-rollen av applyRoleUI() (se
+  // gjentatte fiks 03.09.2026 på Kundesaker/Kunde360/Konkurser/Idébank over).
+  // Siden hele poenget med denne loggen er at den skal være synlig for ALLE
+  // roller, og nye elementer legges til her uten en tilsvarende HTML-endring
+  // hver gang, er en egen klasse (uavhengig av rollestyringen) tryggere enn å
+  // huske card-public på hvert fremtidig innslag.
+  const target=document.getElementById('versjonslogg-liste');if(!target)return;
+  target.innerHTML=versjonslogg.map(v=>`
+    <div style="margin-top:10px;padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px">
+      <div style="font-weight:600;font-size:13px;color:#111;margin-bottom:6px">${v.versjon} <span style="font-weight:400;color:#9ca3af">· ${v.dato}</span></div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;color:#374151;line-height:1.5">${v.punkter.map(p=>`<li>${p}</li>`).join('')}</ul>
+    </div>`).join('');
+}
 let ideBank=[],ideBankVisAvsluttede=false,ideModalDelmaal=[];
 const IDEBANK_STATUSER={
   'Idé':{c:'#6b7280',bg:'#f3f4f6'},
@@ -6731,7 +6804,7 @@ function showTab(name,btn){
   if(name==='smsplanlagt'){setSmsUtsendelseSubActive('smsplanlagt');renderSmsPlanlagt();}
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
   if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
-  if(name==='idebank'){renderIdeBank();}
+  if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
