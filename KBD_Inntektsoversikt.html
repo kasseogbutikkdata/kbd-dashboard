@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.58 · Oppdatert: 3. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.59 · Oppdatert: 4. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -518,6 +518,9 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="asub-oversikt" onclick="showArbeidstidView('oversikt',this)">📋 Oversikt</div>
         <div class="nav-sub-item" id="asub-soknader" onclick="showArbeidstidView('soknader',this)">📝 Søknader</div>
         <div class="nav-sub-item" id="asub-ny" onclick="showArbeidstidView('ny',this)">➕ Ny søknad</div>
+      </div>
+      <div class="nav-item" id="tab-susoftrma" onclick="showTab('susoftrma',this)">
+        <span class="nav-item-icon">🔧</span>Susoft RMA
       </div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
@@ -840,6 +843,37 @@ tr:hover td{background:#fafafa}
   </div>
 
   <!-- IDÉBANK -->
+  <!-- SUSOFT RMA (lagt til 04.09.2026) -- erstatter Geirs manuelle Excel-sporing
+       av defekte Susoft-kassemaskiner sendt inn for garantivurdering/
+       reparasjon/ombytte. Se renderSusoftRma() og susoft_rma_varsling.py
+       (kbd-verifone-func) for den daglige e-postvarslingen ved 3+ ukers
+       forsinkelse. card-public paa filterkortet -- ren lesehandling, samme
+       begrunnelse som tp-konkurser/tp-nyetableringer over; "+ Ny RMA-sak"-
+       knappen og redigering styres av salgTilgang inni selve
+       renderSusoftRma()/renderRmaTabell(), ikke av rollen her. -->
+  <div id="tp-susoftrma" class="tp">
+    <div id="rma-varsel-banner"></div>
+    <div class="card card-public">
+      <div class="card-title">🔧 Susoft RMA — defekte kassemaskiner sendt til Susoft</div>
+      <div class="hint">Sporer maskiner som er sendt til Susoft for garantivurdering/reparasjon/ombytte — fra feilmelding mottatt til reparert/ny maskin er tilbake. En sak som har ligget hos Susoft i over 3 uker uten registrert retur varsles automatisk ukentlig til Geir på e-post (se banner over ved forsinkede saker).</div>
+      <div class="frow" style="margin-top:10px">
+        <input type="text" id="rma-search" placeholder="Søk på kunde, maskin eller serienr…" style="flex:1" oninput="rmaSetSearch(this.value)"/>
+        <select id="rma-status-filter" onchange="rmaSetStatusFilter(this.value)" style="max-width:220px">
+          <option value="alle">Alle statuser</option>
+          <option value="Feilmelding mottatt">Feilmelding mottatt</option>
+          <option value="Ny maskin sendt til kunde">Ny maskin sendt til kunde</option>
+          <option value="Sendt til Susoft">Sendt til Susoft</option>
+          <option value="Hos Susoft">Hos Susoft</option>
+          <option value="Mottatt fra Susoft">Mottatt fra Susoft</option>
+          <option value="Ferdig">Ferdig</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:#374151;cursor:pointer;white-space:nowrap"><input type="checkbox" id="rma-vis-forsinkede" onchange="rmaToggleForsinkede(this.checked)" style="width:15px;height:15px"/> Kun forsinkede</label>
+        <button class="btn-sm" id="rma-ny-btn" style="display:none" onclick="openRmaModal()">➕ Ny RMA-sak</button>
+      </div>
+    </div>
+    <div id="rma-tabell"></div>
+  </div>
+
   <div id="tp-idebank" class="tp">
     <!-- card-public lagt til 03.09.2026: samme bug som over. Ekstra tydelig her
          siden hint-teksten selv sier "Alle kan foreslå ideer" — det stemte ikke
@@ -1406,6 +1440,58 @@ tr:hover td{background:#fafafa}
   </div>
 
   <!-- KUNNGJØRING — NY (admin) MODAL, lagt til 24.08.2026 -->
+  <!-- SUSOFT RMA-modal (opprett/rediger), lagt til 04.09.2026 -->
+  <div class="modal-overlay" id="rma-modal" onclick="if(event.target===this)closeRmaModal()">
+    <div class="modal" style="width:600px;max-height:85vh;overflow-y:auto">
+      <h3 id="rma-modal-title" style="margin-bottom:16px">Ny RMA-sak</h3>
+      <div class="fgrp" style="margin-bottom:10px">
+        <label>Kunde</label>
+        <div class="vf-kunde-ac" style="min-width:100%">
+          <input type="text" id="rma-kunde-input" placeholder="Søk Visma-kunde eller skriv kundenavn fritt…" oninput="rmaKundeAcSok()" onfocus="rmaKundeAcSok()" onblur="setTimeout(()=&gt;{const d=document.getElementById('rma-kunde-treff');if(d)d.style.display='none';},150)" autocomplete="off" style="width:100%"/>
+          <div id="rma-kunde-treff" class="vf-ac-treff"></div>
+        </div>
+        <input type="hidden" id="rma-kunde-nr"/>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Forhandler</label><input type="text" id="rma-forhandler" placeholder="KBD (direktesalg) eller forhandlernavn"/></div>
+        <div class="fgrp"><label>Ref. hos forhandler</label><input type="text" id="rma-ref-forhandler"/></div>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Maskin</label><input type="text" id="rma-maskin" placeholder="f.eks. Telpo M10"/></div>
+        <div class="fgrp"><label>Serienr.</label><input type="text" id="rma-serienr"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Problem</label><textarea id="rma-problem" rows="3" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Har bilde/video?</label><select id="rma-bilde-video"><option value="">—</option><option value="Ja">Ja</option><option value="Nei">Nei</option><option value="Video">Video</option></select></div>
+        <div class="fgrp"><label>Ansvarlig hos KBD</label><select id="rma-ansvarlig"></select></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Status</label>
+        <select id="rma-status">
+          <option>Feilmelding mottatt</option>
+          <option>Ny maskin sendt til kunde</option>
+          <option>Sendt til Susoft</option>
+          <option>Hos Susoft</option>
+          <option>Mottatt fra Susoft</option>
+          <option>Ferdig</option>
+        </select>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Feilmelding mottatt</label><input type="date" id="rma-dato-feilmelding"/></div>
+        <div class="fgrp"><label>Ny maskin sendt kunde</label><input type="date" id="rma-dato-ny-sendt"/></div>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Sendt Susoft</label><input type="date" id="rma-dato-sendt-susoft"/></div>
+        <div class="fgrp"><label>Mottatt fra Susoft</label><input type="date" id="rma-dato-mottatt-susoft"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Kommentar</label><textarea id="rma-kommentar" rows="3" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <input type="hidden" id="rma-edit-id"/>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeRmaModal()">Avbryt</button>
+        <button class="prim" onclick="saveRma()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="kunngjoring-modal" onclick="if(event.target===this)closeKunngjoringModal()">
     <div class="modal" style="max-width:520px">
       <h3 style="margin-bottom:16px">📣 Ny kunngjøring</h3>
@@ -2002,6 +2088,7 @@ let kunngjoringer=[];
 // KundeNotater/VismaKunder — se undermenypunktet "🏢 Nyetableringer" under
 // Kunde 360 (renderNyetableringer()).
 let nyetableringer=[];
+let susoftRma=[];
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
 let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
 let nyeStedFilter='alle';    // 'alle', ellers en eksakt verdi fra _nyeStedVerdi() under
@@ -2319,8 +2406,8 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2412,6 +2499,12 @@ async function loadDataFromSP(){
   // vfLoggHistorikk() (kalt fra vfApprove()). Kun summerte tall per faktura,
   // ikke per-kunde-detalj — se vfRenderHistorikk().
   vfHistorikk=vhItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturareferanse:i.fields.Title||'',dato:i.fields.Dato||'',totaltBelop:parseFloat(i.fields.TotaltBelop)||0,antallKunder:parseInt(i.fields.AntallKunder)||0,antallOpprettet:parseInt(i.fields.AntallOpprettet)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,antallManueltAvklart:parseInt(i.fields.AntallManueltAvklart)||0,opprettetAv:i.fields.OpprettetAv||''}));
+  // SusoftRma (lagt til 04.09.2026) -- se Kunde360-oppsett-sjekkliste.md Liste 12
+  // og susoft_rma_varsling.py (kbd-verifone-func) for backend-varslingen.
+  // IKKE verifisert mot et faktisk SharePoint-site ennaa -- verifiser interne
+  // kolonnenavn via Graph Explorer foer skarp bruk, spesielt Status og de fire
+  // dato-kolonnene (samme rutine som alle andre lister i dette prosjektet).
+  susoftRma=srmaItems.map(i=>({id:`sp${i.id}`,spId:i.id,kundeNr:i.fields.KundeNr||'',kundeNavn:i.fields.KundeNavn||'',forhandler:i.fields.Forhandler||'',refHosForhandler:i.fields.RefHosForhandler||'',maskin:i.fields.Maskin||'',serieNr:i.fields.SerieNr||'',problem:i.fields.Problem||'',harBildeVideo:i.fields.HarBildeVideo||'',ansvarligKbd:i.fields.AnsvarligKBD||'',status:i.fields.Status||'Feilmelding mottatt',datoFeilmeldingMottatt:i.fields.DatoFeilmeldingMottatt||'',datoNyMaskinSendtKunde:i.fields.DatoNyMaskinSendtKunde||'',datoSendtSusoft:i.fields.DatoSendtSusoft||'',datoMottattFraSusoft:i.fields.DatoMottattFraSusoft||'',kommentar:i.fields.Kommentar||'',opprettetDato:i.fields.Created||i.createdDateTime||i.fields.DatoFeilmeldingMottatt||''}));
   // SmsMaler/SmsUtsendelser (lagt til 31.08.2026) — lagrede meldingsmaler og
   // en historikk-logg for «📱 SMS utsendelse»-menyen (eget toppnivå-
   // menypunkt, se kommentaren ved tab-smsutsendelse i HTML-en). Fylles
@@ -3080,6 +3173,270 @@ function renderKonkurser(){
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
+}
+
+// ===== SUSOFT RMA (lagt til 04.09.2026) =====
+// Erstatter Geirs manuelle Excel-sporing av defekte Susoft-kassemaskiner
+// (Elanda/Telpo) sendt inn for garantivurdering/reparasjon/ombytte. Leses/
+// skrives direkte av dashbordet (brukerens egen innlogging, samme mønster
+// som KundeNotater/Idebank/Kunngjoringer) — SharePoint-lista "SusoftRma",
+// se Kunde360-oppsett-sjekkliste.md Liste 12. Backend (kbd-verifone-func,
+// timer-triggeren sjekk_susoft_rma, daglig 06:30 UTC) leser samme liste og
+// sender ukentlig e-postvarsel til Geir når en sak har ligget hos Susoft i
+// over 3 uker uten registrert retur — se susoft_rma_varsling.py.
+//
+// "➕ Ny RMA-sak" og redigering er bevisst gatet på salgTilgang (samme
+// "salg/support-teamet"-flagg som resten av Kunde 360-skrivehandlinger),
+// IKKE en egen ny modul-tilgang i MODULER-arrayet — selve fanen er synlig
+// for alle innloggede, akkurat som Kunde360/Verifone/Idébank.
+const RMA_STATUSER=['Feilmelding mottatt','Ny maskin sendt til kunde','Sendt til Susoft','Hos Susoft','Mottatt fra Susoft','Ferdig'];
+const RMA_TERSKEL_DAGER=21; // samme terskel som SUSOFT_RMA_VARSEL_TERSKEL_DAGER i susoft_rma_varsling.py — hold synkronisert manuelt hvis terskelen noensinne endres i Application Settings
+const RMA_STATUSER_VENTER_SUSOFT=new Set(['Sendt til Susoft','Hos Susoft']);
+
+function rmaDagerHosSusoft(rad){
+  if(!rad.datoSendtSusoft||rad.datoMottattFraSusoft)return null;
+  if(!RMA_STATUSER_VENTER_SUSOFT.has(rad.status))return null;
+  const sendt=new Date(rad.datoSendtSusoft);
+  if(isNaN(sendt))return null;
+  return Math.floor((new Date()-sendt)/86400000);
+}
+function rmaErForsinket(rad){
+  const dager=rmaDagerHosSusoft(rad);
+  return dager!==null&&dager>=RMA_TERSKEL_DAGER;
+}
+function rmaStatusBadge(status){
+  const stiler={
+    'Feilmelding mottatt':'background:#e5e7eb;color:#374151',
+    'Ny maskin sendt til kunde':'background:#dbeafe;color:#1e40af',
+    'Sendt til Susoft':'background:#fef3c7;color:#92400e',
+    'Hos Susoft':'background:#fde68a;color:#92400e',
+    'Mottatt fra Susoft':'background:#d1fae5;color:#065f46',
+    'Ferdig':'background:#e5e7eb;color:#6b7280'
+  };
+  const stil=stiler[status]||'background:#e5e7eb;color:#374151';
+  return `<span class="badge" style="${stil}">${status||'—'}</span>`;
+}
+
+let rmaSearchQ='',rmaStatusFilterQ='alle',rmaKunForsinkedeQ=false;
+function rmaSetSearch(v){rmaSearchQ=(v||'').trim().toLowerCase();renderRmaTabell();}
+function rmaSetStatusFilter(v){rmaStatusFilterQ=v;renderRmaTabell();}
+function rmaToggleForsinkede(v){rmaKunForsinkedeQ=v;renderRmaTabell();}
+
+function renderSusoftRma(){
+  const nyBtn=document.getElementById('rma-ny-btn');
+  if(nyBtn)nyBtn.style.display=salgTilgang?'':'none';
+  renderRmaBanner();
+  renderRmaTabell();
+}
+
+function renderRmaBanner(){
+  const banner=document.getElementById('rma-varsel-banner');
+  if(!banner)return;
+  const forsinkede=susoftRma.filter(rmaErForsinket);
+  if(forsinkede.length===0){banner.innerHTML='';return;}
+  banner.innerHTML=`<div class="card" style="background:#fef2f2;border:1px solid #fecaca;margin-bottom:14px">
+    <div style="color:#991b1b;font-weight:700;font-size:13px">⚠️ ${forsinkede.length} sak${forsinkede.length===1?'':'er'} har ligget hos Susoft i over ${RMA_TERSKEL_DAGER} dager uten registrert retur</div>
+    <div style="margin-top:6px;font-size:12.5px;color:#7f1d1d">${forsinkede.map(r=>`${r.kundeNavn||'(ukjent kunde)'} — ${r.maskin||'(ukjent maskin)'} (${rmaDagerHosSusoft(r)} dager)`).join(' · ')}</div>
+  </div>`;
+}
+
+function renderRmaTabell(){
+  const target=document.getElementById('rma-tabell');
+  if(!target)return;
+  let liste=susoftRma.slice();
+  if(rmaStatusFilterQ!=='alle')liste=liste.filter(r=>r.status===rmaStatusFilterQ);
+  if(rmaKunForsinkedeQ)liste=liste.filter(rmaErForsinket);
+  if(rmaSearchQ)liste=liste.filter(r=>[r.kundeNavn,r.maskin,r.serieNr].some(v=>(v||'').toLowerCase().includes(rmaSearchQ)));
+  liste.sort((a,b)=>new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0));
+
+  if(liste.length===0){
+    target.innerHTML=`<div class="empty">Ingen RMA-saker${rmaSearchQ||rmaStatusFilterQ!=='alle'||rmaKunForsinkedeQ?' matcher filteret':' registrert ennå'}.</div>`;
+    return;
+  }
+
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+    <th>Kunde</th><th>Maskin / Serienr.</th><th>Forhandler</th><th>Ansvarlig</th><th>Status</th><th>Sendt Susoft</th><th>Mottatt fra Susoft</th><th></th>
+  </tr></thead><tbody>
+  ${liste.map(r=>{
+    const dager=rmaDagerHosSusoft(r);
+    const forsinket=dager!==null&&dager>=RMA_TERSKEL_DAGER;
+    return `<tr${forsinket?' style="background:#fffbeb"':''}>
+      <td><strong>${r.kundeNavn||'(uten navn)'}</strong>${r.kundeNr?`<div style="font-size:11px;color:#9ca3af">Kundenr ${r.kundeNr}</div>`:''}</td>
+      <td>${r.maskin||'—'}${r.serieNr?`<div style="font-size:11px;color:#9ca3af">${r.serieNr}</div>`:''}</td>
+      <td>${r.forhandler||'—'}</td>
+      <td>${r.ansvarligKbd||'—'}</td>
+      <td>${rmaStatusBadge(r.status)}</td>
+      <td>${r.datoSendtSusoft?new Date(r.datoSendtSusoft).toLocaleDateString('nb-NO'):'—'}${forsinket?`<div style="font-size:11px;color:#b45309;font-weight:700">⏰ ${dager} dager</div>`:''}</td>
+      <td>${r.datoMottattFraSusoft?new Date(r.datoMottattFraSusoft).toLocaleDateString('nb-NO'):'—'}</td>
+      <td><button class="btn-sm" onclick="openRmaModal('${r.id}')">${salgTilgang?'✏️ Rediger':'👁️ Vis'}</button></td>
+    </tr>`;
+  }).join('')}
+  </tbody></table></div>`;
+}
+
+// ---- Kunde-autocomplete i RMA-modalen (Visma-oppslag ELLER fritekst) ----
+// Gjenbruker SAMME søkelogikk som vfKundeAcSok() (Verifone «Må avklares»-
+// fanen) — eksakt org.nr-match først, ellers substreng på navn — men egen
+// funksjon (ikke en generalisering av vfKundeAcSok) siden den er bygget rundt
+// per-BAX element-id-er (vf-ac-input-${baxId}) som ikke passer denne
+// enkeltstående modalen. Selve hybriden (Visma ELLER fritekst) krever INGEN
+// spesialhåndtering her: brukeren kan velge et treff (setter rma-kunde-nr)
+// ELLER bare la feltet stå som ren fritekst (rma-kunde-nr forblir tomt) —
+// saveRma() bruker uansett bare det som faktisk står i de to feltene.
+function rmaKundeAcSok(){
+  const raw=(document.getElementById('rma-kunde-input').value||'').trim();
+  const treffDiv=document.getElementById('rma-kunde-treff');
+  if(!raw){treffDiv.style.display='none';treffDiv.innerHTML='';return;}
+  const orgNrSok=normOrgNr(raw);
+  let treff=[];
+  if(orgNrSok.length===9)treff=vismaKunder.filter(k=>normOrgNr(k.orgNr)===orgNrSok);
+  if(treff.length===0){
+    const q=raw.toLowerCase();
+    treff=vismaKunder.filter(k=>(k.navn||'').toLowerCase().includes(q));
+  }
+  treff=treff.slice(0,15);
+  if(treff.length===0){
+    treffDiv.innerHTML=`<div class="vf-ac-empty">Ingen Visma-treff — lagres som fritekst-kunde</div>`;
+  }else{
+    treffDiv.innerHTML=treff.map(k=>`
+      <div class="vf-ac-item" onmousedown="rmaKundeAcVelg('${k.vismaNummer}','${(k.navn||'').replace(/'/g,"\\'")}')">
+        <div class="vf-ac-name">${k.navn}</div>
+        <div class="vf-ac-meta">Kundenr ${k.vismaNummer||'—'} · Org.nr ${k.orgNr||'—'}</div>
+      </div>`).join('');
+  }
+  treffDiv.style.display='block';
+}
+function rmaKundeAcVelg(vismaNummer,navn){
+  document.getElementById('rma-kunde-input').value=navn;
+  document.getElementById('rma-kunde-nr').value=vismaNummer;
+  document.getElementById('rma-kunde-treff').style.display='none';
+}
+
+// Bygger <option>-lista for "Ansvarlig hos KBD"-feltet, samme kilde/mønster
+// som fyllAnsvarligSelect() (Kunde 360-notatmodalen) — egen liten funksjon
+// fremfor å generalisere fyllAnsvarligSelect() til å ta en vilkårlig
+// element-id, siden det er den eneste andre bruken av `brukere`-lista til nå.
+function fyllAnsvarligSelectRma(gjeldendeNavn){
+  const sel=document.getElementById('rma-ansvarlig');if(!sel)return;
+  const navnSet=new Set(brukere.map(b=>b.navn).filter(Boolean));
+  let opts='<option value="">—</option>'+brukere.slice().sort((a,b)=>(a.navn||'').localeCompare(b.navn||'','nb')).map(b=>`<option value="${(b.navn||'').replace(/"/g,'&quot;')}">${b.navn}</option>`).join('');
+  if(gjeldendeNavn&&!navnSet.has(gjeldendeNavn)){
+    opts=`<option value="${gjeldendeNavn.replace(/"/g,'&quot;')}">${gjeldendeNavn} (ikke i Brukere-lista)</option>`+opts;
+  }
+  sel.innerHTML=opts;
+  sel.value=gjeldendeNavn||'';
+}
+
+function openRmaModal(id){
+  document.getElementById('rma-edit-id').value=id||'';
+  document.getElementById('rma-kunde-treff').innerHTML='';document.getElementById('rma-kunde-treff').style.display='none';
+  if(id){
+    const r=susoftRma.find(x=>x.id===id);if(!r)return;
+    document.getElementById('rma-modal-title').textContent='Rediger RMA-sak';
+    document.getElementById('rma-kunde-input').value=r.kundeNavn||'';
+    document.getElementById('rma-kunde-nr').value=r.kundeNr||'';
+    document.getElementById('rma-forhandler').value=r.forhandler||'';
+    document.getElementById('rma-ref-forhandler').value=r.refHosForhandler||'';
+    document.getElementById('rma-maskin').value=r.maskin||'';
+    document.getElementById('rma-serienr').value=r.serieNr||'';
+    document.getElementById('rma-problem').value=r.problem||'';
+    document.getElementById('rma-bilde-video').value=r.harBildeVideo||'';
+    document.getElementById('rma-status').value=r.status||RMA_STATUSER[0];
+    document.getElementById('rma-dato-feilmelding').value=(r.datoFeilmeldingMottatt||'').slice(0,10);
+    document.getElementById('rma-dato-ny-sendt').value=(r.datoNyMaskinSendtKunde||'').slice(0,10);
+    document.getElementById('rma-dato-sendt-susoft').value=(r.datoSendtSusoft||'').slice(0,10);
+    document.getElementById('rma-dato-mottatt-susoft').value=(r.datoMottattFraSusoft||'').slice(0,10);
+    document.getElementById('rma-kommentar').value=r.kommentar||'';
+    fyllAnsvarligSelectRma(r.ansvarligKbd||'');
+  }else{
+    document.getElementById('rma-modal-title').textContent='Ny RMA-sak';
+    ['rma-kunde-input','rma-kunde-nr','rma-forhandler','rma-ref-forhandler','rma-maskin','rma-serienr','rma-problem','rma-kommentar'].forEach(id2=>document.getElementById(id2).value='');
+    document.getElementById('rma-forhandler').value='KBD';
+    document.getElementById('rma-bilde-video').value='';
+    document.getElementById('rma-status').value=RMA_STATUSER[0];
+    document.getElementById('rma-dato-feilmelding').value=new Date().toISOString().slice(0,10);
+    document.getElementById('rma-dato-ny-sendt').value='';
+    document.getElementById('rma-dato-sendt-susoft').value='';
+    document.getElementById('rma-dato-mottatt-susoft').value='';
+    fyllAnsvarligSelectRma(currentUser?.name||currentUser?.username||'');
+  }
+  document.getElementById('rma-modal').classList.add('open');
+}
+function closeRmaModal(){document.getElementById('rma-modal').classList.remove('open');}
+
+// SharePoint-feltnavn MÅ matche susoft_rma_varsling.py sine FELT_*-konstanter
+// og Kunde360-oppsett-sjekkliste.md Liste 12 nøyaktig — se advarselen der om
+// å verifisere interne kolonnenavn via Graph Explorer før skarp bruk.
+function rmaFieldsPayload(r){
+  return{
+    Title:`${r.kundeNavn||'Ukjent kunde'} – ${r.maskin||'ukjent maskin'}`,
+    KundeNr:r.kundeNr||'',
+    KundeNavn:r.kundeNavn||'',
+    Forhandler:r.forhandler||'',
+    RefHosForhandler:r.refHosForhandler||'',
+    Maskin:r.maskin||'',
+    SerieNr:r.serieNr||'',
+    Problem:r.problem||'',
+    HarBildeVideo:r.harBildeVideo||'',
+    AnsvarligKBD:r.ansvarligKbd||'',
+    Status:r.status||RMA_STATUSER[0],
+    DatoFeilmeldingMottatt:r.datoFeilmeldingMottatt||null,
+    DatoNyMaskinSendtKunde:r.datoNyMaskinSendtKunde||null,
+    DatoSendtSusoft:r.datoSendtSusoft||null,
+    DatoMottattFraSusoft:r.datoMottattFraSusoft||null,
+    Kommentar:r.kommentar||''
+  };
+}
+
+function saveRma(){
+  const kundeNavn=(document.getElementById('rma-kunde-input').value||'').trim();
+  const maskin=(document.getElementById('rma-maskin').value||'').trim();
+  if(!kundeNavn){alert('Fyll inn kunde (velg fra Visma-søket eller skriv navnet fritt)');return;}
+  if(!maskin){alert('Fyll inn maskin');return;}
+  const editId=document.getElementById('rma-edit-id').value;
+  const felter={
+    kundeNr:document.getElementById('rma-kunde-nr').value||'',
+    kundeNavn,
+    forhandler:(document.getElementById('rma-forhandler').value||'').trim(),
+    refHosForhandler:(document.getElementById('rma-ref-forhandler').value||'').trim(),
+    maskin,
+    serieNr:(document.getElementById('rma-serienr').value||'').trim(),
+    problem:(document.getElementById('rma-problem').value||'').trim(),
+    harBildeVideo:document.getElementById('rma-bilde-video').value||'',
+    ansvarligKbd:(document.getElementById('rma-ansvarlig').value||'').trim(),
+    status:document.getElementById('rma-status').value||RMA_STATUSER[0],
+    datoFeilmeldingMottatt:document.getElementById('rma-dato-feilmelding').value||null,
+    datoNyMaskinSendtKunde:document.getElementById('rma-dato-ny-sendt').value||null,
+    datoSendtSusoft:document.getElementById('rma-dato-sendt-susoft').value||null,
+    datoMottattFraSusoft:document.getElementById('rma-dato-mottatt-susoft').value||null,
+    kommentar:(document.getElementById('rma-kommentar').value||'').trim()
+  };
+  closeRmaModal();
+
+  if(editId){
+    const r=susoftRma.find(x=>x.id===editId);if(!r)return;
+    Object.assign(r,felter);
+    renderSusoftRma();
+    if(r.spId){
+      setSPStatus('⏳ Lagrer…');
+      spUpdate('SusoftRma',r.spId,rmaFieldsPayload(r)).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+    }
+  }else{
+    const now=new Date().toISOString();
+    const nyRad={id:'tmp'+Math.random().toString(36).slice(2),spId:null,opprettetDato:now,...felter};
+    susoftRma.push(nyRad);
+    renderSusoftRma();
+    setSPStatus('⏳ Lagrer…');
+    spCreate('SusoftRma',rmaFieldsPayload(nyRad)).then(r2=>{
+      nyRad.spId=r2.id;nyRad.id=`sp${r2.id}`;
+      renderSusoftRma(); // full redraw, IKKE stol på gamle tmp-id-baserte onclick-handlere — samme lærdom som saveNotat()-fiksen 01.09.2026
+      setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+    }).catch(e=>{
+      susoftRma=susoftRma.filter(x=>x.id!==nyRad.id);
+      renderSusoftRma();
+      setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);
+    });
+  }
 }
 
 // Hopper rett til kundekortet på Kunde 360 — samme direkte oppslag (uten
@@ -5508,6 +5865,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.59',dato:'04.09.2026',punkter:[
+    'Ny fane «Susoft RMA» — spor defekte kassemaskiner sendt til Susoft for garantivurdering/ombytte, med automatisk varsel når en sak har ligget over 3 uker uten retur.'
+  ]},
   {versjon:'v1.48.58',dato:'03.09.2026',punkter:[
     'Ny versjonslogg her under Idébank og utvikling — kort oversikt over hva som er nytt i dashbordet, nyeste øverst.'
   ]},
@@ -6806,6 +7166,7 @@ function showTab(name,btn){
   if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');}
+  if(name==='susoftrma'){renderSusoftRma();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
