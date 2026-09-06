@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.63 · Oppdatert: 6. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.64 · Oppdatert: 6. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2119,6 +2119,15 @@ let nyeSkjulEnkeltpersonforetak=false; // "Skjul enkeltpersonforetak"-bryter, la
 let nyeDatoFra='';
 let nyeDatoTil='';
 let nyeMinScore=0;
+// Sortering på tabellkolonnene (lagt til 06.09.2026 på Thomas' ønske),
+// samme mønster som utleieSort/enheterSort andre steder i dashbordet: klikk
+// på en kolonneoverskrift bytter til den kolonnen (stigende første gang),
+// klikk på samme kolonne igjen snur retningen — se sortNyeBy() og
+// sorteringen i renderNyetableringer(). Default (col:'registrert',
+// dir:'desc') er bevisst uendret fra tidligere fast sortering (nyeste
+// registrering øverst), slik at ingen som ikke bruker den nye funksjonen
+// merker noen forskjell.
+let nyeSort={col:'registrert',dir:'desc'};
 
 // Fasit for "bransjer KBD har kunder i" — bygget 26.08.2026 fra en engangs-
 // analyse av 2406 unike org.numre i Visma-kundelisten (Kunder_20260826.xlsx),
@@ -3000,6 +3009,13 @@ function setNyeMinScore(v){
   renderNyetableringer();
 }
 
+// Sortering på tabellkolonnene, lagt til 06.09.2026 — se kommentaren ved
+// nyeSort over. Samme toggle-mønster som sortUtleieBy()/sortEnheterBy().
+function sortNyeBy(col){
+  if(nyeSort.col===col){nyeSort.dir=nyeSort.dir==='asc'?'desc':'asc';}else{nyeSort.col=col;nyeSort.dir='asc';}
+  renderNyetableringer();
+}
+
 function nullstillNyeFilter(){
   // nyeKunKbdBransjer tilbakestilles til TRUE (ikke false) — det er nå
   // default-tilstanden (satt 26.08.2026), så "nullstill" skal gå tilbake
@@ -3178,14 +3194,37 @@ function renderNyetableringer(){
       (!nyeDatoTil||(_nyeRegDatoStr(n)&&_nyeRegDatoStr(n)<=nyeDatoTil))&&
       (nyeMinScore<=0||(n.prioritetScore!==null&&n.prioritetScore>=nyeMinScore))
     )
-    .slice().sort((a,b)=>new Date(b.registreringsDato||0)-new Date(a.registreringsDato||0));
+    .slice().sort((a,b)=>{
+      const dir=nyeSort.dir==='asc'?1:-1;
+      switch(nyeSort.col){
+        case 'firma': return dir*((a.tittel||'').localeCompare(b.tittel||'','nb'));
+        case 'bransje': return dir*(_nyeBransjeVerdi(a).localeCompare(_nyeBransjeVerdi(b),'nb'));
+        case 'sted': return dir*(_nyeStedVerdi(a).localeCompare(_nyeStedVerdi(b),'nb'));
+        case 'score':
+          // Rader uten score (prioritetScore===null) sorteres bevisst som
+          // laveste verdi (-1) uansett retning, slik at de alltid havner
+          // nederst ved «høyest score først» i stedet for øverst.
+          return dir*((a.prioritetScore??-1)-(b.prioritetScore??-1));
+        case 'status': return dir*((a.status||'').localeCompare(b.status||'','nb'));
+        case 'registrert':
+        default: return dir*(new Date(a.registreringsDato||0)-new Date(b.registreringsDato||0));
+      }
+    });
 
   if(liste.length===0){
     target.innerHTML=`<div class="empty">Ingen nyetableringer matcher valgte filtre.</div>`;
     return;
   }
 
-  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Firma</th><th>Bransje</th><th>Sted</th><th>Registrert</th><th title="Automatisk 0–90-poengsum — bransje/selskapsform/antall ansatte. Hold musepekeren over tallet for begrunnelse. — hjelper mot å prioritere hvem det er mest lovende å ta kontakt med først">Score</th><th>Status</th><th></th></tr></thead><tbody>
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+    <th style="cursor:pointer" onclick="sortNyeBy('firma')">Firma <span id="nsh-firma"></span></th>
+    <th style="cursor:pointer" onclick="sortNyeBy('bransje')">Bransje <span id="nsh-bransje"></span></th>
+    <th style="cursor:pointer" onclick="sortNyeBy('sted')">Sted <span id="nsh-sted"></span></th>
+    <th style="cursor:pointer" onclick="sortNyeBy('registrert')">Registrert <span id="nsh-registrert"></span></th>
+    <th style="cursor:pointer" onclick="sortNyeBy('score')" title="Automatisk 0–90-poengsum — bransje/selskapsform/antall ansatte. Hold musepekeren over tallet for begrunnelse. — hjelper mot å prioritere hvem det er mest lovende å ta kontakt med først">Score <span id="nsh-score"></span></th>
+    <th style="cursor:pointer" onclick="sortNyeBy('status')">Status <span id="nsh-status"></span></th>
+    <th></th>
+  </tr></thead><tbody>
     ${liste.map(n=>{
       const registrert=n.registreringsDato&&!isNaN(new Date(n.registreringsDato))?new Date(n.registreringsDato).toLocaleDateString('nb-NO'):'—';
       return `<tr>
@@ -3203,6 +3242,13 @@ function renderNyetableringer(){
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
+
+  // Sorteringspiler i kolonneoverskriftene, samme mønster som utleie-/
+  // enhetstabellene (se sortUtleieBy()).
+  ['firma','bransje','sted','registrert','score','status'].forEach(c=>{
+    const el=document.getElementById('nsh-'+c);
+    if(el)el.innerHTML=nyeSort.col===c?(nyeSort.dir==='asc'?'↑':'↓'):'↕';
+  });
 }
 
 // ---- Konkurser blant KBD sine kunder (lagt til 31.08.2026) ----------------
@@ -5978,6 +6024,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.64',dato:'06.09.2026',punkter:[
+    'Nyetableringer: kolonneoverskriftene (Firma, Bransje, Sted, Registrert, Score, Status) er nå klikkbare og sorterer tabellen — klikk igjen på samme kolonne for å snu rekkefølgen. Standardvisning (nyeste registrering øverst) er uendret.'
+  ]},
   {versjon:'v1.48.63',dato:'06.09.2026',punkter:[
     'Nyetableringer: ny «↩️ Angre»-knapp ved siden av «Åpne kundekort» for overførte selskaper — setter status tilbake til «Ikke kontaktet» uten å slette notater/tilbud/oppfølging (de dukker opp igjen ved ny overføring senere).'
   ]},
