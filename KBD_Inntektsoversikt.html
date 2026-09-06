@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.60 · Oppdatert: 6. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.61 · Oppdatert: 6. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -655,6 +655,12 @@ tr:hover td{background:#fafafa}
     <div class="card card-public">
       <div class="card-title">🏢 Nyetableringer</div>
       <div class="hint">Nyregistrerte selskaper (hoved- og underenheter) i Akershus, Østfold og Vestfold, hentet daglig fra Brønnøysundregistrenes åpne Enhetsregisteret — et grunnlag for å finne nye potensielle kunder til kasse-/betalingsløsninger. Egen liste, ikke koblet til det ordinære Kunde 360-kundekortet før noen faktisk blir kunde og flyttes over dit manuelt.</div>
+      <!-- Kort, alltid synlig forklaring på Score-kolonnen, lagt til 06.09.2026
+           på Thomas' ønske — han påpekte at hover-tooltipen på selve tallet
+           var for lett å overse/for treg til å oppdage som eneste forklaring. -->
+      <div style="font-size:12px;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin-top:10px">
+        ℹ️ <strong>Om Score-kolonnen:</strong> automatisk poengsum 0–90 som rangerer hvor lovende hver nyetablering er å kontakte — bransje (0–50, flere KBD-kunder i bransjen gir høyere score), selskapsform (0–20, AS/ASA gir mest), antall ansatte (0–20). Hold musepekeren over selve tallet for begrunnelsen på akkurat den raden. Rader uten score («—») er lagt til før scoren fantes.
+      </div>
       <div class="filters" id="nye-filters" style="margin-top:10px"></div>
       <div id="nye-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
     </div>
@@ -2104,6 +2110,15 @@ let nyeForhandlerFilter='KBD';
 let nyeKunKbdBransjer=true;    // "Vis kun bransjer KBD har kunder i"-bryter, lagt til 26.08.2026 — default satt til PÅ på Thomas' ønske 26.08.2026
 let nyeKbdBransjeMinAntall=100; // terskel (antall eksisterende kunder i samme NACE-hovedgruppe) for at en bransje regnes som "KBD-typisk" — justerbar i UI, default hevet fra 10 til 100 på Thomas' ønske 26.08.2026 (samme terskel som e-postvarselet i backend, se nyetableringer.py)
 let nyeSkjulEnkeltpersonforetak=false; // "Skjul enkeltpersonforetak"-bryter, lagt til 27.08.2026 — default AV (ny/uprøvd, i motsetning til KBD-bransje-bryteren over)
+// Dato-/scorefilter, lagt til 06.09.2026 på Thomas' ønske. nyeDatoFra/nyeDatoTil
+// er 'YYYY-MM-DD'-strenger (tomt = ingen grense, samme verdiformat som
+// <input type="date">, sammenlignes derfor som strenger — se _nyeRegDatoStr()
+// under — IKKE Date-objekter, for å unngå tidssone-fallgruver). nyeMinScore=0
+// betyr "ingen scorefiltrering" (0 er selve bunnen av skalaen, så >0 er alltid
+// et bevisst valg fra brukeren).
+let nyeDatoFra='';
+let nyeDatoTil='';
+let nyeMinScore=0;
 
 // Fasit for "bransjer KBD har kunder i" — bygget 26.08.2026 fra en engangs-
 // analyse av 2406 unike org.numre i Visma-kundelisten (Kunder_20260826.xlsx),
@@ -2969,14 +2984,32 @@ function setNyeSkjulEnkeltpersonforetak(v){
   renderNyetableringer();
 }
 
+function setNyeDatoFra(v){
+  nyeDatoFra=v||'';
+  renderNyetableringer();
+}
+
+function setNyeDatoTil(v){
+  nyeDatoTil=v||'';
+  renderNyetableringer();
+}
+
+function setNyeMinScore(v){
+  const n=parseInt(v,10);
+  nyeMinScore=isNaN(n)||n<0?0:Math.min(n,90);
+  renderNyetableringer();
+}
+
 function nullstillNyeFilter(){
   // nyeKunKbdBransjer tilbakestilles til TRUE (ikke false) — det er nå
   // default-tilstanden (satt 26.08.2026), så "nullstill" skal gå tilbake
   // til default, ikke slå bryteren av. nyeSkjulEnkeltpersonforetak har
   // default AV, så den nullstilles til false som vanlig. nyeForhandlerFilter
   // tilbakestilles til 'KBD' (lagt til 02.09.2026), av nøyaktig samme grunn
-  // — det er default-tilstanden, ikke 'alle'.
-  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';nyeForhandlerFilter='KBD';nyeKunKbdBransjer=true;nyeSkjulEnkeltpersonforetak=false;
+  // — det er default-tilstanden, ikke 'alle'. nyeDatoFra/nyeDatoTil/nyeMinScore
+  // (06.09.2026) nullstilles til sine "ingen filtrering"-verdier, tom
+  // streng/0.
+  nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';nyeForhandlerFilter='KBD';nyeKunKbdBransjer=true;nyeSkjulEnkeltpersonforetak=false;nyeDatoFra='';nyeDatoTil='';nyeMinScore=0;
   renderNyetableringer();
 }
 
@@ -2991,6 +3024,12 @@ function _nyeStedVerdi(n){return n.poststed?`${n.postnummer||''} ${n.poststed}`.
 // den begynte å skrive 'KBD' eksplisitt) tolkes som 'KBD' — se
 // nyetableringer.py sin docstring for hele resonnementet.
 function _nyeForhandlerVerdi(n){return n.forhandlerOmrade||'KBD';}
+// _nyeRegDatoStr (lagt til 06.09.2026, dato-/scorefilteret): 'YYYY-MM-DD'-del
+// av registreringsDato, til strengsammenligning mot <input type="date">-
+// verdier — bevisst IKKE Date-objekter/timestamps, for å unngå at en
+// UTC-midnatt-dato havner på "feil" dag lokalt avhengig av nettleserens
+// tidssone.
+function _nyeRegDatoStr(n){return n.registreringsDato?String(n.registreringsDato).slice(0,10):'';}
 
 // Prioritetsscore (lagt til 06.09.2026) — viser _beregn_prioritetsscore() sitt
 // 0–90-resultat fra nyetableringer.py (backend), lagret i SharePoint-feltene
@@ -3072,7 +3111,7 @@ function renderNyetableringer(){
     // omvendt. nyeSkjulEnkeltpersonforetak er default AV, så den følger vanlig
     // logikk (PÅ = avvik). nyeForhandlerFilter er default 'KBD' (02.09.2026),
     // så det er å velge et ANNET område (inkl. 'alle') som er avviket.
-    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle'||nyeForhandlerFilter!=='KBD'||!nyeKunKbdBransjer||nyeSkjulEnkeltpersonforetak;
+    const aktivtFilter=nyeStatusFilter!=='alle'||nyeBransjeFilter!=='alle'||nyeStedFilter!=='alle'||nyeForhandlerFilter!=='KBD'||!nyeKunKbdBransjer||nyeSkjulEnkeltpersonforetak||!!nyeDatoFra||!!nyeDatoTil||nyeMinScore>0;
     const omradeFilterHtml=`<select id="nye-omrade-filter" onchange="setNyeForhandlerFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${omrader.map(v=>`<option value="${v.replace(/"/g,'&quot;')}"${nyeForhandlerFilter===v?' selected':''}>${v}</option>`).join('')}<option value="alle"${nyeForhandlerFilter==='alle'?' selected':''}>Alle områder</option></select>`;
     const kbdToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
       <input type="checkbox" id="nye-kbd-bransje-toggle" ${nyeKunKbdBransjer?'checked':''} onchange="setNyeKunKbdBransjer(this.checked)"/>
@@ -3091,11 +3130,24 @@ function renderNyetableringer(){
     // nyetableringer.py-oppdateringen samme dato — se KBD-Command-Center-prosjektstatus.md.
     const manglerSelskapsform=nyetableringerRenset.filter(n=>n.orgNr&&!n.selskapsform).length;
     const backfillKnapp=(userRole==='admin'&&manglerSelskapsform>0)?`<button class="btn-sm" onclick="fyllInnSelskapsformForEksisterende()" title="Henter selskapsform fra Brønnøysundregisteret for eksisterende rader som mangler det, og lagrer til SharePoint. Trygt å kjøre flere ganger — rader som allerede har selskapsform blir ikke rørt.">🔧 Fyll inn selskapsform (${manglerSelskapsform} mangler)</button>`:'';
+    // Dato-/scorefilter (lagt til 06.09.2026). Datofeltene filtrerer på
+    // RegistreringsDato (se _nyeRegDatoStr()), min. score på PrioritetScore —
+    // rader UTEN score (prioritetScore===null, se _prioritetBadge()) faller
+    // bevisst bort så snart min. score er over 0, siden vi da ikke kan
+    // bekrefte at de når terskelen (samme prinsipp som næringskode-filteret
+    // over).
+    const datoFilterHtml=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;white-space:nowrap">
+      Registrert <input type="date" id="nye-dato-fra" value="${nyeDatoFra}" onchange="setNyeDatoFra(this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px"/>
+      – <input type="date" id="nye-dato-til" value="${nyeDatoTil}" onchange="setNyeDatoTil(this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px"/>
+    </label>`;
+    const scoreFilterHtml=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;white-space:nowrap" title="Skjuler rader med lavere score, OG rader uten score i det hele tatt (eldre rader fra før scoren fantes)">
+      min. score <input type="number" id="nye-min-score" value="${nyeMinScore||''}" placeholder="0" min="0" max="90" onchange="setNyeMinScore(this.value)" style="width:48px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px"/>
+    </label>`;
     dropdownDiv.innerHTML=
       omradeFilterHtml+
       `<select id="nye-bransje-filter" onchange="setNyeBransjeFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${opts(bransjer,nyeBransjeFilter,'Alle bransjer')}</select>`+
       `<select id="nye-sted-filter" onchange="setNyeStedFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts(steder,nyeStedFilter,'Alle steder')}</select>`+
-      kbdToggle+kbdMin+enkForetakToggle+
+      kbdToggle+kbdMin+enkForetakToggle+datoFilterHtml+scoreFilterHtml+
       (aktivtFilter?`<button class="btn-sm" onclick="nullstillNyeFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'')+
       backfillKnapp;
   }
@@ -3111,7 +3163,10 @@ function renderNyetableringer(){
   const liste=visningsBasis.filter(n=>
       (nyeStatusFilter==='alle'||n.status===nyeStatusFilter)&&
       (nyeBransjeFilter==='alle'||_nyeBransjeVerdi(n)===nyeBransjeFilter)&&
-      (nyeStedFilter==='alle'||_nyeStedVerdi(n)===nyeStedFilter)
+      (nyeStedFilter==='alle'||_nyeStedVerdi(n)===nyeStedFilter)&&
+      (!nyeDatoFra||_nyeRegDatoStr(n)>=nyeDatoFra)&&
+      (!nyeDatoTil||(_nyeRegDatoStr(n)&&_nyeRegDatoStr(n)<=nyeDatoTil))&&
+      (nyeMinScore<=0||(n.prioritetScore!==null&&n.prioritetScore>=nyeMinScore))
     )
     .slice().sort((a,b)=>new Date(b.registreringsDato||0)-new Date(a.registreringsDato||0));
 
@@ -5881,6 +5936,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.61',dato:'06.09.2026',punkter:[
+    'Nyetableringer: kort forklaring på Score-kolonnen vist rett i siden, ikke bare som hover-tekst.',
+    'Nyetableringer: nytt filter for registreringsdato (fra/til) og minimum score.'
+  ]},
   {versjon:'v1.48.60',dato:'06.09.2026',punkter:[
     'Nyetableringer viser nå en «Score»-kolonne (0–90) som rangerer hvor lovende hver nyetablering er å kontakte, ut fra bransje, selskapsform og antall ansatte. Hold musepekeren over tallet for begrunnelsen.'
   ]},
