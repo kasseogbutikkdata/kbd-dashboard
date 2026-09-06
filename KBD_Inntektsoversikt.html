@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.62 · Oppdatert: 6. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.63 · Oppdatert: 6. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3198,7 +3198,7 @@ function renderNyetableringer(){
           ${['Ikke kontaktet','Kontaktet','Ikke aktuell'].map(s=>`<option value="${s}"${n.status===s?' selected':''}>${s}</option>`).join('')}
         </select>`}</td>
         <td style="white-space:nowrap"><div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center">
-          ${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button>`:`<button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>`}
+          ${n.status==='Overført'?`<button class="btn-sm" onclick="apneOverfortKundeFraNye('${n.id}')">➡️ Åpne kundekort</button><button class="btn-sm" onclick="angreOverforing('${n.id}')" style="color:#6b7280" title="Setter status tilbake til «Ikke kontaktet» — notater/tilbud/oppfølging på kundekortet slettes ikke, de dukker opp igjen hvis du overfører på nytt">↩️ Angre</button>`:`<button class="btn-sm" onclick="overforNyeTilKunder('${n.id}')">➡️ Overfør</button>`}
         </div></td>
       </tr>`;
     }).join('')}
@@ -3712,6 +3712,38 @@ function apneOverfortKundeFraNye(id){
   showTab('kunder',document.getElementById('tab-kunder'));
   document.getElementById('k360-search').value=n.tittel||'';
   searchKunder360();
+}
+
+// Angre overføring (lagt til 06.09.2026): setter status tilbake til
+// "Ikke kontaktet", slik at raden forsvinner fra Kunder-fanen igjen og dukker
+// opp i den vanlige Nyetableringer-flyten. Sletter BEVISST ikke notater/
+// tilbud/oppfølging på det (nå skjulte) prospekt-kundekortet — de er koblet
+// til den deterministiske nøkkelen prospektKundenummer(n) ("LEAD-<orgnr>"),
+// ikke til status, så de ligger fortsatt i KundeNotater og dukker opp igjen
+// automatisk hvis noen overfører selskapet på nytt senere. Angre er derfor
+// trygt å bruke selv om noen rakk å legge inn notater før man angrer.
+function angreOverforing(id){
+  const n=nyetableringer.find(x=>x.id===id);if(!n)return;
+  if(n.status!=='Overført')return;
+  if(!confirm(`Angre overføring av «${n.tittel}»?\n\nStatus settes tilbake til «Ikke kontaktet», og selskapet forsvinner fra Kunder-fanen igjen (blir kun synlig her i Nyetableringer). Notater/tilbud/oppfølging som er lagt inn på kundekortet i mellomtiden blir IKKE slettet — de dukker opp igjen automatisk hvis du overfører på nytt senere.`))return;
+
+  const forrigeStatus=n.status;
+  const now=new Date().toISOString();
+  const bruker=currentUser?.name||currentUser?.username||'Ukjent';
+  if(!Array.isArray(n.logg))n.logg=[];
+  n.logg.push({dato:now,tekst:`Overføring til Kunder angret av ${bruker}.`,forfatter:bruker});
+  n.status='Ikke kontaktet';
+
+  setSPStatus('⏳ Lagrer…');
+  spUpdate('Nyetableringer',n.spId,{Status:'Ikke kontaktet',Logg:JSON.stringify(n.logg)}).then(()=>{
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+    renderNyetableringer();
+  }).catch(e=>{
+    n.status=forrigeStatus;n.logg.pop(); // rull tilbake lokalt hvis lagring feilet
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Kunne ikke angre overføringen:\n'+e.message);
+    renderNyetableringer();
+  });
 }
 
 function toggleKunder360Sub(open){
@@ -5946,6 +5978,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.63',dato:'06.09.2026',punkter:[
+    'Nyetableringer: ny «↩️ Angre»-knapp ved siden av «Åpne kundekort» for overførte selskaper — setter status tilbake til «Ikke kontaktet» uten å slette notater/tilbud/oppfølging (de dukker opp igjen ved ny overføring senere).'
+  ]},
   {versjon:'v1.48.62',dato:'06.09.2026',punkter:[
     'Nyetableringer: dato-filteret («Registrert») flyttet ned på egen linje, til venstre for score-filteret, i stedet for å ligge i samme rad som de andre filtrene.'
   ]},
