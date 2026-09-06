@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.61 · Oppdatert: 6. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.62 · Oppdatert: 6. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3143,13 +3143,23 @@ function renderNyetableringer(){
     const scoreFilterHtml=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;white-space:nowrap" title="Skjuler rader med lavere score, OG rader uten score i det hele tatt (eldre rader fra før scoren fantes)">
       min. score <input type="number" id="nye-min-score" value="${nyeMinScore||''}" placeholder="0" min="0" max="90" onchange="setNyeMinScore(this.value)" style="width:48px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px"/>
     </label>`;
+    // Rad 1: område/bransje/sted/kbd-bryter/enk-bryter/nullstill/backfill.
+    // Rad 2 (lagt til 06.09.2026): dato- og scorefilter flyttet ned på egen
+    // linje, med datofilteret til venstre for scorefilteret — egne div-er
+    // med width:100% tvinger linjeskift uansett vindusbredde, siden
+    // foreldrediven (#nye-dropdown-filters) selv er flex-wrap.
     dropdownDiv.innerHTML=
-      omradeFilterHtml+
-      `<select id="nye-bransje-filter" onchange="setNyeBransjeFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${opts(bransjer,nyeBransjeFilter,'Alle bransjer')}</select>`+
-      `<select id="nye-sted-filter" onchange="setNyeStedFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts(steder,nyeStedFilter,'Alle steder')}</select>`+
-      kbdToggle+kbdMin+enkForetakToggle+datoFilterHtml+scoreFilterHtml+
-      (aktivtFilter?`<button class="btn-sm" onclick="nullstillNyeFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'')+
-      backfillKnapp;
+      `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;width:100%">`+
+        omradeFilterHtml+
+        `<select id="nye-bransje-filter" onchange="setNyeBransjeFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:220px">${opts(bransjer,nyeBransjeFilter,'Alle bransjer')}</select>`+
+        `<select id="nye-sted-filter" onchange="setNyeStedFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts(steder,nyeStedFilter,'Alle steder')}</select>`+
+        kbdToggle+kbdMin+enkForetakToggle+
+        (aktivtFilter?`<button class="btn-sm" onclick="nullstillNyeFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'')+
+        backfillKnapp+
+      `</div>`+
+      `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;width:100%">`+
+        datoFilterHtml+scoreFilterHtml+
+      `</div>`;
   }
 
   const target=document.getElementById('nye-tabell');
@@ -5936,6 +5946,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.62',dato:'06.09.2026',punkter:[
+    'Nyetableringer: dato-filteret («Registrert») flyttet ned på egen linje, til venstre for score-filteret, i stedet for å ligge i samme rad som de andre filtrene.'
+  ]},
   {versjon:'v1.48.61',dato:'06.09.2026',punkter:[
     'Nyetableringer: kort forklaring på Score-kolonnen vist rett i siden, ikke bare som hover-tekst.',
     'Nyetableringer: nytt filter for registreringsdato (fra/til) og minimum score.'
