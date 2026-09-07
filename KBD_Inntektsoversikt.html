@@ -427,7 +427,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.69 · Oppdatert: 7. sep 2026 kl. 10:32</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.70 · Oppdatert: 7. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -919,6 +919,26 @@ tr:hover td{background:#fafafa}
         <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:#374151;cursor:pointer;white-space:nowrap"><input type="checkbox" id="rma-vis-forsinkede" onchange="rmaToggleForsinkede(this.checked)" style="width:15px;height:15px"/> Kun forsinkede</label>
         <button class="btn-sm" id="rma-ny-btn" style="display:none" onclick="openRmaModal()">➕ Ny RMA-sak</button>
       </div>
+    </div>
+    <!-- Innstillinger for ekstern purring til Susoft — lagt til 07.09.2026,
+         Thomas' ønske om en egen av/på-bryter for automatisk e-post DIREKTE
+         til Susoft (jarle@susoft.com) ved forsinkede saker, uavhengig av den
+         eksisterende interne Geir-varslingen (bannerét over). Skjules for
+         Leser-rollen akkurat som "➕ Ny RMA-sak" — styres av salgTilgang inni
+         renderSusoftRma(), IKKE card-public (dette er et skjema/handlingskort,
+         samme begrunnelse som tp-purring). Se susoft_rma_varsling.py sin
+         docstring for hele bakgrunnen (to uavhengige sikkerhetslag: denne
+         bryteren OG SUSOFT_RMA_VARSEL_DRY_RUN i Azure må begge være
+         på/av for at ekte e-post skal gå til Susoft). -->
+    <div class="card" id="rma-innst-block" style="display:none;max-width:640px">
+      <div class="card-title">📧 Automatisk purring til Susoft</div>
+      <p class="hint" style="margin-bottom:12px">I tillegg til det interne varselet til Geir (banneret over) kan dashbordet også sende en e-post DIREKTE til Susoft sin kontakt når en sak har ligget hos dem i over 3 uker — med spørsmål om status. Gjentas ukentlig helt til saken er løst, akkurat som det interne varselet, men er en egen, uavhengig bryter.</p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:10px 12px;background:#f9fafb;border-radius:8px">
+        <input type="checkbox" id="rma-susoft-ekstern-aktivert" style="width:18px;height:18px" onchange="rmaOppdaterEksternHint()"/>
+        <label for="rma-susoft-ekstern-aktivert" style="font-weight:600;cursor:pointer">Aktivert — send automatisk purre-e-post til Susoft (jarle@susoft.com)</label>
+      </div>
+      <div id="rma-susoft-ekstern-hint" class="hint" style="margin-bottom:10px;color:#b45309">⚠️ Avslått som standard. Saker sendes IKKE til Susoft før denne krysses av og lagres.</div>
+      <button class="btn-sm prim" onclick="lagreSusoftRmaInnstillinger()">Lagre</button>
     </div>
     <div id="rma-tabell"></div>
   </div>
@@ -2153,6 +2173,18 @@ let forhandlerOmradeNavnUtkast='';
 let forhandlerOmradeEpostUtkast='';
 let forhandlerOmradeAktivUtkast=true;
 let susoftRma=[];
+// susoftRmaInnstillinger (lagt til 07.09.2026, samme mønster som
+// smsPurringInnstillinger over) — ÉN rad på SharePoint-lista
+// SusoftRmaInnstillinger, opprettes ved første lagring (se
+// lagreSusoftRmaInnstillinger()). varsleSusoftAktivert=false som trygg
+// standard helt til Thomas/Geir bevisst skrur den på i UI-et. Feltnavn MÅ
+// stemme med FELT_INNST_VARSLE_SUSOFT_AKTIVERT i susoft_rma_varsling.py
+// (kbd-verifone-func) — verifiser via Graph Explorer FØR bryteren tas i
+// bruk, samme rutine som alle andre nye lister i dette prosjektet.
+// susoftRmaInnstillingerSpId=null så lenge ingen rad er lagret ennå (POST
+// ved lagring), ellers selve SharePoint-item-IDen (PATCH ved senere
+// lagringer).
+let susoftRmaInnstillinger={varsleSusoftAktivert:false},susoftRmaInnstillingerSpId=null;
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
 let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
 let nyeStedFilter='alle';    // 'alle', ellers en eksakt verdi fra _nyeStedVerdi() under
@@ -2500,8 +2532,8 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2608,6 +2640,16 @@ async function loadDataFromSP(){
   // kolonnenavn via Graph Explorer foer skarp bruk, spesielt Status og de fire
   // dato-kolonnene (samme rutine som alle andre lister i dette prosjektet).
   susoftRma=srmaItems.map(i=>({id:`sp${i.id}`,spId:i.id,kundeNr:i.fields.KundeNr||'',kundeNavn:i.fields.KundeNavn||'',forhandler:i.fields.Forhandler||'',refHosForhandler:i.fields.RefHosForhandler||'',maskin:i.fields.Maskin||'',serieNr:i.fields.SerieNr||'',problem:i.fields.Problem||'',harBildeVideo:i.fields.HarBildeVideo||'',ansvarligKbd:i.fields.AnsvarligKBD||'',status:i.fields.Status||'Feilmelding mottatt',datoFeilmeldingMottatt:i.fields.DatoFeilmeldingMottatt||'',datoNyMaskinSendtKunde:i.fields.DatoNyMaskinSendtKunde||'',datoSendtSusoft:i.fields.DatoSendtSusoft||'',datoMottattFraSusoft:i.fields.DatoMottattFraSusoft||'',kommentar:i.fields.Kommentar||'',opprettetDato:i.fields.Created||i.createdDateTime||i.fields.DatoFeilmeldingMottatt||''}));
+  // SusoftRmaInnstillinger (lagt til 07.09.2026) — ÉN rad, samme mønster som
+  // SmsPurringInnstillinger over. Feltnavn MÅ stemme med
+  // FELT_INNST_VARSLE_SUSOFT_AKTIVERT i susoft_rma_varsling.py — IKKE
+  // verifisert mot et faktisk SharePoint-site ennå, se
+  // Kunde360-oppsett-sjekkliste.md, Liste 14.
+  if(srmaiItems.length>0){
+    const f=srmaiItems[0].fields;
+    susoftRmaInnstillingerSpId=srmaiItems[0].id;
+    susoftRmaInnstillinger={varsleSusoftAktivert:f.VarsleSusoftAktivert===true};
+  }
   // SmsMaler/SmsUtsendelser (lagt til 31.08.2026) — lagrede meldingsmaler og
   // en historikk-logg for «📱 SMS utsendelse»-menyen (eget toppnivå-
   // menypunkt, se kommentaren ved tab-smsutsendelse i HTML-en). Fylles
@@ -3677,8 +3719,49 @@ function rmaToggleForsinkede(v){rmaKunForsinkedeQ=v;renderRmaTabell();}
 function renderSusoftRma(){
   const nyBtn=document.getElementById('rma-ny-btn');
   if(nyBtn)nyBtn.style.display=salgTilgang?'':'none';
+  const innstBlock=document.getElementById('rma-innst-block');
+  if(innstBlock)innstBlock.style.display=salgTilgang?'':'none';
+  renderSusoftRmaInnstillinger();
   renderRmaBanner();
   renderRmaTabell();
+}
+
+// ===== Ekstern purring til Susoft — innstillinger (lagt til 07.09.2026) =====
+// Se docstringen ved rma-innst-block i HTML-en og susoft_rma_varsling.py
+// for hele bakgrunnen. Samme mønster som
+// renderPurringInnstillinger()/lagrePurringInnstillinger() lenger ned.
+function renderSusoftRmaInnstillinger(){
+  const aktivert=document.getElementById('rma-susoft-ekstern-aktivert');
+  if(!aktivert)return;
+  aktivert.checked=susoftRmaInnstillinger.varsleSusoftAktivert;
+  rmaOppdaterEksternHint();
+}
+
+function rmaOppdaterEksternHint(){
+  const aktivert=document.getElementById('rma-susoft-ekstern-aktivert');
+  const hint=document.getElementById('rma-susoft-ekstern-hint');
+  if(!aktivert||!hint)return;
+  hint.style.display=aktivert.checked?'none':'';
+}
+
+async function lagreSusoftRmaInnstillinger(){
+  const aktivert=document.getElementById('rma-susoft-ekstern-aktivert')?.checked||false;
+  if(aktivert){
+    const advarsel='Aktivere automatisk purre-e-post til Susoft (jarle@susoft.com) nå?\n\nEn sak som har ligget hos Susoft i over 3 uker uten registrert retur vil da få en e-post sendt DIREKTE til Susoft med spørsmål om status — gjentatt ukentlig helt til saken er løst. Dette er en egen kanal i tillegg til det interne varselet til Geir, og påvirker ikke det.';
+    if(!confirm(advarsel))return;
+  }
+  const felter={Title:'Innstillinger',VarsleSusoftAktivert:aktivert};
+  try{
+    if(susoftRmaInnstillingerSpId){
+      await spUpdate('SusoftRmaInnstillinger',susoftRmaInnstillingerSpId,felter);
+    }else{
+      const r=await spCreate('SusoftRmaInnstillinger',felter);
+      susoftRmaInnstillingerSpId=r.id;
+    }
+    susoftRmaInnstillinger={varsleSusoftAktivert:aktivert};
+    rmaOppdaterEksternHint();
+    vfShowToast('✅ Innstillinger for Susoft-purring lagret');
+  }catch(e){alert('Kunne ikke lagre innstillingene: '+e.message);}
 }
 
 function renderRmaBanner(){
@@ -6349,6 +6432,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.70',dato:'07.09.2026',punkter:[
+    'Susoft RMA: ny, egen av/på-bryter («📧 Automatisk purring til Susoft») for å sende automatisk purre-e-post DIREKTE til Susoft (jarle@susoft.com) på saker som har ligget hos dem i over 3 uker — gjentatt ukentlig helt til saken er løst. Uavhengig av det eksisterende interne varselet til Geir; avslått som standard.'
+  ]},
   {versjon:'v1.48.69',dato:'07.09.2026',punkter:[
     'Forhandler-kunder (kundeprofil A/B/C-forhandler i Visma) får nå ikke lenger ekspedisjonsgebyr på Verifone-salgsordre — merkes med en egen «🏷️ Forhandler»-tag i «Klar til fakturering».'
   ]},
