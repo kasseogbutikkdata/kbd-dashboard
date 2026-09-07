@@ -427,7 +427,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.67 · Oppdatert: 7. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.68 · Oppdatert: 7. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -483,11 +483,15 @@ tr:hover td{background:#fafafa}
              til «nyetableringer»-fanen går nå via visNyeUndermeny(), som
              alltid setter BEGGE undervisningene (oversikt/forhandleromrader)
              eksplisitt — dermed ingen risiko for at feil visning blir
-             stående igjen fra et tidligere besøk. «⚙️ Forhandlerområder» er
-             admin-only (skjult by default, vist av loadDataFromSP() — se
-             samme mønster som isub-brukertilgang). -->
+             stående igjen fra et tidligere besøk. «⚙️ Forhandlerområder» bærer
+             klassen editor-only (samme mønster som «+ Ny utleie»/«+ Ny
+             reservasjon» osv. — synlig by default i HTML-en, skjules av
+             applyRoleUI() KUN for Leser-rollen), så admin OG redaktør ser
+             den. Utvidet fra admin-only til admin+redaktør 07.09.2026, samme
+             dag den ble bygget, etter Thomas' tilbakemelding om at ansatte/
+             Geir ikke så menypunktet. -->
         <div class="nav-sub-sub-item active" id="ksub360-nye-oversikt" onclick="visNyeUndermeny('oversikt')">📋 Oversikt</div>
-        <div class="nav-sub-sub-item admin-only" id="ksub360-nye-forhandleromrader" style="display:none" onclick="visNyeUndermeny('forhandleromrader')">⚙️ Forhandlerområder</div>
+        <div class="nav-sub-sub-item editor-only" id="ksub360-nye-forhandleromrader" onclick="visNyeUndermeny('forhandleromrader')">⚙️ Forhandlerområder</div>
         <div class="nav-sub-item" id="ksub360-konkurser" onclick="showTab('konkurser',document.getElementById('tab-kunder'))">⚠️ Konkurser</div>
       </div>
       <!-- Eget toppnivå-menypunkt, IKKE et undermenypunkt under Kunde 360
@@ -2687,15 +2691,12 @@ async function loadDataFromSP(){
   const rsEl=document.getElementById('refresh-status');
   if(rsEl){const n=new Date();rsEl.textContent=`🔄 ${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')};`}
   if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='none';}
-  // «⚙️ Forhandlerområder»-undermenypunktet (lagt til 07.09.2026, flyttet fra
-  // en knapp inni Nyetableringer-siden til eget menypunkt samme dag), samme
-  // admin-gating som brukere-card/isub-brukertilgang over. Trenger IKKE et
-  // eget "skjul selve visningen"-kall her — hvis en admin mister rollen midt
-  // i økten (uvanlig, men mulig ved rolleendring+refresh) er brukeren uansett
-  // ikke inne i forhandleromrader-visningen fra en frisk innlasting, siden
-  // nye-forhandleromrader-wrap alltid starter skjult (se HTML-en).
-  const fhoWrap=document.getElementById('ksub360-nye-forhandleromrader');
-  if(fhoWrap)fhoWrap.style.display=userRole==='admin'?'':'none';
+  // «⚙️ Forhandlerområder»-undermenypunktet (lagt til 07.09.2026) trenger
+  // INGEN egen show/hide-linje her — det bærer klassen editor-only (samme
+  // som «+ Ny utleie»/«+ Ny reservasjon» osv.), og applyRoleUI() over skjuler
+  // allerede alle .editor-only-elementer for Leser-rollen. Utvidet fra
+  // admin-only til admin+redaktør samme dag, etter Thomas' tilbakemelding om
+  // at ansatte/Geir ikke så det — se ksub360-nye-forhandleromrader i HTML-en.
 }
 
 // ===== KUNDE 360 =====
@@ -3135,7 +3136,7 @@ function nullstillNyeFilter(){
 // noen vei til «nyetableringer»-fanen som kan la feil undervisning bli
 // stående igjen fra et tidligere besøk.
 function visNyeUndermeny(visning){
-  if(visning==='forhandleromrader'&&userRole!=='admin')visning='oversikt'; // sikring — menypunktet er uansett skjult for ikke-admins
+  if(visning==='forhandleromrader'&&userRole!=='admin'&&userRole!=='editor')visning='oversikt'; // sikring — menypunktet er uansett skjult for Leser-rollen (editor-only)
   showTab('nyetableringer',document.getElementById('tab-kunder'));
   const oversiktWrap=document.getElementById('nye-oversikt-wrap');
   const fhoWrap=document.getElementById('nye-forhandleromrader-wrap');
@@ -6348,6 +6349,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.68',dato:'07.09.2026',punkter:[
+    'Nyetableringer: «⚙️ Forhandlerområder»-menypunktet er utvidet fra kun administratorer til også å vises for redaktører.'
+  ]},
   {versjon:'v1.48.67',dato:'07.09.2026',punkter:[
     'Nyetableringer: «⚙️ Forhandlerområder» er flyttet ut av selve Nyetableringer-siden og inn som et eget undermenypunkt i venstremenyen (under «🏢 Nyetableringer», sammen med det nye «📋 Oversikt») — dominerte for mye der den lå før.'
   ]},
