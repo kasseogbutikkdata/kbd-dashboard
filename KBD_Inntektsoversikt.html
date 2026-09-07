@@ -427,7 +427,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.68 · Oppdatert: 7. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.69 · Oppdatert: 7. sep 2026 kl. 10:32</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -6349,6 +6349,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.69',dato:'07.09.2026',punkter:[
+    'Forhandler-kunder (kundeprofil A/B/C-forhandler i Visma) får nå ikke lenger ekspedisjonsgebyr på Verifone-salgsordre — merkes med en egen «🏷️ Forhandler»-tag i «Klar til fakturering».'
+  ]},
   {versjon:'v1.48.68',dato:'07.09.2026',punkter:[
     'Nyetableringer: «⚙️ Forhandlerområder»-menypunktet er utvidet fra kun administratorer til også å vises for redaktører.'
   ]},
@@ -10127,6 +10130,21 @@ function vfHideUploadError(){
   document.getElementById('vf-upload-error').style.display = 'none';
 }
 
+// vfErForhandler (lagt til 07.09.2026): avgjør om en kunde er forhandler,
+// slik at ekspedisjonsgebyret kan utelates på salgsordren (se
+// visma_client.opprett_salgsordre_utkast(), er_forhandler-parameteren).
+// Gjenbruker kundeklasse-feltet som allerede synkroniseres fra Visma inn i
+// vismaKunder (samme kilde som "Kundeprofil"-KPI-en vist i Kunde 360-
+// kundekortet, feltet k.kundeklasse) — IKKE et nytt Visma API-kall. Forhandler-
+// kundeprofiler i Visma heter "A-forhandler"/"B-forhandler"/"C-forhandler"
+// (kundeprofil-ID 4/5/6, bekreftet via skjermbilde fra Thomas 07.09.2026),
+// derfor sjekkes på "forhandler" i teksten (case-insensitiv substreng) i
+// stedet for å hardkode ID-ene — robust mot flere forhandlerprofiler senere.
+function vfErForhandler(vismaNummer){
+  const k = vismaKunder.find(x => x.vismaNummer === vismaNummer);
+  return !!(k && k.kundeklasse && k.kundeklasse.toLowerCase().includes('forhandler'));
+}
+
 function vfRenderMatched(){
   const tbody = document.getElementById('vf-matched-body');
   if (!tbody) return;
@@ -10134,6 +10152,7 @@ function vfRenderMatched(){
   tbody.innerHTML = vfData.matched.map((m, i) => {
     totalAntall += m.totalAntall;
     totalBelop += m.totalBelop;
+    const erForhandler = vfErForhandler(m.kundenr);
     const detailRows = m.periods.map(p => `
       <tr><td>Periode ${p.periode}</td><td class="tr">${vfNfi.format(p.antall)} trans.</td><td class="tr">${vfKr(p.belop)}</td></tr>
     `).join('');
@@ -10141,7 +10160,7 @@ function vfRenderMatched(){
       <tr class="rowhover" onclick="vfToggleDetail(${i})" style="cursor:pointer">
         <td><span class="vf-chev" id="vf-chev-${i}">▶</span></td>
         <td class="vf-kundenr">${m.kundenr}</td>
-        <td class="vf-kundenavn">${m.kundenavn}<div style="font-weight:400;font-size:11px;color:#9ca3af;margin-top:2px">${m.brukersted||''} · BAX: ${m.bax||''}</div></td>
+        <td class="vf-kundenavn">${m.kundenavn}<div style="font-weight:400;font-size:11px;color:#9ca3af;margin-top:2px">${m.brukersted||''} · BAX: ${m.bax||''}${erForhandler ? ' · <span style="color:#0e7490;font-weight:600">🏷️ Forhandler — uten ekspedisjonsgebyr</span>' : ''}</div></td>
         <td class="tr">${vfNfi.format(m.totalAntall)}</td>
         <td class="tr" style="color:#0e8a58;font-weight:700">${vfKr(m.totalBelop)}</td>
         <td><span class="vf-pill-status vf-pill-ok">✓ BAX-match</span></td>
@@ -10274,7 +10293,10 @@ function vfBuildGodkjenteListe(){
   // gruppert per BAX).
   const baxMap = {};
   vfData.matched.forEach(m => {
-    baxMap[m.bax] = { kundenr: m.kundenr, kundenavn: m.kundenavn, bax: m.bax, brukersted: m.brukersted, periods: [...m.periods] };
+    // erForhandler (lagt til 07.09.2026): sendes med til backend slik at
+    // ekspedisjonsgebyret kan utelates for forhandler-kunder — se
+    // vfErForhandler() og visma_client.opprett_salgsordre_utkast().
+    baxMap[m.bax] = { kundenr: m.kundenr, kundenavn: m.kundenavn, bax: m.bax, brukersted: m.brukersted, erForhandler: vfErForhandler(m.kundenr), periods: [...m.periods] };
   });
   Object.keys(vfLinkedState).forEach(i => {
     const link = vfLinkedState[i];
@@ -10287,6 +10309,7 @@ function vfBuildGodkjenteListe(){
     // visma_client._bygg_beskrivelse().
     baxMap[u.bax] = {
       kundenr: link.vismaNummer, kundenavn: link.navn, bax: u.bax, brukersted: u.brukersted,
+      erForhandler: vfErForhandler(link.vismaNummer),
       periods: u.periods.map(p => ({...p, bax: u.bax, brukersted: u.brukersted, baxSuffix: u.baxSuffix})),
     };
   });
@@ -10325,7 +10348,9 @@ async function vfApprove(){
   btn.textContent = 'Oppretter utkast…';
 
   const payload = {
-    godkjente: godkjente.map(k => ({ kundenr: k.kundenr, kundenavn: k.kundenavn, periods: k.periods })),
+    // erForhandler (lagt til 07.09.2026) sendes med per salgsordre — se
+    // vfErForhandler()/visma_client.opprett_salgsordre_utkast().
+    godkjente: godkjente.map(k => ({ kundenr: k.kundenr, kundenavn: k.kundenavn, erForhandler: !!k.erForhandler, periods: k.periods })),
     fakturareferanse: vfSisteFakturaReferanse || 'Verifone transaksjonsavgift',
   };
 
