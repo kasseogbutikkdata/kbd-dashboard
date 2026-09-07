@@ -180,6 +180,16 @@ tr:hover td{background:#fafafa}
 .nav-sub-item{display:flex;align-items:center;gap:8px;padding:8px 16px 8px 36px;cursor:pointer;font-size:14px;font-weight:500;color:#6b7280;border-left:3px solid transparent;transition:all .1s}
 .nav-sub-item:hover{background:#f9fafb;color:#374151}
 .nav-sub-item.active{color:#1A3A6B;font-weight:600;border-left-color:#93c5fd;background:#f0f4ff}
+/* Tredje menynivå (lagt til 07.09.2026, på Thomas' eksplisitte ønske om at
+   «⚙️ Forhandlerområder» ikke skal dominere selve Nyetableringer-siden) —
+   samme mønster som .nav-sub-item, bare dypere innrykk (52px vs. 36px) og
+   litt mindre/lysere skrift, slik at det tydelig leses som underpunkter AV
+   «🏢 Nyetableringer», ikke som jevnbyrdige søsken til Kundesaker/Konkurser.
+   Eneste stedet i dashbordet med tre nivåer i venstremenyen så langt — se
+   kunder360-sub-nav og visNyeUndermeny(). */
+.nav-sub-sub-item{display:flex;align-items:center;gap:8px;padding:6px 16px 6px 52px;cursor:pointer;font-size:12.5px;font-weight:500;color:#9ca3af;border-left:3px solid transparent;transition:all .1s}
+.nav-sub-sub-item:hover{background:#f9fafb;color:#6b7280}
+.nav-sub-sub-item.active{color:#1A3A6B;font-weight:600;border-left-color:#93c5fd;background:#f0f4ff}
 .sidebar-divider{height:1px;background:#f3f4f6;margin:6px 12px}
 .sidebar-bottom{padding:12px 16px;border-top:1px solid #f3f4f6}
 .sidebar-user{font-size:12px;color:#6b7280}
@@ -417,7 +427,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.65 · Oppdatert: 7. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.67 · Oppdatert: 7. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -468,7 +478,16 @@ tr:hover td{background:#fafafa}
            for seg selv, som en egen forside til videre utvikling senere. -->
       <div class="nav-sub" id="kunder360-sub-nav">
         <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kundesaker',document.getElementById('tab-kunder'))">🗂️ Kundesaker</div>
-        <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="showTab('nyetableringer',document.getElementById('tab-kunder'))">🏢 Nyetableringer</div>
+        <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="visNyeUndermeny('oversikt')">🏢 Nyetableringer</div>
+        <!-- Tredje menynivå, lagt til 07.09.2026 (Thomas' ønske). Alt trafikk
+             til «nyetableringer»-fanen går nå via visNyeUndermeny(), som
+             alltid setter BEGGE undervisningene (oversikt/forhandleromrader)
+             eksplisitt — dermed ingen risiko for at feil visning blir
+             stående igjen fra et tidligere besøk. «⚙️ Forhandlerområder» er
+             admin-only (skjult by default, vist av loadDataFromSP() — se
+             samme mønster som isub-brukertilgang). -->
+        <div class="nav-sub-sub-item active" id="ksub360-nye-oversikt" onclick="visNyeUndermeny('oversikt')">📋 Oversikt</div>
+        <div class="nav-sub-sub-item admin-only" id="ksub360-nye-forhandleromrader" style="display:none" onclick="visNyeUndermeny('forhandleromrader')">⚙️ Forhandlerområder</div>
         <div class="nav-sub-item" id="ksub360-konkurser" onclick="showTab('konkurser',document.getElementById('tab-kunder'))">⚠️ Konkurser</div>
       </div>
       <!-- Eget toppnivå-menypunkt, IKKE et undermenypunkt under Kunde 360
@@ -641,37 +660,50 @@ tr:hover td{background:#fafafa}
        renderNyetableringer(). Fylles av den daglige backend-jobben
        hent_nyetableringer i kbd-verifone-func (se nyetableringer.py). -->
   <div id="tp-nyetableringer" class="tp">
-    <!-- card-public lagt til 02.09.2026: SAMME bug som Casper (Leser-rolle)
-         rapporterte på SMS-fanene 01.09.2026 (se tp-smsplanlagt/tp-smshistorikk
-         over) — applyRoleUI() skjuler (style.display='none') ethvert
-         .card-element uten card-public for alle som ikke er admin/redaktør.
-         Tittel, hint-tekst, statuspillene OG hele filterraden (inkl. det nye
-         Forhandlerområde-filteret) lå alle i dette ÉNE .card-elementet, så alt
-         forsvant for Geir (Leser-rolle) — kun selve tabellen (nye-tabell,
-         UTENFOR .card) var igjen. Ren visning/filtrering her (ingen skjema
-         eller skriving), så det skal være synlig for alle roller — den
-         eneste faktisk admin-only handlingen inni (🔧 Fyll inn selskapsform)
-         har allerede sin egen userRole==='admin'-sjekk og påvirkes ikke. -->
-    <div class="card card-public">
-      <div class="card-title">🏢 Nyetableringer</div>
-      <div class="hint">Nyregistrerte selskaper (hoved- og underenheter) i Akershus, Østfold og Vestfold, hentet daglig fra Brønnøysundregistrenes åpne Enhetsregisteret — et grunnlag for å finne nye potensielle kunder til kasse-/betalingsløsninger. Egen liste, ikke koblet til det ordinære Kunde 360-kundekortet før noen faktisk blir kunde og flyttes over dit manuelt.</div>
-      <!-- Kort, alltid synlig forklaring på Score-kolonnen, lagt til 06.09.2026
-           på Thomas' ønske — han påpekte at hover-tooltipen på selve tallet
-           var for lett å overse/for treg til å oppdage som eneste forklaring. -->
-      <div style="font-size:12px;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin-top:10px">
-        ℹ️ <strong>Om Score-kolonnen:</strong> automatisk poengsum 0–90 som rangerer hvor lovende hver nyetablering er å kontakte — bransje (0–50, flere KBD-kunder i bransjen gir høyere score), selskapsform (0–20, AS/ASA gir mest), antall ansatte (0–20). Hold musepekeren over selve tallet for begrunnelsen på akkurat den raden. Rader uten score («—») er lagt til før scoren fantes.
+    <!-- Splittet i to «undervisninger» 07.09.2026 (Thomas' ønske) — se
+         visNyeUndermeny() og de to nye undermenypunktene (ksub360-nye-
+         oversikt/-forhandleromrader) i venstremenyen. nye-oversikt-wrap
+         (standard synlig) og nye-forhandleromrader-wrap (skjult by default,
+         KUN vist når admin-menypunktet velges) toggles av samme funksjon. -->
+    <div id="nye-oversikt-wrap">
+      <!-- card-public lagt til 02.09.2026: SAMME bug som Casper (Leser-rolle)
+           rapporterte på SMS-fanene 01.09.2026 (se tp-smsplanlagt/tp-smshistorikk
+           over) — applyRoleUI() skjuler (style.display='none') ethvert
+           .card-element uten card-public for alle som ikke er admin/redaktør.
+           Tittel, hint-tekst, statuspillene OG hele filterraden (inkl. det nye
+           Forhandlerområde-filteret) lå alle i dette ÉNE .card-elementet, så alt
+           forsvant for Geir (Leser-rolle) — kun selve tabellen (nye-tabell,
+           UTENFOR .card) var igjen. Ren visning/filtrering her (ingen skjema
+           eller skriving), så det skal være synlig for alle roller — den
+           eneste faktisk admin-only handlingen inni (🔧 Fyll inn selskapsform)
+           har allerede sin egen userRole==='admin'-sjekk og påvirkes ikke. -->
+      <div class="card card-public">
+        <div class="card-title">🏢 Nyetableringer</div>
+        <div class="hint">Nyregistrerte selskaper (hoved- og underenheter) i Akershus, Østfold og Vestfold, hentet daglig fra Brønnøysundregistrenes åpne Enhetsregisteret — et grunnlag for å finne nye potensielle kunder til kasse-/betalingsløsninger. Egen liste, ikke koblet til det ordinære Kunde 360-kundekortet før noen faktisk blir kunde og flyttes over dit manuelt.</div>
+        <!-- Kort, alltid synlig forklaring på Score-kolonnen, lagt til 06.09.2026
+             på Thomas' ønske — han påpekte at hover-tooltipen på selve tallet
+             var for lett å overse/for treg til å oppdage som eneste forklaring. -->
+        <div style="font-size:12px;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin-top:10px">
+          ℹ️ <strong>Om Score-kolonnen:</strong> automatisk poengsum 0–90 som rangerer hvor lovende hver nyetablering er å kontakte — bransje (0–50, flere KBD-kunder i bransjen gir høyere score), selskapsform (0–20, AS/ASA gir mest), antall ansatte (0–20). Hold musepekeren over selve tallet for begrunnelsen på akkurat den raden. Rader uten score («—») er lagt til før scoren fantes.
+        </div>
+        <div class="filters" id="nye-filters" style="margin-top:10px"></div>
+        <div id="nye-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
       </div>
-      <!-- Admin-skjema for forhandlerområder (lagt til 07.09.2026): knappen er
-           skjult by default via inline style og vises kun for userRole==='admin'
-           (se toggleAdminSeksjoner()) — samme mønster som brukere-card. -->
-      <div id="forhandleromrader-knapp-wrap" style="display:none;margin-top:10px">
-        <button class="btn-sm" onclick="toggleForhandlerOmradeSkjema()">⚙️ Forhandlerområder</button>
-      </div>
-      <div id="forhandleromrader-panel" style="display:none;margin-top:10px"></div>
-      <div class="filters" id="nye-filters" style="margin-top:10px"></div>
-      <div id="nye-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
+      <div id="nye-tabell"></div>
     </div>
-    <div id="nye-tabell"></div>
+
+    <!-- Forhandlerområder (admin-oppsett av forhandler-piloter) — flyttet ut
+         som eget menynivå 07.09.2026, samme dag den ble bygget, etter Thomas'
+         tilbakemelding om at den ikke skulle dominere selve Nyetableringer-
+         siden. Skjult by default (style="display:none"), vist KUN via
+         visNyeUndermeny('forhandleromrader'), som i tillegg selv sperrer for
+         ikke-admins. -->
+    <div id="nye-forhandleromrader-wrap" style="display:none">
+      <div class="card card-public">
+        <div class="card-title">⚙️ Forhandlerområder</div>
+        <div id="forhandleromrader-panel" style="margin-top:10px"></div>
+      </div>
+    </div>
   </div>
 
   <!-- KONKURSER -->
@@ -2102,10 +2134,20 @@ let kunngjoringer=[];
 // Kunde 360 (renderNyetableringer()).
 let nyetableringer=[];
 let forhandlerOmrader=[]; // Liste 13, se mappingen i loadDataFromSP()
-let forhandlerOmradeSkjemaApen=false; // admin-skjemaet «⚙️ Forhandlerområder» er lukket by default
 let forhandlerOmradeRedigerer=null; // spId til raden som redigeres, eller null = «legg til ny»
 let forhandlerOmradeFormApen=false; // om selve legg-til/rediger-skjemaet (under tabellen) vises
 let forhandlerOmradeValgteKommuner=[]; // [{nr,navn}, …] — kommunene valgt i det åpne skjemaet akkurat nå
+// Utkast-verdiene i navn-/e-post-feltet og aktiv-boksen i det åpne skjemaet
+// (lagt til 07.09.2026, bugfix). renderForhandlerOmrader() bygger HELE
+// panelets innerHTML på nytt hver gang en kommune legges til/fjernes — uten
+// disse tre ville feltene blitt bygget fra det lagrede SharePoint-objektet
+// igjen (tomt for et nytt område), og det brukeren nettopp hadde skrevet
+// forsvant. Se renderForhandlerOmrader() der de fanges opp fra DOM-en FØR
+// innerHTML skrives over, og apneForhandlerOmradeSkjemaNy()/_Rediger() der
+// de initialiseres når skjemaet åpnes.
+let forhandlerOmradeNavnUtkast='';
+let forhandlerOmradeEpostUtkast='';
+let forhandlerOmradeAktivUtkast=true;
 let susoftRma=[];
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
 let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
@@ -2645,9 +2687,14 @@ async function loadDataFromSP(){
   const rsEl=document.getElementById('refresh-status');
   if(rsEl){const n=new Date();rsEl.textContent=`🔄 ${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')};`}
   if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='none';}
-  // «⚙️ Forhandlerområder»-knappen (lagt til 07.09.2026), samme admin-gating
-  // som brukere-card over.
-  const fhoWrap=document.getElementById('forhandleromrader-knapp-wrap');
+  // «⚙️ Forhandlerområder»-undermenypunktet (lagt til 07.09.2026, flyttet fra
+  // en knapp inni Nyetableringer-siden til eget menypunkt samme dag), samme
+  // admin-gating som brukere-card/isub-brukertilgang over. Trenger IKKE et
+  // eget "skjul selve visningen"-kall her — hvis en admin mister rollen midt
+  // i økten (uvanlig, men mulig ved rolleendring+refresh) er brukeren uansett
+  // ikke inne i forhandleromrader-visningen fra en frisk innlasting, siden
+  // nye-forhandleromrader-wrap alltid starter skjult (se HTML-en).
+  const fhoWrap=document.getElementById('ksub360-nye-forhandleromrader');
   if(fhoWrap)fhoWrap.style.display=userRole==='admin'?'':'none';
 }
 
@@ -3072,13 +3119,32 @@ function nullstillNyeFilter(){
 // for hvert nytt område — se Kunde360-oppsett-sjekkliste.md, Liste 13, og
 // nyetableringer.py sin docstring (hent_og_lagre_forhandlere) for hele
 // bakgrunnen/arkitekturen. Kun synlig for userRole==='admin' (se
-// toggleAdminSeksjoner-blokken i loadDataFromSP()).
+// loadDataFromSP()). Flyttet fra en nedtrekkbar knapp/panel INNI selve
+// Nyetableringer-siden til et eget tredje menynivå («📋 Oversikt»/
+// «⚙️ Forhandlerområder» under «🏢 Nyetableringer») samme dag, 07.09.2026,
+// etter Thomas' tilbakemelding om at panelet dominerte for mye — se
+// visNyeUndermeny() under.
 
-function toggleForhandlerOmradeSkjema(){
-  forhandlerOmradeSkjemaApen=!forhandlerOmradeSkjemaApen;
-  const panel=document.getElementById('forhandleromrader-panel');
-  if(panel)panel.style.display=forhandlerOmradeSkjemaApen?'':'none';
-  if(forhandlerOmradeSkjemaApen)renderForhandlerOmrader();
+// Bytter mellom «📋 Oversikt» (den vanlige Nyetableringer-lista, nye-oversikt-
+// wrap) og «⚙️ Forhandlerområder» (admin-skjemaet, nye-forhandleromrader-wrap)
+// — de to undervisningene til «🏢 Nyetableringer» i venstremenyen. Kalles fra
+// ALLE tre venstremeny-punktene (selve «🏢 Nyetableringer»-hovedpunktet går nå
+// til 'oversikt', pluss de to nye undermenypunktene), aldri fra flere steder
+// — dermed setter denne funksjonen ALLTID begge undervisningenes synlighet
+// eksplisitt, uansett hva som var vist fra før. Det gjør at det ikke finnes
+// noen vei til «nyetableringer»-fanen som kan la feil undervisning bli
+// stående igjen fra et tidligere besøk.
+function visNyeUndermeny(visning){
+  if(visning==='forhandleromrader'&&userRole!=='admin')visning='oversikt'; // sikring — menypunktet er uansett skjult for ikke-admins
+  showTab('nyetableringer',document.getElementById('tab-kunder'));
+  const oversiktWrap=document.getElementById('nye-oversikt-wrap');
+  const fhoWrap=document.getElementById('nye-forhandleromrader-wrap');
+  if(oversiktWrap)oversiktWrap.style.display=visning==='forhandleromrader'?'none':'';
+  if(fhoWrap)fhoWrap.style.display=visning==='forhandleromrader'?'':'none';
+  document.querySelectorAll('#kunder360-sub-nav .nav-sub-sub-item').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById(visning==='forhandleromrader'?'ksub360-nye-forhandleromrader':'ksub360-nye-oversikt');
+  if(btn)btn.classList.add('active');
+  if(visning==='forhandleromrader')renderForhandlerOmrader();
 }
 
 // Kommune-nummer → navn-oppslag, brukt til visning (tabellen viser navn, ikke
@@ -3128,6 +3194,9 @@ function forhandlerOmradeFjernKommune(nr){
 function apneForhandlerOmradeSkjemaNy(){
   forhandlerOmradeRedigerer=null;
   forhandlerOmradeValgteKommuner=[];
+  forhandlerOmradeNavnUtkast='';
+  forhandlerOmradeEpostUtkast='';
+  forhandlerOmradeAktivUtkast=true;
   forhandlerOmradeFormApen=true;
   renderForhandlerOmrader();
 }
@@ -3136,6 +3205,9 @@ function apneForhandlerOmradeSkjemaRediger(spId){
   const rad=forhandlerOmrader.find(r=>r.spId===spId);if(!rad)return;
   forhandlerOmradeRedigerer=spId;
   forhandlerOmradeValgteKommuner=(rad.kommunenumre||'').split(',').map(s=>s.trim()).filter(Boolean).map(nr=>({nr,navn:_kommuneNavnFraNr(nr)}));
+  forhandlerOmradeNavnUtkast=rad.navn||'';
+  forhandlerOmradeEpostUtkast=rad.varslingsEpost||'';
+  forhandlerOmradeAktivUtkast=rad.aktiv;
   forhandlerOmradeFormApen=true;
   renderForhandlerOmrader();
 }
@@ -3170,6 +3242,7 @@ function lagreForhandlerOmrade(){
     setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
     forhandlerOmrader=(await spGetItems('Forhandleromrader')).map(i=>({id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',kommunenumre:i.fields.Kommunenumre||'',varslingsEpost:i.fields.VarslingsEpost||'',aktiv:i.fields.Aktiv===true,opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
     forhandlerOmradeRedigerer=null;forhandlerOmradeValgteKommuner=[];forhandlerOmradeFormApen=false;
+    forhandlerOmradeNavnUtkast='';forhandlerOmradeEpostUtkast='';forhandlerOmradeAktivUtkast=true;
     renderForhandlerOmrader();
   }).catch(e=>{
     setSPStatus('❌ '+e.message,false);
@@ -3210,8 +3283,25 @@ function slettForhandlerOmrade(spId){
 function renderForhandlerOmrader(){
   const panel=document.getElementById('forhandleromrader-panel');
   if(!panel)return;
-  if(!forhandlerOmradeSkjemaApen){panel.style.display='none';return;}
-  panel.style.display='';
+  // Ikke lenger en nedtrekkbar kollaps her (fjernet 07.09.2026, samme dag —
+  // synligheten styres nå av det ytre nye-forhandleromrader-wrap-elementet,
+  // vist/skjult av visNyeUndermeny()) — denne funksjonen kalles kun når den
+  // visningen faktisk er valgt, og bygger derfor alltid panelets innhold.
+
+  // Fanger opp det brukeren faktisk har skrevet/krysset av i navn-/e-post-
+  // feltet og aktiv-boksen FØR panelets innerHTML bygges om under (skjer
+  // hver gang en kommune legges til/fjernes, se forhandlerOmradeLeggTil-
+  // Kommune()/_FjernKommune()) — uten dette ble feltene bygget på nytt fra
+  // forhandlerOmradeNavnUtkast/-EpostUtkast/-AktivUtkast sin FORRIGE verdi,
+  // så alt brukeren skrev inn før første kommunevalg forsvant i det
+  // øyeblikket en kommune ble lagt til. Bugfix 07.09.2026, rapportert av
+  // Thomas («ser ut som forhandler navn blir borte når jeg velger områder»).
+  const navnFeltNaa=document.getElementById('fho-navn');
+  const epostFeltNaa=document.getElementById('fho-epost');
+  const aktivFeltNaa=document.getElementById('fho-aktiv');
+  if(navnFeltNaa)forhandlerOmradeNavnUtkast=navnFeltNaa.value;
+  if(epostFeltNaa)forhandlerOmradeEpostUtkast=epostFeltNaa.value;
+  if(aktivFeltNaa)forhandlerOmradeAktivUtkast=aktivFeltNaa.checked;
 
   const tabellRader=forhandlerOmrader.length?forhandlerOmrader.map(r=>{
     const kommuneNavn=(r.kommunenumre||'').split(',').map(s=>s.trim()).filter(Boolean).map(_kommuneNavnFraNr).join(', ')||'—';
@@ -3235,7 +3325,7 @@ function renderForhandlerOmrader(){
       <div style="font-weight:600;font-size:13px;margin-bottom:8px">${forhandlerOmradeRedigerer?`Rediger «${redigertRad?.navn||''}»`:'Legg til nytt forhandlerområde'}</div>
       <div style="display:flex;flex-direction:column;gap:8px;max-width:480px">
         <label style="font-size:12px;color:#374151">Navn (vises i «Forhandleromrade»-filteret)
-          <input id="fho-navn" type="text" value="${(redigertRad?.navn||'').replace(/"/g,'&quot;')}" placeholder="f.eks. «Forhandlernavn – Sted»" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;margin-top:2px"/>
+          <input id="fho-navn" type="text" value="${(forhandlerOmradeNavnUtkast||'').replace(/"/g,'&quot;')}" placeholder="f.eks. «Forhandlernavn – Sted»" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;margin-top:2px"/>
         </label>
         <div style="font-size:12px;color:#374151">Kommuner
           <div style="margin-top:2px">${kommuneChips}</div>
@@ -3243,10 +3333,10 @@ function renderForhandlerOmrader(){
           <div id="fho-kommune-treff"></div>
         </div>
         <label style="font-size:12px;color:#374151">Varslings-e-post (tom = geir@kbd.as som standard)
-          <input id="fho-epost" type="text" value="${(redigertRad?.varslingsEpost||'').replace(/"/g,'&quot;')}" placeholder="geir@kbd.as" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;margin-top:2px"/>
+          <input id="fho-epost" type="text" value="${(forhandlerOmradeEpostUtkast||'').replace(/"/g,'&quot;')}" placeholder="geir@kbd.as" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;margin-top:2px"/>
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer">
-          <input id="fho-aktiv" type="checkbox" ${redigertRad?(redigertRad.aktiv?'checked':''):'checked'}/> Aktiv (henter nye etableringer daglig)
+          <input id="fho-aktiv" type="checkbox" ${forhandlerOmradeAktivUtkast?'checked':''}/> Aktiv (henter nye etableringer daglig)
         </label>
         <div style="display:flex;gap:8px;margin-top:4px">
           <button class="btn-sm" style="background:#1a3a6b;color:#fff" onclick="lagreForhandlerOmrade()">💾 Lagre</button>
@@ -6258,6 +6348,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.67',dato:'07.09.2026',punkter:[
+    'Nyetableringer: «⚙️ Forhandlerområder» er flyttet ut av selve Nyetableringer-siden og inn som et eget undermenypunkt i venstremenyen (under «🏢 Nyetableringer», sammen med det nye «📋 Oversikt») — dominerte for mye der den lå før.'
+  ]},
+  {versjon:'v1.48.66',dato:'07.09.2026',punkter:[
+    'Nyetableringer/Forhandlerområder: rettet en feil der navn og e-post man hadde skrevet inn i «legg til nytt forhandlerområde»-skjemaet forsvant i det man valgte en kommune.'
+  ]},
   {versjon:'v1.48.65',dato:'07.09.2026',punkter:[
     'Nyetableringer: nytt admin-skjema «⚙️ Forhandlerområder» (kun for administratorer) — legg til, rediger, (av)aktiver og slett forhandlerområder selv, med søkbar kommune-velger (nummer+navn), i stedet for å be om en kodeendring for hvert nytt forhandlerområde. Krever tilsvarende endring i kbd-verifone-func (levert separat) og en ny SharePoint-liste, Forhandleromrader.'
   ]},
