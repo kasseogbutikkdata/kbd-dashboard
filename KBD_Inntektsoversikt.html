@@ -417,7 +417,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.64 · Oppdatert: 6. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.65 · Oppdatert: 7. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -661,6 +661,13 @@ tr:hover td{background:#fafafa}
       <div style="font-size:12px;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin-top:10px">
         ℹ️ <strong>Om Score-kolonnen:</strong> automatisk poengsum 0–90 som rangerer hvor lovende hver nyetablering er å kontakte — bransje (0–50, flere KBD-kunder i bransjen gir høyere score), selskapsform (0–20, AS/ASA gir mest), antall ansatte (0–20). Hold musepekeren over selve tallet for begrunnelsen på akkurat den raden. Rader uten score («—») er lagt til før scoren fantes.
       </div>
+      <!-- Admin-skjema for forhandlerområder (lagt til 07.09.2026): knappen er
+           skjult by default via inline style og vises kun for userRole==='admin'
+           (se toggleAdminSeksjoner()) — samme mønster som brukere-card. -->
+      <div id="forhandleromrader-knapp-wrap" style="display:none;margin-top:10px">
+        <button class="btn-sm" onclick="toggleForhandlerOmradeSkjema()">⚙️ Forhandlerområder</button>
+      </div>
+      <div id="forhandleromrader-panel" style="display:none;margin-top:10px"></div>
       <div class="filters" id="nye-filters" style="margin-top:10px"></div>
       <div id="nye-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
     </div>
@@ -2094,6 +2101,11 @@ let kunngjoringer=[];
 // KundeNotater/VismaKunder — se undermenypunktet "🏢 Nyetableringer" under
 // Kunde 360 (renderNyetableringer()).
 let nyetableringer=[];
+let forhandlerOmrader=[]; // Liste 13, se mappingen i loadDataFromSP()
+let forhandlerOmradeSkjemaApen=false; // admin-skjemaet «⚙️ Forhandlerområder» er lukket by default
+let forhandlerOmradeRedigerer=null; // spId til raden som redigeres, eller null = «legg til ny»
+let forhandlerOmradeFormApen=false; // om selve legg-til/rediger-skjemaet (under tabellen) vises
+let forhandlerOmradeValgteKommuner=[]; // [{nr,navn}, …] — kommunene valgt i det åpne skjemaet akkurat nå
 let susoftRma=[];
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
 let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
@@ -2208,6 +2220,18 @@ const KBD_KUNDE_BRANSJER={
   "78":{"antall":1,"beskrivelse":"Utleie av arbeidskraft og andre personaladministrative tjenester"},
   "80":{"antall":1,"beskrivelse":"Etterforskningstjenester og private vakttjenester"}
 };
+
+// Alle norske kommuner (nummer+navn), lagt til 07.09.2026 for kommune-
+// velgeren i admin-skjemaet «⚙️ Forhandlerområder» (se
+// renderForhandlerOmrader() og _kommuneSokTreff() under) — erstatter
+// manuelle kommunenummer-oppslag (kilde til minst én tidligere feil, se
+// nyetableringer.py sin historikk rundt Harstad-kommunenummeret). Hentet fra
+// SSBs offisielle klassifikasjon «Standard for kommuneinndeling»
+// (data.ssb.no/api/klass/v1/classifications/131), gjeldende fra
+// kommunereformen 1.1.2024 — 357 kommuner. Statisk liste, ikke live-hentet
+// (samme «enkelt er robust nok»-vurdering som KBD_KUNDE_BRANSJER over) —
+// oppdater kun ved en eventuell fremtidig kommunereform.
+const NORSKE_KOMMUNER=[['0301','Oslo'],['1101','Eigersund'],['1103','Stavanger'],['1106','Haugesund'],['1108','Sandnes'],['1111','Sokndal'],['1112','Lund'],['1114','Bjerkreim'],['1119','Hå'],['1120','Klepp'],['1121','Time'],['1122','Gjesdal'],['1124','Sola'],['1127','Randaberg'],['1130','Strand'],['1133','Hjelmeland'],['1134','Suldal'],['1135','Sauda'],['1144','Kvitsøy'],['1145','Bokn'],['1146','Tysvær'],['1149','Karmøy'],['1151','Utsira'],['1160','Vindafjord'],['1505','Kristiansund'],['1506','Molde'],['1508','Ålesund'],['1511','Vanylven'],['1514','Sande'],['1515','Herøy (Møre og Romsdal)'],['1516','Ulstein'],['1517','Hareid'],['1520','Ørsta'],['1525','Stranda'],['1528','Sykkylven'],['1531','Sula'],['1532','Giske'],['1535','Vestnes'],['1539','Rauma'],['1547','Aukra'],['1554','Averøy'],['1557','Gjemnes'],['1560','Tingvoll'],['1563','Sunndal'],['1566','Surnadal'],['1573','Smøla'],['1576','Aure'],['1577','Volda'],['1578','Fjord'],['1579','Hustadvika'],['1580','Haram'],['1804','Bodø'],['1806','Narvik'],['1811','Bindal'],['1812','Sømna'],['1813','Brønnøy'],['1815','Vega'],['1816','Vevelstad'],['1818','Herøy (Nordland)'],['1820','Alstahaug'],['1822','Leirfjord'],['1824','Vefsn'],['1825','Grane'],['1826','Aarborte - Hattfjelldal'],['1827','Dønna'],['1828','Nesna'],['1832','Hemnes'],['1833','Rana - Raane'],['1834','Lurøy'],['1835','Træna'],['1836','Rødøy'],['1837','Meløy'],['1838','Gildeskål'],['1839','Beiarn'],['1840','Saltdal'],['1841','Fauske - Fuossko'],['1845','Sørfold - Fuolldá'],['1848','Steigen'],['1851','Lødingen'],['1853','Evenes - Evenášši'],['1856','Røst'],['1857','Værøy'],['1859','Flakstad'],['1860','Vestvågøy'],['1865','Vågan'],['1866','Hadsel'],['1867','Bø'],['1868','Øksnes'],['1870','Sortland - Suortá'],['1871','Andøy'],['1874','Moskenes'],['1875','Hábmer - Hamarøy'],['3101','Halden'],['3103','Moss'],['3105','Sarpsborg'],['3107','Fredrikstad'],['3110','Hvaler'],['3112','Råde'],['3114','Våler (Østfold)'],['3116','Skiptvet'],['3118','Indre Østfold'],['3120','Rakkestad'],['3122','Marker'],['3124','Aremark'],['3201','Bærum'],['3203','Asker'],['3205','Lillestrøm'],['3207','Nordre Follo'],['3209','Ullensaker'],['3212','Nesodden'],['3214','Frogn'],['3216','Vestby'],['3218','Ås'],['3220','Enebakk'],['3222','Lørenskog'],['3224','Rælingen'],['3226','Aurskog-Høland'],['3228','Nes'],['3230','Gjerdrum'],['3232','Nittedal'],['3234','Lunner'],['3236','Jevnaker'],['3238','Nannestad'],['3240','Eidsvoll'],['3242','Hurdal'],['3301','Drammen'],['3303','Kongsberg'],['3305','Ringerike'],['3310','Hole'],['3312','Lier'],['3314','Øvre Eiker'],['3316','Modum'],['3318','Krødsherad'],['3320','Flå'],['3322','Nesbyen'],['3324','Gol'],['3326','Hemsedal'],['3328','Ål'],['3330','Hol'],['3332','Sigdal'],['3334','Flesberg'],['3336','Rollag'],['3338','Nore og Uvdal'],['3401','Kongsvinger'],['3403','Hamar'],['3405','Lillehammer'],['3407','Gjøvik'],['3411','Ringsaker'],['3412','Løten'],['3413','Stange'],['3414','Nord-Odal'],['3415','Sør-Odal'],['3416','Eidskog'],['3417','Grue'],['3418','Åsnes'],['3419','Våler (Innlandet)'],['3420','Elverum'],['3421','Trysil'],['3422','Åmot'],['3423','Stor-Elvdal'],['3424','Rendalen'],['3425','Engerdal'],['3426','Tolga'],['3427','Tynset'],['3428','Alvdal'],['3429','Folldal'],['3430','Os'],['3431','Dovre'],['3432','Lesja'],['3433','Skjåk'],['3434','Lom'],['3435','Vågå'],['3436','Nord-Fron'],['3437','Sel'],['3438','Sør-Fron'],['3439','Ringebu'],['3440','Øyer'],['3441','Gausdal'],['3442','Østre Toten'],['3443','Vestre Toten'],['3446','Gran'],['3447','Søndre Land'],['3448','Nordre Land'],['3449','Sør-Aurdal'],['3450','Etnedal'],['3451','Nord-Aurdal'],['3452','Vestre Slidre'],['3453','Øystre Slidre'],['3454','Vang'],['3901','Horten'],['3903','Holmestrand'],['3905','Tønsberg'],['3907','Sandefjord'],['3909','Larvik'],['3911','Færder'],['4001','Porsgrunn'],['4003','Skien'],['4005','Notodden'],['4010','Siljan'],['4012','Bamble'],['4014','Kragerø'],['4016','Drangedal'],['4018','Nome'],['4020','Midt-Telemark'],['4022','Seljord'],['4024','Hjartdal'],['4026','Tinn'],['4028','Kviteseid'],['4030','Nissedal'],['4032','Fyresdal'],['4034','Tokke'],['4036','Vinje'],['4201','Risør'],['4202','Grimstad'],['4203','Arendal'],['4204','Kristiansand'],['4205','Lindesnes'],['4206','Farsund'],['4207','Flekkefjord'],['4211','Gjerstad'],['4212','Vegårshei'],['4213','Tvedestrand'],['4214','Froland'],['4215','Lillesand'],['4216','Birkenes'],['4217','Åmli'],['4218','Iveland'],['4219','Evje og Hornnes'],['4220','Bygland'],['4221','Valle'],['4222','Bykle'],['4223','Vennesla'],['4224','Åseral'],['4225','Lyngdal'],['4226','Hægebostad'],['4227','Kvinesdal'],['4228','Sirdal'],['4601','Bergen'],['4602','Kinn'],['4611','Etne'],['4612','Sveio'],['4613','Bømlo'],['4614','Stord'],['4615','Fitjar'],['4616','Tysnes'],['4617','Kvinnherad'],['4618','Ullensvang'],['4619','Eidfjord'],['4620','Ulvik'],['4621','Voss'],['4622','Kvam'],['4623','Samnanger'],['4624','Bjørnafjorden'],['4625','Austevoll'],['4626','Øygarden'],['4627','Askøy'],['4628','Vaksdal'],['4629','Modalen'],['4630','Osterøy'],['4631','Alver'],['4632','Austrheim'],['4633','Fedje'],['4634','Masfjorden'],['4635','Gulen'],['4636','Solund'],['4637','Hyllestad'],['4638','Høyanger'],['4639','Vik'],['4640','Sogndal'],['4641','Aurland'],['4642','Lærdal'],['4643','Årdal'],['4644','Luster'],['4645','Askvoll'],['4646','Fjaler'],['4647','Sunnfjord'],['4648','Bremanger'],['4649','Stad'],['4650','Gloppen'],['4651','Stryn'],['5001','Trondheim - Tråante'],['5006','Steinkjer'],['5007','Namsos - Nåavmesjenjaelmie'],['5014','Frøya'],['5020','Osen'],['5021','Oppdal'],['5022','Rennebu'],['5025','Røros - Rosse'],['5026','Holtålen'],['5027','Midtre Gauldal'],['5028','Melhus'],['5029','Skaun'],['5031','Malvik'],['5032','Selbu'],['5033','Tydal'],['5034','Meråker'],['5035','Stjørdal'],['5036','Frosta'],['5037','Levanger - Levangke'],['5038','Verdal'],['5041','Snåase - Snåsa'],['5042','Lierne'],['5043','Raarvihke - Røyrvik'],['5044','Namsskogan'],['5045','Grong'],['5046','Høylandet'],['5047','Overhalla'],['5049','Flatanger'],['5052','Leka'],['5053','Inderøy'],['5054','Indre Fosen'],['5055','Heim'],['5056','Hitra'],['5057','Ørland'],['5058','Åfjord'],['5059','Orkland'],['5060','Nærøysund'],['5061','Rindal'],['5501','Tromsø'],['5503','Harstad - Hárstták'],['5510','Kvæfjord'],['5512','Dielddanuorri - Tjeldsund'],['5514','Ibestad'],['5516','Gratangen - Rivtták'],['5518','Loabák - Lavangen'],['5520','Bardu'],['5522','Salangen'],['5524','Målselv'],['5526','Sørreisa'],['5528','Dyrøy'],['5530','Senja'],['5532','Balsfjord'],['5534','Karlsøy'],['5536','Lyngen'],['5538','Storfjord - Omasvuotna - Omasvuono'],['5540','Gáivuotna - Kåfjord - Kaivuono'],['5542','Skjervøy'],['5544','Nordreisa - Ráisa - Raisi'],['5546','Kvænangen'],['5601','Alta'],['5603','Hammerfest - Hámmerfeasta'],['5605','Sør-Varanger'],['5607','Vadsø'],['5610','Kárášjohka - Karasjok'],['5612','Guovdageaidnu - Kautokeino'],['5614','Loppa'],['5616','Hasvik'],['5618','Måsøy'],['5620','Nordkapp'],['5622','Porsanger - Porsángu - Porsanki'],['5624','Lebesby'],['5626','Gamvik'],['5628','Deatnu - Tana'],['5630','Berlevåg'],['5632','Båtsfjord'],['5634','Vardø'],['5636','Unjárga - Nesseby']];
 
 function _erKbdTypiskBransje(n){
   if(!n.naeringskode)return false;
@@ -2430,8 +2454,8 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2518,6 +2542,15 @@ async function loadDataFromSP(){
   // som 'KBD' (den opprinnelige jobbens eget område), ikke som en tom/femte
   // kategori.
   nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',forhandlerOmrade:i.fields.Forhandleromrade||'',prioritetScore:(i.fields.PrioritetScore??null),prioritetBegrunnelse:i.fields.PrioritetBegrunnelse||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // Forhandleromrader (lagt til 07.09.2026) — område-oppsettet for
+  // forhandler-piloter i «🏢 Nyetableringer», tidligere hardkodet i
+  // nyetableringer.py (FORHANDLER_OMRADER), nå datadrevet — se admin-
+  // skjemaet «⚙️ Forhandlerområder» og Kunde360-oppsett-sjekkliste.md,
+  // Liste 13. Kommunenumre lagres som kommaseparert tekst (samme format
+  // backend-jobben hent_og_lagre_forhandlere() i kbd-verifone-func
+  // forventer), aktiv leses strengt som ===true (Ja/Nei-kolonne, samme
+  // fallgruve-forsiktighet som ellers i prosjektet).
+  forhandlerOmrader=fhoItems.map(i=>({id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',kommunenumre:i.fields.Kommunenumre||'',varslingsEpost:i.fields.VarslingsEpost||'',aktiv:i.fields.Aktiv===true,opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
   // VerifoneHistorikk (lagt til 03.09.2026) — én rad per fakturakjøring der
   // salgsordre-utkast faktisk ble opprettet i Visma.net, skrevet av
   // vfLoggHistorikk() (kalt fra vfApprove()). Kun summerte tall per faktura,
@@ -2612,6 +2645,10 @@ async function loadDataFromSP(){
   const rsEl=document.getElementById('refresh-status');
   if(rsEl){const n=new Date();rsEl.textContent=`🔄 ${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')};`}
   if(userRole==='admin'){const bc=document.getElementById('brukere-card');if(bc)bc.style.display='';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='';}else{const bc=document.getElementById('brukere-card');if(bc)bc.style.display='none';const isb=document.getElementById('isub-brukertilgang');if(isb)isb.style.display='none';}
+  // «⚙️ Forhandlerområder»-knappen (lagt til 07.09.2026), samme admin-gating
+  // som brukere-card over.
+  const fhoWrap=document.getElementById('forhandleromrader-knapp-wrap');
+  if(fhoWrap)fhoWrap.style.display=userRole==='admin'?'':'none';
 }
 
 // ===== KUNDE 360 =====
@@ -3027,6 +3064,203 @@ function nullstillNyeFilter(){
   // streng/0.
   nyeStatusFilter='alle';nyeBransjeFilter='alle';nyeStedFilter='alle';nyeForhandlerFilter='KBD';nyeKunKbdBransjer=true;nyeSkjulEnkeltpersonforetak=false;nyeDatoFra='';nyeDatoTil='';nyeMinScore=0;
   renderNyetableringer();
+}
+
+// ===== FORHANDLEROMRÅDER (admin-skjema, lagt til 07.09.2026) ==============
+// Thomas ønsket å kunne legge til/redigere/(av)aktivere forhandlerområder
+// selv, i stedet for å be om en kodeendring + redeploy av kbd-verifone-func
+// for hvert nytt område — se Kunde360-oppsett-sjekkliste.md, Liste 13, og
+// nyetableringer.py sin docstring (hent_og_lagre_forhandlere) for hele
+// bakgrunnen/arkitekturen. Kun synlig for userRole==='admin' (se
+// toggleAdminSeksjoner-blokken i loadDataFromSP()).
+
+function toggleForhandlerOmradeSkjema(){
+  forhandlerOmradeSkjemaApen=!forhandlerOmradeSkjemaApen;
+  const panel=document.getElementById('forhandleromrader-panel');
+  if(panel)panel.style.display=forhandlerOmradeSkjemaApen?'':'none';
+  if(forhandlerOmradeSkjemaApen)renderForhandlerOmrader();
+}
+
+// Kommune-nummer → navn-oppslag, brukt til visning (tabellen viser navn, ikke
+// bare rå tall) — se NORSKE_KOMMUNER over.
+const _KOMMUNE_NAVN_PR_NR=Object.fromEntries(NORSKE_KOMMUNER);
+function _kommuneNavnFraNr(nr){return _KOMMUNE_NAVN_PR_NR[nr]||nr;}
+
+// Fritekstsøk (nummer ELLER navn, case-insensitive) mot NORSKE_KOMMUNER,
+// begrenset til 8 treff — kalt fra søkefeltet i «legg til kommune»-delen av
+// skjemaet under. Ekskluderer kommuner som allerede er lagt til i det åpne
+// skjemaet (forhandlerOmradeValgteKommuner), slik at man ikke kan legge til
+// samme kommune to ganger.
+function _kommuneSokTreff(sok){
+  const s=(sok||'').trim().toLowerCase();
+  if(!s)return[];
+  const valgteNr=new Set(forhandlerOmradeValgteKommuner.map(k=>k.nr));
+  return NORSKE_KOMMUNER
+    .filter(([nr,navn])=>!valgteNr.has(nr)&&(nr.includes(s)||navn.toLowerCase().includes(s)))
+    .slice(0,8);
+}
+
+function forhandlerOmradeKommuneSok(sok){
+  const treffDiv=document.getElementById('fho-kommune-treff');
+  if(!treffDiv)return;
+  const treff=_kommuneSokTreff(sok);
+  treffDiv.innerHTML=treff.length?treff.map(([nr,navn])=>
+    `<button type="button" class="btn-sm" style="display:block;width:100%;text-align:left;margin-top:4px" onclick="forhandlerOmradeLeggTilKommune('${nr}')">${navn} (${nr})</button>`
+  ).join(''):(sok.trim()?'<div style="font-size:12px;color:#9ca3af;margin-top:4px">Ingen treff</div>':'');
+}
+
+function forhandlerOmradeLeggTilKommune(nr){
+  if(forhandlerOmradeValgteKommuner.some(k=>k.nr===nr))return;
+  forhandlerOmradeValgteKommuner.push({nr,navn:_kommuneNavnFraNr(nr)});
+  const sokFelt=document.getElementById('fho-kommune-sok');
+  if(sokFelt)sokFelt.value='';
+  forhandlerOmradeKommuneSok('');
+  renderForhandlerOmrader();
+}
+
+function forhandlerOmradeFjernKommune(nr){
+  forhandlerOmradeValgteKommuner=forhandlerOmradeValgteKommuner.filter(k=>k.nr!==nr);
+  renderForhandlerOmrader();
+}
+
+// Åpner skjemaet tomt («legg til nytt») eller forhåndsutfylt (rediger en
+// eksisterende rad) — forhandlerOmradeRedigerer skiller de to (null = ny).
+function apneForhandlerOmradeSkjemaNy(){
+  forhandlerOmradeRedigerer=null;
+  forhandlerOmradeValgteKommuner=[];
+  forhandlerOmradeFormApen=true;
+  renderForhandlerOmrader();
+}
+
+function apneForhandlerOmradeSkjemaRediger(spId){
+  const rad=forhandlerOmrader.find(r=>r.spId===spId);if(!rad)return;
+  forhandlerOmradeRedigerer=spId;
+  forhandlerOmradeValgteKommuner=(rad.kommunenumre||'').split(',').map(s=>s.trim()).filter(Boolean).map(nr=>({nr,navn:_kommuneNavnFraNr(nr)}));
+  forhandlerOmradeFormApen=true;
+  renderForhandlerOmrader();
+}
+
+function lukkForhandlerOmradeSkjema(){
+  forhandlerOmradeRedigerer=null;
+  forhandlerOmradeValgteKommuner=[];
+  forhandlerOmradeFormApen=false;
+  renderForhandlerOmrader();
+}
+
+function lagreForhandlerOmrade(){
+  const navnFelt=document.getElementById('fho-navn');
+  const epostFelt=document.getElementById('fho-epost');
+  const aktivFelt=document.getElementById('fho-aktiv');
+  if(!navnFelt)return;
+  const navn=navnFelt.value.trim();
+  if(!navn){alert('Navn på forhandlerområdet må fylles ut (f.eks. «Forhandlernavn – Sted»).');return;}
+  if(forhandlerOmradeValgteKommuner.length===0){alert('Legg til minst én kommune for området.');return;}
+  const felter={
+    Title:navn,
+    Kommunenumre:forhandlerOmradeValgteKommuner.map(k=>k.nr).join(','),
+    VarslingsEpost:(epostFelt?.value||'').trim(),
+    Aktiv:!!aktivFelt?.checked,
+  };
+  setSPStatus('⏳ Lagrer…');
+  const bruker=currentUser?.name||currentUser?.username||'Ukjent';
+  const lagre=forhandlerOmradeRedigerer
+    ? spUpdate('Forhandleromrader',forhandlerOmradeRedigerer,felter)
+    : spCreate('Forhandleromrader',{...felter,OpprettetAv:bruker,OpprettetDato:new Date().toISOString()});
+  lagre.then(async()=>{
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+    forhandlerOmrader=(await spGetItems('Forhandleromrader')).map(i=>({id:`sp${i.id}`,spId:i.id,navn:i.fields.Title||'',kommunenumre:i.fields.Kommunenumre||'',varslingsEpost:i.fields.VarslingsEpost||'',aktiv:i.fields.Aktiv===true,opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
+    forhandlerOmradeRedigerer=null;forhandlerOmradeValgteKommuner=[];forhandlerOmradeFormApen=false;
+    renderForhandlerOmrader();
+  }).catch(e=>{
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Lagring feilet:\n'+e.message);
+  });
+}
+
+// Rask av/på uten å åpne redigeringsskjemaet — brukes av Aktiv-avkrysningen
+// direkte i tabellen (se renderForhandlerOmrader()).
+function settForhandlerOmradeAktiv(spId,aktiv){
+  const rad=forhandlerOmrader.find(r=>r.spId===spId);if(!rad)return;
+  rad.aktiv=aktiv; // optimistisk lokal oppdatering, rulles tilbake under ved feil
+  setSPStatus('⏳ Lagrer…');
+  spUpdate('Forhandleromrader',spId,{Aktiv:aktiv}).then(()=>{
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+  }).catch(e=>{
+    rad.aktiv=!aktiv;
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Kunne ikke endre av/på-status:\n'+e.message);
+    renderForhandlerOmrader();
+  });
+}
+
+function slettForhandlerOmrade(spId){
+  const rad=forhandlerOmrader.find(r=>r.spId===spId);if(!rad)return;
+  if(!confirm(`Slette forhandlerområdet «${rad.navn}»?\n\nDette stopper all fremtidig innhenting for området. Allerede lagrede nyetableringer i «🏢 Nyetableringer»-lista berøres IKKE — de blir liggende med sitt eksisterende «${rad.navn}»-merke.`))return;
+  setSPStatus('⏳ Sletter…');
+  spDelete('Forhandleromrader',spId).then(()=>{
+    forhandlerOmrader=forhandlerOmrader.filter(r=>r.spId!==spId);
+    setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);
+    renderForhandlerOmrader();
+  }).catch(e=>{
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Sletting feilet:\n'+e.message);
+  });
+}
+
+function renderForhandlerOmrader(){
+  const panel=document.getElementById('forhandleromrader-panel');
+  if(!panel)return;
+  if(!forhandlerOmradeSkjemaApen){panel.style.display='none';return;}
+  panel.style.display='';
+
+  const tabellRader=forhandlerOmrader.length?forhandlerOmrader.map(r=>{
+    const kommuneNavn=(r.kommunenumre||'').split(',').map(s=>s.trim()).filter(Boolean).map(_kommuneNavnFraNr).join(', ')||'—';
+    return `<tr>
+      <td><strong>${r.navn||'(uten navn)'}</strong></td>
+      <td style="font-size:12px;color:#6b7280">${kommuneNavn}</td>
+      <td style="font-size:12px;color:#6b7280">${r.varslingsEpost||'<span style="color:#9ca3af">geir@kbd.as (standard)</span>'}</td>
+      <td style="text-align:center"><input type="checkbox" ${r.aktiv?'checked':''} onchange="settForhandlerOmradeAktiv('${r.spId}',this.checked)" title="Aktiv — henter nye etableringer daglig når avkrysset"/></td>
+      <td style="white-space:nowrap"><button class="btn-sm" onclick="apneForhandlerOmradeSkjemaRediger('${r.spId}')">✏️ Rediger</button> <button class="btn-sm" style="color:#dc2626" onclick="slettForhandlerOmrade('${r.spId}')">✕ Slett</button></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="5" class="empty">Ingen forhandlerområder lagt til ennå.</td></tr>';
+
+  const redigertRad=forhandlerOmradeRedigerer?forhandlerOmrader.find(r=>r.spId===forhandlerOmradeRedigerer):null;
+
+  const kommuneChips=forhandlerOmradeValgteKommuner.length?forhandlerOmradeValgteKommuner.map(k=>
+    `<span class="badge" style="background:#eef2f8;color:#1a3a6b;display:inline-flex;align-items:center;gap:4px;margin:2px">${k.navn} (${k.nr}) <button type="button" onclick="forhandlerOmradeFjernKommune('${k.nr}')" style="background:none;border:none;cursor:pointer;color:#6b7280;font-size:11px;padding:0" title="Fjern">✕</button></span>`
+  ).join(''):'<span style="font-size:12px;color:#9ca3af">Ingen kommuner valgt ennå — søk under</span>';
+
+  const skjemaHtml=`
+    <div style="border-top:1px solid #e5e7eb;margin-top:12px;padding-top:12px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">${forhandlerOmradeRedigerer?`Rediger «${redigertRad?.navn||''}»`:'Legg til nytt forhandlerområde'}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:480px">
+        <label style="font-size:12px;color:#374151">Navn (vises i «Forhandleromrade»-filteret)
+          <input id="fho-navn" type="text" value="${(redigertRad?.navn||'').replace(/"/g,'&quot;')}" placeholder="f.eks. «Forhandlernavn – Sted»" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;margin-top:2px"/>
+        </label>
+        <div style="font-size:12px;color:#374151">Kommuner
+          <div style="margin-top:2px">${kommuneChips}</div>
+          <input id="fho-kommune-sok" type="text" placeholder="Søk kommune (navn eller nummer)…" oninput="forhandlerOmradeKommuneSok(this.value)" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;margin-top:6px"/>
+          <div id="fho-kommune-treff"></div>
+        </div>
+        <label style="font-size:12px;color:#374151">Varslings-e-post (tom = geir@kbd.as som standard)
+          <input id="fho-epost" type="text" value="${(redigertRad?.varslingsEpost||'').replace(/"/g,'&quot;')}" placeholder="geir@kbd.as" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;margin-top:2px"/>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer">
+          <input id="fho-aktiv" type="checkbox" ${redigertRad?(redigertRad.aktiv?'checked':''):'checked'}/> Aktiv (henter nye etableringer daglig)
+        </label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn-sm" style="background:#1a3a6b;color:#fff" onclick="lagreForhandlerOmrade()">💾 Lagre</button>
+          <button class="btn-sm" onclick="lukkForhandlerOmradeSkjema()">Avbryt</button>
+        </div>
+      </div>
+    </div>`;
+
+  panel.innerHTML=`
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px">
+      <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Områdene under styrer den daglige innhentingen av nyetableringer for forhandler-piloter (utover KBDs egen Østfold/Akershus/Vestfold-jobb, som ikke administreres her). Endringer trer i kraft fra og med neste dags kjøring — ingen redeploy nødvendig.</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Navn</th><th>Kommuner</th><th>Varslings-e-post</th><th style="text-align:center">Aktiv</th><th></th></tr></thead><tbody>${tabellRader}</tbody></table></div>
+      ${forhandlerOmradeFormApen?skjemaHtml:`<div style="margin-top:10px"><button class="btn-sm" onclick="apneForhandlerOmradeSkjemaNy()">+ Nytt forhandlerområde</button></div>`}
+    </div>`;
 }
 
 // Delt mellom filter-nedtrekkene og tabellcellene, slik at det man velger i
@@ -6024,6 +6258,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.65',dato:'07.09.2026',punkter:[
+    'Nyetableringer: nytt admin-skjema «⚙️ Forhandlerområder» (kun for administratorer) — legg til, rediger, (av)aktiver og slett forhandlerområder selv, med søkbar kommune-velger (nummer+navn), i stedet for å be om en kodeendring for hvert nytt forhandlerområde. Krever tilsvarende endring i kbd-verifone-func (levert separat) og en ny SharePoint-liste, Forhandleromrader.'
+  ]},
   {versjon:'v1.48.64',dato:'06.09.2026',punkter:[
     'Nyetableringer: kolonneoverskriftene (Firma, Bransje, Sted, Registrert, Score, Status) er nå klikkbare og sorterer tabellen — klikk igjen på samme kolonne for å snu rekkefølgen. Standardvisning (nyeste registrering øverst) er uendret.'
   ]},
