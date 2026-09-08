@@ -427,7 +427,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.72 · Oppdatert: 8. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.73 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -552,8 +552,19 @@ tr:hover td{background:#fafafa}
            renderSilentOrdering() og silent_ordering.py (kbd-verifone-func)
            for den daglige, HELT AUTOMATISKE (ingen godkjenningsliste, se
            silent_ordering.py sin docstring) e-post+SMS-invitasjonen. -->
-      <div class="nav-item" id="tab-silentordering" onclick="showTab('silentordering',this)">
+      <div class="nav-item" id="tab-silentordering" onclick="showTab('silentordering',this);toggleSilentOrderingSub(true)">
         <span class="nav-item-icon">🎫</span>Silent Ordering System
+      </div>
+      <!-- Undermeny lagt til 08.09.2026 (Thomas' ønske): skiller «Innstillinger —
+           automatisk invitasjon» ut som en egen undermeny under Silent Ordering
+           System i stedet for et kort inni Oversikt-visningen — samme
+           nav-sub/showXView-mønster som Verifone/Utleie/Lisenser over.
+           «⚙️ Innstillinger»-undermenypunktet er skjult by default (display:none
+           i HTML-en) og vises KUN for salgTilgang, satt i renderSilentOrdering() —
+           samme mønster som isub-brukertilgang (admin-only). -->
+      <div class="nav-sub" id="silentordering-sub-nav">
+        <div class="nav-sub-item active" id="sossub-oversikt" onclick="showSilentOrderingView('oversikt')">🎫 Oversikt</div>
+        <div class="nav-sub-item" id="sossub-innstillinger" style="display:none" onclick="showSilentOrderingView('innstillinger')">⚙️ Innstillinger — automatisk invitasjon</div>
       </div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
@@ -964,21 +975,46 @@ tr:hover td{background:#fafafa}
   <div id="tp-silentordering" class="tp">
     <div class="card card-public">
       <div class="card-title">🎫 Silent Ordering System — proaktivt brikkebytte</div>
-      <div class="hint">Brikkesystemet dere leverer til serveringssteder — kunder bestiller ved disken og får en brikke som varsler (lys/lyd eller vibrasjon) når maten er klar. Denne fanen holder oversikt over hvilke kunder som er SOS-kunder (med brikkeoppsett), og sporer hver brikkebytte-runde fra automatisk invitasjon til ferdig fakturert. Selve invitasjonen (e-post + SMS) sendes automatisk når det er gått lenge nok siden sist bytte — se «⚙️ Innstillinger» under.</div>
+      <div class="hint">Brikkesystemet dere leverer til serveringssteder — kunder bestiller ved disken og får en brikke som varsler (lys/lyd eller vibrasjon) når maten er klar. Denne fanen holder oversikt over hvilke kunder som er SOS-kunder (med brikkeoppsett), og sporer hver brikkebytte-runde fra automatisk invitasjon til ferdig fakturert. Selve invitasjonen (e-post + SMS) sendes automatisk når det er gått lenge nok siden sist bytte — se «⚙️ Innstillinger» i undermenyen til venstre.</div>
     </div>
 
-    <div class="card">
-      <div class="card-title">🧑‍💼 SOS-kunder</div>
-      <div class="hint">Kundens brikkeoppsett (farge, logo, type, antall) er fast — endres her, ikke per sak. «Sist brikkebytte» styrer når kunden foreslås for en ny automatisk invitasjon.</div>
-      <div class="frow" style="margin-top:10px">
-        <input type="text" id="sos-kunde-search" placeholder="Søk på kundenavn…" style="flex:1" oninput="sosSetKundeSearch(this.value)"/>
-        <button class="btn-sm" id="sos-kunde-ny-btn" style="display:none" onclick="openSosKundeModal()">➕ Meld på SOS-kunde</button>
+    <div id="sos-view-oversikt">
+      <div class="card">
+        <div class="card-title">🧑‍💼 SOS-kunder</div>
+        <div class="hint">Kundens brikkeoppsett (farge, logo, type, antall) er fast — endres her, ikke per sak. «Sist brikkebytte» styrer når kunden foreslås for en ny automatisk invitasjon.</div>
+        <div class="frow" style="margin-top:10px">
+          <input type="text" id="sos-kunde-search" placeholder="Søk på kundenavn…" style="flex:1" oninput="sosSetKundeSearch(this.value)"/>
+          <button class="btn-sm" id="sos-kunde-ny-btn" style="display:none" onclick="openSosKundeModal()">➕ Meld på SOS-kunde</button>
+        </div>
+        <div id="sos-kunde-tabell" style="margin-top:10px"></div>
       </div>
-      <div id="sos-kunde-tabell" style="margin-top:10px"></div>
+
+      <div class="card card-public">
+        <div class="card-title">📋 Brikkebytte-saker</div>
+        <div class="hint">Én sak pr. brikkebytte-runde — fra automatisk invitasjon til ferdig fakturert.</div>
+        <div class="frow" style="margin-top:10px">
+          <input type="text" id="sos-sak-search" placeholder="Søk på kunde…" style="flex:1" oninput="sosSakSetSearch(this.value)"/>
+          <select id="sos-sak-status-filter" onchange="sosSakSetStatusFilter(this.value)" style="max-width:220px">
+            <option value="alle">Alle statuser</option>
+            <option value="Invitasjon sendt">Invitasjon sendt</option>
+            <option value="Sak opprettet">Sak opprettet</option>
+            <option value="Brikker sendt">Brikker sendt</option>
+            <option value="Brikker mottatt i retur">Brikker mottatt i retur</option>
+            <option value="Brikker talt opp">Brikker talt opp</option>
+            <option value="Kunde fakturert">Kunde fakturert</option>
+            <option value="Avbrutt">Avbrutt</option>
+          </select>
+          <button class="btn-sm" id="sos-sak-ny-btn" style="display:none" onclick="openSosSakModal()">➕ Ny sak</button>
+        </div>
+      </div>
+      <div id="sos-sak-tabell"></div>
     </div>
 
-    <!-- Innstillinger — salgTilgang-gatet (skjules for Leser-rollen inni
-         renderSilentOrdering(), samme mønster som rma-innst-block). VIKTIG,
+    <!-- Innstillinger — nå en egen undermeny-visning (showSilentOrderingView),
+         ikke lenger et kort inni Oversikt. Fortsatt salgTilgang-gatet, men nå
+         via selve undermenypunktet «sossub-innstillinger» (skjult by default,
+         vist kun for salgTilgang i renderSilentOrdering()) i stedet for kortet
+         her — samme rolle-styring som før, bare flyttet ett nivå opp. VIKTIG,
          avvik fra purring-SMS/Susoft: når Aktivert slås på her, sendes
          invitasjoner HELT AUTOMATISK — INGEN godkjenningsliste (bekreftet av
          Thomas 08.09.2026, se silent_ordering.py sin docstring) — derfor en
@@ -997,26 +1033,6 @@ tr:hover td{background:#fafafa}
       <div class="fgrp" style="margin-bottom:10px"><label>SMS-tekst (plassholder: {Kundenavn})</label><textarea id="sos-sms-mal" rows="3" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <button class="btn-sm prim" onclick="lagreSosInnstillinger()">Lagre</button>
     </div>
-
-    <div class="card card-public">
-      <div class="card-title">📋 Brikkebytte-saker</div>
-      <div class="hint">Én sak pr. brikkebytte-runde — fra automatisk invitasjon til ferdig fakturert.</div>
-      <div class="frow" style="margin-top:10px">
-        <input type="text" id="sos-sak-search" placeholder="Søk på kunde…" style="flex:1" oninput="sosSakSetSearch(this.value)"/>
-        <select id="sos-sak-status-filter" onchange="sosSakSetStatusFilter(this.value)" style="max-width:220px">
-          <option value="alle">Alle statuser</option>
-          <option value="Invitasjon sendt">Invitasjon sendt</option>
-          <option value="Sak opprettet">Sak opprettet</option>
-          <option value="Brikker sendt">Brikker sendt</option>
-          <option value="Brikker mottatt i retur">Brikker mottatt i retur</option>
-          <option value="Brikker talt opp">Brikker talt opp</option>
-          <option value="Kunde fakturert">Kunde fakturert</option>
-          <option value="Avbrutt">Avbrutt</option>
-        </select>
-        <button class="btn-sm" id="sos-sak-ny-btn" style="display:none" onclick="openSosSakModal()">➕ Ny sak</button>
-      </div>
-    </div>
-    <div id="sos-sak-tabell"></div>
   </div>
 
   <div id="tp-idebank" class="tp">
@@ -4226,11 +4242,32 @@ function renderSilentOrdering(){
   if(kundeNyBtn)kundeNyBtn.style.display=salgTilgang?'':'none';
   const sakNyBtn=document.getElementById('sos-sak-ny-btn');
   if(sakNyBtn)sakNyBtn.style.display=salgTilgang?'':'none';
-  const innstBlock=document.getElementById('sos-innst-block');
-  if(innstBlock)innstBlock.style.display=salgTilgang?'':'none';
+  // Innstillinger flyttet til egen undermeny 08.09.2026 — undermenypunktet
+  // (ikke lenger kortet direkte) er det som nå styres av salgTilgang. Har
+  // brukeren ikke salgTilgang, sikrer vi i tillegg at Innstillinger-visningen
+  // aldri kan stå igjen synlig (samme "sett begge undervisningene eksplisitt"-
+  // prinsipp som forhandleromrader-sikringen i visNyeUndermeny()).
+  const innstSub=document.getElementById('sossub-innstillinger');
+  if(innstSub)innstSub.style.display=salgTilgang?'':'none';
+  if(!salgTilgang)showSilentOrderingView('oversikt');
   renderSosInnstillinger();
   renderSosKundeTabell();
   renderSosSakTabell();
+}
+
+function toggleSilentOrderingSub(open){
+  const sub=document.getElementById('silentordering-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function showSilentOrderingView(view){
+  const ov=document.getElementById('sos-view-oversikt');
+  if(ov)ov.style.display=view==='oversikt'?'':'none';
+  const innst=document.getElementById('sos-innst-block');
+  if(innst)innst.style.display=view==='innstillinger'?'':'none';
+  document.querySelectorAll('#silentordering-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('sossub-'+view);
+  if(btn)btn.classList.add('active');
 }
 
 // ---- Innstillinger (terskel + e-post-/SMS-maler + av/på-bryter) ----
@@ -7063,6 +7100,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.73',dato:'08.09.2026',punkter:[
+    '«Innstillinger — automatisk invitasjon» under Silent Ordering System er flyttet ut som en egen undermeny (samme mønster som Utleie/Lisenser/Verifone), i stedet for et kort inni Oversikt-visningen.'
+  ]},
   {versjon:'v1.48.72',dato:'08.09.2026',punkter:[
     'Nytt eget menypunkt «🎫 Silent Ordering System» — kundeoversikt for brikkeoppsett (farge/logo/type/antall/sist bytte), sakstabell med tidslinje for hver brikkebytte-runde, og innstillinger for terskel + e-post-/SMS-maler. Den daglige, automatiske invitasjonen (ingen godkjenningsliste) sendes av en ny bakgrunnsjobb i kbd-verifone-func — se prosjektstatus.md seksjon 16.'
   ]},
@@ -8385,6 +8425,7 @@ function showTab(name,btn){
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
   toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk'||name==='purring');
   toggleVerifoneSub(name==='verifone');
+  toggleSilentOrderingSub(name==='silentordering');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -8405,7 +8446,7 @@ function showTab(name,btn){
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');}
   if(name==='susoftrma'){renderSusoftRma();}
-  if(name==='silentordering'){renderSilentOrdering();}
+  if(name==='silentordering'){renderSilentOrdering();showSilentOrderingView('oversikt');}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
