@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.79 · Oppdatert: 8. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.81 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1023,7 +1023,7 @@ tr:hover td{background:#fafafa}
 
       <div class="card card-public">
         <div class="card-title">📋 Brikkebytte-saker</div>
-        <div class="hint">Én sak pr. brikkebytte-runde — fra automatisk invitasjon til ferdig fakturert.</div>
+        <div class="hint">Én sak pr. brikkebytte-runde — fra automatisk invitasjon til ferdig fakturert. Avbrutte saker skjules automatisk her — velg «Avbrutt» i filteret for å se dem.</div>
         <div class="frow" style="margin-top:10px">
           <input type="text" id="sos-sak-search" placeholder="Søk på kunde…" style="flex:1" oninput="sosSakSetSearch(this.value)"/>
           <select id="sos-sak-status-filter" onchange="sosSakSetStatusFilter(this.value)" style="max-width:220px">
@@ -4678,12 +4678,17 @@ function renderSosSakTabell(){
   const target=document.getElementById('sos-sak-tabell');
   if(!target)return;
   let liste=sosSaker.slice();
+  // Avbrutte saker skjules by default (Thomas' ønske 08.09.2026) — rot i
+  // oversikten for saker som uansett ikke krever oppfølging. Kommer fram
+  // igjen så snart "Avbrutt" velges eksplisitt i statusfilteret, eller
+  // "Alle statuser" IKKE er valgt filter — se sosSakSetStatusFilter().
   if(sosSakStatusFilterQ!=='alle')liste=liste.filter(r=>r.status===sosSakStatusFilterQ);
+  else liste=liste.filter(r=>r.status!=='Avbrutt');
   if(sosSakSearchQ)liste=liste.filter(r=>((r.kundeNavn||'')+' '+(r.avdeling||'')).toLowerCase().includes(sosSakSearchQ));
   liste.sort((a,b)=>new Date(b.opprettetDato||b.invitasjonSendtDato||0)-new Date(a.opprettetDato||a.invitasjonSendtDato||0));
 
   if(liste.length===0){
-    target.innerHTML=`<div class="empty">Ingen brikkebytte-saker${sosSakSearchQ||sosSakStatusFilterQ!=='alle'?' matcher filteret':' registrert ennå'}.</div>`;
+    target.innerHTML=`<div class="empty">Ingen brikkebytte-saker${sosSakSearchQ||sosSakStatusFilterQ!=='alle'?' matcher filteret':' registrert ennå (avbrutte saker er skjult som standard — velg «Avbrutt» i filteret for å se dem)'}.</div>`;
     return;
   }
   // Kort-per-sak i stedet for en tabell, lagt til 08.09.2026 (Thomas ba om
@@ -7354,6 +7359,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.81',dato:'08.09.2026',punkter:[
+    'Silent Ordering System: saker med status «Avbrutt» skjules nå automatisk fra «📋 Brikkebytte-saker»-oversikten, siden de uansett ikke krever oppfølging. Velg «Avbrutt» i statusfilteret for å se dem igjen.'
+  ]},
+  {versjon:'v1.48.80',dato:'08.09.2026',punkter:[
+    'Silent Ordering System: rettet — Avdeling-feltet på «Meld på SOS-kunde»/«Rediger SOS-kunde» var i v1.48.79 satt som påkrevd, men skal være VALGFRITT (kunder uten avdelingsinndeling lar det stå tomt og registreres med kun kundenavn). Oppdaget under testing 08.09.2026, samme dag som v1.48.79 ble levert.'
+  ]},
   {versjon:'v1.48.79',dato:'08.09.2026',punkter:[
     'Silent Ordering System: kunder med kun ett Visma-kundenummer, men flere fysisk adskilte avdelinger med hvert sitt brikkesett, kan nå meldes på SOS én gang PR. AVDELING — nytt påkrevd Avdeling-felt på «Meld på SOS-kunde»/«Rediger SOS-kunde» (med valgfri egen kontakt-e-post/telefon pr. avdeling) og i SOS-oversikten, samt et valgfritt Avdeling-felt på brikkebytte-saker. Hver avdeling får nå sin egen uavhengige bytte-syklus og kan ha sin egen åpne sak samtidig som andre avdelinger på samme kunde.'
   ]},
