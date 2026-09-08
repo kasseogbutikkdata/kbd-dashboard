@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.75 · Oppdatert: 8. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.76 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1051,6 +1051,7 @@ tr:hover td{background:#fafafa}
       </div>
       <div id="sos-aktivert-hint" class="hint" style="margin-bottom:10px;color:#b45309">⚠️ Avslått som standard. Ingen invitasjoner sendes før denne krysses av og lagres — OG kun etter at Azure-bremsen (SOS_DRY_RUN) er satt til «false» av Thomas.</div>
       <div class="fgrp" style="margin-bottom:10px;max-width:220px"><label>Terskel (måneder siden sist bytte)</label><input type="number" id="sos-terskel-maneder" min="1" step="1" placeholder="12"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>E-post emnefelt (plassholdere: {Kundenavn}, {AntallBrikker})</label><input type="text" id="sos-epost-emne" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px" placeholder="{Kundenavn} — tilbud om nytt brikkebytte (Silent Ordering System)"/></div>
       <div class="fgrp" style="margin-bottom:10px"><label>E-posttekst (plassholdere: {Kundenavn}, {AntallBrikker})</label><textarea id="sos-epost-mal" rows="6" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <div class="fgrp" style="margin-bottom:10px"><label>SMS-tekst (plassholder: {Kundenavn})</label><textarea id="sos-sms-mal" rows="3" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <button class="btn-sm prim" onclick="lagreSosInnstillinger()">Lagre</button>
@@ -2404,7 +2405,7 @@ let sosSaker=[];
 // helt til Thomas/Geir bevisst skrur den på. Feltnavn MÅ stemme med FELT_*-
 // konstantene i silent_ordering.py (kbd-verifone-func) — verifiser via Graph
 // Explorer FØR bryteren tas i bruk.
-let sosInnstillinger={aktivert:false,terskelManeder:12,epostMal:'',smsMal:''},sosInnstillingerSpId=null;
+let sosInnstillinger={aktivert:false,terskelManeder:12,epostEmne:'',epostMal:'',smsMal:''},sosInnstillingerSpId=null;
 let sosSakSearchQ='',sosSakStatusFilterQ='alle';
 let sosKundeSearchQ='';
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
@@ -2887,7 +2888,7 @@ async function loadDataFromSP(){
   if(sosInnstItems.length>0){
     const f=sosInnstItems[0].fields;
     sosInnstillingerSpId=sosInnstItems[0].id;
-    sosInnstillinger={aktivert:f.Aktivert===true,terskelManeder:parseInt(f.TerskelManeder)||12,epostMal:f.EpostMal||'',smsMal:f.SmsMal||''};
+    sosInnstillinger={aktivert:f.Aktivert===true,terskelManeder:parseInt(f.TerskelManeder)||12,epostEmne:f.EpostEmne||'',epostMal:f.EpostMal||'',smsMal:f.SmsMal||''};
   }
   // SmsMaler/SmsUtsendelser (lagt til 31.08.2026) — lagrede meldingsmaler og
   // en historikk-logg for «📱 SMS utsendelse»-menyen (eget toppnivå-
@@ -4373,6 +4374,7 @@ function renderSosInnstillinger(){
   if(!aktivert)return;
   aktivert.checked=sosInnstillinger.aktivert;
   document.getElementById('sos-terskel-maneder').value=sosInnstillinger.terskelManeder||12;
+  document.getElementById('sos-epost-emne').value=sosInnstillinger.epostEmne||'';
   document.getElementById('sos-epost-mal').value=sosInnstillinger.epostMal||'';
   document.getElementById('sos-sms-mal').value=sosInnstillinger.smsMal||'';
   sosOppdaterAktivertHint();
@@ -4386,13 +4388,14 @@ function sosOppdaterAktivertHint(){
 async function lagreSosInnstillinger(){
   const aktivert=document.getElementById('sos-aktivert')?.checked||false;
   const terskel=parseInt(document.getElementById('sos-terskel-maneder').value)||12;
+  const epostEmne=document.getElementById('sos-epost-emne').value||'';
   const epostMal=document.getElementById('sos-epost-mal').value||'';
   const smsMal=document.getElementById('sos-sms-mal').value||'';
   if(aktivert){
     const advarsel='Aktivere HELT AUTOMATISK utsending av brikkebytte-invitasjoner nå?\n\nNår en SOS-kunde ikke har hatt et brikkebytte på '+terskel+' måned(er), sendes e-post OG SMS automatisk — det finnes INGEN godkjenningsliste eller gjennomsyn før dette (i motsetning til f.eks. purring-SMS). Sjekk tekstene over nøye før du bekrefter.\n\nMerk: ingenting sendes likevel før Thomas har satt SOS_DRY_RUN=false i Azure Application Settings.';
     if(!confirm(advarsel))return;
   }
-  const felter={Title:'Innstillinger',Aktivert:aktivert,TerskelManeder:terskel,EpostMal:epostMal,SmsMal:smsMal};
+  const felter={Title:'Innstillinger',Aktivert:aktivert,TerskelManeder:terskel,EpostEmne:epostEmne,EpostMal:epostMal,SmsMal:smsMal};
   try{
     if(sosInnstillingerSpId){
       await spUpdate('SOSInnstillinger',sosInnstillingerSpId,felter);
@@ -4400,7 +4403,7 @@ async function lagreSosInnstillinger(){
       const r=await spCreate('SOSInnstillinger',felter);
       sosInnstillingerSpId=r.id;
     }
-    sosInnstillinger={aktivert,terskelManeder:terskel,epostMal,smsMal};
+    sosInnstillinger={aktivert,terskelManeder:terskel,epostEmne,epostMal,smsMal};
     sosOppdaterAktivertHint();
     vfShowToast('✅ SOS-innstillinger lagret');
   }catch(e){alert('Kunne ikke lagre innstillingene: '+e.message);}
@@ -7205,6 +7208,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.76',dato:'08.09.2026',punkter:[
+    'Silent Ordering System: e-postens emnefelt for den automatiske invitasjonen er nå et eget, redigerbart felt under «Innstillinger — automatisk invitasjon» (plassholdere {Kundenavn}/{AntallBrikker}), i stedet for fast tekst i koden. Standardverdi hvis feltet står tomt: «{Kundenavn} — tilbud om nytt brikkebytte (Silent Ordering System)».'
+  ]},
   {versjon:'v1.48.75',dato:'08.09.2026',punkter:[
     'Brikkebytte-saker vises nå som ett kort pr. sak i stedet for en tabellrad, med en full-bredde tidslinje med tekstetiketter under hver sirkel («Invitert → Opprettet → Sendt → I retur → Talt opp → Fakturert») og nøkkeltall (antall sendt/i retur/defekt, fakturert-dato) samlet i kortet.'
   ]},
