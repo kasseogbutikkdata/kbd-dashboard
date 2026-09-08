@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.81 · Oppdatert: 8. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.82 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -586,7 +586,7 @@ tr:hover td{background:#fafafa}
            samme mønster som isub-brukertilgang (admin-only). -->
       <div class="nav-sub" id="silentordering-sub-nav">
         <div class="nav-sub-item active" id="sossub-oversikt" onclick="showSilentOrderingView('oversikt')">🎫 Oversikt</div>
-        <div class="nav-sub-item" id="sossub-innstillinger" style="display:none" onclick="showSilentOrderingView('innstillinger')">⚙️ Innstillinger — automatisk invitasjon</div>
+        <div class="nav-sub-item" id="sossub-innstillinger" style="display:none" onclick="showSilentOrderingView('innstillinger')">⚙️ Innstillinger</div>
       </div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
@@ -1053,7 +1053,7 @@ tr:hover td{background:#fafafa}
          ekstra tydelig advarsel i confirm()-dialogen ved PÅ-slåing, se
          lagreSosInnstillinger(). -->
     <div class="card" id="sos-innst-block" style="display:none">
-      <div class="card-title">⚙️ Innstillinger — automatisk invitasjon</div>
+      <div class="card-title">⚙️ Innstillinger</div>
       <p class="hint" style="margin-bottom:12px">Når en SOS-kunde ikke har hatt et brikkebytte på dette antallet måneder (og ikke allerede har en pågående sak), sendes e-post + SMS automatisk — helt uten manuell gjennomgang. Sjekk tekstene nøye før dette skrus på.</p>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 12px;background:#f9fafb;border-radius:8px">
         <input type="checkbox" id="sos-aktivert" style="width:18px;height:18px" onchange="sosOppdaterAktivertHint()"/>
@@ -7359,6 +7359,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.82',dato:'08.09.2026',punkter:[
+    'Silent Ordering System: undermenypunktet og kort-tittelen «Innstillinger — automatisk invitasjon» forkortet til bare «Innstillinger».'
+  ]},
   {versjon:'v1.48.81',dato:'08.09.2026',punkter:[
     'Silent Ordering System: saker med status «Avbrutt» skjules nå automatisk fra «📋 Brikkebytte-saker»-oversikten, siden de uansett ikke krever oppfølging. Velg «Avbrutt» i statusfilteret for å se dem igjen.'
   ]},
