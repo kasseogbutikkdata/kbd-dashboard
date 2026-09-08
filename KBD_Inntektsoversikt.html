@@ -282,6 +282,18 @@ tr:hover td{background:#fafafa}
 .vf-step.active .vf-step-num{background:#1A3A6B;color:white}
 .vf-step-txt{font-size:13px;font-weight:600;color:#9ca3af}
 .vf-step.done .vf-step-txt,.vf-step.active .vf-step-txt{color:#111}
+
+/* Kompakt tidslinje for Silent Ordering System-saker, lagt til 08.09.2026 —
+   samme grønn/grå-fargevalg som .vf-step over (gjenbruker #1baf7a for
+   "ferdig"), men som en liten vannrett rekke sirkler i én tabellcelle i
+   stedet for en full stepper-stripe. Se sosSakStepperHtml() i JS-en. */
+.sos-mini-stepper{display:inline-flex;align-items:center;vertical-align:middle}
+.sos-mini-step{width:16px;height:16px;border-radius:50%;background:#e5e7eb;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:default}
+.sos-mini-step.done{background:#1baf7a}
+.sos-mini-step.next{background:#fff;border:2px solid #1A3A6B;cursor:pointer}
+.sos-mini-step.next:hover{background:#eef2ff}
+.sos-mini-step-line{width:10px;height:2px;background:#e5e7eb;flex-shrink:0}
+.sos-mini-step-line.done{background:#1baf7a}
 .kpi.vf-warn{border-left:4px solid #d97706}
 .kpi-val.vf-green{color:#1baf7a}
 .kpi-val.vf-warn{color:#d97706}
@@ -427,7 +439,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.73 · Oppdatert: 8. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.74 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4237,6 +4249,77 @@ function sosSakStatusBadge(status){
   return `<span class="badge" style="${stil}">${status||'—'}</span>`;
 }
 
+// ---- Kompakt fremdriftstidslinje for SOS-saker, lagt til 08.09.2026 (Thomas'
+// ønske) — vises i sakstabellen, IKKE i en egen modal. Bevisst INGEN egen
+// avkrysning pr. punkt på saken: hvilke punkter som er grønne utledes alltid
+// av r.status sin plassering i SOS_SAK_STEG (én kilde til sannhet, samme
+// resonnement som ble avklart med Thomas i chatten FØR dette ble bygget).
+// «Avbrutt» er bevisst IKKE et punkt i selve rekken (det er et sidespor, ikke
+// et sted i den lineære flyten) — se sosSakStepperHtml().
+const SOS_SAK_STEG=SOS_SAK_STATUSER.slice(0,6);
+// Datofeltet (på raden i sosSaker) som skal fylles med dagens dato når man
+// klikker seg til DETTE steget — index 0 («Invitasjon sendt») har ingen egen
+// "avanser hit"-handling, det er startpunktet en sak alltid opprettes i.
+const SOS_SAK_STEG_DATOFELT=[null,'sakOpprettetDato','brikkerSendtDato','brikkerMottattDato','brikkerTaltOppDato','faktureringDato'];
+
+function sosSakStepperHtml(r){
+  if(r.status==='Avbrutt'){
+    // Ingen egen "hvor langt kom vi"-verdi lagres for en avbrutt sak — fryser
+    // fremdriften der den var idet saken ble avbrutt ved å se på hvilke
+    // datofelt som faktisk ER fylt ut (samme utled-fra-data-prinsipp som
+    // resten av tidslinjen), pluss et eget rødt merke ved siden av.
+    const datoer=[true,r.sakOpprettetDato,r.brikkerSendtDato,r.brikkerMottattDato,r.brikkerTaltOppDato,r.faktureringDato];
+    let ferdigIdx=-1;
+    for(let i=0;i<datoer.length;i++){if(datoer[i])ferdigIdx=i;else break;}
+    return sosSakStegSirkler(r,ferdigIdx,false)+' <span class="badge" style="background:#fee2e2;color:#991b1b;margin-left:6px;white-space:nowrap">✕ Avbrutt</span>';
+  }
+  const ferdigIdx=SOS_SAK_STEG.indexOf(r.status);
+  return sosSakStegSirkler(r,ferdigIdx,salgTilgang);
+}
+
+function sosSakStegSirkler(r,ferdigIdx,klikkbar){
+  return '<span class="sos-mini-stepper">'+SOS_SAK_STEG.map((navn,i)=>{
+    const ferdig=i<=ferdigIdx;
+    const kanAvansereHit=klikkbar&&i===ferdigIdx+1&&i<SOS_SAK_STEG.length;
+    const dato=i===0?r.invitasjonSendtDato:r[SOS_SAK_STEG_DATOFELT[i]];
+    const datoStr=dato?new Date(dato).toLocaleDateString('nb-NO'):'ikke utført';
+    const tittel=(navn+' — '+datoStr).replace(/"/g,'&quot;');
+    const cls='sos-mini-step'+(ferdig?' done':'')+(kanAvansereHit?' next':'');
+    const klikk=kanAvansereHit?` onclick="event.stopPropagation();sosSakAvanserTilNeste('${r.id}')"`:'';
+    const linje=i>0?'<span class="sos-mini-step-line'+(i<=ferdigIdx?' done':'')+'"></span>':'';
+    return linje+'<span class="'+cls+'" title="'+tittel+'"'+klikk+'>'+(ferdig?'✓':'')+'</span>';
+  }).join('')+'</span>';
+}
+
+// Flytter saken ETT steg videre langs den faste rekkefølgen — snarvei for det
+// man ellers måtte åpne ✏️ Rediger-modalen og endre statusnedtrekket for.
+// Fyller inn dagens dato i steget sitt datofelt og legger igjen en loggpost,
+// men rører ALDRI antall-feltene (de fylles fortsatt inn manuelt i modalen —
+// denne snarveien er kun for status+dato, ikke for opptelling). Kun neste,
+// tomme steg er klikkbart (se kanAvansereHit over) — man kan ikke hoppe over
+// steg eller gå bakover herfra, kun via modalens statusnedtrekk.
+function sosSakAvanserTilNeste(id){
+  if(!salgTilgang)return;
+  const r=sosSaker.find(x=>x.id===id);if(!r)return;
+  const naIdx=SOS_SAK_STEG.indexOf(r.status);
+  if(naIdx<0||naIdx>=SOS_SAK_STEG.length-1)return; // ukjent status, Avbrutt, eller allerede på siste steg
+  const nesteIdx=naIdx+1;
+  const nesteStatus=SOS_SAK_STEG[nesteIdx];
+  const datofelt=SOS_SAK_STEG_DATOFELT[nesteIdx];
+  const naDatoIso=new Date().toISOString();
+  r.status=nesteStatus;
+  if(datofelt)r[datofelt]=naDatoIso.slice(0,10);
+  if(!Array.isArray(r.logg))r.logg=[];
+  r.logg.push({dato:naDatoIso,tekst:'Status endret til «'+nesteStatus+'» (via tidslinje)',forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
+  renderSosSakTabell();
+  if(r.spId){
+    setSPStatus('⏳ Lagrer…');
+    const felter=sosSakFieldsPayload(r);
+    felter.Logg=JSON.stringify(r.logg);
+    spUpdate('SOSSaker',r.spId,felter).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+  }
+}
+
 function renderSilentOrdering(){
   const kundeNyBtn=document.getElementById('sos-kunde-ny-btn');
   if(kundeNyBtn)kundeNyBtn.style.display=salgTilgang?'':'none';
@@ -4455,7 +4538,7 @@ function renderSosSakTabell(){
   </tr></thead><tbody>
   ${liste.map(r=>`<tr>
     <td><strong>${r.kundeNavn||'(uten navn)'}</strong>${r.vismaKundeNummer?`<div style="font-size:11px;color:#9ca3af">Kundenr ${r.vismaKundeNummer}</div>`:''}</td>
-    <td>${sosSakStatusBadge(r.status)}</td>
+    <td><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${sosSakStepperHtml(r)}${sosSakStatusBadge(r.status)}</div></td>
     <td>${r.invitasjonSendtDato?new Date(r.invitasjonSendtDato).toLocaleDateString('nb-NO'):'—'}</td>
     <td>${r.antallSendt??'—'} / ${r.antallMottattRetur??'—'}</td>
     <td>${r.faktureringDato?new Date(r.faktureringDato).toLocaleDateString('nb-NO'):'—'}</td>
@@ -7100,6 +7183,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.74',dato:'08.09.2026',punkter:[
+    'Brikkebytte-saker viser nå en kompakt fremdriftstidslinje (grønne sirkler med hake for hvert fullførte steg) direkte i sakstabellen, i stedet for kun en statusbadge. Neste, tomme steg kan klikkes for å avansere saken raskt — full redigering (antall, notater) skjer fortsatt via ✏️ Rediger-modalen.'
+  ]},
   {versjon:'v1.48.73',dato:'08.09.2026',punkter:[
     '«Innstillinger — automatisk invitasjon» under Silent Ordering System er flyttet ut som en egen undermeny (samme mønster som Utleie/Lisenser/Verifone), i stedet for et kort inni Oversikt-visningen.'
   ]},
