@@ -1691,8 +1691,9 @@ tr:hover td{background:#fafafa}
        kun ETT Visma-kundenummer, men flere fysisk adskilte avdelinger med
        hvert sitt uavhengige brikkesett/timing — SOS-oppsettet flyttet
        derfor fra felt-på-VismaKunder til sin egen liste (SOSKunder, Liste
-       18), der flere rader kan dele samme kundenummer, atskilt av det
-       påkrevde Avdeling-feltet. Oppretter/patcher en rad i SOSKunder
+       18), der flere rader kan dele samme kundenummer, atskilt av
+       Avdeling-feltet (VALGFRITT — kunder uten avdelingsinndeling lar det
+       stå tomt, se saveSosKunde()). Oppretter/patcher en rad i SOSKunder
        (spCreate/spUpdate), IKKE VismaKunder lenger. Se
        Kunde360-oppsett-sjekkliste.md Liste 18. -->
   <div class="modal-overlay" id="sos-kunde-modal" onclick="if(event.target===this)closeSosKundeModal()">
@@ -1708,7 +1709,7 @@ tr:hover td{background:#fafafa}
       <div id="sos-kunde-valgt-navn" style="display:none;margin-bottom:10px;font-weight:600;font-size:14px"></div>
       <input type="hidden" id="sos-kunde-nr"/>
       <input type="hidden" id="sos-kunde-edit-id"/>
-      <div class="fgrp" style="margin-bottom:10px"><label>Avdeling</label><input type="text" id="sos-avdeling" placeholder="F.eks. «Oslo», «Bygg A» — påkrevd, skiller flere avdelinger på samme kunde"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Avdeling (valgfritt — kun hvis kunden har flere)</label><input type="text" id="sos-avdeling" placeholder="F.eks. «Oslo», «Bygg A» — la stå tom hvis kunden ikke har flere avdelinger"/></div>
       <div class="fg" style="grid-template-columns:1fr 1fr">
         <div class="fgrp"><label>Farge</label><select id="sos-farge"><option value="Blå">Blå</option><option value="Rød">Rød</option><option value="Svart">Svart</option></select></div>
         <div class="fgrp"><label>Antall brikker</label><input type="number" id="sos-antall-brikker" min="0" step="1"/></div>
@@ -4582,10 +4583,9 @@ function saveSosKunde(){
   const vismaNummer=document.getElementById('sos-kunde-nr').value;
   if(!vismaNummer){alert('Velg en Visma-kunde fra søket først.');return;}
   const avdeling=(document.getElementById('sos-avdeling').value||'').trim();
-  if(!avdeling){alert('Avdeling er påkrevd — skiller flere avdelinger på samme kunde fra hverandre.');return;}
   const editId=document.getElementById('sos-kunde-edit-id').value;
   const dupikat=sosKunder.find(x=>x.id!==editId&&x.vismaKundeNummer===vismaNummer&&x.avdeling.trim().toLowerCase()===avdeling.toLowerCase());
-  if(dupikat){alert(`«${avdeling}» er allerede registrert som avdeling på denne kunden. Rediger den eksisterende raden i stedet.`);return;}
+  if(dupikat){alert(avdeling?`«${avdeling}» er allerede registrert som avdeling på denne kunden. Rediger den eksisterende raden i stedet.`:'Denne kunden er allerede registrert på SOS (uten avdelingsnavn). Rediger den eksisterende raden i stedet, eller fyll inn et avdelingsnavn her for å skille de to.');return;}
   const felter={
     vismaKundeNummer:vismaNummer,
     avdeling,
@@ -4601,7 +4601,7 @@ function saveSosKunde(){
   closeSosKundeModal();
   const kundeNavn=vismaKunder.find(x=>x.vismaNummer===vismaNummer)?.navn||'';
   const spFelter={
-    Title:`${kundeNavn} – ${avdeling}`.trim(),
+    Title:(avdeling?`${kundeNavn} – ${avdeling}`:kundeNavn).trim(),
     VismaKundeNummer:felter.vismaKundeNummer,Avdeling:felter.avdeling,Aktiv:felter.aktiv,
     Farge:felter.farge,LogoPaaLokk:felter.logoPaaLokk,AntallBrikker:felter.antallBrikker,
     BrikkeType:felter.type,SistBrikkebytteDato:felter.sistBrikkebytteDato||null,
