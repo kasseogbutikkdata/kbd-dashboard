@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.76 · Oppdatert: 8. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.77 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4327,6 +4327,9 @@ function sosSakAvanserTilNeste(id){
   if(!Array.isArray(r.logg))r.logg=[];
   r.logg.push({dato:naDatoIso,tekst:'Status endret til «'+nesteStatus+'» (via tidslinje)',forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
   renderSosSakTabell();
+  if(nesteStatus==='Kunde fakturert'){
+    sosOppdaterSistBrikkebytteVedFakturering(r);
+  }
   if(r.spId){
     setSPStatus('⏳ Lagrer…');
     const felter=sosSakFieldsPayload(r);
@@ -4533,6 +4536,31 @@ function saveSosKunde(){
   }
 }
 
+// Ved overgang TIL status «Kunde fakturert» (fra modal-lagring ELLER
+// klikk-på-tidslinje) — foreslå/sett automatisk SOSSistBrikkebytteDato på
+// matchende VismaKunder-rad, slik at terskel-klokken for neste
+// brikkebytte-runde starter på nytt uten at Thomas/Geir må huske å gjøre
+// det manuelt (Thomas' eksplisitte ønske, 08.09.2026 — se docstring i
+// silent_ordering.py om idempotens/hvorfor dette IKKE ble satt av backend).
+// Kilde for datoen: BrikkerSendtDato (datoen kunden faktisk fikk/byttet
+// brikkene — mest riktig) hvis utfylt, ellers dagens dato som fallback.
+// Overstyres enkelt etterpå via ✏️ Rediger på SOS-kunden — dette er en
+// forhåndsutfylling, ikke en låst verdi.
+function sosOppdaterSistBrikkebytteVedFakturering(r){
+  if(!r)return;
+  const k=vismaKunder.find(x=>x.vismaNummer===r.vismaKundeNummer);
+  if(!k)return;
+  const dato=(r.brikkerSendtDato||'').slice(0,10)||new Date().toISOString().slice(0,10);
+  k.sosSistBrikkebytteDato=dato;
+  renderSosKundeTabell();
+  if(k.spId){
+    spUpdate('VismaKunder',k.spId,{SOSSistBrikkebytteDato:dato}).catch(e=>{
+      console.error('Kunne ikke auto-oppdatere SOSSistBrikkebytteDato',e);
+    });
+  }
+  vfShowToast('📅 Sist brikkebytte satt til '+new Date(dato).toLocaleDateString('nb-NO')+' for '+(k.navn||r.kundeNavn||'kunden'));
+}
+
 // ---- SOS-saker (én rad pr. brikkebytte-runde) ----
 let sosSakEditId=null;
 function sosSakSetSearch(v){sosSakSearchQ=(v||'').trim().toLowerCase();renderSosSakTabell();}
@@ -4704,8 +4732,12 @@ function saveSosSak(){
 
   if(editId){
     const r=sosSaker.find(x=>x.id===editId);if(!r)return;
+    const gammelStatus=r.status;
     Object.assign(r,felter);
     renderSosSakTabell();
+    if(felter.status==='Kunde fakturert'&&gammelStatus!=='Kunde fakturert'){
+      sosOppdaterSistBrikkebytteVedFakturering(r);
+    }
     if(r.spId){
       setSPStatus('⏳ Lagrer…');
       spUpdate('SOSSaker',r.spId,sosSakFieldsPayload(r)).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
@@ -4715,6 +4747,9 @@ function saveSosSak(){
     const nyRad={id:'tmp'+Math.random().toString(36).slice(2),spId:null,opprettetDato:now,opprettetAv:currentUser?.name||currentUser?.username||'',invitasjonSendtDato:felter.status===SOS_SAK_STATUSER[0]?now:null,logg:[],...felter};
     sosSaker.push(nyRad);
     renderSosSakTabell();
+    if(felter.status==='Kunde fakturert'){
+      sosOppdaterSistBrikkebytteVedFakturering(nyRad);
+    }
     setSPStatus('⏳ Lagrer…');
     spCreate('SOSSaker',sosSakFieldsPayload(nyRad)).then(r2=>{
       nyRad.spId=r2.id;nyRad.id=`sp${r2.id}`;
@@ -7208,6 +7243,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.77',dato:'08.09.2026',punkter:[
+    'Silent Ordering System: «Sist brikkebytte»-datoen på kunden settes nå automatisk når en brikkebytte-sak går til status «Kunde fakturert» (både via ✏️ Rediger-modalen og klikk-på-tidslinje) — bruker datoen brikkene ble sendt til kunden, eller dagens dato hvis den mangler. Terskel-klokken for neste automatiske invitasjon starter dermed på nytt uten manuelt arbeid. Verdien kan fortsatt overstyres manuelt på SOS-kunden etterpå.'
+  ]},
   {versjon:'v1.48.76',dato:'08.09.2026',punkter:[
     'Silent Ordering System: e-postens emnefelt for den automatiske invitasjonen er nå et eget, redigerbart felt under «Innstillinger — automatisk invitasjon» (plassholdere {Kundenavn}/{AntallBrikker}), i stedet for fast tekst i koden. Standardverdi hvis feltet står tomt: «{Kundenavn} — tilbud om nytt brikkebytte (Silent Ordering System)».'
   ]},
