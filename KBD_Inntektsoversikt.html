@@ -283,17 +283,27 @@ tr:hover td{background:#fafafa}
 .vf-step-txt{font-size:13px;font-weight:600;color:#9ca3af}
 .vf-step.done .vf-step-txt,.vf-step.active .vf-step-txt{color:#111}
 
-/* Kompakt tidslinje for Silent Ordering System-saker, lagt til 08.09.2026 —
-   samme grønn/grå-fargevalg som .vf-step over (gjenbruker #1baf7a for
-   "ferdig"), men som en liten vannrett rekke sirkler i én tabellcelle i
-   stedet for en full stepper-stripe. Se sosSakStepperHtml() i JS-en. */
-.sos-mini-stepper{display:inline-flex;align-items:center;vertical-align:middle}
-.sos-mini-step{width:16px;height:16px;border-radius:50%;background:#e5e7eb;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:default}
-.sos-mini-step.done{background:#1baf7a}
-.sos-mini-step.next{background:#fff;border:2px solid #1A3A6B;cursor:pointer}
-.sos-mini-step.next:hover{background:#eef2ff}
-.sos-mini-step-line{width:10px;height:2px;background:#e5e7eb;flex-shrink:0}
-.sos-mini-step-line.done{background:#1baf7a}
+/* Fremdriftstidslinje + kort for Silent Ordering System-saker, lagt til
+   08.09.2026 — samme grønn/grå-fargevalg som .vf-step over (gjenbruker
+   #1baf7a for "ferdig"). Startet som en kompakt versjon i én tabellcelle,
+   men Thomas ba samme dag om mer plass pr. sak — sakstabellen er derfor
+   erstattet med én kort-per-sak (.sos-sak-card) med en full-bredde
+   tidslinje med tekstetiketter under hver sirkel. Se sosSakStepperHtml()
+   og renderSosSakTabell() i JS-en (funksjons-/element-navn beholdt uendret
+   selv om den nå rendrer kort i stedet for en tabell, for å unngå å måtte
+   endre alle kallstedene). */
+.sos-sak-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.sos-sak-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.sos-stepper-full{display:flex;align-items:flex-start;width:100%;margin:14px 0 10px}
+.sos-step-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.sos-step-circle{width:26px;height:26px;border-radius:50%;background:#e5e7eb;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:default}
+.sos-step-circle.done{background:#1baf7a}
+.sos-step-circle.next{background:#fff;border:2px solid #1A3A6B;color:#1A3A6B;cursor:pointer}
+.sos-step-circle.next:hover{background:#eef2ff}
+.sos-step-label{font-size:10px;color:#6b7280;margin-top:4px;text-align:center;white-space:nowrap}
+.sos-step-line-full{flex:1 1 auto;height:2px;background:#e5e7eb;margin-top:13px;min-width:8px}
+.sos-step-line-full.done{background:#1baf7a}
+.sos-sak-card-stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:#4b5563}
 .kpi.vf-warn{border-left:4px solid #d97706}
 .kpi-val.vf-green{color:#1baf7a}
 .kpi-val.vf-warn{color:#d97706}
@@ -439,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.74 · Oppdatert: 8. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.75 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4249,46 +4259,50 @@ function sosSakStatusBadge(status){
   return `<span class="badge" style="${stil}">${status||'—'}</span>`;
 }
 
-// ---- Kompakt fremdriftstidslinje for SOS-saker, lagt til 08.09.2026 (Thomas'
-// ønske) — vises i sakstabellen, IKKE i en egen modal. Bevisst INGEN egen
+// ---- Fremdriftstidslinje for SOS-saker, lagt til 08.09.2026 (Thomas' ønske),
+// utvidet samme dag til full bredde med tekstetiketter (opprinnelig en
+// kompakt versjon i én tabellcelle — se «Oppdatering v1.48.75» i
+// prosjektstatus.md seksjon 16 for begrunnelsen). Vises i selve sak-kortet
+// (renderSosSakTabell()), IKKE i en egen modal. Bevisst INGEN egen
 // avkrysning pr. punkt på saken: hvilke punkter som er grønne utledes alltid
 // av r.status sin plassering i SOS_SAK_STEG (én kilde til sannhet, samme
 // resonnement som ble avklart med Thomas i chatten FØR dette ble bygget).
 // «Avbrutt» er bevisst IKKE et punkt i selve rekken (det er et sidespor, ikke
-// et sted i den lineære flyten) — se sosSakStepperHtml().
+// et sted i den lineære flyten) — vises i stedet som et eget merke i
+// kort-headeren, se renderSosSakTabell().
 const SOS_SAK_STEG=SOS_SAK_STATUSER.slice(0,6);
+const SOS_SAK_STEG_KORTNAVN=['Invitert','Opprettet','Sendt','I retur','Talt opp','Fakturert'];
 // Datofeltet (på raden i sosSaker) som skal fylles med dagens dato når man
 // klikker seg til DETTE steget — index 0 («Invitasjon sendt») har ingen egen
 // "avanser hit"-handling, det er startpunktet en sak alltid opprettes i.
 const SOS_SAK_STEG_DATOFELT=[null,'sakOpprettetDato','brikkerSendtDato','brikkerMottattDato','brikkerTaltOppDato','faktureringDato'];
 
 function sosSakStepperHtml(r){
+  let ferdigIdx,klikkbar;
   if(r.status==='Avbrutt'){
     // Ingen egen "hvor langt kom vi"-verdi lagres for en avbrutt sak — fryser
     // fremdriften der den var idet saken ble avbrutt ved å se på hvilke
     // datofelt som faktisk ER fylt ut (samme utled-fra-data-prinsipp som
-    // resten av tidslinjen), pluss et eget rødt merke ved siden av.
+    // resten av tidslinjen). Ikke klikkbar — en avbrutt sak avanseres ikke.
     const datoer=[true,r.sakOpprettetDato,r.brikkerSendtDato,r.brikkerMottattDato,r.brikkerTaltOppDato,r.faktureringDato];
-    let ferdigIdx=-1;
+    ferdigIdx=-1;
     for(let i=0;i<datoer.length;i++){if(datoer[i])ferdigIdx=i;else break;}
-    return sosSakStegSirkler(r,ferdigIdx,false)+' <span class="badge" style="background:#fee2e2;color:#991b1b;margin-left:6px;white-space:nowrap">✕ Avbrutt</span>';
+    klikkbar=false;
+  }else{
+    ferdigIdx=SOS_SAK_STEG.indexOf(r.status);
+    klikkbar=salgTilgang;
   }
-  const ferdigIdx=SOS_SAK_STEG.indexOf(r.status);
-  return sosSakStegSirkler(r,ferdigIdx,salgTilgang);
-}
-
-function sosSakStegSirkler(r,ferdigIdx,klikkbar){
-  return '<span class="sos-mini-stepper">'+SOS_SAK_STEG.map((navn,i)=>{
+  return '<div class="sos-stepper-full">'+SOS_SAK_STEG.map((navn,i)=>{
     const ferdig=i<=ferdigIdx;
     const kanAvansereHit=klikkbar&&i===ferdigIdx+1&&i<SOS_SAK_STEG.length;
     const dato=i===0?r.invitasjonSendtDato:r[SOS_SAK_STEG_DATOFELT[i]];
     const datoStr=dato?new Date(dato).toLocaleDateString('nb-NO'):'ikke utført';
     const tittel=(navn+' — '+datoStr).replace(/"/g,'&quot;');
-    const cls='sos-mini-step'+(ferdig?' done':'')+(kanAvansereHit?' next':'');
+    const cirkelCls='sos-step-circle'+(ferdig?' done':'')+(kanAvansereHit?' next':'');
     const klikk=kanAvansereHit?` onclick="event.stopPropagation();sosSakAvanserTilNeste('${r.id}')"`:'';
-    const linje=i>0?'<span class="sos-mini-step-line'+(i<=ferdigIdx?' done':'')+'"></span>':'';
-    return linje+'<span class="'+cls+'" title="'+tittel+'"'+klikk+'>'+(ferdig?'✓':'')+'</span>';
-  }).join('')+'</span>';
+    const linje=i>0?'<span class="sos-step-line-full'+(i<=ferdigIdx?' done':'')+'"></span>':'';
+    return linje+'<div class="sos-step-col"><span class="'+cirkelCls+'" title="'+tittel+'"'+klikk+'>'+(ferdig?'✓':'')+'</span><span class="sos-step-label">'+SOS_SAK_STEG_KORTNAVN[i]+'</span></div>';
+  }).join('')+'</div>';
 }
 
 // Flytter saken ETT steg videre langs den faste rekkefølgen — snarvei for det
@@ -4533,18 +4547,26 @@ function renderSosSakTabell(){
     target.innerHTML=`<div class="empty">Ingen brikkebytte-saker${sosSakSearchQ||sosSakStatusFilterQ!=='alle'?' matcher filteret':' registrert ennå'}.</div>`;
     return;
   }
-  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-    <th>Kunde</th><th>Status</th><th>Invitasjon sendt</th><th>Antall sendt/retur</th><th>Fakturert</th><th></th>
-  </tr></thead><tbody>
-  ${liste.map(r=>`<tr>
-    <td><strong>${r.kundeNavn||'(uten navn)'}</strong>${r.vismaKundeNummer?`<div style="font-size:11px;color:#9ca3af">Kundenr ${r.vismaKundeNummer}</div>`:''}</td>
-    <td><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${sosSakStepperHtml(r)}${sosSakStatusBadge(r.status)}</div></td>
-    <td>${r.invitasjonSendtDato?new Date(r.invitasjonSendtDato).toLocaleDateString('nb-NO'):'—'}</td>
-    <td>${r.antallSendt??'—'} / ${r.antallMottattRetur??'—'}</td>
-    <td>${r.faktureringDato?new Date(r.faktureringDato).toLocaleDateString('nb-NO'):'—'}</td>
-    <td><button class="btn-sm" onclick="openSosSakModal('${r.id}')">${salgTilgang?'✏️ Rediger':'👁️ Vis'}</button></td>
-  </tr>`).join('')}
-  </tbody></table></div>`;
+  // Kort-per-sak i stedet for en tabell, lagt til 08.09.2026 (Thomas ba om
+  // mer plass til tidslinjen enn en tabellcelle ga rom for) — se
+  // sosSakStepperHtml() for selve tidslinjen.
+  target.innerHTML=liste.map(r=>`
+    <div class="sos-sak-card">
+      <div class="sos-sak-card-top">
+        <div><strong>${r.kundeNavn||'(uten navn)'}</strong>${r.vismaKundeNummer?`<span style="font-size:11px;color:#9ca3af;margin-left:8px">Kundenr ${r.vismaKundeNummer}</span>`:''}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${r.status==='Avbrutt'?'<span class="badge" style="background:#fee2e2;color:#991b1b">✕ Avbrutt</span>':''}
+          <button class="btn-sm" onclick="openSosSakModal('${r.id}')">${salgTilgang?'✏️ Rediger':'👁️ Vis'}</button>
+        </div>
+      </div>
+      ${sosSakStepperHtml(r)}
+      <div class="sos-sak-card-stats">
+        <span>📦 Sendt: <strong>${r.antallSendt??'—'}</strong></span>
+        <span>↩️ I retur: <strong>${r.antallMottattRetur??'—'}</strong></span>
+        <span>⚠️ Defekt: <strong>${r.antallDefekt??'—'}</strong></span>
+        <span>💳 Fakturert: <strong>${r.faktureringDato?new Date(r.faktureringDato).toLocaleDateString('nb-NO'):'—'}</strong></span>
+      </div>
+    </div>`).join('');
 }
 
 // Kunde-autocomplete i SOS-sak-modalen for MANUELL saksopprettelse — samme
@@ -7183,6 +7205,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.75',dato:'08.09.2026',punkter:[
+    'Brikkebytte-saker vises nå som ett kort pr. sak i stedet for en tabellrad, med en full-bredde tidslinje med tekstetiketter under hver sirkel («Invitert → Opprettet → Sendt → I retur → Talt opp → Fakturert») og nøkkeltall (antall sendt/i retur/defekt, fakturert-dato) samlet i kortet.'
+  ]},
   {versjon:'v1.48.74',dato:'08.09.2026',punkter:[
     'Brikkebytte-saker viser nå en kompakt fremdriftstidslinje (grønne sirkler med hake for hvert fullførte steg) direkte i sakstabellen, i stedet for kun en statusbadge. Neste, tomme steg kan klikkes for å avansere saken raskt — full redigering (antall, notater) skjer fortsatt via ✏️ Rediger-modalen.'
   ]},
