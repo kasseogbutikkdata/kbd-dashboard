@@ -427,7 +427,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.70 · Oppdatert: 7. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.71 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3475,11 +3475,24 @@ function renderNyetableringer(){
   if(dropdownDiv){
     const bransjer=[...new Set(visningsBasis.map(_nyeBransjeVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
     const steder=[...new Set(visningsBasis.map(_nyeStedVerdi))].sort((a,b)=>a.localeCompare(b,'nb'));
-    // Områdene bygges fra nyetableringerRenset (IKKE omradeBasis/visningsBasis)
-    // slik at man alltid kan bytte til et annet område i nedtrekket, uansett
-    // hvilket som er valgt nå. 'KBD' plasseres alltid først (uavhengig av
-    // alfabetisk rekkefølge) siden det er default og desidert mest brukt.
-    const omrader=[...new Set(nyetableringerRenset.map(_nyeForhandlerVerdi))].sort((a,b)=>a==='KBD'?-1:b==='KBD'?1:a.localeCompare(b,'nb'));
+    // Områdene bygges fra forhandlerOmrader (Liste 13, selve fasit-lista over
+    // områder), IKKE lenger fra de faktiske tekstverdiene skrevet på hver
+    // nyetablerings-rad (endret 08.09.2026 — se prosjektstatus). Årsak: feltet
+    // "Forhandleromrade" på hver rad er en ren tekst-kopi tatt fra områdets
+    // Title PÅ DET TIDSPUNKTET raden ble opprettet, ikke en levende kobling —
+    // så hvis noen har skrevet inn navnet med små variasjoner (f.eks. "–" vs
+    // "-", eller endret rekkefølgen på ord) på ulike tidspunkt, endte
+    // nedtrekket opp med tilsynelatende "doble" områder for samme reelle
+    // forhandler. Ved å bygge nedtrekket fra selve fasit-lista i stedet, vises
+    // alltid nøyaktig de områdene som faktisk finnes der (uansett hvilken
+    // tekst gamle rader måtte ha) — inkl. inaktive, siden man fortsatt skal
+    // kunne filtrere på historiske rader fra et område som senere ble slått
+    // av. Selve radene beholder sin opprinnelige, uendrede tekstverdi (se
+    // _nyeForhandlerVerdi/kolonnen ved "Alle områder") — dette endrer kun
+    // hvilke verdier som er VALGBARE i nedtrekket. 'KBD' plasseres alltid
+    // først (uavhengig av alfabetisk rekkefølge) siden det er default og
+    // desidert mest brukt, og er ikke selv en rad i Forhandleromrader.
+    const omrader=[...new Set(['KBD',...forhandlerOmrader.map(r=>r.navn).filter(Boolean)])].sort((a,b)=>a==='KBD'?-1:b==='KBD'?1:a.localeCompare(b,'nb'));
     // Hvis dataene har endret seg (f.eks. ny dagskjøring, eller en av bryterne
     // over ble slått på/av) slik at en tidligere valgt verdi ikke lenger
     // finnes i lista, nullstill filteret til "alle" i stedet for å vise en
@@ -6432,6 +6445,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.71',dato:'08.09.2026',punkter:[
+    'Nyetableringer: nedtrekket for forhandlerområde viste tidligere «doble» områder når navnet var skrevet inn med små variasjoner (f.eks. bindestrek/tankestrek) på ulike tidspunkt. Nedtrekket bygges nå fra selve områdelista, ikke fra tekstverdier på gamle rader.'
+  ]},
   {versjon:'v1.48.70',dato:'07.09.2026',punkter:[
     'Susoft RMA: ny, egen av/på-bryter («📧 Automatisk purring til Susoft») for å sende automatisk purre-e-post DIREKTE til Susoft (jarle@susoft.com) på saker som har ligget hos dem i over 3 uker — gjentatt ukentlig helt til saken er løst. Uavhengig av det eksisterende interne varselet til Geir; avslått som standard.'
   ]},
