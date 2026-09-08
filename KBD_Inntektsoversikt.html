@@ -427,7 +427,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.71 · Oppdatert: 8. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.72 · Oppdatert: 8. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -544,6 +544,16 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="nav-item" id="tab-susoftrma" onclick="showTab('susoftrma',this)">
         <span class="nav-item-icon">🔧</span>Susoft RMA
+      </div>
+      <!-- Silent Ordering System (SOS) — proaktivt brikkebytte for serverings-
+           steder, lagt til 08.09.2026 på Thomas' eksplisitte ønske om ETT eget
+           menypunkt i venstremenyen (ikke en underfane av Kunde 360) — samme
+           "egen fane, ikke underfane"-mønster som Susoft RMA over. Se
+           renderSilentOrdering() og silent_ordering.py (kbd-verifone-func)
+           for den daglige, HELT AUTOMATISKE (ingen godkjenningsliste, se
+           silent_ordering.py sin docstring) e-post+SMS-invitasjonen. -->
+      <div class="nav-item" id="tab-silentordering" onclick="showTab('silentordering',this)">
+        <span class="nav-item-icon">🎫</span>Silent Ordering System
       </div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
@@ -941,6 +951,72 @@ tr:hover td{background:#fafafa}
       <button class="btn-sm prim" onclick="lagreSusoftRmaInnstillinger()">Lagre</button>
     </div>
     <div id="rma-tabell"></div>
+  </div>
+
+  <!-- SILENT ORDERING SYSTEM (SOS) — proaktivt brikkebytte, lagt til
+       08.09.2026. Eget toppnivå-menypunkt (IKKE en underfane), på Thomas'
+       eksplisitte ønske — samme "egen fane"-mønster som Susoft RMA over.
+       Se renderSilentOrdering() og silent_ordering.py (kbd-verifone-func).
+       card-public på oversiktskortene (ren lesehandling for alle innloggede,
+       samme begrunnelse som tp-susoftrma/tp-konkurser) — knappene for å
+       melde på/redigere kunder, redigere saker og endre innstillinger er
+       gatet på salgTilgang inni renderSilentOrdering(), ikke av rollen her. -->
+  <div id="tp-silentordering" class="tp">
+    <div class="card card-public">
+      <div class="card-title">🎫 Silent Ordering System — proaktivt brikkebytte</div>
+      <div class="hint">Brikkesystemet dere leverer til serveringssteder — kunder bestiller ved disken og får en brikke som varsler (lys/lyd eller vibrasjon) når maten er klar. Denne fanen holder oversikt over hvilke kunder som er SOS-kunder (med brikkeoppsett), og sporer hver brikkebytte-runde fra automatisk invitasjon til ferdig fakturert. Selve invitasjonen (e-post + SMS) sendes automatisk når det er gått lenge nok siden sist bytte — se «⚙️ Innstillinger» under.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧑‍💼 SOS-kunder</div>
+      <div class="hint">Kundens brikkeoppsett (farge, logo, type, antall) er fast — endres her, ikke per sak. «Sist brikkebytte» styrer når kunden foreslås for en ny automatisk invitasjon.</div>
+      <div class="frow" style="margin-top:10px">
+        <input type="text" id="sos-kunde-search" placeholder="Søk på kundenavn…" style="flex:1" oninput="sosSetKundeSearch(this.value)"/>
+        <button class="btn-sm" id="sos-kunde-ny-btn" style="display:none" onclick="openSosKundeModal()">➕ Meld på SOS-kunde</button>
+      </div>
+      <div id="sos-kunde-tabell" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Innstillinger — salgTilgang-gatet (skjules for Leser-rollen inni
+         renderSilentOrdering(), samme mønster som rma-innst-block). VIKTIG,
+         avvik fra purring-SMS/Susoft: når Aktivert slås på her, sendes
+         invitasjoner HELT AUTOMATISK — INGEN godkjenningsliste (bekreftet av
+         Thomas 08.09.2026, se silent_ordering.py sin docstring) — derfor en
+         ekstra tydelig advarsel i confirm()-dialogen ved PÅ-slåing, se
+         lagreSosInnstillinger(). -->
+    <div class="card" id="sos-innst-block" style="display:none">
+      <div class="card-title">⚙️ Innstillinger — automatisk invitasjon</div>
+      <p class="hint" style="margin-bottom:12px">Når en SOS-kunde ikke har hatt et brikkebytte på dette antallet måneder (og ikke allerede har en pågående sak), sendes e-post + SMS automatisk — helt uten manuell gjennomgang. Sjekk tekstene nøye før dette skrus på.</p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 12px;background:#f9fafb;border-radius:8px">
+        <input type="checkbox" id="sos-aktivert" style="width:18px;height:18px" onchange="sosOppdaterAktivertHint()"/>
+        <label for="sos-aktivert" style="font-weight:600;cursor:pointer">Aktivert — send automatisk invitasjon til brikkebytte</label>
+      </div>
+      <div id="sos-aktivert-hint" class="hint" style="margin-bottom:10px;color:#b45309">⚠️ Avslått som standard. Ingen invitasjoner sendes før denne krysses av og lagres — OG kun etter at Azure-bremsen (SOS_DRY_RUN) er satt til «false» av Thomas.</div>
+      <div class="fgrp" style="margin-bottom:10px;max-width:220px"><label>Terskel (måneder siden sist bytte)</label><input type="number" id="sos-terskel-maneder" min="1" step="1" placeholder="12"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>E-posttekst (plassholdere: {Kundenavn}, {AntallBrikker})</label><textarea id="sos-epost-mal" rows="6" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>SMS-tekst (plassholder: {Kundenavn})</label><textarea id="sos-sms-mal" rows="3" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <button class="btn-sm prim" onclick="lagreSosInnstillinger()">Lagre</button>
+    </div>
+
+    <div class="card card-public">
+      <div class="card-title">📋 Brikkebytte-saker</div>
+      <div class="hint">Én sak pr. brikkebytte-runde — fra automatisk invitasjon til ferdig fakturert.</div>
+      <div class="frow" style="margin-top:10px">
+        <input type="text" id="sos-sak-search" placeholder="Søk på kunde…" style="flex:1" oninput="sosSakSetSearch(this.value)"/>
+        <select id="sos-sak-status-filter" onchange="sosSakSetStatusFilter(this.value)" style="max-width:220px">
+          <option value="alle">Alle statuser</option>
+          <option value="Invitasjon sendt">Invitasjon sendt</option>
+          <option value="Sak opprettet">Sak opprettet</option>
+          <option value="Brikker sendt">Brikker sendt</option>
+          <option value="Brikker mottatt i retur">Brikker mottatt i retur</option>
+          <option value="Brikker talt opp">Brikker talt opp</option>
+          <option value="Kunde fakturert">Kunde fakturert</option>
+          <option value="Avbrutt">Avbrutt</option>
+        </select>
+        <button class="btn-sm" id="sos-sak-ny-btn" style="display:none" onclick="openSosSakModal()">➕ Ny sak</button>
+      </div>
+    </div>
+    <div id="sos-sak-tabell"></div>
   </div>
 
   <div id="tp-idebank" class="tp">
@@ -1557,6 +1633,98 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeRmaModal()">Avbryt</button>
         <button class="prim" onclick="saveRma()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOS-KUNDE-modal — melder på/redigerer en kundes FASTE brikkeoppsett.
+       PATCHer en EKSISTERENDE VismaKunder-rad (spUpdate), oppretter ALDRI en
+       ny rad — kunden må allerede finnes fra Visma-synken. Se
+       Kunde360-oppsett-sjekkliste.md Liste 15. -->
+  <div class="modal-overlay" id="sos-kunde-modal" onclick="if(event.target===this)closeSosKundeModal()">
+    <div class="modal" style="width:520px;max-height:85vh;overflow-y:auto">
+      <h3 id="sos-kunde-modal-title" style="margin-bottom:16px">Meld på SOS-kunde</h3>
+      <div class="fgrp" style="margin-bottom:10px" id="sos-kunde-sok-blokk">
+        <label>Kunde (kun eksisterende Visma-kunder)</label>
+        <div class="vf-kunde-ac" style="min-width:100%">
+          <input type="text" id="sos-kunde-input" placeholder="Søk kundenavn eller org.nr…" oninput="sosKundeAcSok()" onfocus="sosKundeAcSok()" onblur="setTimeout(()=&gt;{const d=document.getElementById('sos-kunde-treff');if(d)d.style.display='none';},150)" autocomplete="off" style="width:100%"/>
+          <div id="sos-kunde-treff" class="vf-ac-treff"></div>
+        </div>
+      </div>
+      <div id="sos-kunde-valgt-navn" style="display:none;margin-bottom:10px;font-weight:600;font-size:14px"></div>
+      <input type="hidden" id="sos-kunde-nr"/>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Farge</label><select id="sos-farge"><option value="Blå">Blå</option><option value="Rød">Rød</option><option value="Svart">Svart</option></select></div>
+        <div class="fgrp"><label>Antall brikker</label><input type="number" id="sos-antall-brikker" min="0" step="1"/></div>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Type</label><select id="sos-type"><option value="Lyd og lys">Lyd og lys</option><option value="Vibrasjon">Vibrasjon</option></select></div>
+        <div class="fgrp"><label>Sist brikkebytte</label><input type="date" id="sos-sist-bytte"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13px;color:#374151;cursor:pointer;margin-bottom:6px"><input type="checkbox" id="sos-logo-pa-lokk" style="width:15px;height:15px"/> Logo på lokk</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:#374151;cursor:pointer;margin-bottom:0"><input type="checkbox" id="sos-aktiv" style="width:15px;height:15px" checked/> Aktiv SOS-kunde (kan foreslås for automatisk invitasjon)</label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeSosKundeModal()">Avbryt</button>
+        <button class="prim" onclick="saveSosKunde()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOS-SAK-modal — én brikkebytte-runde. Nye saker opprettes normalt
+       automatisk av backend (sjekk_sos_invitasjoner), men kan også
+       registreres manuelt herfra (f.eks. en historisk sak). Se
+       Kunde360-oppsett-sjekkliste.md Liste 16. -->
+  <div class="modal-overlay" id="sos-sak-modal" onclick="if(event.target===this)closeSosSakModal()">
+    <div class="modal" style="width:600px;max-height:85vh;overflow-y:auto">
+      <h3 id="sos-sak-modal-title" style="margin-bottom:16px">Ny brikkebytte-sak</h3>
+      <div class="fgrp" style="margin-bottom:10px" id="sos-sak-sok-blokk">
+        <label>Kunde</label>
+        <div class="vf-kunde-ac" style="min-width:100%">
+          <input type="text" id="sos-sak-kunde-input" placeholder="Søk Visma-kunde…" oninput="sosSakKundeAcSok()" onfocus="sosSakKundeAcSok()" onblur="setTimeout(()=&gt;{const d=document.getElementById('sos-sak-kunde-treff');if(d)d.style.display='none';},150)" autocomplete="off" style="width:100%"/>
+          <div id="sos-sak-kunde-treff" class="vf-ac-treff"></div>
+        </div>
+        <input type="hidden" id="sos-sak-kunde-nr"/>
+      </div>
+      <div id="sos-sak-kunde-navn-visning" style="display:none;margin-bottom:10px;font-weight:600;font-size:14px"></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Status</label>
+        <select id="sos-sak-status">
+          <option>Invitasjon sendt</option>
+          <option>Sak opprettet</option>
+          <option>Brikker sendt</option>
+          <option>Brikker mottatt i retur</option>
+          <option>Brikker talt opp</option>
+          <option>Kunde fakturert</option>
+          <option>Avbrutt</option>
+        </select>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Antall sendt</label><input type="number" id="sos-sak-antall-sendt" min="0" step="1"/></div>
+        <div class="fgrp"><label>Brikker sendt (dato)</label><input type="date" id="sos-sak-dato-sendt"/></div>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Antall mottatt i retur</label><input type="number" id="sos-sak-antall-mottatt" min="0" step="1"/></div>
+        <div class="fgrp"><label>Brikker mottatt (dato)</label><input type="date" id="sos-sak-dato-mottatt"/></div>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Antall defekt</label><input type="number" id="sos-sak-antall-defekt" min="0" step="1"/></div>
+        <div class="fgrp"><label>Brikker talt opp (dato)</label><input type="date" id="sos-sak-dato-talt-opp"/></div>
+      </div>
+      <div class="fgrp"><label>Faktureringsdato</label><input type="date" id="sos-sak-dato-fakturering"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Faktureringsnotat</label><textarea id="sos-sak-fakturering-notat" rows="2" placeholder="Hva ble fakturert (manglende brikker, batteribytte)…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <input type="hidden" id="sos-sak-edit-id"/>
+      <div id="sos-sak-logg-blokk" style="display:none;margin-bottom:10px;padding-top:10px;border-top:1px dashed #e5e7eb">
+        <label style="display:block;font-weight:600;font-size:12.5px;color:#374151;margin-bottom:6px">Tidslinje</label>
+        <div id="sos-sak-logg-liste" style="max-height:160px;overflow-y:auto;margin-bottom:8px"></div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="sos-sak-logg-input" placeholder="Legg til en datert oppdatering…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilSosLoggpost();}"/>
+          <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilSosLoggpost()">Legg til</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="closeSosSakModal()">Avbryt</button>
+        <button class="prim" onclick="saveSosSak()">Lagre</button>
       </div>
     </div>
   </div>
@@ -2185,6 +2353,22 @@ let susoftRma=[];
 // ved lagring), ellers selve SharePoint-item-IDen (PATCH ved senere
 // lagringer).
 let susoftRmaInnstillinger={varsleSusoftAktivert:false},susoftRmaInnstillingerSpId=null;
+// Silent Ordering System (SOS), lagt til 08.09.2026 — se Kunde360-oppsett-
+// sjekkliste.md Liste 15/16/17 og KBD-Command-Center-prosjektstatus.md
+// seksjon 16 for hele designet. sosSaker = SOSSaker-lista (én rad pr.
+// brikkebytte-runde). SOS-kundeoppsettet (aktiv/farge/logo/type/antall/sist
+// bytte) ligger derimot IKKE i en egen array her — det er nye felt PÅ
+// vismaKunder-objektene selv (samme presedens som brregKonkursVarslet), se
+// mappingen i loadDataFromSP().
+let sosSaker=[];
+// sosInnstillinger — ÉN rad på SharePoint-lista SOSInnstillinger, samme
+// mønster som susoftRmaInnstillinger over. aktivert=false som trygg standard
+// helt til Thomas/Geir bevisst skrur den på. Feltnavn MÅ stemme med FELT_*-
+// konstantene i silent_ordering.py (kbd-verifone-func) — verifiser via Graph
+// Explorer FØR bryteren tas i bruk.
+let sosInnstillinger={aktivert:false,terskelManeder:12,epostMal:'',smsMal:''},sosInnstillingerSpId=null;
+let sosSakSearchQ='',sosSakStatusFilterQ='alle';
+let sosKundeSearchQ='';
 let nyeStatusFilter='alle'; // 'alle' / 'Ikke kontaktet' / 'Kontaktet' / 'Ikke aktuell'
 let nyeBransjeFilter='alle'; // 'alle', ellers en eksakt verdi fra _nyeBransjeVerdi() under
 let nyeStedFilter='alle';    // 'alle', ellers en eksakt verdi fra _nyeStedVerdi() under
@@ -2532,14 +2716,20 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[]),spGetItems('SOSSaker').catch(()=>[]),spGetItems('SOSInnstillinger').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   aging=agItems.map(i=>({id:`sp${i.id}`,spId:i.id,date:i.fields.Dato||'',d1_30:parseFloat(i.fields.D1_30)||0,d31_60:parseFloat(i.fields.D31_60)||0,d61_90:parseFloat(i.fields.D61_90)||0,d90plus:parseFloat(i.fields.D90plus)||0,note:i.fields.Note||''}));
   omsetning=omsItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
-  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,saldoForfalt:parseFloat(i.fields.SaldoForfalt)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||'',brregKonkursVarslet:i.fields.BrregKonkursVarslet===true}));
+  // sosAktiv/sosFarge/sosLogoPaaLokk/sosAntallBrikker/sosType/
+  // sosSistBrikkebytteDato (lagt til 08.09.2026) — SOS-kundens faste
+  // brikkeoppsett, nye kolonner PÅ vismaKunder (samme presedens som
+  // brregKonkursVarslet over) — se Kunde360-oppsett-sjekkliste.md Liste 15.
+  // sosSistBrikkebytteDato settes/oppdateres KUN herfra (dashbordet), ALDRI
+  // av backend — se silent_ordering.py sin docstring om idempotens.
+  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,saldoForfalt:parseFloat(i.fields.SaldoForfalt)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||'',brregKonkursVarslet:i.fields.BrregKonkursVarslet===true,sosAktiv:i.fields.SOSAktiv===true,sosFarge:i.fields.SOSFarge||'',sosLogoPaaLokk:i.fields.SOSLogoPaaLokk===true,sosAntallBrikker:(i.fields.SOSAntallBrikker??null),sosType:i.fields.SOSType||'',sosSistBrikkebytteDato:i.fields.SOSSistBrikkebytteDato||''}));
   // MERK: SharePoint-kolonnen som vises som "KontraktId" har internt feltnavn
   // "VismaKontrakter" (bekreftet 20.08.2026 via rå Graph-respons — trolig fordi
   // kolonnen opprinnelig ble opprettet med det navnet og senere bare fikk
@@ -2649,6 +2839,17 @@ async function loadDataFromSP(){
     const f=srmaiItems[0].fields;
     susoftRmaInnstillingerSpId=srmaiItems[0].id;
     susoftRmaInnstillinger={varsleSusoftAktivert:f.VarsleSusoftAktivert===true};
+  }
+  // Silent Ordering System (SOS), lagt til 08.09.2026 — se
+  // Kunde360-oppsett-sjekkliste.md Liste 16/17 og silent_ordering.py
+  // (kbd-verifone-func) for backend-siden (sjekk_sos_invitasjoner, daglig
+  // 06:15 UTC). Feltnavn MÅ stemme med FELT_*-konstantene der — IKKE
+  // verifisert mot et faktisk SharePoint-site ennå.
+  sosSaker=sosSakItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',status:i.fields.Status||'Invitasjon sendt',invitasjonSendtDato:i.fields.InvitasjonSendtDato||'',sakOpprettetDato:i.fields.SakOpprettetDato||'',antallSendt:(i.fields.AntallSendt??null),brikkerSendtDato:i.fields.BrikkerSendtDato||'',antallMottattRetur:(i.fields.AntallMottattRetur??null),brikkerMottattDato:i.fields.BrikkerMottattDato||'',antallDefekt:(i.fields.AntallDefekt??null),brikkerTaltOppDato:i.fields.BrikkerTaltOppDato||'',faktureringDato:i.fields.FaktureringDato||'',faktureringsNotat:i.fields.FaktureringsNotat||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  if(sosInnstItems.length>0){
+    const f=sosInnstItems[0].fields;
+    sosInnstillingerSpId=sosInnstItems[0].id;
+    sosInnstillinger={aktivert:f.Aktivert===true,terskelManeder:parseInt(f.TerskelManeder)||12,epostMal:f.EpostMal||'',smsMal:f.SmsMal||''};
   }
   // SmsMaler/SmsUtsendelser (lagt til 31.08.2026) — lagrede meldingsmaler og
   // en historikk-logg for «📱 SMS utsendelse»-menyen (eget toppnivå-
@@ -3984,6 +4185,423 @@ function saveRma(){
       renderSusoftRma();
       setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);
     });
+  }
+}
+
+// ===== SILENT ORDERING SYSTEM (SOS) — proaktivt brikkebytte, lagt til 08.09.2026 =====
+// Se KBD-Command-Center-prosjektstatus.md seksjon 16 og
+// Kunde360-oppsett-sjekkliste.md Liste 15/16/17 for hele designet.
+//
+// To datakilder:
+//  1. Kundens FASTE brikkeoppsett (aktiv/farge/logo/type/antall/sist bytte) —
+//     nye felt PÅ vismaKunder-objektene selv (spUpdate mot 'VismaKunder'),
+//     IKKE en egen liste. Se saveSosKunde().
+//  2. sosSaker — én rad pr. brikkebytte-runde (SharePoint-lista SOSSaker),
+//     normalt opprettet automatisk av backend (sjekk_sos_invitasjoner,
+//     kbd-verifone-func) med Status "Invitasjon sendt", men kan også
+//     registreres/redigeres manuelt herfra.
+//
+// «➕ Meld på SOS-kunde», «➕ Ny sak» og all redigering er gatet på
+// salgTilgang (samme "salg/support-teamet"-flagg som resten av Kunde 360-
+// skrivehandlinger) — se renderSilentOrdering(). Fanen selv er synlig for
+// alle innloggede, IKKE lagt til MODULER-arrayet, samme mønster som
+// Susoft RMA.
+const SOS_SAK_STATUSER=['Invitasjon sendt','Sak opprettet','Brikker sendt','Brikker mottatt i retur','Brikker talt opp','Kunde fakturert','Avbrutt'];
+function sosSakStatusBadge(status){
+  const stiler={
+    'Invitasjon sendt':'background:#e5e7eb;color:#374151',
+    'Sak opprettet':'background:#dbeafe;color:#1e40af',
+    'Brikker sendt':'background:#fef3c7;color:#92400e',
+    'Brikker mottatt i retur':'background:#ede9fe;color:#5b21b6',
+    'Brikker talt opp':'background:#cffafe;color:#155e75',
+    'Kunde fakturert':'background:#d1fae5;color:#065f46',
+    'Avbrutt':'background:#fee2e2;color:#991b1b'
+  };
+  const stil=stiler[status]||'background:#e5e7eb;color:#374151';
+  return `<span class="badge" style="${stil}">${status||'—'}</span>`;
+}
+
+function renderSilentOrdering(){
+  const kundeNyBtn=document.getElementById('sos-kunde-ny-btn');
+  if(kundeNyBtn)kundeNyBtn.style.display=salgTilgang?'':'none';
+  const sakNyBtn=document.getElementById('sos-sak-ny-btn');
+  if(sakNyBtn)sakNyBtn.style.display=salgTilgang?'':'none';
+  const innstBlock=document.getElementById('sos-innst-block');
+  if(innstBlock)innstBlock.style.display=salgTilgang?'':'none';
+  renderSosInnstillinger();
+  renderSosKundeTabell();
+  renderSosSakTabell();
+}
+
+// ---- Innstillinger (terskel + e-post-/SMS-maler + av/på-bryter) ----
+function renderSosInnstillinger(){
+  const aktivert=document.getElementById('sos-aktivert');
+  if(!aktivert)return;
+  aktivert.checked=sosInnstillinger.aktivert;
+  document.getElementById('sos-terskel-maneder').value=sosInnstillinger.terskelManeder||12;
+  document.getElementById('sos-epost-mal').value=sosInnstillinger.epostMal||'';
+  document.getElementById('sos-sms-mal').value=sosInnstillinger.smsMal||'';
+  sosOppdaterAktivertHint();
+}
+function sosOppdaterAktivertHint(){
+  const aktivert=document.getElementById('sos-aktivert');
+  const hint=document.getElementById('sos-aktivert-hint');
+  if(!aktivert||!hint)return;
+  hint.style.display=aktivert.checked?'none':'';
+}
+async function lagreSosInnstillinger(){
+  const aktivert=document.getElementById('sos-aktivert')?.checked||false;
+  const terskel=parseInt(document.getElementById('sos-terskel-maneder').value)||12;
+  const epostMal=document.getElementById('sos-epost-mal').value||'';
+  const smsMal=document.getElementById('sos-sms-mal').value||'';
+  if(aktivert){
+    const advarsel='Aktivere HELT AUTOMATISK utsending av brikkebytte-invitasjoner nå?\n\nNår en SOS-kunde ikke har hatt et brikkebytte på '+terskel+' måned(er), sendes e-post OG SMS automatisk — det finnes INGEN godkjenningsliste eller gjennomsyn før dette (i motsetning til f.eks. purring-SMS). Sjekk tekstene over nøye før du bekrefter.\n\nMerk: ingenting sendes likevel før Thomas har satt SOS_DRY_RUN=false i Azure Application Settings.';
+    if(!confirm(advarsel))return;
+  }
+  const felter={Title:'Innstillinger',Aktivert:aktivert,TerskelManeder:terskel,EpostMal:epostMal,SmsMal:smsMal};
+  try{
+    if(sosInnstillingerSpId){
+      await spUpdate('SOSInnstillinger',sosInnstillingerSpId,felter);
+    }else{
+      const r=await spCreate('SOSInnstillinger',felter);
+      sosInnstillingerSpId=r.id;
+    }
+    sosInnstillinger={aktivert,terskelManeder:terskel,epostMal,smsMal};
+    sosOppdaterAktivertHint();
+    vfShowToast('✅ SOS-innstillinger lagret');
+  }catch(e){alert('Kunne ikke lagre innstillingene: '+e.message);}
+}
+
+// ---- SOS-kunder (kundens faste brikkeoppsett, felt PÅ vismaKunder) ----
+function sosSetKundeSearch(v){sosKundeSearchQ=(v||'').trim().toLowerCase();renderSosKundeTabell();}
+
+function renderSosKundeTabell(){
+  const target=document.getElementById('sos-kunde-tabell');
+  if(!target)return;
+  let liste=vismaKunder.filter(k=>k.sosAktiv===true);
+  if(sosKundeSearchQ)liste=liste.filter(k=>(k.navn||'').toLowerCase().includes(sosKundeSearchQ));
+  liste=liste.slice().sort((a,b)=>(a.navn||'').localeCompare(b.navn||'','nb'));
+  if(liste.length===0){
+    target.innerHTML=`<div class="empty">Ingen SOS-kunder${sosKundeSearchQ?' matcher søket':' registrert ennå'}.</div>`;
+    return;
+  }
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+    <th>Kunde</th><th>Farge</th><th>Logo på lokk</th><th>Type</th><th>Antall</th><th>Sist brikkebytte</th><th></th>
+  </tr></thead><tbody>
+  ${liste.map(k=>`<tr>
+    <td><strong>${k.navn||'(uten navn)'}</strong>${k.vismaNummer?`<div style="font-size:11px;color:#9ca3af">Kundenr ${k.vismaNummer}</div>`:''}</td>
+    <td>${k.sosFarge||'—'}</td>
+    <td>${k.sosLogoPaaLokk?'Ja':'Nei'}</td>
+    <td>${k.sosType||'—'}</td>
+    <td>${k.sosAntallBrikker??'—'}</td>
+    <td>${k.sosSistBrikkebytteDato?new Date(k.sosSistBrikkebytteDato).toLocaleDateString('nb-NO'):'Aldri registrert'}</td>
+    <td><button class="btn-sm" onclick="openSosKundeModal('${k.vismaNummer}')">${salgTilgang?'✏️ Rediger':'👁️ Vis'}</button></td>
+  </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+// Kunde-autocomplete i SOS-kunde-modalen — samme søkelogikk som
+// rmaKundeAcSok() (eksakt org.nr-match først, ellers substreng på navn), men
+// KUN blant eksisterende Visma-kunder (ingen fritekst-fallback her, i
+// motsetning til RMA — en SOS-kunde uten et ekte VismaKundeNummer har ingen
+// rad å patche SOS-feltene på).
+function sosKundeAcSok(){
+  const raw=(document.getElementById('sos-kunde-input').value||'').trim();
+  const treffDiv=document.getElementById('sos-kunde-treff');
+  if(!raw){treffDiv.style.display='none';treffDiv.innerHTML='';return;}
+  const orgNrSok=normOrgNr(raw);
+  let treff=[];
+  if(orgNrSok.length===9)treff=vismaKunder.filter(k=>normOrgNr(k.orgNr)===orgNrSok);
+  if(treff.length===0){
+    const q=raw.toLowerCase();
+    treff=vismaKunder.filter(k=>(k.navn||'').toLowerCase().includes(q));
+  }
+  treff=treff.slice(0,15);
+  if(treff.length===0){
+    treffDiv.innerHTML=`<div class="vf-ac-empty">Ingen Visma-treff</div>`;
+  }else{
+    treffDiv.innerHTML=treff.map(k=>`
+      <div class="vf-ac-item" onmousedown="sosKundeAcVelg('${k.vismaNummer}')">
+        <div class="vf-ac-name">${k.navn}</div>
+        <div class="vf-ac-meta">Kundenr ${k.vismaNummer||'—'} · Org.nr ${k.orgNr||'—'}</div>
+      </div>`).join('');
+  }
+  treffDiv.style.display='block';
+}
+function sosKundeAcVelg(vismaNummer){
+  document.getElementById('sos-kunde-treff').style.display='none';
+  openSosKundeModal(vismaNummer);
+}
+
+function openSosKundeModal(vismaNummer){
+  const sokBlokk=document.getElementById('sos-kunde-sok-blokk');
+  const navnVisning=document.getElementById('sos-kunde-valgt-navn');
+  document.getElementById('sos-kunde-input').value='';
+  document.getElementById('sos-kunde-treff').innerHTML='';document.getElementById('sos-kunde-treff').style.display='none';
+  if(vismaNummer){
+    const k=vismaKunder.find(x=>x.vismaNummer===vismaNummer);if(!k)return;
+    document.getElementById('sos-kunde-modal-title').textContent='Rediger SOS-kunde';
+    sokBlokk.style.display='none';
+    navnVisning.style.display='';
+    navnVisning.textContent=k.navn||'(uten navn)';
+    document.getElementById('sos-kunde-nr').value=k.vismaNummer;
+    document.getElementById('sos-farge').value=k.sosFarge||'Blå';
+    document.getElementById('sos-antall-brikker').value=k.sosAntallBrikker??'';
+    document.getElementById('sos-type').value=k.sosType||'Lyd og lys';
+    document.getElementById('sos-sist-bytte').value=(k.sosSistBrikkebytteDato||'').slice(0,10);
+    document.getElementById('sos-logo-pa-lokk').checked=!!k.sosLogoPaaLokk;
+    document.getElementById('sos-aktiv').checked=k.sosAktiv===true;
+  }else{
+    document.getElementById('sos-kunde-modal-title').textContent='Meld på SOS-kunde';
+    sokBlokk.style.display='';
+    navnVisning.style.display='none';
+    document.getElementById('sos-kunde-nr').value='';
+    document.getElementById('sos-farge').value='Blå';
+    document.getElementById('sos-antall-brikker').value='';
+    document.getElementById('sos-type').value='Lyd og lys';
+    document.getElementById('sos-sist-bytte').value='';
+    document.getElementById('sos-logo-pa-lokk').checked=false;
+    document.getElementById('sos-aktiv').checked=true;
+  }
+  document.getElementById('sos-kunde-modal').classList.add('open');
+}
+function closeSosKundeModal(){document.getElementById('sos-kunde-modal').classList.remove('open');}
+
+// SharePoint-feltnavn MÅ matche FELT_SOS_*-konstantene i silent_ordering.py
+// (kbd-verifone-func) og Kunde360-oppsett-sjekkliste.md Liste 15 nøyaktig.
+// PATCHer en EKSISTERENDE VismaKunder-rad — oppretter ALDRI en ny.
+function saveSosKunde(){
+  const vismaNummer=document.getElementById('sos-kunde-nr').value;
+  if(!vismaNummer){alert('Velg en Visma-kunde fra søket først.');return;}
+  const k=vismaKunder.find(x=>x.vismaNummer===vismaNummer);
+  if(!k){alert('Fant ikke kunden lokalt — prøv å laste siden på nytt.');return;}
+  const felter={
+    sosAktiv:document.getElementById('sos-aktiv').checked,
+    sosFarge:document.getElementById('sos-farge').value||'',
+    sosLogoPaaLokk:document.getElementById('sos-logo-pa-lokk').checked,
+    sosAntallBrikker:document.getElementById('sos-antall-brikker').value===''?null:parseFloat(document.getElementById('sos-antall-brikker').value),
+    sosType:document.getElementById('sos-type').value||'',
+    sosSistBrikkebytteDato:document.getElementById('sos-sist-bytte').value||''
+  };
+  closeSosKundeModal();
+  Object.assign(k,felter);
+  renderSosKundeTabell();
+  if(k.spId){
+    setSPStatus('⏳ Lagrer…');
+    spUpdate('VismaKunder',k.spId,{
+      SOSAktiv:felter.sosAktiv,SOSFarge:felter.sosFarge,SOSLogoPaaLokk:felter.sosLogoPaaLokk,
+      SOSAntallBrikker:felter.sosAntallBrikker,SOSType:felter.sosType,
+      SOSSistBrikkebytteDato:felter.sosSistBrikkebytteDato||null
+    }).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+  }
+}
+
+// ---- SOS-saker (én rad pr. brikkebytte-runde) ----
+let sosSakEditId=null;
+function sosSakSetSearch(v){sosSakSearchQ=(v||'').trim().toLowerCase();renderSosSakTabell();}
+function sosSakSetStatusFilter(v){sosSakStatusFilterQ=v;renderSosSakTabell();}
+
+function renderSosSakTabell(){
+  const target=document.getElementById('sos-sak-tabell');
+  if(!target)return;
+  let liste=sosSaker.slice();
+  if(sosSakStatusFilterQ!=='alle')liste=liste.filter(r=>r.status===sosSakStatusFilterQ);
+  if(sosSakSearchQ)liste=liste.filter(r=>(r.kundeNavn||'').toLowerCase().includes(sosSakSearchQ));
+  liste.sort((a,b)=>new Date(b.opprettetDato||b.invitasjonSendtDato||0)-new Date(a.opprettetDato||a.invitasjonSendtDato||0));
+
+  if(liste.length===0){
+    target.innerHTML=`<div class="empty">Ingen brikkebytte-saker${sosSakSearchQ||sosSakStatusFilterQ!=='alle'?' matcher filteret':' registrert ennå'}.</div>`;
+    return;
+  }
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+    <th>Kunde</th><th>Status</th><th>Invitasjon sendt</th><th>Antall sendt/retur</th><th>Fakturert</th><th></th>
+  </tr></thead><tbody>
+  ${liste.map(r=>`<tr>
+    <td><strong>${r.kundeNavn||'(uten navn)'}</strong>${r.vismaKundeNummer?`<div style="font-size:11px;color:#9ca3af">Kundenr ${r.vismaKundeNummer}</div>`:''}</td>
+    <td>${sosSakStatusBadge(r.status)}</td>
+    <td>${r.invitasjonSendtDato?new Date(r.invitasjonSendtDato).toLocaleDateString('nb-NO'):'—'}</td>
+    <td>${r.antallSendt??'—'} / ${r.antallMottattRetur??'—'}</td>
+    <td>${r.faktureringDato?new Date(r.faktureringDato).toLocaleDateString('nb-NO'):'—'}</td>
+    <td><button class="btn-sm" onclick="openSosSakModal('${r.id}')">${salgTilgang?'✏️ Rediger':'👁️ Vis'}</button></td>
+  </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+// Kunde-autocomplete i SOS-sak-modalen for MANUELL saksopprettelse — samme
+// mønster som rmaKundeAcSok(), men (i motsetning til RMA) KUN blant
+// eksisterende Visma-kunder, samme begrunnelse som sosKundeAcSok() over.
+function sosSakKundeAcSok(){
+  const raw=(document.getElementById('sos-sak-kunde-input').value||'').trim();
+  const treffDiv=document.getElementById('sos-sak-kunde-treff');
+  if(!raw){treffDiv.style.display='none';treffDiv.innerHTML='';return;}
+  const orgNrSok=normOrgNr(raw);
+  let treff=[];
+  if(orgNrSok.length===9)treff=vismaKunder.filter(k=>normOrgNr(k.orgNr)===orgNrSok);
+  if(treff.length===0){
+    const q=raw.toLowerCase();
+    treff=vismaKunder.filter(k=>(k.navn||'').toLowerCase().includes(q));
+  }
+  treff=treff.slice(0,15);
+  if(treff.length===0){
+    treffDiv.innerHTML=`<div class="vf-ac-empty">Ingen Visma-treff</div>`;
+  }else{
+    treffDiv.innerHTML=treff.map(k=>`
+      <div class="vf-ac-item" onmousedown="sosSakKundeAcVelg('${k.vismaNummer}','${(k.navn||'').replace(/'/g,"\\'")}')">
+        <div class="vf-ac-name">${k.navn}</div>
+        <div class="vf-ac-meta">Kundenr ${k.vismaNummer||'—'} · Org.nr ${k.orgNr||'—'}</div>
+      </div>`).join('');
+  }
+  treffDiv.style.display='block';
+}
+function sosSakKundeAcVelg(vismaNummer,navn){
+  document.getElementById('sos-sak-kunde-input').value=navn;
+  document.getElementById('sos-sak-kunde-nr').value=vismaNummer;
+  document.getElementById('sos-sak-kunde-treff').style.display='none';
+}
+
+function renderSosSakLoggListe(r){
+  const target=document.getElementById('sos-sak-logg-liste');
+  if(!target)return;
+  const loggListe=(r.logg||[]).slice().sort((a,b)=>new Date(b.dato)-new Date(a.dato));
+  if(loggListe.length===0){target.innerHTML='<div class="hint">Ingen oppføringer ennå.</div>';return;}
+  target.innerHTML=loggListe.map(l=>{
+    const d=new Date(l.dato);
+    const dStr=isNaN(d)?'—':`${d.toLocaleDateString('nb-NO')} ${d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}`;
+    return `<div style="font-size:12px;color:#374151;margin-bottom:4px"><span style="color:#9ca3af">${dStr} · ${l.forfatter||'Ukjent'}:</span> ${l.tekst}</div>`;
+  }).join('');
+}
+
+function openSosSakModal(id){
+  sosSakEditId=id||null;
+  document.getElementById('sos-sak-edit-id').value=id||'';
+  document.getElementById('sos-sak-kunde-treff').innerHTML='';document.getElementById('sos-sak-kunde-treff').style.display='none';
+  const sokBlokk=document.getElementById('sos-sak-sok-blokk');
+  const navnVisning=document.getElementById('sos-sak-kunde-navn-visning');
+  const loggBlokk=document.getElementById('sos-sak-logg-blokk');
+  if(id){
+    const r=sosSaker.find(x=>x.id===id);if(!r)return;
+    document.getElementById('sos-sak-modal-title').textContent='Rediger brikkebytte-sak';
+    sokBlokk.style.display='none';
+    navnVisning.style.display='';
+    navnVisning.textContent=r.kundeNavn||'(uten navn)';
+    document.getElementById('sos-sak-kunde-nr').value=r.vismaKundeNummer||'';
+    document.getElementById('sos-sak-kunde-input').value=r.kundeNavn||'';
+    document.getElementById('sos-sak-status').value=r.status||SOS_SAK_STATUSER[0];
+    document.getElementById('sos-sak-antall-sendt').value=r.antallSendt??'';
+    document.getElementById('sos-sak-dato-sendt').value=(r.brikkerSendtDato||'').slice(0,10);
+    document.getElementById('sos-sak-antall-mottatt').value=r.antallMottattRetur??'';
+    document.getElementById('sos-sak-dato-mottatt').value=(r.brikkerMottattDato||'').slice(0,10);
+    document.getElementById('sos-sak-antall-defekt').value=r.antallDefekt??'';
+    document.getElementById('sos-sak-dato-talt-opp').value=(r.brikkerTaltOppDato||'').slice(0,10);
+    document.getElementById('sos-sak-dato-fakturering').value=(r.faktureringDato||'').slice(0,10);
+    document.getElementById('sos-sak-fakturering-notat').value=r.faktureringsNotat||'';
+    loggBlokk.style.display=r.spId?'':'none';
+    renderSosSakLoggListe(r);
+    document.getElementById('sos-sak-logg-input').value='';
+  }else{
+    document.getElementById('sos-sak-modal-title').textContent='Ny brikkebytte-sak';
+    sokBlokk.style.display='';
+    navnVisning.style.display='none';
+    ['sos-sak-kunde-nr','sos-sak-kunde-input'].forEach(id2=>document.getElementById(id2).value='');
+    document.getElementById('sos-sak-status').value='Invitasjon sendt';
+    ['sos-sak-antall-sendt','sos-sak-antall-mottatt','sos-sak-antall-defekt'].forEach(id2=>document.getElementById(id2).value='');
+    ['sos-sak-dato-sendt','sos-sak-dato-mottatt','sos-sak-dato-talt-opp','sos-sak-dato-fakturering'].forEach(id2=>document.getElementById(id2).value='');
+    document.getElementById('sos-sak-fakturering-notat').value='';
+    loggBlokk.style.display='none';
+  }
+  document.getElementById('sos-sak-modal').classList.add('open');
+}
+function closeSosSakModal(){document.getElementById('sos-sak-modal').classList.remove('open');sosSakEditId=null;}
+
+// SharePoint-feltnavn MÅ matche FELT_SAK_*-konstantene i silent_ordering.py
+// og Kunde360-oppsett-sjekkliste.md Liste 16 nøyaktig. Logg-feltet skrives
+// IKKE herfra — se leggTilSosLoggpost() under, samme "eget lite skjema,
+// egen lagring"-mønster som KundeNotater.
+function sosSakFieldsPayload(r){
+  return{
+    Title:`${r.kundeNavn||'Ukjent kunde'} – brikkebytte ${(r.opprettetDato||new Date().toISOString()).slice(0,10)}`,
+    VismaKundeNummer:r.vismaKundeNummer||'',
+    KundeNavn:r.kundeNavn||'',
+    Status:r.status||SOS_SAK_STATUSER[0],
+    InvitasjonSendtDato:r.invitasjonSendtDato||null,
+    SakOpprettetDato:r.sakOpprettetDato||null,
+    AntallSendt:r.antallSendt,
+    BrikkerSendtDato:r.brikkerSendtDato||null,
+    AntallMottattRetur:r.antallMottattRetur,
+    BrikkerMottattDato:r.brikkerMottattDato||null,
+    AntallDefekt:r.antallDefekt,
+    BrikkerTaltOppDato:r.brikkerTaltOppDato||null,
+    FaktureringDato:r.faktureringDato||null,
+    FaktureringsNotat:r.faktureringsNotat||'',
+    OpprettetAv:r.opprettetAv||(currentUser?.name||currentUser?.username||''),
+    OpprettetDato:r.opprettetDato||new Date().toISOString()
+  };
+}
+
+function saveSosSak(){
+  const vismaKundeNummer=document.getElementById('sos-sak-kunde-nr').value||'';
+  const kundeNavn=(document.getElementById('sos-sak-kunde-input').value||'').trim();
+  if(!kundeNavn){alert('Velg en Visma-kunde fra søket først.');return;}
+  const editId=document.getElementById('sos-sak-edit-id').value;
+  const felter={
+    vismaKundeNummer,kundeNavn,
+    status:document.getElementById('sos-sak-status').value||SOS_SAK_STATUSER[0],
+    antallSendt:document.getElementById('sos-sak-antall-sendt').value===''?null:parseFloat(document.getElementById('sos-sak-antall-sendt').value),
+    brikkerSendtDato:document.getElementById('sos-sak-dato-sendt').value||null,
+    antallMottattRetur:document.getElementById('sos-sak-antall-mottatt').value===''?null:parseFloat(document.getElementById('sos-sak-antall-mottatt').value),
+    brikkerMottattDato:document.getElementById('sos-sak-dato-mottatt').value||null,
+    antallDefekt:document.getElementById('sos-sak-antall-defekt').value===''?null:parseFloat(document.getElementById('sos-sak-antall-defekt').value),
+    brikkerTaltOppDato:document.getElementById('sos-sak-dato-talt-opp').value||null,
+    faktureringDato:document.getElementById('sos-sak-dato-fakturering').value||null,
+    faktureringsNotat:(document.getElementById('sos-sak-fakturering-notat').value||'').trim()
+  };
+  closeSosSakModal();
+
+  if(editId){
+    const r=sosSaker.find(x=>x.id===editId);if(!r)return;
+    Object.assign(r,felter);
+    renderSosSakTabell();
+    if(r.spId){
+      setSPStatus('⏳ Lagrer…');
+      spUpdate('SOSSaker',r.spId,sosSakFieldsPayload(r)).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+    }
+  }else{
+    const now=new Date().toISOString();
+    const nyRad={id:'tmp'+Math.random().toString(36).slice(2),spId:null,opprettetDato:now,opprettetAv:currentUser?.name||currentUser?.username||'',invitasjonSendtDato:felter.status===SOS_SAK_STATUSER[0]?now:null,logg:[],...felter};
+    sosSaker.push(nyRad);
+    renderSosSakTabell();
+    setSPStatus('⏳ Lagrer…');
+    spCreate('SOSSaker',sosSakFieldsPayload(nyRad)).then(r2=>{
+      nyRad.spId=r2.id;nyRad.id=`sp${r2.id}`;
+      renderSosSakTabell(); // full redraw, samme lærdom som saveRma()/saveNotat()
+      setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+    }).catch(e=>{
+      sosSaker=sosSaker.filter(x=>x.id!==nyRad.id);
+      renderSosSakTabell();
+      setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);
+    });
+  }
+}
+
+// leggTilSosLoggpost: raskt, dato-stemplet oppdatering PÅ saken som er åpen
+// i sos-sak-modal akkurat nå — samme mønster som leggTilLoggpost()
+// (KundeNotater). Krever at saken allerede er lagret (har spId) — knappen er
+// uansett skjult for en helt ny (ennå ikke lagret) sak, se openSosSakModal().
+function leggTilSosLoggpost(){
+  if(!sosSakEditId)return;
+  const r=sosSaker.find(x=>x.id===sosSakEditId);if(!r)return;
+  const input=document.getElementById('sos-sak-logg-input');
+  if(!input)return;
+  const tekst=input.value.trim();
+  if(!tekst)return;
+  if(!Array.isArray(r.logg))r.logg=[];
+  r.logg.push({dato:new Date().toISOString(),tekst,forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
+  input.value='';
+  renderSosSakLoggListe(r);
+  renderSosSakTabell();
+  if(r.spId){
+    setSPStatus('⏳ Lagrer…');
+    spUpdate('SOSSaker',r.spId,{Logg:JSON.stringify(r.logg)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppdateringen ble ikke lagret til SharePoint:\n'+e.message);});
   }
 }
 
@@ -6445,6 +7063,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.72',dato:'08.09.2026',punkter:[
+    'Nytt eget menypunkt «🎫 Silent Ordering System» — kundeoversikt for brikkeoppsett (farge/logo/type/antall/sist bytte), sakstabell med tidslinje for hver brikkebytte-runde, og innstillinger for terskel + e-post-/SMS-maler. Den daglige, automatiske invitasjonen (ingen godkjenningsliste) sendes av en ny bakgrunnsjobb i kbd-verifone-func — se prosjektstatus.md seksjon 16.'
+  ]},
   {versjon:'v1.48.71',dato:'08.09.2026',punkter:[
     'Nyetableringer: nedtrekket for forhandlerområde viste tidligere «doble» områder når navnet var skrevet inn med små variasjoner (f.eks. bindestrek/tankestrek) på ulike tidspunkt. Nedtrekket bygges nå fra selve områdelista, ikke fra tekstverdier på gamle rader.'
   ]},
@@ -7784,6 +8405,7 @@ function showTab(name,btn){
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');}
   if(name==='susoftrma'){renderSusoftRma();}
+  if(name==='silentordering'){renderSilentOrdering();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
