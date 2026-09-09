@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.85 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.86 · Oppdatert: 9. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -555,6 +555,16 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="verifone-sub-nav">
         <div class="nav-sub-item active" id="vsub-ny" onclick="showVerifoneView('ny',this)">📤 Ny faktura</div>
         <div class="nav-sub-item" id="vsub-historikk" onclick="showVerifoneView('historikk',this)">📋 Historikk</div>
+      </div>
+      <!-- Nets trans.avgift lagt til 09.09.2026 — egen fane parallelt med Verifone
+           over (arkitekturvalg besluttet av Thomas samme dag), samme
+           nav-item/nav-sub-mønster. Se nt-namespace i JS lenger ned. -->
+      <div class="nav-item" id="tab-nets" onclick="showTab('nets',this);toggleNetsSub(true)">
+        <span class="nav-item-icon">🧾</span>Nets trans.avgift
+      </div>
+      <div class="nav-sub" id="nets-sub-nav">
+        <div class="nav-sub-item active" id="ntsub-ny" onclick="showNetsView('ny',this)">📤 Ny faktura</div>
+        <div class="nav-sub-item" id="ntsub-historikk" onclick="showNetsView('historikk',this)">📋 Historikk</div>
       </div>
       <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
         <span class="nav-item-icon">🏋️</span>Gymtimen
@@ -1227,6 +1237,145 @@ tr:hover td{background:#fafafa}
             <th>Opprettet av</th>
           </tr></thead>
           <tbody id="vf-historikk-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+    <!-- Nets trans.avgift lagt til 09.09.2026 — speiler tp-verifone over
+         (samme HTML-struktur/CSS-klasser, "nt-" i stedet for "vf-" der det
+         trengs unikt), med disse bevisste forskjellene (besluttet av Thomas
+         09.09.2026):
+         - Ingen fast "Pris til kunde"-KPI (Nets-prisen varierer per linje,
+           hentet direkte fra fakturaen — se visma_client.opprett_salgsordre_utkast_nets()).
+           4. KPI viser i stedet periode(r) funnet på fakturaen.
+         - Kolonneoverskrift "Beløp" uten "(0,40 kr/stk)"-tillegget.
+         - "Navn (fra Nets)" i stedet for "Brukersted (fra Verifone)" i
+           Må avklares-tabellen (Nets sitt "Varemottaker: ... Navn"-felt).
+         - Kaller /api/parse_invoice_nets og /api/create_sales_orders_nets. -->
+    <div id="tp-nets" class="tp">
+    <div class="hdr">
+      <div class="hdr-left">
+        <div class="hdr-bar"></div>
+        <div>
+          <div class="hdr-title">Nets trans.avgift</div>
+          <div class="hdr-sub">Automatisert viderefakturering av Nets transaksjonsavgift</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="nets-ny">
+    <div class="vf-steps">
+      <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Faktura lastet opp</div></div>
+      <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Kunder matchet mot Visma</div></div>
+      <div class="vf-step active"><div class="vf-step-num">3</div><div class="vf-step-txt">Gjennomgang &amp; godkjenning</div></div>
+      <div class="vf-step"><div class="vf-step-num">4</div><div class="vf-step-txt">Salgsordre opprettet i Visma.net</div></div>
+    </div>
+
+    <div class="vf-upload-card">
+      <div class="vf-file-info">
+        <div class="vf-file-icon">📄</div>
+        <div>
+          <div class="vf-file-name" id="nt-upload-filename">Ingen faktura lastet opp ennå</div>
+          <div class="vf-file-meta" id="nt-upload-meta">Last opp en Nets-faktura (PDF) for å starte</div>
+        </div>
+      </div>
+      <div>
+        <input type="file" id="nt-file-input" accept="application/pdf" style="display:none" onchange="ntLastOppFaktura(this.files[0])">
+        <button class="btn-sm" onclick="document.getElementById('nt-file-input').click()">Last opp faktura</button>
+      </div>
+    </div>
+    <div class="vf-upload-error" id="nt-upload-error"></div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-lbl">Transaksjonslinjer lest</div>
+        <div class="kpi-val" id="nt-kpi-total-lines">—</div>
+        <div class="kpi-sub" id="nt-kpi-total-bax">—</div>
+      </div>
+      <div class="kpi accent">
+        <div class="kpi-lbl">Klar til fakturering</div>
+        <div class="kpi-val vf-green" id="nt-kpi-matched-sum">—</div>
+        <div class="kpi-sub" id="nt-kpi-matched-count">—</div>
+      </div>
+      <div class="kpi vf-warn">
+        <div class="kpi-lbl">Må avklares</div>
+        <div class="kpi-val vf-warn" id="nt-kpi-unmatched-sum">—</div>
+        <div class="kpi-sub" id="nt-kpi-unmatched-count">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Periode</div>
+        <div class="kpi-val" id="nt-kpi-periode" style="font-size:15px">—</div>
+        <div class="kpi-sub">hentet fra Nets-faktura</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="nt-tabbtn-matched" onclick="ntSwitchTab('matched')">Klar til fakturering <span class="tab-count" id="nt-tab-count-matched">0</span></button>
+      <button class="tab vf-warn-tab" id="nt-tabbtn-unmatched" onclick="ntSwitchTab('unmatched')">Må avklares <span class="tab-count" id="nt-tab-count-unmatched">0</span></button>
+    </div>
+
+    <div class="vftp active" id="nttp-matched">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:24px"></th>
+            <th>Kundenr</th>
+            <th>Kunde</th>
+            <th class="tr">Antall trans.</th>
+            <th class="tr">Beløp</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="nt-matched-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="vftp" id="nttp-unmatched">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>BAX-nr</th>
+            <th>Navn (fra Nets)</th>
+            <th class="tr">Antall trans.</th>
+            <th class="tr">Beløp</th>
+            <th>Koble til kunde</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="nt-unmatched-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="vf-approve-bar">
+      <div class="vf-approve-sum">
+        <b id="nt-approve-total">—</b> klar for salgsordre-utkast i Visma.net
+        <span id="nt-approve-pending" style="display:block;color:#d97706;margin-top:2px"></span>
+      </div>
+      <button class="prim green" id="nt-approve-btn" onclick="ntApprove()" disabled>Opprett salgsordre-utkast i Visma.net →</button>
+    </div>
+    </div>
+
+    <!-- Historikk — samme mønster som verifone-historikk over, egen liste
+         NetsHistorikk i SharePoint (besluttet av Thomas 09.09.2026). -->
+    <div id="nets-historikk" style="display:none">
+      <div class="card">
+        <div class="card-title">📋 Historikk — kjørte fakturaer</div>
+        <div class="hint">Fakturaer der salgsordre-utkast faktisk er opprettet i Visma.net. Grunnlag for statistikk over videreført Nets-transaksjonsavgift over tid.</div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Dato</th>
+            <th>Fakturareferanse</th>
+            <th class="tr">Totalt beløp</th>
+            <th class="tr">Antall salgsordre</th>
+            <th class="tr">Opprettet</th>
+            <th class="tr">Feilet</th>
+            <th class="tr">Avklart manuelt</th>
+            <th>Opprettet av</th>
+          </tr></thead>
+          <tbody id="nt-historikk-body"></tbody>
         </table>
       </div>
     </div>
@@ -2790,8 +2939,11 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems,sosKundeItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[]),spGetItems('SOSSaker').catch(()=>[]),spGetItems('SOSInnstillinger').catch(()=>[]),spGetItems('SOSKunder').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems,sosKundeItems,nhItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[]),spGetItems('SOSSaker').catch(()=>[]),spGetItems('SOSInnstillinger').catch(()=>[]),spGetItems('SOSKunder').catch(()=>[]),
+    // NetsHistorikk (lagt til 09.09.2026) — se vhItems/vfHistorikk over for samme mønster.
+    // Egen liste (ikke samlet med VerifoneHistorikk), besluttet av Thomas 09.09.2026.
+    spGetItems('NetsHistorikk').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -2899,6 +3051,10 @@ async function loadDataFromSP(){
   // vfLoggHistorikk() (kalt fra vfApprove()). Kun summerte tall per faktura,
   // ikke per-kunde-detalj — se vfRenderHistorikk().
   vfHistorikk=vhItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturareferanse:i.fields.Title||'',dato:i.fields.Dato||'',totaltBelop:parseFloat(i.fields.TotaltBelop)||0,antallKunder:parseInt(i.fields.AntallKunder)||0,antallOpprettet:parseInt(i.fields.AntallOpprettet)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,antallManueltAvklart:parseInt(i.fields.AntallManueltAvklart)||0,opprettetAv:i.fields.OpprettetAv||''}));
+  // NetsHistorikk (lagt til 09.09.2026) -- samme mønster som VerifoneHistorikk
+  // over, men egen liste (ikke slått sammen), besluttet av Thomas 09.09.2026.
+  // Skrives av ntLoggHistorikk() (kalt fra ntApprove()).
+  ntHistorikk=nhItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturareferanse:i.fields.Title||'',dato:i.fields.Dato||'',totaltBelop:parseFloat(i.fields.TotaltBelop)||0,antallKunder:parseInt(i.fields.AntallKunder)||0,antallOpprettet:parseInt(i.fields.AntallOpprettet)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,antallManueltAvklart:parseInt(i.fields.AntallManueltAvklart)||0,opprettetAv:i.fields.OpprettetAv||''}));
   // SusoftRma (lagt til 04.09.2026) -- se Kunde360-oppsett-sjekkliste.md Liste 12
   // og susoft_rma_varsling.py (kbd-verifone-func) for backend-varslingen.
   // IKKE verifisert mot et faktisk SharePoint-site ennaa -- verifiser interne
@@ -7419,6 +7575,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.86',dato:'09.09.2026',punkter:[
+    'Ny fane «🧾 Nets trans.avgift» — automatisert viderefakturering av Nets sin transaksjonsavgift, samme arbeidsflyt som Verifone trans.avgift: last opp Nets-faktura (PDF), automatisk matching mot kunder via BAX-nummer, gjennomgang/godkjenning, og opprettelse av salgsordre-utkast i Visma.net (status «Hold», klar for kontroll før den sendes til kunde). Egen historikk-logg («📋 Historikk»-underfanen).',
+    'For Nets brukes prisen som står på selve Nets-fakturaen direkte — ikke et fast KBD-pristillegg som for Verifone.'
+  ]},
   {versjon:'v1.48.85',dato:'09.09.2026',punkter:[
     'Susoft RMA: alle kolonner i sakstabellen kan nå sorteres stigende/synkende ved å klikke på kolonneoverskriften (Sak nr, Kunde, Maskin/Serienr., Forhandler, Ansvarlig, Status, Sendt Susoft, Mottatt fra Susoft) — samme sorteringsmønster som Kunde 360/Nyetableringer/Utleie. Status sorteres etter saksflytens rekkefølge (Feilmelding mottatt → … → Ferdig), ikke alfabetisk. Standardvisning er nå Sak nr synkende (nyeste sak øverst), i praksis samme rekkefølge som før.'
   ]},
@@ -8780,6 +8940,7 @@ function showTab(name,btn){
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
   toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk'||name==='purring');
   toggleVerifoneSub(name==='verifone');
+  toggleNetsSub(name==='nets');
   toggleSilentOrderingSub(name==='silentordering');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
@@ -8800,6 +8961,7 @@ function showTab(name,btn){
   if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');}
+  if(name==='nets'){renderNets();showNetsView('ny');}
   if(name==='susoftrma'){renderSusoftRma();}
   if(name==='silentordering'){renderSilentOrdering();showSilentOrderingView('oversikt');}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
@@ -8819,6 +8981,23 @@ function showVerifoneView(view,btn){
   const subBtn=document.getElementById('vsub-'+view);
   if(subBtn)subBtn.classList.add('active');
   if(view==='historikk')vfRenderHistorikk();
+}
+
+// Nets trans.avgift — lagt til 09.09.2026, speiler toggleVerifoneSub/showVerifoneView over.
+function toggleNetsSub(open){
+  const sub=document.getElementById('nets-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function showNetsView(view,btn){
+  const nyEl=document.getElementById('nets-ny');
+  const histEl=document.getElementById('nets-historikk');
+  if(nyEl)nyEl.style.display=view==='ny'?'':'none';
+  if(histEl)histEl.style.display=view==='historikk'?'':'none';
+  document.querySelectorAll('#nets-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const subBtn=document.getElementById('ntsub-'+view);
+  if(subBtn)subBtn.classList.add('active');
+  if(view==='historikk')ntRenderHistorikk();
 }
 
 function toggleUtleieSub(open){
@@ -11567,6 +11746,385 @@ async function vfLoggHistorikk(godkjente, resultater, referanse){
     });
   } catch (err) {
     console.warn('Kunne ikke logge til VerifoneHistorikk (salgsordrene er uansett opprettet i Visma.net):', err);
+  }
+}
+
+/* ===== Nets trans.avgift (nt-) — lagt til 09.09.2026 =====
+   Speiler Verifone-blokken over (samme flyt: last opp -> match -> godkjenn ->
+   opprett salgsordre-utkast -> logg historikk). Gjenbruker BEVISST følgende
+   generiske vf-prefikserte hjelpere i stedet for å duplisere dem (de er ikke
+   faktisk Verifone-spesifikke, kun oppkalt før Nets fantes): VF_CONFIG
+   (samme kbd-verifone-func Azure Function App, se arkitekturvalg 09.09.2026),
+   VF_API_SCOPE, vfGetApiToken(), vfApiUrl(), vfErForhandler() (samme
+   forhandler-unntak gjelder for Nets, bekreftet av Thomas 09.09.2026),
+   vfShowToast(), vfNf/vfNfi/vfKr og CSS-klassene .vf- og .vftp.
+
+   Bevisste forskjeller fra Verifone, se også HTML-blokken (#tp-nets):
+   - Ingen fast KBD-pris — Nets-prisen varierer per linje og hentes direkte
+     fra fakturaen (se matcher.match_nets_linjer() / visma_client.
+     opprett_salgsordre_utkast_nets()). 4. KPI viser i stedet periode(r)
+     funnet på fakturaen (ntUpdatePeriodeKpi()).
+   - Kaller /api/parse_invoice_nets og /api/create_sales_orders_nets.
+   - Skriver historikk til den EGNE lista NetsHistorikk (ikke
+     VerifoneHistorikk), besluttet av Thomas 09.09.2026.
+   - Sender "kundenavn" i godkjente-payloaden til /api/create_sales_orders_nets
+     (Verifone-payloaden sender også kundenavn, men backend der ignorerer det
+     — Nets-backend BRUKER det til Beskrivelse-feltet, se
+     visma_client._bygg_beskrivelse_nets()). */
+
+let ntData = { matched: [], unmatched: [], conflicts: [] };
+let ntHistorikk = []; // fylt av loadDataFromSP() (lista NetsHistorikk) — se ntRenderHistorikk()/ntLoggHistorikk()
+let ntSisteFakturaReferanse = "";
+const ntLinkedState = {};
+
+function ntSwitchTab(name){
+  document.getElementById('nt-tabbtn-matched').classList.toggle('active', name==='matched');
+  document.getElementById('nt-tabbtn-unmatched').classList.toggle('active', name==='unmatched');
+  document.getElementById('nttp-matched').classList.toggle('active', name==='matched');
+  document.getElementById('nttp-unmatched').classList.toggle('active', name==='unmatched');
+}
+
+function ntToggleDetail(idx){
+  const row = document.getElementById('nt-detail-'+idx);
+  const chev = document.getElementById('nt-chev-'+idx);
+  const open = row.style.display !== 'table-row';
+  row.style.display = open ? 'table-row' : 'none';
+  chev.classList.toggle('open', open);
+}
+
+async function ntLastOppFaktura(file){
+  if (!file) return;
+  if (!VF_CONFIG.baseUrl){
+    ntShowUploadError("Ikke koblet til Azure Function ennå — sett VF_CONFIG.baseUrl i scriptet.");
+    return;
+  }
+  ntHideUploadError();
+  document.getElementById('nt-upload-filename').textContent = file.name;
+  document.getElementById('nt-upload-meta').textContent = "Leser og matcher mot Visma.net …";
+
+  const formData = new FormData();
+  formData.append('faktura', file);
+
+  try {
+    const token = await vfGetApiToken();
+    const resp = await fetch(vfApiUrl('/api/parse_invoice_nets'), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      ntShowUploadError(data.error || `Feil fra server (${resp.status})`);
+      document.getElementById('nt-upload-meta').textContent = "Opplasting feilet — se feilmelding under.";
+      return;
+    }
+    ntData = data;
+    ntSisteFakturaReferanse = file.name.replace(/\.pdf$/i, '');
+    document.getElementById('nt-upload-meta').textContent =
+      `${data.antallLinjerLest} transaksjonslinjer lest · matchet mot Visma.net`;
+    ntRenderMatched();
+    ntRenderUnmatched();
+    ntUpdatePeriodeKpi();
+    document.getElementById('nt-approve-btn').disabled = false;
+    document.getElementById('nt-approve-btn').textContent = 'Opprett salgsordre-utkast i Visma.net →';
+  } catch (err) {
+    ntShowUploadError(`Kunne ikke nå Azure Function: ${err.message}`);
+    document.getElementById('nt-upload-meta').textContent = "Opplasting feilet — se feilmelding under.";
+  }
+}
+
+function ntShowUploadError(msg){
+  const el = document.getElementById('nt-upload-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function ntHideUploadError(){
+  document.getElementById('nt-upload-error').style.display = 'none';
+}
+
+// Viser periode(r) funnet på fakturaen i 4. KPI-en — Nets har ikke en fast
+// "pris til kunde"-visning slik Verifone har (prisen varierer per linje), se
+// begrunnelse i blokk-kommentaren over. Samler perioder fra matched+
+// unmatched+conflicts slik at KPI-en stemmer uansett om alt er automatisk
+// matchet ennå.
+function ntUpdatePeriodeKpi(){
+  const perioder = new Set();
+  (ntData.matched||[]).forEach(m => (m.periods||[]).forEach(p => perioder.add(p.periode)));
+  (ntData.unmatched||[]).forEach(u => (u.periods||[]).forEach(p => perioder.add(p.periode)));
+  (ntData.conflicts||[]).forEach(c => (c.periods||[]).forEach(p => perioder.add(p.periode)));
+  const arr = [...perioder];
+  const el = document.getElementById('nt-kpi-periode');
+  if (!el) return;
+  el.textContent = arr.length === 0 ? '—' : arr.length === 1 ? arr[0] : `${arr[0]} (+${arr.length - 1})`;
+}
+
+function ntRenderMatched(){
+  const tbody = document.getElementById('nt-matched-body');
+  if (!tbody) return;
+  let totalAntall = 0, totalBelop = 0;
+  tbody.innerHTML = ntData.matched.map((m, i) => {
+    totalAntall += m.totalAntall;
+    totalBelop += m.totalBelop;
+    const erForhandler = vfErForhandler(m.kundenr);
+    const detailRows = m.periods.map(p => `
+      <tr><td>Periode ${p.periode}</td><td class="tr">${vfNfi.format(p.antall)} trans.</td><td class="tr">${vfKr(p.belop)}</td></tr>
+    `).join('');
+    return `
+      <tr class="rowhover" onclick="ntToggleDetail(${i})" style="cursor:pointer">
+        <td><span class="vf-chev" id="nt-chev-${i}">▶</span></td>
+        <td class="vf-kundenr">${m.kundenr}</td>
+        <td class="vf-kundenavn">${m.kundenavn}<div style="font-weight:400;font-size:11px;color:#9ca3af;margin-top:2px">${m.brukersted||''} · BAX: ${m.bax||''}${erForhandler ? ' · <span style="color:#0e7490;font-weight:600">🏷️ Forhandler — uten ekspedisjonsgebyr</span>' : ''}</div></td>
+        <td class="tr">${vfNfi.format(m.totalAntall)}</td>
+        <td class="tr" style="color:#0e8a58;font-weight:700">${vfKr(m.totalBelop)}</td>
+        <td><span class="vf-pill-status vf-pill-ok">✓ BAX-match</span></td>
+      </tr>
+      <tr class="vf-detail-row" id="nt-detail-${i}" style="display:none">
+        <td colspan="6"><div class="vf-detail-inner"><table>
+          <thead><tr><th>Periode</th><th class="tr">Antall</th><th class="tr">Beløp</th></tr></thead>
+          <tbody>${detailRows}</tbody>
+        </table></div></td>
+      </tr>`;
+  }).join('');
+
+  const totalLinjer = ntData.matched.reduce((s,m)=>s+m.periods.length,0) + ntData.unmatched.reduce((s,u)=>s+u.periods.length,0);
+  document.getElementById('nt-kpi-total-lines').textContent = vfNfi.format(totalLinjer);
+  document.getElementById('nt-kpi-total-bax').textContent = (ntData.matched.length + ntData.unmatched.length) + ' unike BAX-numre';
+  document.getElementById('nt-kpi-matched-sum').textContent = vfKr(totalBelop);
+  document.getElementById('nt-kpi-matched-count').textContent = ntData.matched.length + ' salgsordre(r) · ' + vfNfi.format(totalAntall) + ' trans.';
+  document.getElementById('nt-tab-count-matched').textContent = ntData.matched.length;
+  ntUpdateApproveBar();
+}
+
+function ntRenderUnmatched(){
+  const tbody = document.getElementById('nt-unmatched-body');
+  if (!tbody) return;
+  let totalBelop = 0;
+  tbody.innerHTML = ntData.unmatched.map((u, i) => {
+    totalBelop += u.totalBelop;
+    return `
+      <tr class="vf-flag-row">
+        <td class="vf-flag-bax">${u.bax}</td>
+        <td>${u.brukersted}</td>
+        <td class="tr">${vfNfi.format(u.totalAntall)}</td>
+        <td class="tr" style="color:#92400e;font-weight:700">${vfKr(u.totalBelop)}</td>
+        <td>
+          ${ntRenderKundeAutocomplete(i)}
+        </td>
+        <td><button class="vf-link-btn" id="nt-btn-${i}" onclick="ntLinkCustomer(${i})">Koble</button></td>
+      </tr>`;
+  }).join('');
+  document.getElementById('nt-kpi-unmatched-sum').textContent = vfKr(totalBelop);
+  document.getElementById('nt-kpi-unmatched-count').textContent = ntData.unmatched.length + ' BAX-numre uten treff';
+  document.getElementById('nt-tab-count-unmatched').textContent = ntData.unmatched.length;
+}
+
+// Kunde-autocomplete for Nets sin "Må avklares"-fane — identisk søkelogikk
+// som vfRenderKundeAutocomplete()/vfKundeAcSok() (gjenbruker samme
+// vismaKunder-array), egne DOM-id-er (nt-ac-*) for å ikke kollidere med
+// Verifone-fanens elementer når begge er lastet i samme dashbord.
+function ntRenderKundeAutocomplete(baxId, forhandsvalgtVismaNummer){
+  const forhandsvalgt = forhandsvalgtVismaNummer
+    ? vismaKunder.find(k => k.vismaNummer === forhandsvalgtVismaNummer)
+    : null;
+  return `
+    <div class="vf-kunde-ac">
+      <input type="text" id="nt-ac-input-${baxId}"
+             placeholder="Søk kundenavn eller org.nr…"
+             value="${forhandsvalgt ? forhandsvalgt.navn.replace(/"/g,'&quot;') : ''}"
+             oninput="ntKundeAcSok(${baxId})"
+             onfocus="ntKundeAcSok(${baxId})"
+             onblur="document.getElementById('nt-ac-treff-${baxId}').style.display='none'"
+             autocomplete="off"/>
+      <div id="nt-ac-treff-${baxId}" class="vf-ac-treff"></div>
+      <input type="hidden" id="nt-ac-value-${baxId}" value="${forhandsvalgt ? forhandsvalgt.vismaNummer : ''}"/>
+    </div>`;
+}
+
+function ntKundeAcSok(baxId){
+  const raw = (document.getElementById(`nt-ac-input-${baxId}`).value || '').trim();
+  const treffDiv = document.getElementById(`nt-ac-treff-${baxId}`);
+  if (!raw) { treffDiv.style.display = 'none'; treffDiv.innerHTML = ''; return; }
+
+  const orgNrSok = normOrgNr(raw);
+  let treff = [];
+  if (orgNrSok.length === 9) treff = vismaKunder.filter(k => normOrgNr(k.orgNr) === orgNrSok);
+  if (treff.length === 0) {
+    const q = raw.toLowerCase();
+    treff = vismaKunder.filter(k => (k.navn || '').toLowerCase().includes(q));
+  }
+  treff = treff.slice(0, 15);
+
+  if (treff.length === 0) {
+    treffDiv.innerHTML = `<div class="vf-ac-empty">Ingen treff</div>`;
+  } else {
+    treffDiv.innerHTML = treff.map(k => `
+      <div class="vf-ac-item"
+           onmousedown="ntKundeAcVelg(${baxId},'${k.vismaNummer}','${(k.navn||'').replace(/'/g,"\\'")}')">
+        <div class="vf-ac-name">${k.navn}</div>
+        <div class="vf-ac-meta">Kundenr ${k.vismaNummer || '—'} · Org.nr ${k.orgNr || '—'}</div>
+      </div>`).join('');
+  }
+  treffDiv.style.display = 'block';
+}
+
+function ntKundeAcVelg(baxId, vismaNummer, navn){
+  document.getElementById(`nt-ac-input-${baxId}`).value = navn;
+  document.getElementById(`nt-ac-value-${baxId}`).value = vismaNummer;
+  document.getElementById(`nt-ac-treff-${baxId}`).style.display = 'none';
+}
+
+function ntLinkCustomer(i){
+  const valueInput = document.getElementById('nt-ac-value-'+i);
+  const textInput = document.getElementById('nt-ac-input-'+i);
+  const btn = document.getElementById('nt-btn-'+i);
+  if(!valueInput.value){ textInput.focus(); return; }
+  ntLinkedState[i] = { vismaNummer: valueInput.value, navn: textInput.value };
+  btn.textContent = '✓ Koblet';
+  btn.classList.add('linked');
+  textInput.disabled = true;
+  vfShowToast(ntData.unmatched[i].brukersted + ' koblet til ' + textInput.value + ' — tas med i salgsordre-utkastet');
+  ntUpdateApproveBar();
+}
+
+// Slår sammen automatisk matchede (ntData.matched) og manuelt koblede
+// (ntLinkedState) BAX-numre til én liste — identisk prinsipp som
+// vfBuildGodkjenteListe() (én salgsordre PR. BAX, se matcher.
+// grupper_per_bax_matched()). "kundenavn" sendes med og BRUKES faktisk av
+// create_sales_orders_nets/_bygg_beskrivelse_nets() (i motsetning til
+// Verifone-payloaden der feltet sendes men ignoreres av backend).
+function ntBuildGodkjenteListe(){
+  const baxMap = {};
+  ntData.matched.forEach(m => {
+    baxMap[m.bax] = { kundenr: m.kundenr, kundenavn: m.kundenavn, bax: m.bax, brukersted: m.brukersted, erForhandler: vfErForhandler(m.kundenr), periods: [...m.periods] };
+  });
+  Object.keys(ntLinkedState).forEach(i => {
+    const link = ntLinkedState[i];
+    const u = ntData.unmatched[i];
+    if (!u) return;
+    baxMap[u.bax] = {
+      kundenr: link.vismaNummer, kundenavn: link.navn, bax: u.bax, brukersted: u.brukersted,
+      erForhandler: vfErForhandler(link.vismaNummer),
+      periods: u.periods.map(p => ({...p, bax: u.bax, brukersted: u.brukersted})),
+    };
+  });
+  return Object.values(baxMap);
+}
+
+function ntUpdateApproveBar(){
+  const godkjente = ntBuildGodkjenteListe();
+  const totalBelop = godkjente.reduce((s,k)=>s+k.periods.reduce((s2,p)=>s2+p.belop,0),0);
+  document.getElementById('nt-approve-total').textContent = vfKr(totalBelop) + ' (' + godkjente.length + ' salgsordre)';
+  const pendingCount = ntData.unmatched.length - Object.keys(ntLinkedState).length;
+  const pendingEl = document.getElementById('nt-approve-pending');
+  pendingEl.textContent = pendingCount > 0 ? `${pendingCount} BAX-numre venter fortsatt på kobling` : '';
+}
+
+async function ntApprove(){
+  if (!VF_CONFIG.baseUrl){
+    vfShowToast('Ikke koblet til Azure Function ennå.');
+    return;
+  }
+  const godkjente = ntBuildGodkjenteListe();
+  if (!godkjente.length){
+    vfShowToast('Ingenting å opprette — last opp en faktura først.');
+    return;
+  }
+  const btn = document.getElementById('nt-approve-btn');
+  btn.disabled = true;
+  btn.textContent = 'Oppretter utkast…';
+
+  const payload = {
+    godkjente: godkjente.map(k => ({ kundenr: k.kundenr, kundenavn: k.kundenavn, erForhandler: !!k.erForhandler, periods: k.periods })),
+    fakturareferanse: ntSisteFakturaReferanse || 'Nets transaksjonsavgift',
+  };
+
+  try {
+    const token = await vfGetApiToken();
+    const resp = await fetch(vfApiUrl('/api/create_sales_orders_nets'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      vfShowToast(data.error || `Feil fra server (${resp.status})`);
+      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+      return;
+    }
+    const ok = data.resultater.filter(r => r.status === 'ok').length;
+    const feilet = data.resultater.filter(r => r.status === 'feil');
+    await ntLoggHistorikk(godkjente, data.resultater, payload.fakturareferanse);
+    if (feilet.length === 0) {
+      btn.textContent = '✓ Opprettet — se Visma.net for gjennomgang';
+      vfShowToast(`${ok} salgsordre-utkast opprettet i Visma.net`);
+    } else {
+      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+      vfShowToast(`${ok} opprettet, ${feilet.length} feilet — se konsoll`);
+      console.warn('Kunder som feilet:', feilet);
+    }
+  } catch (err) {
+    btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+    vfShowToast(`Kunne ikke nå Azure Function: ${err.message}`);
+  }
+}
+
+function renderNets(){
+  ntRenderMatched();
+  ntRenderUnmatched();
+  ntUpdatePeriodeKpi();
+}
+
+function ntRenderHistorikk(){
+  const tbody = document.getElementById('nt-historikk-body');
+  if (!tbody) return;
+  const sorted = [...ntHistorikk].sort((a,b) => new Date(b.dato) - new Date(a.dato));
+  if (!sorted.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Ingen fakturakjøringer registrert ennå — historikk logges automatisk når "Opprett salgsordre-utkast i Visma.net" kjøres.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sorted.map(h => `
+    <tr>
+      <td>${h.dato ? new Date(h.dato).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+      <td>${h.fakturareferanse || '—'}</td>
+      <td class="tr" style="font-weight:700">${vfKr(h.totaltBelop)}</td>
+      <td class="tr">${h.antallKunder}</td>
+      <td class="tr" style="color:#0e8a58;font-weight:600">${h.antallOpprettet}</td>
+      <td class="tr" style="color:${h.antallFeilet > 0 ? '#dc2626' : '#9ca3af'}">${h.antallFeilet}</td>
+      <td class="tr">${h.antallManueltAvklart}</td>
+      <td>${h.opprettetAv || '—'}</td>
+    </tr>`).join('');
+}
+
+// Logger én rad i NetsHistorikk-lista i SharePoint — se vfLoggHistorikk()
+// over for begrunnelsen (kun reelle, fullførte kjøringer telles). Egen
+// liste, ikke slått sammen med VerifoneHistorikk (besluttet av Thomas
+// 09.09.2026). Feiler denne SharePoint-skrivingen (f.eks. fordi lista ikke
+// er opprettet ennå i SharePoint), skal IKKE selve salgsordre-flyten stoppes
+// eller vises som feilet — salgsordrene er uansett allerede opprettet i
+// Visma.net på dette tidspunktet.
+async function ntLoggHistorikk(godkjente, resultater, referanse){
+  try {
+    const totaltBelop = godkjente.reduce((s,k) => s + k.periods.reduce((s2,p) => s2 + p.belop, 0), 0);
+    const fields = {
+      Title: referanse,
+      Dato: new Date().toISOString(),
+      TotaltBelop: totaltBelop,
+      AntallKunder: godkjente.length, // antall SALGSORDRE (én pr. BAX), se tilsvarende merknad i vfLoggHistorikk()
+      AntallOpprettet: resultater.filter(r => r.status === 'ok').length,
+      AntallFeilet: resultater.filter(r => r.status === 'feil').length,
+      AntallManueltAvklart: Object.keys(ntLinkedState).length,
+      OpprettetAv: currentUser?.name || currentUser?.username || 'Ukjent',
+    };
+    const created = await spCreate('NetsHistorikk', fields);
+    ntHistorikk.push({
+      id: `sp${created.id}`, spId: created.id,
+      fakturareferanse: fields.Title, dato: fields.Dato, totaltBelop: fields.TotaltBelop,
+      antallKunder: fields.AntallKunder, antallOpprettet: fields.AntallOpprettet,
+      antallFeilet: fields.AntallFeilet, antallManueltAvklart: fields.AntallManueltAvklart,
+      opprettetAv: fields.OpprettetAv,
+    });
+  } catch (err) {
+    console.warn('Kunne ikke logge til NetsHistorikk (salgsordrene er uansett opprettet i Visma.net) — sjekk om lista er opprettet i SharePoint ennå:', err);
   }
 }
 
