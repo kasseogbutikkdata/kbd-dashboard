@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.84 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.85 · Oppdatert: 9. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4014,6 +4014,19 @@ function rmaSetSearch(v){rmaSearchQ=(v||'').trim().toLowerCase();renderRmaTabell
 function rmaSetStatusFilter(v){rmaStatusFilterQ=v;renderRmaTabell();}
 function rmaToggleForsinkede(v){rmaKunForsinkedeQ=v;renderRmaTabell();}
 
+// Sortering, lagt til 09.09.2026 (Thomas' ønske) — klikk på en kolonneoverskrift
+// for å sortere stigende/synkende, samme mønster som sortKundesakerBy()/
+// sortNyeBy() (Kunde 360-fanene) og sortUtleieBy() (Utleie-fanen). Standard
+// («saknr», synkende) erstatter den tidligere faste "nyeste øverst"-
+// sorteringen på opprettetDato — sak nr stiger tilnærmet kronologisk (se
+// seksjon 15c i prosjektstatus.md), så resultatet blir i praksis det samme
+// til vanlig, men brukeren kan nå selv velge en annen kolonne.
+let rmaSort={col:'saknr',dir:'desc'};
+function sortRmaBy(col){
+  if(rmaSort.col===col){rmaSort.dir=rmaSort.dir==='asc'?'desc':'asc';}else{rmaSort.col=col;rmaSort.dir='asc';}
+  renderRmaTabell();
+}
+
 function renderSusoftRma(){
   const nyBtn=document.getElementById('rma-ny-btn');
   if(nyBtn)nyBtn.style.display=salgTilgang?'':'none';
@@ -4080,15 +4093,37 @@ function renderRmaTabell(){
   if(rmaStatusFilterQ!=='alle')liste=liste.filter(r=>r.status===rmaStatusFilterQ);
   if(rmaKunForsinkedeQ)liste=liste.filter(rmaErForsinket);
   if(rmaSearchQ)liste=liste.filter(r=>[r.kundeNavn,r.maskin,r.serieNr].some(v=>(v||'').toLowerCase().includes(rmaSearchQ)));
-  liste.sort((a,b)=>new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0));
 
   if(liste.length===0){
     target.innerHTML=`<div class="empty">Ingen RMA-saker${rmaSearchQ||rmaStatusFilterQ!=='alle'||rmaKunForsinkedeQ?' matcher filteret':' registrert ennå'}.</div>`;
     return;
   }
 
+  const rdir=rmaSort.dir==='asc'?1:-1;
+  liste.sort((a,b)=>{
+    switch(rmaSort.col){
+      case 'saknr': return rdir*((a.sakNummer??-1)-(b.sakNummer??-1));
+      case 'kunde': return rdir*(a.kundeNavn||'').localeCompare(b.kundeNavn||'','nb');
+      case 'maskin': return rdir*(a.maskin||'').localeCompare(b.maskin||'','nb');
+      case 'forhandler': return rdir*(a.forhandler||'').localeCompare(b.forhandler||'','nb');
+      case 'ansvarlig': return rdir*(a.ansvarligKbd||'').localeCompare(b.ansvarligKbd||'','nb');
+      case 'status': return rdir*(RMA_STATUSER.indexOf(a.status)-RMA_STATUSER.indexOf(b.status));
+      case 'sendt': return rdir*(new Date(a.datoSendtSusoft||0)-new Date(b.datoSendtSusoft||0));
+      case 'mottatt': return rdir*(new Date(a.datoMottattFraSusoft||0)-new Date(b.datoMottattFraSusoft||0));
+      default: return rdir*(new Date(a.opprettetDato||0)-new Date(b.opprettetDato||0));
+    }
+  });
+
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-    <th>Sak nr</th><th>Kunde</th><th>Maskin / Serienr.</th><th>Forhandler</th><th>Ansvarlig</th><th>Status</th><th>Sendt Susoft</th><th>Mottatt fra Susoft</th><th></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('saknr')">Sak nr <span id="rmash-saknr"></span></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('kunde')">Kunde <span id="rmash-kunde"></span></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('maskin')">Maskin / Serienr. <span id="rmash-maskin"></span></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('forhandler')">Forhandler <span id="rmash-forhandler"></span></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('ansvarlig')">Ansvarlig <span id="rmash-ansvarlig"></span></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('status')">Status <span id="rmash-status"></span></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('sendt')">Sendt Susoft <span id="rmash-sendt"></span></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('mottatt')">Mottatt fra Susoft <span id="rmash-mottatt"></span></th>
+    <th></th>
   </tr></thead><tbody>
   ${liste.map(r=>{
     const dager=rmaDagerHosSusoft(r);
@@ -4106,6 +4141,11 @@ function renderRmaTabell(){
     </tr>`;
   }).join('')}
   </tbody></table></div>`;
+
+  ['saknr','kunde','maskin','forhandler','ansvarlig','status','sendt','mottatt'].forEach(c=>{
+    const el=document.getElementById('rmash-'+c);
+    if(el)el.innerHTML=rmaSort.col===c?(rmaSort.dir==='asc'?'↑':'↓'):'↕';
+  });
 }
 
 // ---- Kunde-autocomplete i RMA-modalen (Visma-oppslag ELLER fritekst) ----
@@ -7379,6 +7419,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.85',dato:'09.09.2026',punkter:[
+    'Susoft RMA: alle kolonner i sakstabellen kan nå sorteres stigende/synkende ved å klikke på kolonneoverskriften (Sak nr, Kunde, Maskin/Serienr., Forhandler, Ansvarlig, Status, Sendt Susoft, Mottatt fra Susoft) — samme sorteringsmønster som Kunde 360/Nyetableringer/Utleie. Status sorteres etter saksflytens rekkefølge (Feilmelding mottatt → … → Ferdig), ikke alfabetisk. Standardvisning er nå Sak nr synkende (nyeste sak øverst), i praksis samme rekkefølge som før.'
+  ]},
   {versjon:'v1.48.84',dato:'09.09.2026',punkter:[
     'Susoft RMA: nytt felt «Sak nr» (til venstre for Kunde, i tabellen og i skjemaet) — Geir ønsket et enkelt saksnummer å referere til, samme som han hadde i Excel-arket. Nye saker foreslår automatisk neste ledige nummer (fortsetter fra 51, som var siste sak i Excel-arket — første nye sak blir dermed nr. 52), redigerbart om ønskelig. Krever ny SharePoint-kolonne SakNummer (Tall) på SusoftRma-lista, se sjekklisten.'
   ]},
