@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.90 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.91 · Oppdatert: 9. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -577,14 +577,6 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="tasub-nets" onclick="showTab('nets',document.getElementById('tab-transaksjonsavgift'))">🧾 Nets trans.avgift</div>
         <div class="nav-sub-sub-item" id="ntsub-historikk" onclick="showNetsView('historikk',this)">📋 Historikk</div>
       </div>
-      <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
-        <span class="nav-item-icon">🏋️</span>Gymtimen
-      </div>
-      <div class="nav-sub" id="arbeidstid-sub-nav">
-        <div class="nav-sub-item active" id="asub-oversikt" onclick="showArbeidstidView('oversikt',this)">📋 Oversikt</div>
-        <div class="nav-sub-item" id="asub-soknader" onclick="showArbeidstidView('soknader',this)">📝 Søknader</div>
-        <div class="nav-sub-item" id="asub-ny" onclick="showArbeidstidView('ny',this)">➕ Ny søknad</div>
-      </div>
       <div class="nav-item" id="tab-susoftrma" onclick="showTab('susoftrma',this)">
         <span class="nav-item-icon">🔧</span>Susoft RMA
       </div>
@@ -608,6 +600,14 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="silentordering-sub-nav">
         <div class="nav-sub-item active" id="sossub-oversikt" onclick="showSilentOrderingView('oversikt')">🎫 Oversikt</div>
         <div class="nav-sub-item" id="sossub-innstillinger" style="display:none" onclick="showSilentOrderingView('innstillinger')">⚙️ Innstillinger</div>
+      </div>
+      <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
+        <span class="nav-item-icon">🏋️</span>Gymtimen
+      </div>
+      <div class="nav-sub" id="arbeidstid-sub-nav">
+        <div class="nav-sub-item active" id="asub-oversikt" onclick="showArbeidstidView('oversikt',this)">📋 Oversikt</div>
+        <div class="nav-sub-item" id="asub-soknader" onclick="showArbeidstidView('soknader',this)">📝 Søknader</div>
+        <div class="nav-sub-item" id="asub-ny" onclick="showArbeidstidView('ny',this)">➕ Ny søknad</div>
       </div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
@@ -7586,6 +7586,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.91',dato:'09.09.2026',punkter:[
+    'Flyttet «🏋️ Gymtimen» i venstremenyen til mellom Silent Ordering System og Idébank og utvikling.'
+  ]},
   {versjon:'v1.48.90',dato:'09.09.2026',punkter:[
     'Rettet forskjøvne kolonneoverskrifter i detaljvisningen for godkjente Nets-/Verifone-kunder (Antall/Beløp-overskriftene var venstrejustert mens tallene under var høyrejustert).'
   ]},
