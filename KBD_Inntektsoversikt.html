@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.86 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.87 · Oppdatert: 9. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -543,28 +543,26 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="usub-enheter" onclick="showUtleieView('enheter',this)">🔧 Enheter</div>
         <div class="nav-sub-item" id="usub-logg" onclick="showUtleieView('logg',this)">📋 Logg</div>
       </div>
-      <div class="nav-item" id="tab-verifone" onclick="showTab('verifone',this);toggleVerifoneSub(true)">
-        <span class="nav-item-icon">🧾</span>Verifone trans.avgift
+      <!-- Transaksjonsavgift — samlemeny lagt til 09.09.2026 (Thomas' ønske):
+           slår sammen Verifone trans.avgift og Nets trans.avgift under én
+           felles overskrift i venstremenyen, i stedet for to separate
+           toppnivå-menypunkter. Samme tre-nivå-mønster som Kunde360 nester
+           Nyetableringer sine Oversikt/Forhandlerområder-underpunkter under
+           seg (nav-sub-item for selve leverandøren, nav-sub-sub-item for
+           Ny faktura/Historikk under hver leverandør) — se
+           kunder360-sub-nav over. Selve fanene (tp-verifone/tp-nets),
+           vf-/nt-JS-en og all funksjonalitet for øvrig er UENDRET, dette er
+           en ren meny-omorganisering. -->
+      <div class="nav-item" id="tab-transaksjonsavgift" onclick="showTab('verifone',document.getElementById('tab-transaksjonsavgift'));toggleTransaksjonsavgiftSub(true)">
+        <span class="nav-item-icon">🧾</span>Transaksjonsavgift
       </div>
-      <!-- Undermeny lagt til 03.09.2026: skiller selve arbeidsflyten (opplasting →
-           matching → godkjenning → salgsordre) fra historikken over allerede
-           kjørte fakturaer — samme nav-sub/toggleXSub-mønster som
-           Utleie/Kickback/Arbeidstid bruker. Se vfRenderHistorikk()/vfLoggHistorikk().
-           (Gjenopprettet 03.09.2026 — falt ut av en versjon som ble bygget videre
-           fra en fil eldre enn v1.46.0, der denne først ble lagt til.) -->
-      <div class="nav-sub" id="verifone-sub-nav">
-        <div class="nav-sub-item active" id="vsub-ny" onclick="showVerifoneView('ny',this)">📤 Ny faktura</div>
-        <div class="nav-sub-item" id="vsub-historikk" onclick="showVerifoneView('historikk',this)">📋 Historikk</div>
-      </div>
-      <!-- Nets trans.avgift lagt til 09.09.2026 — egen fane parallelt med Verifone
-           over (arkitekturvalg besluttet av Thomas samme dag), samme
-           nav-item/nav-sub-mønster. Se nt-namespace i JS lenger ned. -->
-      <div class="nav-item" id="tab-nets" onclick="showTab('nets',this);toggleNetsSub(true)">
-        <span class="nav-item-icon">🧾</span>Nets trans.avgift
-      </div>
-      <div class="nav-sub" id="nets-sub-nav">
-        <div class="nav-sub-item active" id="ntsub-ny" onclick="showNetsView('ny',this)">📤 Ny faktura</div>
-        <div class="nav-sub-item" id="ntsub-historikk" onclick="showNetsView('historikk',this)">📋 Historikk</div>
+      <div class="nav-sub" id="transaksjonsavgift-sub-nav">
+        <div class="nav-sub-item active" id="tasub-verifone" onclick="showTab('verifone',document.getElementById('tab-transaksjonsavgift'))">🧾 Verifone trans.avgift</div>
+        <div class="nav-sub-sub-item active" id="vsub-ny" onclick="showVerifoneView('ny',this)">📤 Ny faktura</div>
+        <div class="nav-sub-sub-item" id="vsub-historikk" onclick="showVerifoneView('historikk',this)">📋 Historikk</div>
+        <div class="nav-sub-item" id="tasub-nets" onclick="showTab('nets',document.getElementById('tab-transaksjonsavgift'))">🧾 Nets trans.avgift</div>
+        <div class="nav-sub-sub-item active" id="ntsub-ny" onclick="showNetsView('ny',this)">📤 Ny faktura</div>
+        <div class="nav-sub-sub-item" id="ntsub-historikk" onclick="showNetsView('historikk',this)">📋 Historikk</div>
       </div>
       <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
         <span class="nav-item-icon">🏋️</span>Gymtimen
@@ -7575,6 +7573,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.87',dato:'09.09.2026',punkter:[
+    'Venstremenyen: «Verifone trans.avgift» og «Nets trans.avgift» ligger nå samlet under ett nytt menypunkt «Transaksjonsavgift», i stedet for to separate menypunkter. Ny faktura/Historikk-underpunktene for hver av dem er uendret, bare flyttet inn under den nye samlefanen.'
+  ]},
   {versjon:'v1.48.86',dato:'09.09.2026',punkter:[
     'Ny fane «🧾 Nets trans.avgift» — automatisert viderefakturering av Nets sin transaksjonsavgift, samme arbeidsflyt som Verifone trans.avgift: last opp Nets-faktura (PDF), automatisk matching mot kunder via BAX-nummer, gjennomgang/godkjenning, og opprettelse av salgsordre-utkast i Visma.net (status «Hold», klar for kontroll før den sendes til kunde). Egen historikk-logg («📋 Historikk»-underfanen).',
     'For Nets brukes prisen som står på selve Nets-fakturaen direkte — ikke et fast KBD-pristillegg som for Verifone.'
@@ -8929,7 +8930,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt'||name==='purring')?'smsutsendelse':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt'||name==='purring')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -8939,8 +8940,7 @@ function showTab(name,btn){
   toggleArbeidstidSub(name==='arbeidstid');
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
   toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk'||name==='purring');
-  toggleVerifoneSub(name==='verifone');
-  toggleNetsSub(name==='nets');
+  toggleTransaksjonsavgiftSub(name==='verifone'||name==='nets');
   toggleSilentOrderingSub(name==='silentordering');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
@@ -8960,16 +8960,32 @@ function showTab(name,btn){
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
   if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
-  if(name==='verifone'){renderVerifone();showVerifoneView('ny');}
-  if(name==='nets'){renderNets();showNetsView('ny');}
+  if(name==='verifone'){renderVerifone();showVerifoneView('ny');setTransaksjonsavgiftSubActive('verifone');}
+  if(name==='nets'){renderNets();showNetsView('ny');setTransaksjonsavgiftSubActive('nets');}
   if(name==='susoftrma'){renderSusoftRma();}
   if(name==='silentordering'){renderSilentOrdering();showSilentOrderingView('oversikt');}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
-function toggleVerifoneSub(open){
-  const sub=document.getElementById('verifone-sub-nav');
+// Transaksjonsavgift — samlemeny lagt til 09.09.2026, se HTML-kommentaren ved
+// transaksjonsavgift-sub-nav. Erstatter de tidligere separate
+// toggleVerifoneSub()/toggleNetsSub() (én felles nav-sub for begge
+// leverandørene nå). setTransaksjonsavgiftSubActive() styrer hvilken av de to
+// leverandør-radene (tasub-verifone/tasub-nets) som er uthevet, kalt fra
+// showTab()'s verifone/nets-håndtering. showVerifoneView()/showNetsView()
+// under styrer fortsatt sine egne Ny faktura/Historikk-underpunkter direkte
+// via ID (vsub-*/ntsub-*) — disse ligger nå nestet som nav-sub-sub-item
+// under sin respektive leverandør-rad i samme delte nav-sub-container,
+// akkurat som Nyetableringer sine to underpunkter under Kunde360.
+function toggleTransaksjonsavgiftSub(open){
+  const sub=document.getElementById('transaksjonsavgift-sub-nav');
   if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function setTransaksjonsavgiftSubActive(leverandor){
+  document.querySelectorAll('#transaksjonsavgift-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('tasub-'+leverandor);
+  if(btn)btn.classList.add('active');
 }
 
 function showVerifoneView(view,btn){
@@ -8977,16 +8993,10 @@ function showVerifoneView(view,btn){
   const histEl=document.getElementById('verifone-historikk');
   if(nyEl)nyEl.style.display=view==='ny'?'':'none';
   if(histEl)histEl.style.display=view==='historikk'?'':'none';
-  document.querySelectorAll('#verifone-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  ['vsub-ny','vsub-historikk'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
   const subBtn=document.getElementById('vsub-'+view);
   if(subBtn)subBtn.classList.add('active');
   if(view==='historikk')vfRenderHistorikk();
-}
-
-// Nets trans.avgift — lagt til 09.09.2026, speiler toggleVerifoneSub/showVerifoneView over.
-function toggleNetsSub(open){
-  const sub=document.getElementById('nets-sub-nav');
-  if(sub)sub.className='nav-sub'+(open?' open':'');
 }
 
 function showNetsView(view,btn){
@@ -8994,7 +9004,7 @@ function showNetsView(view,btn){
   const histEl=document.getElementById('nets-historikk');
   if(nyEl)nyEl.style.display=view==='ny'?'':'none';
   if(histEl)histEl.style.display=view==='historikk'?'':'none';
-  document.querySelectorAll('#nets-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  ['ntsub-ny','ntsub-historikk'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
   const subBtn=document.getElementById('ntsub-'+view);
   if(subBtn)subBtn.classList.add('active');
   if(view==='historikk')ntRenderHistorikk();
