@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.83 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.84 · Oppdatert: 9. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1642,13 +1642,16 @@ tr:hover td{background:#fafafa}
   <div class="modal-overlay" id="rma-modal" onclick="if(event.target===this)closeRmaModal()">
     <div class="modal" style="width:600px;max-height:85vh;overflow-y:auto">
       <h3 id="rma-modal-title" style="margin-bottom:16px">Ny RMA-sak</h3>
-      <div class="fgrp" style="margin-bottom:10px">
-        <label>Kunde</label>
-        <div class="vf-kunde-ac" style="min-width:100%">
-          <input type="text" id="rma-kunde-input" placeholder="Søk Visma-kunde eller skriv kundenavn fritt…" oninput="rmaKundeAcSok()" onfocus="rmaKundeAcSok()" onblur="setTimeout(()=&gt;{const d=document.getElementById('rma-kunde-treff');if(d)d.style.display='none';},150)" autocomplete="off" style="width:100%"/>
-          <div id="rma-kunde-treff" class="vf-ac-treff"></div>
+      <div class="fg" style="grid-template-columns:110px 1fr;margin-bottom:10px">
+        <div class="fgrp"><label>Sak nr</label><input type="number" id="rma-saknummer" placeholder="52"/></div>
+        <div class="fgrp">
+          <label>Kunde</label>
+          <div class="vf-kunde-ac" style="min-width:100%">
+            <input type="text" id="rma-kunde-input" placeholder="Søk Visma-kunde eller skriv kundenavn fritt…" oninput="rmaKundeAcSok()" onfocus="rmaKundeAcSok()" onblur="setTimeout(()=&gt;{const d=document.getElementById('rma-kunde-treff');if(d)d.style.display='none';},150)" autocomplete="off" style="width:100%"/>
+            <div id="rma-kunde-treff" class="vf-ac-treff"></div>
+          </div>
+          <input type="hidden" id="rma-kunde-nr"/>
         </div>
-        <input type="hidden" id="rma-kunde-nr"/>
       </div>
       <div class="fg" style="grid-template-columns:1fr 1fr">
         <div class="fgrp"><label>Forhandler</label><input type="text" id="rma-forhandler" placeholder="KBD (direktesalg) eller forhandlernavn"/></div>
@@ -2901,7 +2904,7 @@ async function loadDataFromSP(){
   // IKKE verifisert mot et faktisk SharePoint-site ennaa -- verifiser interne
   // kolonnenavn via Graph Explorer foer skarp bruk, spesielt Status og de fire
   // dato-kolonnene (samme rutine som alle andre lister i dette prosjektet).
-  susoftRma=srmaItems.map(i=>({id:`sp${i.id}`,spId:i.id,kundeNr:i.fields.KundeNr||'',kundeNavn:i.fields.KundeNavn||'',forhandler:i.fields.Forhandler||'',refHosForhandler:i.fields.RefHosForhandler||'',maskin:i.fields.Maskin||'',serieNr:i.fields.SerieNr||'',problem:i.fields.Problem||'',harBildeVideo:i.fields.HarBildeVideo||'',ansvarligKbd:i.fields.AnsvarligKBD||'',status:i.fields.Status||'Feilmelding mottatt',datoFeilmeldingMottatt:i.fields.DatoFeilmeldingMottatt||'',datoNyMaskinSendtKunde:i.fields.DatoNyMaskinSendtKunde||'',datoSendtSusoft:i.fields.DatoSendtSusoft||'',datoMottattFraSusoft:i.fields.DatoMottattFraSusoft||'',kommentar:i.fields.Kommentar||'',opprettetDato:i.fields.Created||i.createdDateTime||i.fields.DatoFeilmeldingMottatt||''}));
+  susoftRma=srmaItems.map(i=>({id:`sp${i.id}`,spId:i.id,sakNummer:(i.fields.SakNummer!=null&&i.fields.SakNummer!==''?parseInt(i.fields.SakNummer,10):null),kundeNr:i.fields.KundeNr||'',kundeNavn:i.fields.KundeNavn||'',forhandler:i.fields.Forhandler||'',refHosForhandler:i.fields.RefHosForhandler||'',maskin:i.fields.Maskin||'',serieNr:i.fields.SerieNr||'',problem:i.fields.Problem||'',harBildeVideo:i.fields.HarBildeVideo||'',ansvarligKbd:i.fields.AnsvarligKBD||'',status:i.fields.Status||'Feilmelding mottatt',datoFeilmeldingMottatt:i.fields.DatoFeilmeldingMottatt||'',datoNyMaskinSendtKunde:i.fields.DatoNyMaskinSendtKunde||'',datoSendtSusoft:i.fields.DatoSendtSusoft||'',datoMottattFraSusoft:i.fields.DatoMottattFraSusoft||'',kommentar:i.fields.Kommentar||'',opprettetDato:i.fields.Created||i.createdDateTime||i.fields.DatoFeilmeldingMottatt||''}));
   // SusoftRmaInnstillinger (lagt til 07.09.2026) — ÉN rad, samme mønster som
   // SmsPurringInnstillinger over. Feltnavn MÅ stemme med
   // FELT_INNST_VARSLE_SUSOFT_AKTIVERT i susoft_rma_varsling.py — IKKE
@@ -4085,12 +4088,13 @@ function renderRmaTabell(){
   }
 
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-    <th>Kunde</th><th>Maskin / Serienr.</th><th>Forhandler</th><th>Ansvarlig</th><th>Status</th><th>Sendt Susoft</th><th>Mottatt fra Susoft</th><th></th>
+    <th>Sak nr</th><th>Kunde</th><th>Maskin / Serienr.</th><th>Forhandler</th><th>Ansvarlig</th><th>Status</th><th>Sendt Susoft</th><th>Mottatt fra Susoft</th><th></th>
   </tr></thead><tbody>
   ${liste.map(r=>{
     const dager=rmaDagerHosSusoft(r);
     const forsinket=dager!==null&&dager>=RMA_TERSKEL_DAGER;
     return `<tr${forsinket?' style="background:#fffbeb"':''}>
+      <td>${r.sakNummer??'—'}</td>
       <td><strong>${r.kundeNavn||'(uten navn)'}</strong>${r.kundeNr?`<div style="font-size:11px;color:#9ca3af">Kundenr ${r.kundeNr}</div>`:''}</td>
       <td>${r.maskin||'—'}${r.serieNr?`<div style="font-size:11px;color:#9ca3af">${r.serieNr}</div>`:''}</td>
       <td>${r.forhandler||'—'}</td>
@@ -4163,6 +4167,7 @@ function openRmaModal(id){
   if(id){
     const r=susoftRma.find(x=>x.id===id);if(!r)return;
     document.getElementById('rma-modal-title').textContent='Rediger RMA-sak';
+    document.getElementById('rma-saknummer').value=r.sakNummer??'';
     document.getElementById('rma-kunde-input').value=r.kundeNavn||'';
     document.getElementById('rma-kunde-nr').value=r.kundeNr||'';
     document.getElementById('rma-forhandler').value=r.forhandler||'';
@@ -4181,6 +4186,14 @@ function openRmaModal(id){
   }else{
     document.getElementById('rma-modal-title').textContent='Ny RMA-sak';
     ['rma-kunde-input','rma-kunde-nr','rma-forhandler','rma-ref-forhandler','rma-maskin','rma-serienr','rma-problem','rma-kommentar'].forEach(id2=>document.getElementById(id2).value='');
+    // Sak nr — foreslår neste ledige nummer (Geir sitt Excel-ark endte på 51,
+    // se KBD-Command-Center-prosjektstatus.md seksjon 15 — nye saker i
+    // dashbordet fortsetter derfor fra 52). Redigerbart, ikke låst: brukeren
+    // kan overstyre forslaget om nødvendig.
+    {
+      const brukteNumre=susoftRma.map(x=>x.sakNummer).filter(n=>n!=null&&!isNaN(n));
+      document.getElementById('rma-saknummer').value=(brukteNumre.length>0?Math.max(...brukteNumre):51)+1;
+    }
     document.getElementById('rma-forhandler').value='KBD';
     document.getElementById('rma-bilde-video').value='';
     document.getElementById('rma-status').value=RMA_STATUSER[0];
@@ -4200,6 +4213,7 @@ function closeRmaModal(){document.getElementById('rma-modal').classList.remove('
 function rmaFieldsPayload(r){
   return{
     Title:`${r.kundeNavn||'Ukjent kunde'} – ${r.maskin||'ukjent maskin'}`,
+    SakNummer:(r.sakNummer!=null&&r.sakNummer!==''?parseInt(r.sakNummer,10):null),
     KundeNr:r.kundeNr||'',
     KundeNavn:r.kundeNavn||'',
     Forhandler:r.forhandler||'',
@@ -4224,7 +4238,9 @@ function saveRma(){
   if(!kundeNavn){alert('Fyll inn kunde (velg fra Visma-søket eller skriv navnet fritt)');return;}
   if(!maskin){alert('Fyll inn maskin');return;}
   const editId=document.getElementById('rma-edit-id').value;
+  const sakNummerRaw=document.getElementById('rma-saknummer').value;
   const felter={
+    sakNummer:(sakNummerRaw!==''?parseInt(sakNummerRaw,10):null),
     kundeNr:document.getElementById('rma-kunde-nr').value||'',
     kundeNavn,
     forhandler:(document.getElementById('rma-forhandler').value||'').trim(),
@@ -7363,6 +7379,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.84',dato:'09.09.2026',punkter:[
+    'Susoft RMA: nytt felt «Sak nr» (til venstre for Kunde, i tabellen og i skjemaet) — Geir ønsket et enkelt saksnummer å referere til, samme som han hadde i Excel-arket. Nye saker foreslår automatisk neste ledige nummer (fortsetter fra 51, som var siste sak i Excel-arket — første nye sak blir dermed nr. 52), redigerbart om ønskelig. Krever ny SharePoint-kolonne SakNummer (Tall) på SusoftRma-lista, se sjekklisten.'
+  ]},
   {versjon:'v1.48.83',dato:'09.09.2026',punkter:[
     'Silent Ordering System: byttet rekkefølge på kortene i Oversikt-visningen — «📋 Brikkebytte-saker» vises nå FØR «🧑‍💼 SOS-kunder».'
   ]},
