@@ -321,6 +321,14 @@ tr:hover td{background:#fafafa}
 .vf-detail-inner{padding:10px 14px 14px 44px}
 .vf-detail-inner table{background:transparent;width:100%;border-collapse:collapse}
 .vf-detail-inner th{background:transparent;padding:6px 10px;font-size:10px;text-align:left;color:#6b7280;text-transform:uppercase}
+/* Rettet 09.09.2026 (Thomas oppdaget forskjøvne kolonneoverskrifter i Nets-
+   detaljvisningen): ".vf-detail-inner th" over er mer spesifikk enn ".tr"
+   alene, så "text-align:left" vant over ".tr"s "text-align:right" for
+   th-elementer som HAR class="tr" (Antall/Pris pr. stk/Beløp) — de ble
+   dermed venstrejustert i overskriften mens tallene under var
+   høyrejustert. Gjaldt egentlig Verifone sin tilsvarende detaljtabell også
+   (samme mønster), bare mindre synlig der med færre kolonner. */
+.vf-detail-inner th.tr{text-align:right}
 .vf-detail-inner td{padding:6px 10px;border-bottom:none;font-size:12.5px;color:#6b7280}
 .vf-pill-status{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
 .vf-pill-ok{background:#e6f7ef;color:#0e8a58}
@@ -449,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.89 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.90 · Oppdatert: 9. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7578,6 +7586,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.90',dato:'09.09.2026',punkter:[
+    'Rettet forskjøvne kolonneoverskrifter i detaljvisningen for godkjente Nets-/Verifone-kunder (Antall/Beløp-overskriftene var venstrejustert mens tallene under var høyrejustert).'
+  ]},
   {versjon:'v1.48.89',dato:'09.09.2026',punkter:[
     'Nets trans.avgift: salgsordrene splittes nå på korttype (BankAxept/Visa-Mastercard/Diners m.fl.) i stedet for å slås sammen til én linje med snittpris — hver korttype får sin egen ordrelinje med riktig Nets-pris. Detaljvisningen for en godkjent kunde viser nå korttype og pris/stk for hver linje.'
   ]},
