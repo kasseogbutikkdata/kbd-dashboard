@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.87 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.88 · Oppdatert: 9. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -558,10 +558,15 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="nav-sub" id="transaksjonsavgift-sub-nav">
         <div class="nav-sub-item active" id="tasub-verifone" onclick="showTab('verifone',document.getElementById('tab-transaksjonsavgift'))">🧾 Verifone trans.avgift</div>
-        <div class="nav-sub-sub-item active" id="vsub-ny" onclick="showVerifoneView('ny',this)">📤 Ny faktura</div>
+        <!-- "📤 Ny faktura"-underpunktet fjernet 09.09.2026 (Thomas' ønske) —
+             overflødig ved siden av selve leverandør-raden over, som allerede
+             går til nøyaktig samme visning (showVerifoneView('ny') kalles
+             automatisk fra showTab(), se linjen "if(name==='verifone'){...
+             showVerifoneView('ny');...}"). "Historikk" er nå eneste
+             underpunkt, siden det er det ENESTE som faktisk skiller seg fra
+             leverandør-radens standardvisning. -->
         <div class="nav-sub-sub-item" id="vsub-historikk" onclick="showVerifoneView('historikk',this)">📋 Historikk</div>
         <div class="nav-sub-item" id="tasub-nets" onclick="showTab('nets',document.getElementById('tab-transaksjonsavgift'))">🧾 Nets trans.avgift</div>
-        <div class="nav-sub-sub-item active" id="ntsub-ny" onclick="showNetsView('ny',this)">📤 Ny faktura</div>
         <div class="nav-sub-sub-item" id="ntsub-historikk" onclick="showNetsView('historikk',this)">📋 Historikk</div>
       </div>
       <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
@@ -7573,6 +7578,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.88',dato:'09.09.2026',punkter:[
+    'Under «Transaksjonsavgift»: fjernet det overflødige «📤 Ny faktura»-underpunktet for Verifone og Nets — det gjorde nøyaktig det samme som å trykke på selve leverandørnavnet («Verifone trans.avgift»/«Nets trans.avgift») rett over. «📋 Historikk» er nå eneste underpunkt for hver av dem.'
+  ]},
   {versjon:'v1.48.87',dato:'09.09.2026',punkter:[
     'Venstremenyen: «Verifone trans.avgift» og «Nets trans.avgift» ligger nå samlet under ett nytt menypunkt «Transaksjonsavgift», i stedet for to separate menypunkter. Ny faktura/Historikk-underpunktene for hver av dem er uendret, bare flyttet inn under den nye samlefanen.'
   ]},
@@ -8993,9 +9001,13 @@ function showVerifoneView(view,btn){
   const histEl=document.getElementById('verifone-historikk');
   if(nyEl)nyEl.style.display=view==='ny'?'':'none';
   if(histEl)histEl.style.display=view==='historikk'?'':'none';
-  ['vsub-ny','vsub-historikk'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
-  const subBtn=document.getElementById('vsub-'+view);
-  if(subBtn)subBtn.classList.add('active');
+  // "vsub-ny" finnes ikke lenger som eget menypunkt (fjernet 09.09.2026 —
+  // overflødig ved siden av selve leverandør-raden, se HTML-kommentaren ved
+  // transaksjonsavgift-sub-nav) — kun "vsub-historikk" kan faktisk bli
+  // uthevet her, men vi lar view==='ny' fortsatt kalles trygt (bare fjerner
+  // historikk sin active-klasse, uten å prøve å sette noen for "ny").
+  document.getElementById('vsub-historikk')?.classList.remove('active');
+  if(view==='historikk')document.getElementById('vsub-historikk')?.classList.add('active');
   if(view==='historikk')vfRenderHistorikk();
 }
 
@@ -9004,9 +9016,9 @@ function showNetsView(view,btn){
   const histEl=document.getElementById('nets-historikk');
   if(nyEl)nyEl.style.display=view==='ny'?'':'none';
   if(histEl)histEl.style.display=view==='historikk'?'':'none';
-  ['ntsub-ny','ntsub-historikk'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
-  const subBtn=document.getElementById('ntsub-'+view);
-  if(subBtn)subBtn.classList.add('active');
+  // "ntsub-ny" finnes ikke lenger — se tilsvarende kommentar i showVerifoneView().
+  document.getElementById('ntsub-historikk')?.classList.remove('active');
+  if(view==='historikk')document.getElementById('ntsub-historikk')?.classList.add('active');
   if(view==='historikk')ntRenderHistorikk();
 }
 
