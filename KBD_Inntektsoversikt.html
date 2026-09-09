@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.91 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.92 · Oppdatert: 9. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -611,6 +611,15 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
+      </div>
+      <!-- 🚦 Jobbstatus (lagt til 09.09.2026, Thomas' ønske om statuslys for
+           ALLE tidsstyrte bakgrunnsjobber etter to hendelser der en jobb
+           feilet stille i flere dager — pageNumber-buggen 31.08.2026,
+           nyetableringer-prioritetsscore 03.-06.09.2026). Egen fane, ikke
+           underfane, samme mønster som Susoft RMA/Silent Ordering over. Se
+           renderJobbstatus() og jobbstatus.py (kbd-verifone-func). -->
+      <div class="nav-item" id="tab-jobbstatus" onclick="showTab('jobbstatus',this)">
+        <span class="nav-item-icon">🚦</span>Jobbstatus
       </div>
       <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
@@ -2274,6 +2283,20 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
+  <!-- 🚦 JOBBSTATUS (lagt til 09.09.2026) — statuslys for ALLE 13 tidsstyrte
+       bakgrunnsjobber (9 Python-timer-triggere i kbd-verifone-func + 4
+       PowerShell-jobber i kbd-kunde360-func). Leser SharePoint-lista
+       "Jobbstatus" — se jobbstatus.py for hele bakgrunnen/e-postvarslingen
+       ved rødt/uteblitt. card-public — ren lesehandling, ingen
+       handlingsknapper her, samme begrunnelse som tp-susoftrma over. -->
+  <div id="tp-jobbstatus" class="tp">
+    <div class="card card-public">
+      <div class="card-title">🚦 Jobbstatus — tidsstyrte bakgrunnsjobber</div>
+      <div class="hint">Oversikt over alle automatiske jobber i KBD Command Center (nattlige synk-jobber, varsling, SMS-utsendelse m.m.). 🟢 kjørte som forventet · 🔴 feilet, ELLER har ikke kjørt innen forventet tid («uteblitt») · ⚪ har ikke rapportert status ennå. Et rødt lys sender automatisk én e-post til Thomas (ikke gjentatt for samme pågående hendelse — se jobbstatus.py).</div>
+      <div id="jobbstatus-tabell" style="margin-top:10px"></div>
+    </div>
+  </div>
+
   <!-- INNSTILLINGER -->
   <div id="tp-innstillinger" class="tp">
     <div id="innst-produkter">
@@ -2595,6 +2618,13 @@ let susoftRmaInnstillinger={varsleSusoftAktivert:false},susoftRmaInnstillingerSp
 // sist bytte/egen kontakt) flyttet UT av vismaKunder-objektene og inn i
 // denne egne lista, der flere rader kan dele samme vismaKundeNummer.
 let sosSaker=[],sosKunder=[];
+// jobbstatusRader — Jobbstatus-lista (lagt til 09.09.2026), én rad pr.
+// tidsstyrt bakgrunnsjobb, skrevet til av jobbstatus.py (kbd-verifone-func)
+// og Report-Jobbstatus i run.ps1-filene (kbd-kunde360-func). Se
+// renderJobbstatus() og JOBBER_KONFIG under for statuslys-logikken (samme
+// forventede-intervall-tall som JOBBER i jobbstatus.py — dupliseres bevisst,
+// se den filens docstring for begrunnelsen).
+let jobbstatusRader=[];
 // sosInnstillinger — ÉN rad på SharePoint-lista SOSInnstillinger, samme
 // mønster som susoftRmaInnstillinger over. aktivert=false som trygg standard
 // helt til Thomas/Geir bevisst skrur den på. Feltnavn MÅ stemme med FELT_*-
@@ -2950,11 +2980,16 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems,sosKundeItems,nhItems]=await Promise.all([
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems,sosKundeItems,nhItems,jsItems]=await Promise.all([
     spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[]),spGetItems('SOSSaker').catch(()=>[]),spGetItems('SOSInnstillinger').catch(()=>[]),spGetItems('SOSKunder').catch(()=>[]),
     // NetsHistorikk (lagt til 09.09.2026) — se vhItems/vfHistorikk over for samme mønster.
     // Egen liste (ikke samlet med VerifoneHistorikk), besluttet av Thomas 09.09.2026.
-    spGetItems('NetsHistorikk').catch(()=>[])
+    spGetItems('NetsHistorikk').catch(()=>[]),
+    // Jobbstatus (lagt til 09.09.2026) — statuslys for alle 13 tidsstyrte
+    // bakgrunnsjobber, skrevet til av jobbstatus.py (kbd-verifone-func) og
+    // Report-Jobbstatus i run.ps1-filene (kbd-kunde360-func). .catch(()=>[])
+    // som resten her — lista finnes kanskje ikke ennå (se README/jobbstatus.py).
+    spGetItems('Jobbstatus').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -3066,6 +3101,10 @@ async function loadDataFromSP(){
   // over, men egen liste (ikke slått sammen), besluttet av Thomas 09.09.2026.
   // Skrives av ntLoggHistorikk() (kalt fra ntApprove()).
   ntHistorikk=nhItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturareferanse:i.fields.Title||'',dato:i.fields.Dato||'',totaltBelop:parseFloat(i.fields.TotaltBelop)||0,antallKunder:parseInt(i.fields.AntallKunder)||0,antallOpprettet:parseInt(i.fields.AntallOpprettet)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,antallManueltAvklart:parseInt(i.fields.AntallManueltAvklart)||0,opprettetAv:i.fields.OpprettetAv||''}));
+  // Jobbstatus (lagt til 09.09.2026) — FELT_JS_*-navnene under må stemme med
+  // konstantene i graph_client.py (kbd-verifone-func), verifiser via Graph
+  // Explorer FØR skarp bruk, se README/Kunde360-oppsett-sjekkliste.md.
+  jobbstatusRader=jsItems.map(i=>({id:`sp${i.id}`,spId:i.id,jobbnavn:i.fields.Title||'',sistKjort:i.fields.SistKjort||'',resultat:i.fields.Resultat||'',melding:i.fields.Melding||'',varselSendt:i.fields.VarselSendt===true}));
   // SusoftRma (lagt til 04.09.2026) -- se Kunde360-oppsett-sjekkliste.md Liste 12
   // og susoft_rma_varsling.py (kbd-verifone-func) for backend-varslingen.
   // IKKE verifisert mot et faktisk SharePoint-site ennaa -- verifiser interne
@@ -4192,6 +4231,64 @@ let rmaSort={col:'saknr',dir:'desc'};
 function sortRmaBy(col){
   if(rmaSort.col===col){rmaSort.dir=rmaSort.dir==='asc'?'desc':'asc';}else{rmaSort.col=col;rmaSort.dir='asc';}
   renderRmaTabell();
+}
+
+// ===== 🚦 JOBBSTATUS (lagt til 09.09.2026) =====
+// JOBBER_KONFIG dupliserer bevisst JOBBER-konfigen i jobbstatus.py
+// (kbd-verifone-func) — samme "ingen felles konfig på tvers av
+// Python/PowerShell/JS"-mønster som resten av prosjektet allerede bruker
+// (cron-schedulene er også dupliserte som kommentarer flere steder). Hold
+// disse to i sync manuelt hvis et forventet intervall noensinne endres.
+const JOBBER_KONFIG={
+  sjekk_varslinger:{visningsnavn:'Kunde 360 – varsling forfall',maksMinutter:15},
+  send_planlagte_sms:{visningsnavn:'Planlagt SMS-utsendelse',maksMinutter:15},
+  hent_nyetableringer:{visningsnavn:'Nyetableringer – Brønnøysund',maksMinutter:26*60},
+  hent_nyetableringer_forhandlere:{visningsnavn:'Nyetableringer – forhandlerområder',maksMinutter:26*60},
+  sjekk_konkurser:{visningsnavn:'Konkursvarsling',maksMinutter:26*60},
+  sjekk_forfalte_fakturaer:{visningsnavn:'Purring-SMS (steg 1 – forfalte fakturaer)',maksMinutter:75*60},
+  fyll_pureservice_orgnr:{visningsnavn:'Pureservice org.nr-synk',maksMinutter:26*60},
+  sjekk_susoft_rma:{visningsnavn:'Susoft RMA-varsling',maksMinutter:26*60},
+  sjekk_sos_invitasjoner:{visningsnavn:'Silent Ordering-invitasjoner',maksMinutter:26*60},
+  KundeSync:{visningsnavn:'Kunde 360 – kundesynk',maksMinutter:6*60},
+  KontraktSync:{visningsnavn:'Kunde 360 – kontraktsynk (del 1 av 2)',maksMinutter:6*60},
+  KontraktSyncDel2:{visningsnavn:'Kunde 360 – kontraktsynk (del 2 av 2)',maksMinutter:6*60},
+  AldersfordeltSync:{visningsnavn:'Aldersfordelt saldo (ukentlig)',maksMinutter:9*24*60},
+};
+function jsEscapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+// Samme rød/grønn-vurdering som _er_rod() i jobbstatus.py — se den filens
+// docstring for begrunnelsen bak hver gren (uteblivelse teller som rødt,
+// akkurat som en eksplisitt feilet kjøring).
+function jobbstatusVurder(rad,konfig){
+  if(!rad)return{erRod:false,erUkjent:true,arsak:'Har aldri rapportert status'};
+  if(rad.resultat==='Feil')return{erRod:true,erUkjent:false,arsak:'Siste kjøring feilet'};
+  if(!rad.sistKjort)return{erRod:true,erUkjent:false,arsak:'Ugyldig/manglende tidsstempel'};
+  const minutterSiden=(Date.now()-new Date(rad.sistKjort).getTime())/60000;
+  if(minutterSiden>konfig.maksMinutter){
+    return{erRod:true,erUkjent:false,arsak:`Har ikke kjørt på ${(minutterSiden/60).toFixed(1)} t (forventet innen ${(konfig.maksMinutter/60).toFixed(1)} t)`};
+  }
+  return{erRod:false,erUkjent:false,arsak:''};
+}
+function renderJobbstatus(){
+  const el=document.getElementById('jobbstatus-tabell');
+  if(!el)return;
+  if(jobbstatusRader.length===0){
+    el.innerHTML='<p class="hint">Ingen data ennå — «Jobbstatus»-lista er enten ikke opprettet ennå i SharePoint, eller ingen av jobbene har rapportert status ennå. Se README.md i kbd-verifone-func for oppsett.</p>';
+    return;
+  }
+  const radHtml=Object.entries(JOBBER_KONFIG).map(([jobbnavn,konfig])=>{
+    const rad=jobbstatusRader.find(r=>r.jobbnavn===jobbnavn);
+    const{erRod,erUkjent,arsak}=jobbstatusVurder(rad,konfig);
+    const lys=erUkjent?'⚪':(erRod?'🔴':'🟢');
+    const sistKjortTxt=rad&&rad.sistKjort?new Date(rad.sistKjort).toLocaleString('nb-NO'):'—';
+    const arsakTxt=erUkjent?'':jsEscapeHtml(arsak||(rad?rad.melding:''));
+    return`<tr>
+      <td style="white-space:nowrap">${lys}</td>
+      <td>${jsEscapeHtml(konfig.visningsnavn)}<div class="hint" style="margin:0">${jobbnavn}</div></td>
+      <td style="white-space:nowrap">${sistKjortTxt}</td>
+      <td>${arsakTxt}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th></th><th>Jobb</th><th>Sist kjørt</th><th>Detaljer</th></tr></thead><tbody>${radHtml}</tbody></table></div>`;
 }
 
 function renderSusoftRma(){
@@ -7586,6 +7683,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.92',dato:'09.09.2026',punkter:[
+    'Ny fane «🚦 Jobbstatus»: statuslys-oversikt for alle 13 tidsstyrte bakgrunnsjobber (nattlige synk-jobber, varsling, SMS-utsendelse m.m.) — 🟢 kjørte som forventet, 🔴 feilet eller «uteblitt» (ikke kjørt innen forventet tid), ⚪ har ikke rapportert ennå. Et rødt lys sender automatisk e-post til Thomas. Krever ny SharePoint-liste «Jobbstatus» og backend-endringer i kbd-verifone-func/kbd-kunde360-func — se prosjektstatus for oppsett.'
+  ]},
   {versjon:'v1.48.91',dato:'09.09.2026',punkter:[
     'Flyttet «🏋️ Gymtimen» i venstremenyen til mellom Silent Ordering System og Idébank og utvikling.'
   ]},
@@ -8989,6 +9089,7 @@ function showTab(name,btn){
   if(name==='nets'){renderNets();showNetsView('ny');setTransaksjonsavgiftSubActive('nets');}
   if(name==='susoftrma'){renderSusoftRma();}
   if(name==='silentordering'){renderSilentOrdering();showSilentOrderingView('oversikt');}
+  if(name==='jobbstatus'){renderJobbstatus();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
