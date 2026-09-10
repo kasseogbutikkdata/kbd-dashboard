@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.105 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.106 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2264,6 +2264,7 @@ tr:hover td{background:#fafafa}
           Vis også betalte
         </label>
       </div>
+      <div id="fo-bucket-filters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px"></div>
       <div id="fo-tabell"></div>
     </div>
   </div>
@@ -2623,7 +2624,7 @@ let salgTilgang=false,kundeNotater=[];
 // Fylles fra SharePoint-listene Fakturaoppfolging/FakturaoppfolgingLogg i
 // loadDataFromSP() — samme mønster som kundeNotater over.
 let fakturaoppfolging=[],fakturaoppfolgingLogg=[];
-let foSort={col:'forfall',dir:'desc'},foVisBetalte=false,foKunForfalte=true,foSearch='',foStatusFilter='alle',foApenRad=null;
+let foSort={col:'forfall',dir:'desc'},foVisBetalte=false,foKunForfalte=true,foSearch='',foStatusFilter='alle',foApenRad=null,foBucket='alle';
 const FO_STATUSER=['Ikke kontaktet','Kontaktet','Lovet betaling','Sendt til inkasso','Bestridt'];
 // forsteTilgangssjekkGjort: styrer om applyAccessControl() skal tvinge brukeren
 // til Hjem-fanen. Satt til true etter FØRSTE gjennomkjøring (se bunnen av
@@ -7835,6 +7836,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.106',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: lagt til samme fargede filterrad som i Aldersfordelt («Vis: Alle / 1–30 / 31–60 / 61–90 / Over 90 dager») for raskt å avgrense arbeidslisten til én aldersgruppe om gangen.'
+  ]},
   {versjon:'v1.48.105',dato:'10.09.2026',punkter:[
     'Fakturaoppfølging: lagt til en «Vis kun forfalte»-bryter (PÅ som standard) — listen viser nå kun fakturaer som faktisk har passert forfallsdato, ikke alle åpne fakturaer. Skru av for å se hele lista igjen.'
   ]},
@@ -9135,6 +9139,18 @@ function setFoVisBetalte(v){foVisBetalte=v;renderFakturaoppfolging();}
 function setFoKunForfalte(v){foKunForfalte=v;renderFakturaoppfolging();}
 function setFoSearch(v){foSearch=(v||'').trim().toLowerCase();renderFakturaoppfolging();}
 function setFoStatusFilter(v){foStatusFilter=v;renderFakturaoppfolging();}
+function setFoBucket(k){foBucket=k;renderFakturaoppfolging();}
+function foInBucket(f,bucket){
+  if(bucket==='alle')return true;
+  const d=foDagerForfalt(f);
+  switch(bucket){
+    case 'd1_30': return d>=1&&d<=30;
+    case 'd31_60': return d>=31&&d<=60;
+    case 'd61_90': return d>=61&&d<=90;
+    case 'd90plus': return d>90;
+    default: return true;
+  }
+}
 function toggleFoDetalj(fakturanr){foApenRad=foApenRad===fakturanr?null:fakturanr;renderFakturaoppfolging();}
 
 // Dager forfalt regnes fra lokal midnatt (parseLD), ikke rå Date-diff, for å
@@ -9176,8 +9192,27 @@ function renderFakturaoppfolging(){
 
   let rader=foVisBetalte?fakturaoppfolging.slice():apneAlle;
   if(foKunForfalte)rader=rader.filter(f=>foDagerForfalt(f)>0);
+  if(foBucket!=='alle')rader=rader.filter(f=>foInBucket(f,foBucket));
   if(foStatusFilter!=='alle')rader=rader.filter(f=>f.status===foStatusFilter);
   if(foSearch)rader=rader.filter(f=>f.fakturanr.toLowerCase().includes(foSearch)||f.kundenavn.toLowerCase().includes(foSearch)||f.kundenr.toLowerCase().includes(foSearch));
+
+  // Aldersfordelt-bøtte-pills (samme visuelle mønster som Aldersfordelt-fanen,
+  // men enkeltvalg — én aktiv bøtte om gangen — siden dette er en arbeidsliste
+  // og ikke en trendgraf. Lagt til 10.09.2026 etter ønske fra Thomas.
+  const bucketFiltersEl=document.getElementById('fo-bucket-filters');
+  if(bucketFiltersEl) bucketFiltersEl.innerHTML=
+    `<span class="filter-lbl">Vis:</span>`+
+    `<button class="fpill" style="${foBucket==='alle'?'border-color:#1A3A6B':''}" onclick="setFoBucket('alle')">
+      <span style="font-weight:600;color:${foBucket==='alle'?'#1A3A6B':'#9ca3af'}">Alle</span>
+    </button>`+
+    AGING_KEYS.map((k,i)=>{
+      const on=foBucket===k;
+      const c=AGING_COLORS[i];
+      return`<button class="fpill${foBucket==='alle'?'':(on?' f-on':' f-off')}" style="${on?`border-color:${c}`:''}" onclick="setFoBucket('${k}')">
+        <span class="fpill-dot" style="background:${on||foBucket==='alle'?c:'#d0d5dd'}"></span>
+        <span style="color:${on||foBucket==='alle'?c:'#9ca3af'};font-weight:600">${AGING_LABELS[i]}</span>
+      </button>`;
+    }).join('');
 
   if(!rader.length){
     target.innerHTML=`<div class="empty">Ingen fakturaer matcher valgte filtre${foSearch?'/søket':''}.</div>`;
