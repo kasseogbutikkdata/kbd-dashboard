@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.98 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.99 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5787,7 +5787,11 @@ function renderKundeKort(k){
         <div>
           <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
             <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn||'(uten navn)'}</div>
-            ${seProffKnappHtml(k.orgNr,k.navn)}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
+              ${seProffKnappHtml(k.orgNr,k.navn)}
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
+              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+            </div>
           </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · Visma-nr ${k.vismaNummer||'—'} · ${k.status||'—'}</div>
         </div>
@@ -5801,13 +5805,7 @@ function renderKundeKort(k){
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
-            <p class="sec-title" style="margin-bottom:0">Kontaktinfo (Visma)</p>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
-              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
-            </div>
-          </div>
+          <p class="sec-title">Kontaktinfo (Visma)</p>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
               <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
@@ -5879,7 +5877,11 @@ function renderProspektKundeKort(k){
         <div>
           <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
             <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn||'(uten navn)'}</div>
-            ${seProffKnappHtml(k.orgNr,k.navn)}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
+              ${seProffKnappHtml(k.orgNr,k.navn)}
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
+              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+            </div>
           </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · ${k.manueltOpprettet?'📞 Manuelt registrert':'🆕 Ny etablering'} — ikke registrert som kunde i Visma ennå</div>
         </div>
@@ -5889,13 +5891,7 @@ function renderProspektKundeKort(k){
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
-            <p class="sec-title" style="margin-bottom:0">Kontaktinfo</p>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
-              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
-            </div>
-          </div>
+          <p class="sec-title">Kontaktinfo</p>
           <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
@@ -7761,6 +7757,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.99',dato:'10.09.2026',punkter:[
+    'Kunde 360: «📱 Send SMS» og «🔍 Gule Sider»-knappene flyttet opp ved siden av «🔍 Se Proff» og selskapsnavnet øverst på kortet (begge kortvarianter), i stedet for i Kontaktinfo-seksjonen lenger ned — samler alle de tre eksterne oppslags-/handlingsknappene på ett sted.'
+  ]},
   {versjon:'v1.48.98',dato:'10.09.2026',punkter:[
     'Kunde 360: ny «🔍 Se Proff»-knapp til høyre for selskapsnavnet på kundekortet (begge kortvarianter) — søker opp org.nr direkte på Proff.no i ny fane, samme prinsipp som Proff-lenken på daglig leder under «Brønnøysundregistrene».'
   ]},
