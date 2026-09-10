@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.95 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.96 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7732,6 +7732,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.96',dato:'10.09.2026',punkter:[
+    'Kunde 360-kundekortet: «Nøkkeltall»-panelet (soliditet/likviditet/lønnsomhet fra Brønnøysunds Regnskapsregister) hentet nå faktisk data — det har vært synlig, men alltid vist «kunne ikke hentes» siden det ble bygget 19.08.2026, fordi API-et ikke tillater kall direkte fra nettleseren. Går nå via et nytt endepunkt i kbd-verifone-func i stedet.'
+  ]},
   {versjon:'v1.48.95',dato:'10.09.2026',punkter:[
     'Justert skillelinjen i venstremenyen enda ett hakk opp — ligger nå mellom «Gymtimen» og «Idébank og utvikling».'
   ]},
@@ -8311,10 +8314,14 @@ function renderNokkeltall(regnskap){
   `;
 }
 
-function renderNokkeltallCorsBlokkert(){
+// Erstatter det tidligere renderNokkeltallCorsBlokkert() (10.09.2026) — nå
+// som kallet går via backend (se hentBrregInfo()) er CORS ikke lenger en
+// mulig feilårsak, så meldingen må dekke faktiske feil (backend nede, feil
+// fra Regnskapsregisteret, e.l.) i stedet for å alltid peke på CORS.
+function renderNokkeltallFeil(melding){
   const target=document.getElementById('k360-nokkeltall');
   if(!target)return;
-  target.innerHTML='<p class="sec-title">Nøkkeltall</p><div class="tbl-wrap"><div class="empty">Regnskapstall kunne ikke hentes direkte — dette API-et tillater ikke kall fra nettleseren (CORS), bekreftet 19.08.2026. Løses med en liten mellomtjener som kommer sammen med Azure-oppsettet for Visma-synken.</div></div>';
+  target.innerHTML=`<p class="sec-title">Nøkkeltall</p><div class="tbl-wrap"><div class="empty">Regnskapstall kunne ikke hentes: ${melding||'ukjent feil'}</div></div>`;
 }
 
 async function hentBrregInfo(orgNr){
@@ -8365,19 +8372,35 @@ async function hentBrregInfo(orgNr){
   }
 
   // Regnskapstall — eget forsøk, egen feilhåndtering. Dette API-et sender ikke
-  // CORS-headere (bekreftet i praksis 19.08.2026), så et direkte nettleserkall
-  // vil alltid feile inntil vi har en liten mellomtjener foran det (kommer
-  // sammen med Azure Function-oppsettet som allerede er under arbeid for
-  // Visma-synken — samme løsning, ett kall til).
-  try{
-    const regnskapRes=await fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${nr}`);
-    if(!regnskapRes.ok)throw new Error(`HTTP ${regnskapRes.status}`);
-    const regnskap=await regnskapRes.json();
-    console.log('Regnskapsregisteret-respons (for feltnavn-verifisering):',regnskap);
-    renderNokkeltall(Array.isArray(regnskap)?regnskap[0]:regnskap);
-  }catch(e){
-    console.warn('Regnskapstall kunne ikke hentes direkte (trolig CORS):',e);
-    renderNokkeltallCorsBlokkert();
+  // CORS-headere, så et direkte nettleserkall fra nettleseren feiler alltid
+  // (bekreftet i praksis 19.08.2026). Går derfor via kbd-verifone-func sitt
+  // nye /api/regnskapstall-endepunkt (lagt til 10.09.2026, "mellomtjeneren"
+  // denne kommentaren tidligere varslet om) — samme Azure AD-innloggings-
+  // mønster (vfGetApiToken()/vfApiUrl()) som /api/pureservice_saker og
+  // /api/sms_saldo over. Backend videresender responsen uendret (ingen
+  // hemmelighet å skjule her, kun CORS å omgå — se regnskapstall_client.py).
+  if(!VF_CONFIG.baseUrl){
+    renderNokkeltallFeil('ikke koblet til Azure Function ennå');
+  }else{
+    try{
+      const token=await vfGetApiToken();
+      const regnskapRes=await fetch(vfApiUrl(`/api/regnskapstall?orgnr=${nr}`),{
+        headers:{'Authorization':`Bearer ${token}`},
+      });
+      const regnskap=await regnskapRes.json();
+      if(!regnskapRes.ok)throw new Error(regnskap?.error||`HTTP ${regnskapRes.status}`);
+      console.log('Regnskapsregisteret-respons (for feltnavn-verifisering):',regnskap);
+      // Nyeste år først (API-et returnerer en samling, ikke bare siste år) —
+      // sorter på regnskapsperiode.tilDato, ikke bare regnskap[0], siden
+      // rekkefølgen fra API-et ikke er dokumentert garantert.
+      const nyeste=Array.isArray(regnskap)&&regnskap.length
+        ?regnskap.slice().sort((a,b)=>new Date(b.regnskapsperiode?.tilDato||0)-new Date(a.regnskapsperiode?.tilDato||0))[0]
+        :null;
+      renderNokkeltall(nyeste);
+    }catch(e){
+      console.warn('Regnskapstall kunne ikke hentes:',e);
+      renderNokkeltallFeil(e.message);
+    }
   }
 }
 
