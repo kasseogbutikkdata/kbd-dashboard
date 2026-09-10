@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.92 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.93 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2293,6 +2293,7 @@ tr:hover td{background:#fafafa}
     <div class="card card-public">
       <div class="card-title">🚦 Jobbstatus — tidsstyrte bakgrunnsjobber</div>
       <div class="hint">Oversikt over alle automatiske jobber i KBD Command Center (nattlige synk-jobber, varsling, SMS-utsendelse m.m.). 🟢 kjørte som forventet · 🔴 feilet, ELLER har ikke kjørt innen forventet tid («uteblitt») · ⚪ har ikke rapportert status ennå. Et rødt lys sender automatisk én e-post til Thomas (ikke gjentatt for samme pågående hendelse — se jobbstatus.py).</div>
+      <div style="font-weight:600;font-size:14px;margin-top:14px;margin-bottom:4px">Status over grønn/røde lamper</div>
       <div id="jobbstatus-tabell" style="margin-top:10px"></div>
     </div>
   </div>
@@ -4247,7 +4248,7 @@ const JOBBER_KONFIG={
   sjekk_konkurser:{visningsnavn:'Konkursvarsling',maksMinutter:26*60},
   sjekk_forfalte_fakturaer:{visningsnavn:'Purring-SMS (steg 1 – forfalte fakturaer)',maksMinutter:75*60},
   fyll_pureservice_orgnr:{visningsnavn:'Pureservice org.nr-synk',maksMinutter:26*60},
-  sjekk_susoft_rma:{visningsnavn:'Susoft RMA-varsling',maksMinutter:1}, // MIDLERTIDIG TEST-VERDI (10.09.2026, sett tilbake til 26*60 etter test)
+  sjekk_susoft_rma:{visningsnavn:'Susoft RMA-varsling',maksMinutter:26*60},
   sjekk_sos_invitasjoner:{visningsnavn:'Silent Ordering-invitasjoner',maksMinutter:26*60},
   KundeSync:{visningsnavn:'Kunde 360 – kundesynk',maksMinutter:6*60},
   KontraktSync:{visningsnavn:'Kunde 360 – kontraktsynk (del 1 av 2)',maksMinutter:6*60},
@@ -4258,6 +4259,52 @@ function jsEscapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;
 // Samme rød/grønn-vurdering som _er_rod() i jobbstatus.py — se den filens
 // docstring for begrunnelsen bak hver gren (uteblivelse teller som rødt,
 // akkurat som en eksplisitt feilet kjøring).
+// De 9 Python-jobbene i kbd-verifone-func rapporterer sin Melding som en
+// JSON.dumps()-streng av resultat-dicten (se function_app.py), mens de 4
+// PowerShell-jobbene i kbd-kunde360-func skriver ferdig lesbar tekst direkte
+// (se Report-Jobbstatus i hver run.ps1). JOBBSTATUS_FELT_NAVN/-SKJUL under
+// oversetter JSON-nøklene til noe lesbart for statuslys-fanen, lagt til
+// 10.09.2026 etter Thomas' tilbakemelding om at de rå JSON-meldingene var
+// vanskelige å lese sammenlignet med PowerShell-jobbenes ferdige tekst.
+const JOBBSTATUS_FELT_NAVN={
+  antallSjekket:'sjekket',antallSendt:'sendt',antallForsinket:'forsinket',
+  antallVarslet:'varslet',antallVarsletEkstern:'varslet eksternt',
+  forfalte:'forfalte',sendt:'sendt',feilet:'feilet',
+  omrade:'område',fraDato:'fra',tilDato:'til',
+  hentetHovedenheter:'hovedenheter hentet',hentetUnderenheter:'underenheter hentet',
+  nyeLagt:'nye lagt til',ekskludert:'ekskludert',kbdTreffFunnet:'KBD-treff',
+  varselSendt:'varsel sendt',kandidaterFraEndringsfeed:'kandidater sjekket',
+  kbdKunderTreff:'KBD-kunder truffet',nyeKonkurser:'nye konkurser',
+  firmaHentet:'firma hentet',manglerOrgnr:'mangler org.nr',matchet:'matchet',
+  oppdatert:'oppdatert',ikkeMatchet:'ikke matchet',
+  eksternVarslingAktivert:'ekstern varsling',
+};
+const JOBBSTATUS_FELT_SKJUL=['dryRun']; // interne teknisk-flagg, ikke interessant å vise fram
+function jsFormaterJobbVerdi(v){
+  if(Array.isArray(v)){
+    if(v.length===0)return'0';
+    if(typeof v[0]==='object'&&v[0]!==null)return v.map(jsFormaterJobbVerdi).join('; ');
+    return v.join(', ');
+  }
+  if(v&&typeof v==='object'){
+    return Object.entries(v).filter(([k])=>!JOBBSTATUS_FELT_SKJUL.includes(k)).map(([k,val])=>{
+      if(k==='feil')return`${Array.isArray(val)?val.length:0} feilet`;
+      const navn=JOBBSTATUS_FELT_NAVN[k]||k;
+      if(typeof val==='boolean')return`${navn}: ${val?'ja':'nei'}`;
+      return`${navn}: ${jsFormaterJobbVerdi(val)}`;
+    }).join(', ');
+  }
+  return String(v);
+}
+// Prøver å tolke Melding som JSON (de 9 Python-jobbene) og gjøre den lesbar;
+// er den ikke gyldig JSON (PowerShell-jobbene skriver allerede ren tekst),
+// vises den uendret. Returnerer alltid HTML-escapet tekst.
+function jsFormaterMelding(meldingRaw){
+  if(!meldingRaw)return'';
+  let parsed;
+  try{parsed=JSON.parse(meldingRaw);}catch(e){return jsEscapeHtml(meldingRaw);}
+  return jsEscapeHtml(jsFormaterJobbVerdi(parsed));
+}
 function jobbstatusVurder(rad,konfig){
   if(!rad)return{erRod:false,erUkjent:true,arsak:'Har aldri rapportert status'};
   if(rad.resultat==='Feil')return{erRod:true,erUkjent:false,arsak:'Siste kjøring feilet'};
@@ -4280,7 +4327,7 @@ function renderJobbstatus(){
     const{erRod,erUkjent,arsak}=jobbstatusVurder(rad,konfig);
     const lys=erUkjent?'⚪':(erRod?'🔴':'🟢');
     const sistKjortTxt=rad&&rad.sistKjort?new Date(rad.sistKjort).toLocaleString('nb-NO'):'—';
-    const arsakTxt=erUkjent?'':jsEscapeHtml(arsak||(rad?rad.melding:''));
+    const arsakTxt=erUkjent?'':(arsak?jsEscapeHtml(arsak):jsFormaterMelding(rad?rad.melding:''));
     return`<tr>
       <td style="white-space:nowrap">${lys}</td>
       <td>${jsEscapeHtml(konfig.visningsnavn)}<div class="hint" style="margin:0">${jobbnavn}</div></td>
@@ -7683,6 +7730,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.93',dato:'10.09.2026',punkter:[
+    '🚦 Jobbstatus: lagt til overskrift «Status over grønn/røde lamper» over tabellen, og «Detaljer»-kolonnen for jobbene i kbd-verifone-func (som rapporterer med rå JSON) vises nå oversatt til lesbar norsk tekst, samme stil som kbd-kunde360-func-jobbenes ferdige tekst.'
+  ]},
   {versjon:'v1.48.92',dato:'09.09.2026',punkter:[
     'Ny fane «🚦 Jobbstatus»: statuslys-oversikt for alle 13 tidsstyrte bakgrunnsjobber (nattlige synk-jobber, varsling, SMS-utsendelse m.m.) — 🟢 kjørte som forventet, 🔴 feilet eller «uteblitt» (ikke kjørt innen forventet tid), ⚪ har ikke rapportert ennå. Et rødt lys sender automatisk e-post til Thomas. Krever ny SharePoint-liste «Jobbstatus» og backend-endringer i kbd-verifone-func/kbd-kunde360-func — se prosjektstatus for oppsett.'
   ]},
