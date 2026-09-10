@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.108 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.110 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2247,7 +2247,6 @@ tr:hover td{background:#fafafa}
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           <input type="text" id="fo-search" placeholder="Søk faktura, kunde eller kundenr…" oninput="setFoSearch(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px"/>
           <div id="fo-bucket-filters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"></div>
-          <span id="fo-bucket-sum" style="font-size:12px;color:#6b7280;white-space:nowrap"></span>
           <select id="fo-status-filter" onchange="setFoStatusFilter(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
             <option value="alle">Alle statuser</option>
             <option value="Ikke kontaktet">Ikke kontaktet</option>
@@ -2256,6 +2255,7 @@ tr:hover td{background:#fafafa}
             <option value="Sendt til inkasso">Sendt til inkasso</option>
             <option value="Bestridt">Bestridt</option>
           </select>
+          <span id="fo-bucket-sum" style="font-size:12px;color:#6b7280;white-space:nowrap"></span>
         </div>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
           <input type="checkbox" id="fo-kun-forfalte" checked onchange="setFoKunForfalte(this.checked)"/>
@@ -7837,6 +7837,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.110',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: «Forfalt antall» og «Forfalt beløp»-kortene oppdaterer seg nå live når man velger en aldersgruppe (1–30/31–60/61–90/Over 90 dager) eller «Alle» i pill-filteret, i stedet for alltid å vise summen for alle forfalte fakturaer.'
+  ]},
+  {versjon:'v1.48.109',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: flyttet statusfilteret («Alle statuser» osv.) til høyre for aldersgruppe-pillsene, rett etter «Over 90 dager» — antall/beløp-sammendraget kommer nå etterpå igjen.'
+  ]},
   {versjon:'v1.48.108',dato:'10.09.2026',punkter:[
     'Fakturaoppfølging: delt opp KPI-kortet «Forfalt» i to egne felt («Forfalt antall» og «Forfalt beløp», begge i rødt) — nå 4 like KPI-kort på rad i stedet for 3.'
   ]},
@@ -9186,7 +9192,12 @@ function renderFakturaoppfolging(){
   const kpiDiv=document.getElementById('fo-kpis');
   if(kpiDiv){
     const sumUtestaende=apneAlle.reduce((s,f)=>s+f.utestaende,0);
-    const forfalt=apneAlle.filter(f=>foDagerForfalt(f)>0);
+    // "Forfalt antall"/"Forfalt beløp" tar hensyn til valgt aldersgruppe-pill
+    // (foBucket), slik at de to KPI-tallene oppdaterer seg live når man velger
+    // f.eks. "31–60 dager" — men er upåvirket av søk/status/kun-forfalte-filtrene,
+    // siden de skal vise et stabilt "forfalt akkurat nå"-øyeblikksbilde.
+    // Lagt til 10.09.2026 etter ønske fra Thomas.
+    const forfalt=apneAlle.filter(f=>foDagerForfalt(f)>0&&(foBucket==='alle'||foInBucket(f,foBucket)));
     const sumForfalt=forfalt.reduce((s,f)=>s+f.utestaende,0);
     kpiDiv.innerHTML=`
       <div class="kpi"><div class="kpi-lbl">Åpne fakturaer</div><div style="font-size:24px;font-weight:700">${apneAlle.length}</div></div>
