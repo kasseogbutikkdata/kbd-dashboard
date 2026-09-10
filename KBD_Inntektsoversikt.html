@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.96 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.97 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5898,6 +5898,17 @@ function renderProspektKundeKort(k){
         </div>
       </div>
 
+      <!-- k360-nokkeltall (lagt til her 10.09.2026) — fantes fra før KUN på
+           det ordinære Visma-kundekortet (renderKundeKort()), ikke her. Feilen
+           ble oppdaget da Thomas testet på nettopp et manuelt/prospekt-kort og
+           ikke så panelet i det hele tatt. Nøkkeltallene kommer fra
+           Regnskapsregisteret via org.nr, helt uavhengig av Visma-status, så
+           det er ingen grunn til at det skal mangle her — fylles av samme
+           hentBrregInfo()/renderNokkeltall() som resten av kortet, trigges av
+           «Hent fra Brønnøysundregistrene»-knappen over, akkurat som
+           k360-brreg. -->
+      <div id="k360-nokkeltall"></div>
+
       ${renderKundeNotaterHTML(k)}
     </div>
   `;
@@ -7732,6 +7743,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.97',dato:'10.09.2026',punkter:[
+    'Kunde 360: «Nøkkeltall»-panelet manglet på kundekortet for manuelt registrerte/prospekt-kunder (kun det ordinære Visma-kundekortet hadde det) — lagt til der også, siden tallene kommer fra org.nr uavhengig av Visma-status.'
+  ]},
   {versjon:'v1.48.96',dato:'10.09.2026',punkter:[
     'Kunde 360-kundekortet: «Nøkkeltall»-panelet (soliditet/likviditet/lønnsomhet fra Brønnøysunds Regnskapsregister) hentet nå faktisk data — det har vært synlig, men alltid vist «kunne ikke hentes» siden det ble bygget 19.08.2026, fordi API-et ikke tillater kall direkte fra nettleseren. Går nå via et nytt endepunkt i kbd-verifone-func i stedet.'
   ]},
