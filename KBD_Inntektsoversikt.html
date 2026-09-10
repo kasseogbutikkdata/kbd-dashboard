@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.106 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.107 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2246,6 +2246,8 @@ tr:hover td{background:#fafafa}
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           <input type="text" id="fo-search" placeholder="Søk faktura, kunde eller kundenr…" oninput="setFoSearch(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px"/>
+          <div id="fo-bucket-filters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"></div>
+          <span id="fo-bucket-sum" style="font-size:12px;color:#6b7280;white-space:nowrap"></span>
           <select id="fo-status-filter" onchange="setFoStatusFilter(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
             <option value="alle">Alle statuser</option>
             <option value="Ikke kontaktet">Ikke kontaktet</option>
@@ -2264,7 +2266,6 @@ tr:hover td{background:#fafafa}
           Vis også betalte
         </label>
       </div>
-      <div id="fo-bucket-filters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px"></div>
       <div id="fo-tabell"></div>
     </div>
   </div>
@@ -7836,6 +7837,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.107',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: flyttet de nye aldersgruppe-filtrene til høyre for søkefeltet (samme rad), og lagt til antall fakturaer + sum utestående beløp som vises når du velger en spesifikk periode (f.eks. «31–60 dager»).'
+  ]},
   {versjon:'v1.48.106',dato:'10.09.2026',punkter:[
     'Fakturaoppfølging: lagt til samme fargede filterrad som i Aldersfordelt («Vis: Alle / 1–30 / 31–60 / 61–90 / Over 90 dager») for raskt å avgrense arbeidslisten til én aldersgruppe om gangen.'
   ]},
@@ -9213,6 +9217,21 @@ function renderFakturaoppfolging(){
         <span style="color:${on||foBucket==='alle'?c:'#9ca3af'};font-weight:600">${AGING_LABELS[i]}</span>
       </button>`;
     }).join('');
+
+  // Antall/beløp-sammendrag for valgt aldersgruppe — vises kun når en periode
+  // (ikke "Alle") er valgt, regnet ut fra samme filtrerte liste som vises i
+  // tabellen (dvs. tar også hensyn til søk/status/kun forfalte). Lagt til
+  // 10.09.2026 etter ønske fra Thomas.
+  const bucketSumEl=document.getElementById('fo-bucket-sum');
+  if(bucketSumEl){
+    if(foBucket!=='alle'){
+      const antall=rader.length;
+      const sum=rader.reduce((s,f)=>s+(f.utestaende||0),0);
+      bucketSumEl.textContent=`${antall} faktura${antall===1?'':'er'} · ${fF(sum)}`;
+    }else{
+      bucketSumEl.textContent='';
+    }
+  }
 
   if(!rader.length){
     target.innerHTML=`<div class="empty">Ingen fakturaer matcher valgte filtre${foSearch?'/søket':''}.</div>`;
