@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.107 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.108 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2240,7 +2240,7 @@ tr:hover td{background:#fafafa}
     <p style="font-size:12px;color:#6b7280;margin:-4px 0 14px;display:flex;align-items:center;gap:6px">
       <span>ℹ️</span>Åpne fakturaer synkes automatisk fra Visma flere ganger daglig. Kommentarer og status settes her og påvirker ikke Visma.
     </p>
-    <div class="kpis" id="fo-kpis"></div>
+    <div class="kpis" id="fo-kpis" style="grid-template-columns:repeat(4,1fr)"></div>
 
     <div class="card" style="margin-top:14px">
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -7837,6 +7837,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.108',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: delt opp KPI-kortet «Forfalt» i to egne felt («Forfalt antall» og «Forfalt beløp», begge i rødt) — nå 4 like KPI-kort på rad i stedet for 3.'
+  ]},
   {versjon:'v1.48.107',dato:'10.09.2026',punkter:[
     'Fakturaoppfølging: flyttet de nye aldersgruppe-filtrene til høyre for søkefeltet (samme rad), og lagt til antall fakturaer + sum utestående beløp som vises når du velger en spesifikk periode (f.eks. «31–60 dager»).'
   ]},
@@ -9188,7 +9191,8 @@ function renderFakturaoppfolging(){
     kpiDiv.innerHTML=`
       <div class="kpi"><div class="kpi-lbl">Åpne fakturaer</div><div style="font-size:24px;font-weight:700">${apneAlle.length}</div></div>
       <div class="kpi"><div class="kpi-lbl">Utestående totalt</div><div style="font-size:24px;font-weight:700">${fF(sumUtestaende)}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Forfalt</div><div style="font-size:24px;font-weight:700;color:#dc2626">${forfalt.length}<span style="font-size:14px;font-weight:600;color:#9ca3af"> (${fF(sumForfalt)})</span></div></div>`;
+      <div class="kpi"><div class="kpi-lbl">Forfalt antall</div><div style="font-size:24px;font-weight:700;color:#dc2626">${forfalt.length}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Forfalt beløp</div><div style="font-size:24px;font-weight:700;color:#dc2626">${fF(sumForfalt)}</div></div>`;
   }
 
   const target=document.getElementById('fo-tabell');
