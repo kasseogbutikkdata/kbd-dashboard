@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.101 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.102 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4252,9 +4252,12 @@ const JOBBER_KONFIG={
   fyll_pureservice_orgnr:{visningsnavn:'Pureservice org.nr-synk',maksMinutter:26*60},
   sjekk_susoft_rma:{visningsnavn:'Susoft RMA-varsling',maksMinutter:26*60},
   sjekk_sos_invitasjoner:{visningsnavn:'Silent Ordering-invitasjoner',maksMinutter:26*60},
-  KundeSync:{visningsnavn:'Kunde 360 – kundesynk',maksMinutter:6*60},
-  KontraktSync:{visningsnavn:'Kunde 360 – kontraktsynk (del 1 av 2)',maksMinutter:6*60},
-  KontraktSyncDel2:{visningsnavn:'Kunde 360 – kontraktsynk (del 2 av 2)',maksMinutter:6*60},
+  // RETTET 10.09.2026: disse tre sto med 6*60 (6t), men jobbene kjører kun én
+  // gang i døgnet — 6t margin garanterte rødt hver kveld uten reell feil.
+  // Hevet til 26*60, samme som de andre daglige jobbene over.
+  KundeSync:{visningsnavn:'Kunde 360 – kundesynk',maksMinutter:26*60},
+  KontraktSync:{visningsnavn:'Kunde 360 – kontraktsynk (del 1 av 2)',maksMinutter:26*60},
+  KontraktSyncDel2:{visningsnavn:'Kunde 360 – kontraktsynk (del 2 av 2)',maksMinutter:26*60},
   AldersfordeltSync:{visningsnavn:'Aldersfordelt saldo (ukentlig)',maksMinutter:9*24*60},
 };
 function jsEscapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -7768,6 +7771,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.102',dato:'10.09.2026',punkter:[
+    '🚦 Jobbstatus: rettet feil terskel for «Kunde 360 – kundesynk/kontraktsynk (del 1 og 2)» — sto med 6 timers margin selv om jobbene kun kjører én gang i døgnet, som garanterte rødt lys (og falsk e-postvarsel) hver ettermiddag/kveld uten at noe faktisk var galt. Hevet til 26 timer, samme margin som de andre daglige jobbene.'
+  ]},
   {versjon:'v1.48.101',dato:'10.09.2026',punkter:[
     'Kundesaker: «Ansvarlig»-filteret defaulter nå til innlogget bruker første gang man åpner fanen denne økten (i stedet for «Alle ansvarlige»), forutsatt at brukeren faktisk har egne saker i lista. «✕ Nullstill filtre» går fortsatt til «Alle ansvarlige».'
   ]},
