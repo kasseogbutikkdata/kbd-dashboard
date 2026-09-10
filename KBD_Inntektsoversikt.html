@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.99 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.100 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5789,8 +5789,8 @@ function renderKundeKort(k){
             <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn||'(uten navn)'}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
               ${seProffKnappHtml(k.orgNr,k.navn)}
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
               <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
             </div>
           </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · Visma-nr ${k.vismaNummer||'—'} · ${k.status||'—'}</div>
@@ -5879,8 +5879,8 @@ function renderProspektKundeKort(k){
             <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn||'(uten navn)'}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
               ${seProffKnappHtml(k.orgNr,k.navn)}
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
               <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
             </div>
           </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · ${k.manueltOpprettet?'📞 Manuelt registrert':'🆕 Ny etablering'} — ikke registrert som kunde i Visma ennå</div>
@@ -7757,6 +7757,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.100',dato:'10.09.2026',punkter:[
+    'Kunde 360: byttet rekkefølge på «🔍 Gule Sider» og «📱 Send SMS»-knappene ved selskapsnavnet (begge kortvarianter) — Gule Sider kommer nå før Send SMS.'
+  ]},
   {versjon:'v1.48.99',dato:'10.09.2026',punkter:[
     'Kunde 360: «📱 Send SMS» og «🔍 Gule Sider»-knappene flyttet opp ved siden av «🔍 Se Proff» og selskapsnavnet øverst på kortet (begge kortvarianter), i stedet for i Kontaktinfo-seksjonen lenger ned — samler alle de tre eksterne oppslags-/handlingsknappene på ett sted.'
   ]},
