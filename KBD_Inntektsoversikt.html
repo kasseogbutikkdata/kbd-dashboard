@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.103 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.105 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2256,6 +2256,10 @@ tr:hover td{background:#fafafa}
           </select>
         </div>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="fo-kun-forfalte" checked onchange="setFoKunForfalte(this.checked)"/>
+          Vis kun forfalte
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
           <input type="checkbox" id="fo-vis-betalte" onchange="setFoVisBetalte(this.checked)"/>
           Vis også betalte
         </label>
@@ -2619,7 +2623,7 @@ let salgTilgang=false,kundeNotater=[];
 // Fylles fra SharePoint-listene Fakturaoppfolging/FakturaoppfolgingLogg i
 // loadDataFromSP() — samme mønster som kundeNotater over.
 let fakturaoppfolging=[],fakturaoppfolgingLogg=[];
-let foSort={col:'forfall',dir:'desc'},foVisBetalte=false,foSearch='',foStatusFilter='alle',foApenRad=null;
+let foSort={col:'forfall',dir:'desc'},foVisBetalte=false,foKunForfalte=true,foSearch='',foStatusFilter='alle',foApenRad=null;
 const FO_STATUSER=['Ikke kontaktet','Kontaktet','Lovet betaling','Sendt til inkasso','Bestridt'];
 // forsteTilgangssjekkGjort: styrer om applyAccessControl() skal tvinge brukeren
 // til Hjem-fanen. Satt til true etter FØRSTE gjennomkjøring (se bunnen av
@@ -7831,6 +7835,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.105',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: lagt til en «Vis kun forfalte»-bryter (PÅ som standard) — listen viser nå kun fakturaer som faktisk har passert forfallsdato, ikke alle åpne fakturaer. Skru av for å se hele lista igjen.'
+  ]},
+  {versjon:'v1.48.104',dato:'10.09.2026',punkter:[
+    'Ny undermeny «🧾 Fakturaoppfølging» under Aldersfordelt: sorterbar liste over alle åpne fakturaer (kontaktinfo, beløp/utestående, forfalt, prioriteringsscore, status og neste oppfølging), med søk, statusfilter og mulighet til å skjule/vise betalte fakturaer. Hver faktura har en egen logg for å registrere henvendelser (telefon/e-post/SMS) og oppdatere status/neste oppfølging — henter automatisk inn eksisterende notater fra Visma.'
+  ]},
   {versjon:'v1.48.103',dato:'10.09.2026',punkter:[
     'Fjernet en duplisert id="kf-src" på Kickback-skjemaets kilde-nedtrekksmeny (skrevet to ganger på samme element ved en feil tidligere — ufarlig i praksis siden nettlesere bruker den første, men plukket opp av det nye automatiske pre-publish-sjekket og ryddet bort).'
   ]},
@@ -9122,6 +9132,7 @@ function sortFoBy(col){
   renderFakturaoppfolging();
 }
 function setFoVisBetalte(v){foVisBetalte=v;renderFakturaoppfolging();}
+function setFoKunForfalte(v){foKunForfalte=v;renderFakturaoppfolging();}
 function setFoSearch(v){foSearch=(v||'').trim().toLowerCase();renderFakturaoppfolging();}
 function setFoStatusFilter(v){foStatusFilter=v;renderFakturaoppfolging();}
 function toggleFoDetalj(fakturanr){foApenRad=foApenRad===fakturanr?null:fakturanr;renderFakturaoppfolging();}
@@ -9164,6 +9175,7 @@ function renderFakturaoppfolging(){
   if(!target)return;
 
   let rader=foVisBetalte?fakturaoppfolging.slice():apneAlle;
+  if(foKunForfalte)rader=rader.filter(f=>foDagerForfalt(f)>0);
   if(foStatusFilter!=='alle')rader=rader.filter(f=>f.status===foStatusFilter);
   if(foSearch)rader=rader.filter(f=>f.fakturanr.toLowerCase().includes(foSearch)||f.kundenavn.toLowerCase().includes(foSearch)||f.kundenr.toLowerCase().includes(foSearch));
 
