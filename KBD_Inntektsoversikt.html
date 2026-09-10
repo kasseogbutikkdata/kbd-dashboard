@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.102 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.103 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1438,7 +1438,7 @@ tr:hover td{background:#fafafa}
       <div class="card-title">Legg til kickback</div>
       <div class="fg fg4">
         <div class="fgrp"><label>År</label><input type="number" id="kf-year" min="2015" max="2040" value="2026" style="width:100%"/></div>
-        <div class="fgrp"><label>Kilde</label><select id="kf-src" onchange="onSrcChange()" id="kf-src"></select></div>
+        <div class="fgrp"><label>Kilde</label><select id="kf-src" onchange="onSrcChange()"></select></div>
         <div class="fgrp"><label>Periode <span class="hint" id="kf-hint">(månedlig)</span></label><select id="kf-per"></select></div>
         <div class="fgrp"><label>Beløp (kr)</label><input type="number" id="kf-amt" placeholder="f.eks. 95 000"/></div>
       </div>
@@ -7771,6 +7771,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.103',dato:'10.09.2026',punkter:[
+    'Fjernet en duplisert id="kf-src" på Kickback-skjemaets kilde-nedtrekksmeny (skrevet to ganger på samme element ved en feil tidligere — ufarlig i praksis siden nettlesere bruker den første, men plukket opp av det nye automatiske pre-publish-sjekket og ryddet bort).'
+  ]},
   {versjon:'v1.48.102',dato:'10.09.2026',punkter:[
     '🚦 Jobbstatus: rettet feil terskel for «Kunde 360 – kundesynk/kontraktsynk (del 1 og 2)» — sto med 6 timers margin selv om jobbene kun kjører én gang i døgnet, som garanterte rødt lys (og falsk e-postvarsel) hver ettermiddag/kveld uten at noe faktisk var galt. Hevet til 26 timer, samme margin som de andre daglige jobbene.'
   ]},
