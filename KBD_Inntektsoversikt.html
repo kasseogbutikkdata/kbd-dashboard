@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.97 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.98 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5762,6 +5762,18 @@ function handleDeepLink(){
   },150);
 }
 
+// Knapp for å slå opp selskapet direkte på Proff.no (søker på org.nr for
+// eksakt treff — samme «kun ved eksplisitt knappetrykk, ingen automatisk
+// henting»-filosofi som Gule Sider/Proff-lenken på daglig leder i
+// hentBrregInfo() over). Lagt til 10.09.2026, brukt på begge
+// kundekort-variantene (ordinært Visma-kort og prospekt-/manuelt kort) for
+// konsistens, samme presedens som k360-nokkeltall.
+function seProffKnappHtml(orgNr,navn){
+  const nr=normOrgNr(orgNr);
+  if(nr.length!==9)return'';
+  return`<a class="btn-sm" href="https://www.proff.no/bransjes%C3%B8k?q=${nr}" target="_blank" rel="noopener" style="text-decoration:none;white-space:nowrap;align-self:center" title="Søk «${(navn||'').replace(/"/g,'')}» (org.nr ${nr}) på Proff.no (åpner i ny fane, ingen automatisk henting)">🔍 Se Proff</a>`;
+}
+
 function renderKundeKort(k){
   if(k.erProspekt){renderProspektKundeKort(k);return;}
   const kNr=String(k.vismaNummer||'').trim();
@@ -5773,7 +5785,10 @@ function renderKundeKort(k){
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div>
-          <div style="font-size:34px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.15">${k.navn||'(uten navn)'}</div>
+          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn||'(uten navn)'}</div>
+            ${seProffKnappHtml(k.orgNr,k.navn)}
+          </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · Visma-nr ${k.vismaNummer||'—'} · ${k.status||'—'}</div>
         </div>
       </div>
@@ -5862,7 +5877,10 @@ function renderProspektKundeKort(k){
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div>
-          <div style="font-size:34px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.15">${k.navn||'(uten navn)'}</div>
+          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn||'(uten navn)'}</div>
+            ${seProffKnappHtml(k.orgNr,k.navn)}
+          </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · ${k.manueltOpprettet?'📞 Manuelt registrert':'🆕 Ny etablering'} — ikke registrert som kunde i Visma ennå</div>
         </div>
       </div>
@@ -7743,6 +7761,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.98',dato:'10.09.2026',punkter:[
+    'Kunde 360: ny «🔍 Se Proff»-knapp til høyre for selskapsnavnet på kundekortet (begge kortvarianter) — søker opp org.nr direkte på Proff.no i ny fane, samme prinsipp som Proff-lenken på daglig leder under «Brønnøysundregistrene».'
+  ]},
   {versjon:'v1.48.97',dato:'10.09.2026',punkter:[
     'Kunde 360: «Nøkkeltall»-panelet manglet på kundekortet for manuelt registrerte/prospekt-kunder (kun det ordinære Visma-kundekortet hadde det) — lagt til der også, siden tallene kommer fra org.nr uavhengig av Visma-status.'
   ]},
