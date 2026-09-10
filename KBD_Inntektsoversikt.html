@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.100 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.101 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -6061,7 +6061,7 @@ const K360_NOTAT_FARGER={Notat:{c:'#6b7280',bg:'#f3f4f6'},Tilbud:{c:'#6d28d9',bg
 // Sortering: samme mønster som Utleie-fanens sortUtleieBy()/sh-*-spennene.
 let kundesakerSort={col:'forfallsdato',dir:'asc'};
 let kundesakerTypeFilter='alle'; // 'alle'/'Notat'/'Tilbud'/'Oppfølging'
-let kundesakerBrukerFilter='alle'; // 'alle' viser ALLE kollegers saker, ikke bare innlogget bruker — se renderKundesaker()
+let kundesakerBrukerFilter=null; // null = ikke satt ennå (kun ved aller første rendering denne økten) — se default-logikken i renderKundesaker(), som setter den til innlogget bruker. 'alle' viser ALLE kollegers saker og er et eksplisitt valg (dropdown/nullstill), ikke standardverdien lenger.
 let kundesakerVisLukkede=false;
 let kundesakerSearch=''; // fritekstsøk på firmanavn/tittel, samme "likt søkefelt"-ønske som Kunde 360-forsiden, 28.08.2026
 
@@ -6090,6 +6090,17 @@ function renderKundesaker(){
   const dropdownDiv=document.getElementById('kundesaker-dropdown-filters');
   if(dropdownDiv){
     const brukerListe=[...new Set(kundeNotater.map(n=>n.opprettetAv).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nb'));
+    if(kundesakerBrukerFilter===null){
+      // Første rendering denne økten — defaulter til innlogget bruker (samme
+      // navnekilde som fyllAnsvarligSelect() bruker: currentUser.name/username)
+      // dersom vedkommende faktisk har egne saker i lista, ellers 'alle' (så
+      // f.eks. en helt ny selger ikke bare ser en tom liste). Lagt til
+      // 10.09.2026 på Thomas' ønske — måtte før velge seg selv manuelt hver
+      // gang han åpnet Kundesaker-fanen. «✕ Nullstill filtre» går fortsatt til
+      // 'alle' (vis alle), ikke tilbake til denne default-logikken.
+      const mittNavn=currentUser?.name||currentUser?.username||'';
+      kundesakerBrukerFilter=brukerListe.includes(mittNavn)?mittNavn:'alle';
+    }
     if(kundesakerBrukerFilter!=='alle'&&!brukerListe.includes(kundesakerBrukerFilter))kundesakerBrukerFilter='alle';
     const opts=`<option value="alle"${kundesakerBrukerFilter==='alle'?' selected':''}>Alle ansvarlige</option>`+brukerListe.map(b=>`<option value="${b.replace(/"/g,'&quot;')}"${kundesakerBrukerFilter===b?' selected':''}>${b}</option>`).join('');
     const lukketToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
@@ -7757,6 +7768,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.101',dato:'10.09.2026',punkter:[
+    'Kundesaker: «Ansvarlig»-filteret defaulter nå til innlogget bruker første gang man åpner fanen denne økten (i stedet for «Alle ansvarlige»), forutsatt at brukeren faktisk har egne saker i lista. «✕ Nullstill filtre» går fortsatt til «Alle ansvarlige».'
+  ]},
   {versjon:'v1.48.100',dato:'10.09.2026',punkter:[
     'Kunde 360: byttet rekkefølge på «🔍 Gule Sider» og «📱 Send SMS»-knappene ved selskapsnavnet (begge kortvarianter) — Gule Sider kommer nå før Send SMS.'
   ]},
