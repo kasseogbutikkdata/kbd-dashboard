@@ -190,7 +190,7 @@ tr:hover td{background:#fafafa}
 .nav-sub-sub-item{display:flex;align-items:center;gap:8px;padding:6px 16px 6px 52px;cursor:pointer;font-size:12.5px;font-weight:500;color:#9ca3af;border-left:3px solid transparent;transition:all .1s}
 .nav-sub-sub-item:hover{background:#f9fafb;color:#6b7280}
 .nav-sub-sub-item.active{color:#1A3A6B;font-weight:600;border-left-color:#93c5fd;background:#f0f4ff}
-.sidebar-divider{height:1px;background:#f3f4f6;margin:6px 12px}
+.sidebar-divider{height:1px;background:#d1d5db;margin:6px 12px}
 .sidebar-bottom{padding:12px 16px;border-top:1px solid #f3f4f6}
 .sidebar-user{font-size:12px;color:#6b7280}
 .main-content{flex:1;min-width:0;padding:24px;overflow:auto}
@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.93 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.94 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -612,6 +612,10 @@ tr:hover td{background:#fafafa}
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
       </div>
+      <!-- Divideren flyttet hit 10.09.2026 (Thomas' ønske) — skiller nå
+           innholdsfanene over fra Jobbstatus/Innstillinger under, som begge
+           er mer administrative/tekniske sider enn resten av menyen. -->
+      <div class="sidebar-divider"></div>
       <!-- 🚦 Jobbstatus (lagt til 09.09.2026, Thomas' ønske om statuslys for
            ALLE tidsstyrte bakgrunnsjobber etter to hendelser der en jobb
            feilet stille i flere dager — pageNumber-buggen 31.08.2026,
@@ -621,7 +625,6 @@ tr:hover td{background:#fafafa}
       <div class="nav-item" id="tab-jobbstatus" onclick="showTab('jobbstatus',this)">
         <span class="nav-item-icon">🚦</span>Jobbstatus
       </div>
-      <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
         <span class="nav-item-icon">⚙️</span>Innstillinger
       </div>
@@ -7729,6 +7732,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.94',dato:'10.09.2026',punkter:[
+    'Flyttet skillelinjen i venstremenyen opp til mellom «Idébank og utvikling» og «Jobbstatus» (i stedet for mellom Jobbstatus og Innstillinger), og gjort den litt tydeligere.'
+  ]},
   {versjon:'v1.48.93',dato:'10.09.2026',punkter:[
     '🚦 Jobbstatus: lyskolonnen har nå kolonneoverskriften «Status», og «Detaljer»-kolonnen for jobbene i kbd-verifone-func (som rapporterer med rå JSON) vises nå oversatt til lesbar norsk tekst, samme stil som kbd-kunde360-func-jobbenes ferdige tekst.'
   ]},
