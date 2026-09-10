@@ -2293,7 +2293,6 @@ tr:hover td{background:#fafafa}
     <div class="card card-public">
       <div class="card-title">🚦 Jobbstatus — tidsstyrte bakgrunnsjobber</div>
       <div class="hint">Oversikt over alle automatiske jobber i KBD Command Center (nattlige synk-jobber, varsling, SMS-utsendelse m.m.). 🟢 kjørte som forventet · 🔴 feilet, ELLER har ikke kjørt innen forventet tid («uteblitt») · ⚪ har ikke rapportert status ennå. Et rødt lys sender automatisk én e-post til Thomas (ikke gjentatt for samme pågående hendelse — se jobbstatus.py).</div>
-      <div style="font-weight:600;font-size:14px;margin-top:14px;margin-bottom:4px">Status over grønn/røde lamper</div>
       <div id="jobbstatus-tabell" style="margin-top:10px"></div>
     </div>
   </div>
@@ -4335,7 +4334,7 @@ function renderJobbstatus(){
       <td>${arsakTxt}</td>
     </tr>`;
   }).join('');
-  el.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th></th><th>Jobb</th><th>Sist kjørt</th><th>Detaljer</th></tr></thead><tbody>${radHtml}</tbody></table></div>`;
+  el.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Status</th><th>Jobb</th><th>Sist kjørt</th><th>Detaljer</th></tr></thead><tbody>${radHtml}</tbody></table></div>`;
 }
 
 function renderSusoftRma(){
@@ -7731,7 +7730,7 @@ function leggTilLoggpost(id){
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
   {versjon:'v1.48.93',dato:'10.09.2026',punkter:[
-    '🚦 Jobbstatus: lagt til overskrift «Status over grønn/røde lamper» over tabellen, og «Detaljer»-kolonnen for jobbene i kbd-verifone-func (som rapporterer med rå JSON) vises nå oversatt til lesbar norsk tekst, samme stil som kbd-kunde360-func-jobbenes ferdige tekst.'
+    '🚦 Jobbstatus: lyskolonnen har nå kolonneoverskriften «Status», og «Detaljer»-kolonnen for jobbene i kbd-verifone-func (som rapporterer med rå JSON) vises nå oversatt til lesbar norsk tekst, samme stil som kbd-kunde360-func-jobbenes ferdige tekst.'
   ]},
   {versjon:'v1.48.92',dato:'09.09.2026',punkter:[
     'Ny fane «🚦 Jobbstatus»: statuslys-oversikt for alle 13 tidsstyrte bakgrunnsjobber (nattlige synk-jobber, varsling, SMS-utsendelse m.m.) — 🟢 kjørte som forventet, 🔴 feilet eller «uteblitt» (ikke kjørt innen forventet tid), ⚪ har ikke rapportert ennå. Et rødt lys sender automatisk e-post til Thomas. Krever ny SharePoint-liste «Jobbstatus» og backend-endringer i kbd-verifone-func/kbd-kunde360-func — se prosjektstatus for oppsett.'
