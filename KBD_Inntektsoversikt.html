@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.94 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.95 · Oppdatert: 10. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -609,13 +609,13 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="asub-soknader" onclick="showArbeidstidView('soknader',this)">📝 Søknader</div>
         <div class="nav-sub-item" id="asub-ny" onclick="showArbeidstidView('ny',this)">➕ Ny søknad</div>
       </div>
+      <!-- Divideren flyttet hit 10.09.2026 (Thomas' ønske, justert samme
+           dag) — skiller Gymtimen fra Idébank/Jobbstatus/Innstillinger
+           under. -->
+      <div class="sidebar-divider"></div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
       </div>
-      <!-- Divideren flyttet hit 10.09.2026 (Thomas' ønske) — skiller nå
-           innholdsfanene over fra Jobbstatus/Innstillinger under, som begge
-           er mer administrative/tekniske sider enn resten av menyen. -->
-      <div class="sidebar-divider"></div>
       <!-- 🚦 Jobbstatus (lagt til 09.09.2026, Thomas' ønske om statuslys for
            ALLE tidsstyrte bakgrunnsjobber etter to hendelser der en jobb
            feilet stille i flere dager — pageNumber-buggen 31.08.2026,
@@ -7732,6 +7732,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.95',dato:'10.09.2026',punkter:[
+    'Justert skillelinjen i venstremenyen enda ett hakk opp — ligger nå mellom «Gymtimen» og «Idébank og utvikling».'
+  ]},
   {versjon:'v1.48.94',dato:'10.09.2026',punkter:[
     'Flyttet skillelinjen i venstremenyen opp til mellom «Idébank og utvikling» og «Jobbstatus» (i stedet for mellom Jobbstatus og Innstillinger), og gjort den litt tydeligere.'
   ]},
