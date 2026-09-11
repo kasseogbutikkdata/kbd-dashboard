@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.111 · Oppdatert: 11. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.112 · Oppdatert: 11. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -504,6 +504,19 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="aldersfordelt-sub-nav">
         <div class="nav-sub-item active" id="asub-aldersfordelt" onclick="showTab('aldersfordelt',document.getElementById('tab-aldersfordelt'));setAldersfordeltSubActive('aldersfordelt')">📊 Saldo</div>
         <div class="nav-sub-item" id="asub-fakturaoppfolging" onclick="showTab('fakturaoppfolging',document.getElementById('tab-aldersfordelt'));setAldersfordeltSubActive('fakturaoppfolging')">🧾 Fakturaoppfølging</div>
+        <!-- Purring-SMS flyttet hit fra "SMS utsendelse" 11.09.2026 (Thomas'
+             ønske) — se showTab() for oppdatert effectiveTab/toggle-logikk.
+             MERK (avklart eksplisitt med Thomas samme dag): dette betyr at
+             Veronika (Mirrow), som i dag har tilgang.aldersfordelt=true, nå
+             AUTOMATISK får se og bruke Purring-SMS også (kundetelefonnumre,
+             meldingsmaler, "Aktivert"-bryter, godkjenne/sende SMS) — hele
+             aldersfordelt-sub-nav vises/skjules fortsatt som ÉN enhet i
+             applyAccessControl(), ingen egen finmasket tilgang per
+             undermenypunkt. Thomas svarte "Det er greit, så kan vi justere
+             dette en annen gang" — altså en bevisst, midlertidig aksept, ikke
+             en avsluttet avgjørelse. Vurder en egen tilgangssjekk her hvis
+             dette skal strammes inn senere. -->
+        <div class="nav-sub-item" id="asub-purring" onclick="showTab('purring',document.getElementById('tab-aldersfordelt'));setAldersfordeltSubActive('purring')">🔔 Purring-SMS</div>
       </div>
       <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this);toggleKunder360Sub(true)">
         <span class="nav-item-icon">🧑‍💼</span>Kunde360
@@ -551,7 +564,6 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="smssub-smsutsendelse" onclick="showTab('smsutsendelse',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsutsendelse')">📤 Ny utsendelse</div>
         <div class="nav-sub-item" id="smssub-smsplanlagt" onclick="showTab('smsplanlagt',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsplanlagt')">🕐 Planlagt</div>
         <div class="nav-sub-item" id="smssub-smshistorikk" onclick="showTab('smshistorikk',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smshistorikk')">🕘 Tidligere utsendelser</div>
-        <div class="nav-sub-item" id="smssub-purring" onclick="showTab('purring',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('purring')">🔔 Purring-SMS</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -866,13 +878,27 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
-  <!-- SMS UTSENDELSE — Purring-SMS (flyttet hit 02.09.2026 fra Innstillinger,
-       på Thomas' eksplisitte ønske — hørte naturlig hjemme sammen med resten
-       av SMS-funksjonaliteten. MERK konsekvens for tilgangsstyring: styres nå
-       av tilgang.smsutsendelse (samme modul-tilgang som resten av denne
-       undermenyen) i stedet for tilgang.innstillinger — se
-       purring_sms.py sin docstring, avsnittet "SENDEMÅTE", for hele
-       bakgrunnen. Kortene mangler bevisst card-public (i likhet med
+  <!-- Purring-SMS — opprinnelig flyttet hit 02.09.2026 fra Innstillinger
+       (den gang inn under "📱 SMS utsendelse"). FLYTTET IGJEN 11.09.2026, nå
+       til undermeny under "⏱️ Aldersfordelt" (Thomas' eksplisitte ønske —
+       naturlig samlokalisering med Fakturaoppfølging, samme
+       forfalt-fakturaer-tema). Selve tp-purring-panelet under er urørt av
+       denne flyttingen — kun sub-nav-plasseringen/showTab()-routingen endret,
+       se aldersfordelt-sub-nav i sidebaren og showTab().
+       VIKTIG konsekvens for tilgangsstyring (bevisst avklart med Thomas
+       samme dag, ikke en forglemmelse): aldersfordelt-sub-nav vises/skjules
+       som ÉN enhet basert på tilgang.aldersfordelt i applyAccessControl() —
+       det finnes INGEN egen finmasket tilgang per undermenypunkt. Det betyr
+       at Veronika (Mirrow), som allerede har tilgang.aldersfordelt=true for
+       Fakturaoppfølging, nå AUTOMATISK får se og bruke Purring-SMS også
+       (kundetelefonnumre, meldingsmaler, "Aktivert"-bryter, godkjenne/sende
+       SMS) — IKKE lenger styrt av tilgang.smsutsendelse. Thomas svarte
+       eksplisitt "Det er greit, så kan vi justere dette en annen gang" da
+       dette ble lagt frem — vurder en egen tilgangssjekk her (skjul
+       asub-purring spesifikt for brukere uten tilgang.smsutsendelse, selv om
+       de har tilgang.aldersfordelt) hvis dette skal strammes inn senere. Se
+       purring_sms.py sin docstring, avsnittet "SENDEMÅTE", for
+       forretningslogikken. Kortene mangler bevisst card-public (i likhet med
        tp-smsutsendelse sin kompose-visning) siden dette er
        skjema/handlingskort som fjerner/utløser ekte SMS-sending — skjules
        dermed fortsatt for Leser-rollen av applyRoleUI(). -->
@@ -7837,6 +7863,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.112',dato:'11.09.2026',punkter:[
+    'Purring-SMS flyttet fra «SMS utsendelse» til en ny undermeny under «⏱️ Aldersfordelt» (sammen med Fakturaoppfølging) — naturlig samlokalisering siden begge handler om forfalte fakturaer. OBS: dette betyr at Veronika (Mirrow) nå også ser Purring-SMS, siden hun allerede har tilgang til resten av Aldersfordelt-menyen.'
+  ]},
   {versjon:'v1.48.111',dato:'11.09.2026',punkter:[
     'Fakturaoppfølging — flere forbedringer i loggpanelet etter tilbakemelding fra Thomas: (1) større skrift i kommentarfeltet, (2) status og neste oppfølging vises nå som en liten oppsummering øverst til høyre for «Oppfølgingslogg» (i tillegg til feltene i skjemaet), (3) fakturaraden får en tydelig ramme/utheving mens loggpanelet under er åpent, og (4) et 💬-ikon i oversikten viser hvilke fakturaer som har kommentarer fra før — enten egen logg eller importert Visma-notat.'
   ]},
@@ -9555,7 +9584,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt'||name==='purring')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':name==='fakturaoppfolging'?'aldersfordelt':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':(name==='fakturaoppfolging'||name==='purring')?'aldersfordelt':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -9564,10 +9593,10 @@ function showTab(name,btn){
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
-  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk'||name==='purring');
+  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk');
   toggleTransaksjonsavgiftSub(name==='verifone'||name==='nets');
   toggleSilentOrderingSub(name==='silentordering');
-  toggleAldersfordeltSub(name==='aldersfordelt'||name==='fakturaoppfolging');
+  toggleAldersfordeltSub(name==='aldersfordelt'||name==='fakturaoppfolging'||name==='purring');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
@@ -9585,7 +9614,7 @@ function showTab(name,btn){
   if(name==='smsutsendelse'){setSmsUtsendelseSubActive('smsutsendelse');renderSmsUtsendelse();smsHentSaldo();}
   if(name==='smsplanlagt'){setSmsUtsendelseSubActive('smsplanlagt');renderSmsPlanlagt();}
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
-  if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
+  if(name==='purring'){setAldersfordeltSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');setTransaksjonsavgiftSubActive('verifone');}
   if(name==='nets'){renderNets();showNetsView('ny');setTransaksjonsavgiftSubActive('nets');}
@@ -9665,7 +9694,10 @@ function toggleSmsUtsendelseSub(open){
 
 function setSmsUtsendelseSubActive(view){
   document.querySelectorAll('#smsutsendelse-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  const idMap={smsutsendelse:'smssub-smsutsendelse',smsplanlagt:'smssub-smsplanlagt',smshistorikk:'smssub-smshistorikk',purring:'smssub-purring'};
+  // 'purring' fjernet fra idMap 11.09.2026 — Purring-SMS flyttet til
+  // Aldersfordelt-undermenyen (styres nå av setAldersfordeltSubActive()), se
+  // showTab() og HTML-kommentaren ved aldersfordelt-sub-nav.
+  const idMap={smsutsendelse:'smssub-smsutsendelse',smsplanlagt:'smssub-smsplanlagt',smshistorikk:'smssub-smshistorikk'};
   const el=document.getElementById(idMap[view]||'smssub-smsutsendelse');
   if(el)el.classList.add('active');
 }
