@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.112 · Oppdatert: 11. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.113 · Oppdatert: 11. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2180,7 +2180,14 @@ tr:hover td{background:#fafafa}
           <div id="u-enhet-multi" style="max-height:170px;overflow-y:auto;border:1.5px solid #d0d5dd;border-radius:8px;padding:8px 10px"></div>
         </div>
       </div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Kunde</label><input type="text" id="u-kunde" placeholder="Kundenavn"/></div>
+      <div class="fgrp" style="margin-bottom:10px">
+        <label>Kunde</label>
+        <div class="vf-kunde-ac" style="min-width:100%">
+          <input type="text" id="u-kunde" placeholder="Søk Visma-kunde eller skriv kundenavn fritt…" oninput="uKundeAcSok()" onfocus="uKundeAcSok()" onblur="setTimeout(()=&gt;{const d=document.getElementById('u-kunde-treff');if(d)d.style.display='none';},150)" autocomplete="off" style="width:100%"/>
+          <div id="u-kunde-treff" class="vf-ac-treff"></div>
+        </div>
+        <input type="hidden" id="u-kunde-nr"/>
+      </div>
       <div class="fg" id="u-dato-row" style="grid-template-columns:1fr;margin-bottom:10px">
         <div class="fgrp"><label>Utleieperiode</label>
           <div class="date-range-group">
@@ -7863,6 +7870,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.113',dato:'11.09.2026',punkter:[
+    'Ny utleie: Kunde-feltet er nå et Visma-søk (samme mønster som RMA/SOS-kunde/SOS-sak/Verifone/Nets) i stedet for rått fritekstfelt — søk på navn eller org.nr, eller la det stå som fritekst hvis kunden ikke finnes i Visma.'
+  ]},
   {versjon:'v1.48.112',dato:'11.09.2026',punkter:[
     'Purring-SMS flyttet fra «SMS utsendelse» til en ny undermeny under «⏱️ Aldersfordelt» (sammen med Fakturaoppfølging) — naturlig samlokalisering siden begge handler om forfalte fakturaer. OBS: dette betyr at Veronika (Mirrow) nå også ser Purring-SMS, siden hun allerede har tilgang til resten av Aldersfordelt-menyen.'
   ]},
@@ -10355,10 +10365,52 @@ function updateEnhetMultiCount(){
   if(el)el.textContent=n>0?`— ${n} valgt`:'';
 }
 
+// ---- Kunde-autocomplete i Ny utleie-modalen (Visma-oppslag ELLER fritekst) ----
+// Lagt til 11.09.2026 — Utleie var siste sted i dashbordet med et rått
+// fritekstfelt for kunde, mens RMA/SOS-kunde/SOS-sak/Verifone/Nets alle
+// bruker samme søk-mot-vismaKunder-mønster (se rmaKundeAcSok() for
+// "kildefunksjonen" dette er kopiert fra). u-kunde-nr fylles ut når
+// brukeren velger et Visma-treff, men sendes IKKE til SharePoint ennå —
+// Utleie-lista (Liste-kolonnene brukt i spCreate/spUpdate over) har ingen
+// KundeNr-kolonne per nå, og den skal ikke legges til uverifisert (se
+// prosjektkonvensjon: sjekk kolonnenavn i Graph Explorer først). Feltet
+// finnes likevel klart for når/hvis det blir aktuelt — kun navnet
+// (u-kunde) lagres foreløpig, akkurat som customer-verdien alltid har gjort.
+function uKundeAcSok(){
+  const raw=(document.getElementById('u-kunde').value||'').trim();
+  const treffDiv=document.getElementById('u-kunde-treff');
+  if(!raw){treffDiv.style.display='none';treffDiv.innerHTML='';return;}
+  const orgNrSok=normOrgNr(raw);
+  let treff=[];
+  if(orgNrSok.length===9)treff=vismaKunder.filter(k=>normOrgNr(k.orgNr)===orgNrSok);
+  if(treff.length===0){
+    const q=raw.toLowerCase();
+    treff=vismaKunder.filter(k=>(k.navn||'').toLowerCase().includes(q));
+  }
+  treff=treff.slice(0,15);
+  if(treff.length===0){
+    treffDiv.innerHTML=`<div class="vf-ac-empty">Ingen Visma-treff — lagres som fritekst-kunde</div>`;
+  }else{
+    treffDiv.innerHTML=treff.map(k=>`
+      <div class="vf-ac-item" onmousedown="uKundeAcVelg('${k.vismaNummer}','${(k.navn||'').replace(/'/g,"\\'")}')">
+        <div class="vf-ac-name">${k.navn}</div>
+        <div class="vf-ac-meta">Kundenr ${k.vismaNummer||'—'} · Org.nr ${k.orgNr||'—'}</div>
+      </div>`).join('');
+  }
+  treffDiv.style.display='block';
+}
+function uKundeAcVelg(vismaNummer,navn){
+  document.getElementById('u-kunde').value=navn;
+  document.getElementById('u-kunde-nr').value=vismaNummer;
+  document.getElementById('u-kunde-treff').style.display='none';
+}
+
 function openNyUtleieModal(){
   document.getElementById('utleie-modal-title').textContent='Ny utleie';
   document.getElementById('u-edit-id').value='';
   document.getElementById('u-kunde').value='';
+  document.getElementById('u-kunde-nr').value='';
+  document.getElementById('u-kunde-treff').innerHTML='';document.getElementById('u-kunde-treff').style.display='none';
   document.getElementById('u-ordre').value='';
   document.getElementById('u-fra').value=new Date().toISOString().slice(0,10);
   document.getElementById('u-til').value='';
@@ -10421,6 +10473,8 @@ function editUtleie(id){
   document.getElementById('utleie-modal-title').textContent='Rediger utleie';
   document.getElementById('u-edit-id').value=id;
   document.getElementById('u-kunde').value=r.customer;
+  document.getElementById('u-kunde-nr').value='';
+  document.getElementById('u-kunde-treff').innerHTML='';document.getElementById('u-kunde-treff').style.display='none';
   document.getElementById('u-ordre').value=r.orderNr||'';
   document.getElementById('u-fra').value=r.fromDate;
   document.getElementById('u-til').value=r.toDate;
