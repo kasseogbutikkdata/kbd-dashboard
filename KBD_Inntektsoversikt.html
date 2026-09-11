@@ -457,7 +457,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.110 · Oppdatert: 10. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.111 · Oppdatert: 11. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7837,6 +7837,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.111',dato:'11.09.2026',punkter:[
+    'Fakturaoppfølging — flere forbedringer i loggpanelet etter tilbakemelding fra Thomas: (1) større skrift i kommentarfeltet, (2) status og neste oppfølging vises nå som en liten oppsummering øverst til høyre for «Oppfølgingslogg» (i tillegg til feltene i skjemaet), (3) fakturaraden får en tydelig ramme/utheving mens loggpanelet under er åpent, og (4) et 💬-ikon i oversikten viser hvilke fakturaer som har kommentarer fra før — enten egen logg eller importert Visma-notat.'
+  ]},
   {versjon:'v1.48.110',dato:'10.09.2026',punkter:[
     'Fakturaoppfølging: «Forfalt antall» og «Forfalt beløp»-kortene oppdaterer seg nå live når man velger en aldersgruppe (1–30/31–60/61–90/Over 90 dager) eller «Alle» i pill-filteret, i stedet for alltid å vise summen for alle forfalte fakturaer.'
   ]},
@@ -9267,6 +9270,12 @@ function renderFakturaoppfolging(){
     }
   });
 
+  // Brukes til 💬-ikonet i oversikten (punkt 4, ønsket av Thomas 11.09.2026):
+  // ett felles ikon uansett om kommentaren kommer fra egen logg (KBD CC) eller
+  // er importert fra Visma sitt merknadsfelt — forhåndsberegnet én gang per
+  // render, ikke inni .map(), for å unngå gjentatt .some()-søk per rad.
+  const foLoggFakturaSet=new Set(fakturaoppfolgingLogg.map(l=>l.fakturanr));
+
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
       <th style="cursor:pointer" onclick="sortFoBy('faktura')">Faktura <span id="fosh-faktura"></span></th>
       <th style="cursor:pointer" onclick="sortFoBy('kunde')">Kunde <span id="fosh-kunde"></span></th>
@@ -9281,8 +9290,17 @@ function renderFakturaoppfolging(){
     </tr></thead><tbody>${rader.map(f=>{
       const dager=foDagerForfalt(f);
       const score=foScore(f);
-      const rows=[`<tr>
-        <td>${f.fakturanr}</td>
+      const apen=foApenRad===f.fakturanr;
+      // Felles 💬-ikon uansett kilde (egen logg i KBD CC ELLER importert
+      // Visma-notat) — ønsket av Thomas 11.09.2026, se foLoggFakturaSet over.
+      const harKommentar=(f.notatImportert&&f.notatImportert.trim())||foLoggFakturaSet.has(f.fakturanr);
+      // Når raden er åpen, gis den en synlig "ramme" (lys blå bakgrunn + en
+      // fargeaksent til venstre) slik at det er tydelig hvilken faktura
+      // loggpanelet under tilhører — ønsket av Thomas 11.09.2026.
+      const radStil=apen?' style="background:#eef2ff"':'';
+      const forsteCelleStil=apen?' style="border-left:3px solid #1A3A6B"':'';
+      const rows=[`<tr${radStil}>
+        <td${forsteCelleStil}>${f.fakturanr}${harKommentar?' <span title="Har kommentarer/logg" style="cursor:default">💬</span>':''}</td>
         <td>${f.kundenavn}<div style="font-size:11px;color:#9ca3af">Kundenr ${f.kundenr}</div></td>
         <td style="font-size:12px;color:#374151">${f.kontaktNavn||''}${f.kontaktTelefon?`<div style="color:#6b7280">${f.kontaktTelefon}</div>`:''}${f.kontaktEpost?`<div style="color:#6b7280">${f.kontaktEpost}</div>`:''}</td>
         <td class="tr">${fF(f.belop)}</td>
@@ -9291,10 +9309,10 @@ function renderFakturaoppfolging(){
         <td class="tr">${score>0?Math.round(score).toLocaleString('nb-NO'):'—'}</td>
         <td>${foStatusBadge(f.status)}</td>
         <td>${f.nesteOppfolging?fDateShort(f.nesteOppfolging):'—'}</td>
-        <td><button class="btn-sm" onclick="toggleFoDetalj('${f.fakturanr}')">${foApenRad===f.fakturanr?'▲ Lukk':'📝 Logg'}</button></td>
+        <td><button class="btn-sm" onclick="toggleFoDetalj('${f.fakturanr}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
       </tr>`];
-      if(foApenRad===f.fakturanr){
-        rows.push(`<tr><td colspan="9" style="background:#f9fafb;padding:0">${renderFoDetaljPanel(f)}</td></tr>`);
+      if(apen){
+        rows.push(`<tr style="background:#eef2ff"><td colspan="9" style="border-left:3px solid #1A3A6B;padding:0">${renderFoDetaljPanel(f)}</td></tr>`);
       }
       return rows.join('');
     }).join('')}</tbody></table></div>`;
@@ -9321,11 +9339,17 @@ function renderFoDetaljPanel(f){
 
   return `<div style="padding:14px 16px">
       ${notatHtml}
-      <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">Oppfølgingslogg</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
+        <div style="font-size:12px;font-weight:600;color:#6b7280">Oppfølgingslogg</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;white-space:nowrap">
+          ${foStatusBadge(f.status)}
+          <span>Neste: ${f.nesteOppfolging?fDateShort(f.nesteOppfolging):'—'}</span>
+        </div>
+      </div>
       <div style="max-height:200px;overflow:auto;margin-bottom:14px">${historikkHtml}</div>
       <div class="fg" style="grid-template-columns:140px 1fr;margin-bottom:8px">
         <div class="fgrp"><label>Type</label><select id="fo-type-${f.fakturanr}"><option>Telefon</option><option>E-post</option><option>SMS</option><option>Annet</option></select></div>
-        <div class="fgrp"><label>Kommentar</label><textarea id="fo-kommentar-${f.fakturanr}" rows="2" style="width:100%"></textarea></div>
+        <div class="fgrp"><label>Kommentar</label><textarea id="fo-kommentar-${f.fakturanr}" rows="2" style="width:100%;font-family:inherit;font-size:14px;padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;resize:vertical"></textarea></div>
       </div>
       <div class="fg" style="grid-template-columns:170px 170px 1fr;align-items:end">
         <div class="fgrp"><label>Status</label><select id="fo-statusvalg-${f.fakturanr}">${FO_STATUSER.map(s=>`<option${s===f.status?' selected':''}>${s}</option>`).join('')}</select></div>
