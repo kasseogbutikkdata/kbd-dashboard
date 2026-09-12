@@ -191,6 +191,12 @@ tr:hover td{background:#fafafa}
 .nav-sub-sub-item:hover{background:#f9fafb;color:#6b7280}
 .nav-sub-sub-item.active{color:#1A3A6B;font-weight:600;border-left-color:#93c5fd;background:#f0f4ff}
 .sidebar-divider{height:1px;background:#d1d5db;margin:6px 12px}
+/* Menyseksjons-overskrifter (RAPPORTER/DRIFT/ADMIN), lagt til 12.09.2026 på
+   Thomas' ønske om å dele venstremenyen i tydelige grupper i stedet for én
+   lang, udelt liste — erstatter den gamle rene sidebar-divider-streken foran
+   Idébank (nå "Admin"-overskrift i stedet). Ren tekstoverskrift, ikke
+   klikkbar/utvidbar — selve nav-item-ene under står som nå. */
+.nav-section-label{padding:16px 16px 4px;font-size:10.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;user-select:none}
 .sidebar-bottom{padding:12px 16px;border-top:1px solid #f3f4f6}
 .sidebar-user{font-size:12px;color:#6b7280}
 .main-content{flex:1;min-width:0;padding:24px;overflow:auto}
@@ -457,7 +463,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.113 · Oppdatert: 11. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.114 · Oppdatert: 12. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -476,6 +482,7 @@ tr:hover td{background:#fafafa}
       <div class="nav-item" id="tab-oversikt" onclick="showTab('oversikt',this)">
         <span class="nav-item-icon">📊</span>Oversikt
       </div>
+      <div class="nav-section-label">Rapporter</div>
       <div class="nav-item" id="tab-lisenser" onclick="showTab('lisenser',this);toggleLisenserSub(true)">
         <span class="nav-item-icon">📋</span>Lisenser
       </div>
@@ -489,6 +496,15 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="kickback-sub-nav">
         <div class="nav-sub-item active" id="ksub-kickback" onclick="showKickbackView('kickback')">📋 Registreringer</div>
         <div class="nav-sub-item" id="ksub-kicksammenligning" onclick="showKickbackView('kicksammenligning')">📈 Årssammenligning</div>
+      </div>
+      <!-- Trans.avgift-rapport — lagt til 12.09.2026 (Thomas' ønske, se
+           KBD-Command-Center-prosjektstatus.md seksjon 17): ren aggregering av
+           eksisterende VerifoneHistorikk/NetsHistorikk (ingen nye SharePoint-
+           felt), gruppert per KALENDERMÅNED (ikke kvartal), Nets og Verifone
+           som atskilte serier — se renderTransavgiftRapport(). Ingen egen
+           nav-sub (kun én visning), samme mønster som Susoft RMA/Idébank. -->
+      <div class="nav-item" id="tab-transavgiftrapport" onclick="showTab('transavgiftrapport',this)">
+        <span class="nav-item-icon">📈</span>Trans.avgift-rapport
       </div>
 <div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this);toggleAldersfordeltSub(true)">
         <span class="nav-item-icon">⏱️</span>Aldersfordelt
@@ -518,6 +534,7 @@ tr:hover td{background:#fafafa}
              dette skal strammes inn senere. -->
         <div class="nav-sub-item" id="asub-purring" onclick="showTab('purring',document.getElementById('tab-aldersfordelt'));setAldersfordeltSubActive('purring')">🔔 Purring-SMS</div>
       </div>
+      <div class="nav-section-label">Drift</div>
       <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this);toggleKunder360Sub(true)">
         <span class="nav-item-icon">🧑‍💼</span>Kunde360
       </div>
@@ -636,7 +653,7 @@ tr:hover td{background:#fafafa}
       <!-- Divideren flyttet hit 10.09.2026 (Thomas' ønske, justert samme
            dag) — skiller Gymtimen fra Idébank/Jobbstatus/Innstillinger
            under. -->
-      <div class="sidebar-divider"></div>
+      <div class="nav-section-label">Admin</div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
       </div>
@@ -2518,6 +2535,29 @@ tr:hover td{background:#fafafa}
     <div class="tbl-wrap"><table id="tbl-skick"></table></div>
   </div>
 
+  <!-- TRANS.AVGIFT-RAPPORT — lagt til 12.09.2026, se renderTransavgiftRapport().
+       Ren aggregering av VerifoneHistorikk/NetsHistorikk (samme rådata som
+       vises i Historikk-fanene under selve Transaksjonsavgift-menyen), gruppert
+       per kalendermåned. Ingen kundedetaljer (Thomas ønsket eksplisitt at det
+       IKKE var nødvendig) — kun totalbeløp/antall salgsordre/kvalitet per
+       leverandør per måned. Samme graf+filter+tabell-mønster som Kickback sin
+       Årssammenligning over, med én ekstra "mål"-velger (Thomas' alternativ A:
+       étt tall om gangen — Totalbeløp/Antall salgsordre/Kvalitet — i stedet for
+       å vise alle tre samtidig). -->
+  <div id="tp-transavgiftrapport" class="tp">
+    <div class="card">
+      <div class="card-title">📈 Trans.avgift-rapport — Nets og Verifone</div>
+      <div class="hint">Månedlig oversikt over hva som er fakturert i transaksjonsavgift, basert på historikken fra Verifone og Nets trans.avgift. Ingen kundedetaljer her — se «📋 Historikk» under hver leverandør i Transaksjonsavgift-menyen for det.</div>
+    </div>
+    <p class="sec-title" style="margin-top:16px">Vis</p>
+    <div class="filters" id="ta-metric-filters"></div>
+    <p class="sec-title">Leverandør</p>
+    <div class="filters" id="ta-lev-filters"></div>
+    <div class="chart-wrap"><canvas id="chart-ta" height="220"></canvas></div>
+    <div id="ta-maaneder" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:16px 0"></div>
+    <div class="tbl-wrap"><table id="tbl-ta"></table></div>
+  </div>
+
 <!-- IMPORT MODAL -->
 <div class="modal-overlay" id="import-modal" onclick="if(event.target===this)closeImport()">
   <div class="modal" style="max-width:480px">
@@ -2863,7 +2903,7 @@ function _erKbdTypiskBransje(n){
 }
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
-const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'smsutsendelse',label:'📱 SMS utsendelse'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
+const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'transavgiftrapport',label:'📈 Trans.avgift-rapport'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'smsutsendelse',label:'📱 SMS utsendelse'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
 const CLIENT_ID="b0ff1861-62de-4ecc-8a13-fd463cb5af45";
 const TENANT_ID="c5f9c7ae-f91d-40e1-bbac-303409fa7a8d";
 const SP_SITE="kbd1.sharepoint.com:/sites/KBDDashboard";
@@ -7870,6 +7910,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.114',dato:'12.09.2026',punkter:[
+    'Venstremenyen er delt inn i tre grupper — RAPPORTER (Lisenser/Kickback/Trans.avgift-rapport/Aldersfordelt), DRIFT (Kunde360 og nedover) og ADMIN (Idébank/Jobbstatus/Innstillinger) — for bedre oversikt.',
+    '«Oversikt» er skjult inntil videre (samme innhold finnes fordelt på Lisenser og Kickback).',
+    'Ny «📈 Trans.avgift-rapport» under RAPPORTER — månedlig graf/tabell over hva som er fakturert i Nets/Verifone trans.avgift, med valg mellom Totalbeløp/Antall salgsordre/Kvalitet og filter på leverandør. Bygget kun på det som allerede logges i Historikk-listene, ingen kundedetaljer.'
+  ]},
   {versjon:'v1.48.113',dato:'11.09.2026',punkter:[
     'Ny utleie: Kunde-feltet er nå et Visma-søk (samme mønster som RMA/SOS-kunde/SOS-sak/Verifone/Nets) i stedet for rått fritekstfelt — søk på navn eller org.nr, eller la det stå som fritekst hvis kunden ikke finnes i Visma.'
   ]},
@@ -9612,6 +9657,7 @@ function showTab(name,btn){
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
   if(name==='kicksammenligning'){renderKickSammenligning();}
   if(name==='oversikt'){renderTrend();renderKPIs();}
+  if(name==='transavgiftrapport'){renderTransavgiftRapport();}
   if(name==='aldersfordelt'){setAldersfordeltSubActive('aldersfordelt');renderAging();}
   if(name==='fakturaoppfolging'){setAldersfordeltSubActive('fakturaoppfolging');renderFakturaoppfolging();}
   if(name==='innstillinger'){renderSettings();showInnstillingerView(userRole==='admin'?'brukertilgang':'produkter');}
@@ -11395,6 +11441,183 @@ function renderKickSammenligning(){
   document.getElementById('tbl-skick').innerHTML=`<thead><tr><th>Kilde</th>${years.map(y=>`<th style="text-align:right">${y==2026?'2026 YTD':y}</th>`).join('')}</tr></thead><tbody>${kickRows.join('')}<tr style="border-top:2px solid #e5e7eb"><td style="font-weight:600;color:#111">Total</td>${ktotCells.join('')}</tr></tbody>`;
 }
 
+// ===== TRANS.AVGIFT-RAPPORT (lagt til 12.09.2026) =====
+// Ren frontend-aggregering av vfHistorikk/ntHistorikk (allerede lastet av
+// loadDataFromSP(), se linjene der vfHistorikk/ntHistorikk fylles) — INGEN nye
+// SharePoint-felt eller backend-endringer. Gruppert per kalendermåned
+// ('YYYY-MM' fra dato-feltet, som er en ISO-tidsstempel-streng). Bevisst uten
+// kundedetaljer (Thomas' eksplisitte ønske 12.09.2026) — kun de samme
+// aggregerte tallene som allerede logges per fakturakjøring: totaltBelop,
+// antallKunder (=antall salgsordre, én pr. BAX), antallOpprettet, antallFeilet,
+// antallManueltAvklart. Samme graf/filter/tabell-oppskrift som
+// renderKickSammenligning() over (kilde->leverandør, år->måned), pluss en
+// "mål"-velger siden vi her har tre ulike tall å vise (Thomas' alternativ A:
+// ett tall om gangen, ikke alle samtidig).
+const NO_MND_KORT=['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+const TA_LEV_FARGE={Nets:'#f59e0b',Verifone:'#1A3A6B'};
+let taMetric='belop'; // 'belop' | 'antall' | 'kvalitet'
+let taLevFilters=new Set(); // tom = vis alle leverandører, samme mønster som skickFilters
+
+function taMndLabel(m){ // m='YYYY-MM'
+  const [y,mo]=m.split('-');
+  return `${NO_MND_KORT[parseInt(mo,10)-1]} ${y}`;
+}
+
+function taAggregerPerMaaned(){
+  const alle=[...vfHistorikk.map(r=>({...r,lev:'Verifone'})),...ntHistorikk.map(r=>({...r,lev:'Nets'}))];
+  const maaneder=[...new Set(alle.map(r=>(r.dato||'').slice(0,7)))].filter(Boolean).sort();
+  const agg={Nets:{},Verifone:{}};
+  ['Nets','Verifone'].forEach(lev=>{
+    maaneder.forEach(m=>{agg[lev][m]={totaltBelop:0,antallKunder:0,antallOpprettet:0,antallFeilet:0,antallManueltAvklart:0};});
+  });
+  alle.forEach(r=>{
+    const m=(r.dato||'').slice(0,7);
+    if(!m||!agg[r.lev]||!agg[r.lev][m])return;
+    const d=agg[r.lev][m];
+    d.totaltBelop+=r.totaltBelop||0;
+    d.antallKunder+=r.antallKunder||0;
+    d.antallOpprettet+=r.antallOpprettet||0;
+    d.antallFeilet+=r.antallFeilet||0;
+    d.antallManueltAvklart+=r.antallManueltAvklart||0;
+  });
+  return {maaneder,agg};
+}
+
+// Summerer rådata på tvers av de leverandørene som er aktive i filteret —
+// brukt av både månedskortene (kombinert linje) og "Totalt"-raden i tabellen.
+function taKombiner(agg,maaned,aktiveLev){
+  const sum={totaltBelop:0,antallKunder:0,antallOpprettet:0,antallFeilet:0,antallManueltAvklart:0};
+  aktiveLev.forEach(lev=>{
+    const d=agg[lev]?.[maaned];
+    if(!d)return;
+    sum.totaltBelop+=d.totaltBelop;
+    sum.antallKunder+=d.antallKunder;
+    sum.antallOpprettet+=d.antallOpprettet;
+    sum.antallFeilet+=d.antallFeilet;
+    sum.antallManueltAvklart+=d.antallManueltAvklart;
+  });
+  return sum;
+}
+
+// Kvalitet vises som suksessrate (opprettet / (opprettet+feilet)) — antall
+// manuelt avklarte er ikke en feil i seg selv (bare BAX som måtte kobles
+// manuelt før fakturering), så det holdes utenfor selve prosentregningen og
+// vises i stedet som ren tekst i tabellcellen/kortet.
+function taMetricVerdi(d,metric){
+  if(metric==='belop')return d.totaltBelop;
+  if(metric==='antall')return d.antallKunder;
+  if(metric==='kvalitet'){
+    const tot=d.antallOpprettet+d.antallFeilet;
+    return tot>0?Math.round(d.antallOpprettet/tot*1000)/10:null;
+  }
+}
+function taMetricFmt(v,metric){
+  if(v===null||v===undefined)return '—';
+  if(metric==='belop')return fS(v);
+  if(metric==='antall')return v.toLocaleString('nb-NO');
+  if(metric==='kvalitet')return v.toFixed(1).replace('.',',')+' %';
+}
+function taKvalitetSubtekst(d){
+  return `${d.antallOpprettet} opprettet · ${d.antallFeilet} feilet · ${d.antallManueltAvklart} avklart`;
+}
+// Delta vs. forrige måned — relativ %-endring for beløp/antall, men
+// PROSENTPOENG-differanse for kvalitet (siden det allerede er en prosent —
+// relativ endring av en prosent blir fort misvisende/forvirrende å lese).
+function taDeltaHtml(cur,prev,metric){
+  if(cur===null||cur===undefined||prev===null||prev===undefined)return '';
+  if(metric==='kvalitet'){
+    const diff=cur-prev;
+    if(Math.abs(diff)<0.05)return '';
+    return `<div style="font-size:10px;color:${diff>=0?'#16a34a':'#dc2626'};margin-top:1px">${diff>=0?'▲':'▼'}${Math.abs(diff).toFixed(1)} poeng</div>`;
+  }
+  if(!prev)return '';
+  const pct=(cur-prev)/prev*100;
+  return `<div style="font-size:10px;color:${pct>=0?'#16a34a':'#dc2626'};margin-top:1px">${pct>=0?'▲':'▼'}${Math.abs(pct).toFixed(1)}%</div>`;
+}
+
+function toggleTaLevFilter(lev){
+  if(taLevFilters.has(lev))taLevFilters.delete(lev);else{taLevFilters=new Set(taLevFilters);taLevFilters.add(lev);}
+  renderTransavgiftRapport();
+}
+function setTaMetric(m){taMetric=m;renderTransavgiftRapport();}
+
+function renderTransavgiftRapport(){
+  const {maaneder,agg}=taAggregerPerMaaned();
+  const alleLev=['Nets','Verifone'];
+  const aktiveLev=alleLev.filter(l=>taLevFilters.size===0||taLevFilters.has(l));
+
+  // Mål-velger (Totalbeløp/Antall salgsordre/Kvalitet) — enkeltvalg.
+  const metricDefs=[{id:'belop',label:'Totalbeløp'},{id:'antall',label:'Antall salgsordre'},{id:'kvalitet',label:'Kvalitet'}];
+  document.getElementById('ta-metric-filters').innerHTML=metricDefs.map(md=>{
+    const on=taMetric===md.id;
+    return `<button class="fpill${on?' f-on':' f-off'}" style="${on?'border-color:#1A3A6B':''}" onclick="setTaMetric('${md.id}')"><span style="font-weight:600;color:${on?'#1A3A6B':'#9ca3af'}">${md.label}</span></button>`;
+  }).join('');
+
+  // Leverandør-filter — samme "Alle"-mønster som Kickback sine kilde-piller.
+  const levPills=alleLev.map(lev=>{
+    const filtered=taLevFilters.size>0;
+    const on=!filtered||taLevFilters.has(lev);
+    const c=TA_LEV_FARGE[lev];
+    return `<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${on?`border-color:${c}`:''}" onclick="toggleTaLevFilter('${lev}')"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${lev}</button>`;
+  });
+  document.getElementById('ta-lev-filters').innerHTML=`<span class="filter-lbl">Vis:</span>`+`<button class="fpill" style="${taLevFilters.size===0?'border-color:#1A3A6B':''}" onclick="taLevFilters=new Set();renderTransavgiftRapport()"><span style="font-weight:600;color:${taLevFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`+levPills.join('');
+
+  if(maaneder.length===0){
+    dC('ta');
+    document.getElementById('ta-maaneder').innerHTML=`<div class="hint">Ingen fakturakjøringer registrert ennå — kommer så snart Nets eller Verifone trans.avgift har blitt fakturert minst én gang.</div>`;
+    document.getElementById('tbl-ta').innerHTML='';
+    return;
+  }
+
+  // Graf
+  dC('ta');
+  const taCtx=document.getElementById('chart-ta');
+  if(taCtx){
+    charts['ta']=new Chart(taCtx,{type:'bar',data:{
+      labels:maaneder.map(taMndLabel),
+      datasets:aktiveLev.map(lev=>({label:lev,data:maaneder.map(m=>taMetricVerdi(agg[lev][m],taMetric)),backgroundColor:TA_LEV_FARGE[lev],borderRadius:2}))
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:aktiveLev.length>1,position:'top',align:'end',labels:{boxWidth:10,font:{size:11}}},tooltip:{backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',borderColor:'#e5e7eb',borderWidth:1,padding:10,callbacks:{label:c=>`${c.dataset.label}: ${taMetricFmt(c.raw,taMetric)}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9ca3af'}},y:{grid:{color:'#f3f4f6'},ticks:{font:{size:11},color:'#9ca3af',callback:v=>taMetric==='kvalitet'?v+'%':taMetricFmt(v,taMetric)},border:{display:false}}}}});
+  }
+
+  // Månedskort — Thomas ønsket ALLE måneder (ikke begrenset til f.eks. 3
+  // siste), derfor horisontal scroll i stedet for et fast grid som ville blitt
+  // uleselig trangt med mange måneder.
+  document.getElementById('ta-maaneder').innerHTML=maaneder.map((m,i)=>{
+    const cur=taKombiner(agg,m,aktiveLev);
+    const prev=i>0?taKombiner(agg,maaneder[i-1],aktiveLev):null;
+    const curV=taMetricVerdi(cur,taMetric);
+    const prevV=prev?taMetricVerdi(prev,taMetric):null;
+    const sub=taMetric==='kvalitet'?`<div style="font-size:10px;color:#9ca3af;margin-top:2px">${taKvalitetSubtekst(cur)}</div>`:'';
+    return `<div style="flex:0 0 auto;min-width:120px;background:white;border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:4px">${taMndLabel(m)}</div>
+      <div style="font-size:16px;font-weight:700;color:#1A3A6B">${taMetricFmt(curV,taMetric)}</div>
+      ${taDeltaHtml(curV,prevV,taMetric)}${sub}
+    </div>`;
+  }).join('');
+
+  // Tabell — rader = aktive leverandører + Totalt-rad, kolonner = måneder.
+  const rows=aktiveLev.map(lev=>{
+    const cells=maaneder.map((m,i)=>{
+      const cur=agg[lev][m];
+      const prev=i>0?agg[lev][maaneder[i-1]]:null;
+      const curV=taMetricVerdi(cur,taMetric);
+      const prevV=prev?taMetricVerdi(prev,taMetric):null;
+      const sub=taMetric==='kvalitet'?`<div style="font-size:9.5px;color:#9ca3af;margin-top:1px">${taKvalitetSubtekst(cur)}</div>`:'';
+      return `<td class="tr">${taMetricFmt(curV,taMetric)}${taDeltaHtml(curV,prevV,taMetric)}${sub}</td>`;
+    });
+    return `<tr><td><span class="dot" style="background:${TA_LEV_FARGE[lev]}"></span>${lev}</td>${cells.join('')}</tr>`;
+  });
+  const totCells=maaneder.map((m,i)=>{
+    const cur=taKombiner(agg,m,aktiveLev);
+    const prev=i>0?taKombiner(agg,maaneder[i-1],aktiveLev):null;
+    const curV=taMetricVerdi(cur,taMetric);
+    const prevV=prev?taMetricVerdi(prev,taMetric):null;
+    const sub=taMetric==='kvalitet'?`<div style="font-size:9.5px;color:#9ca3af;margin-top:1px">${taKvalitetSubtekst(cur)}</div>`:'';
+    return `<td class="tr" style="font-weight:600">${taMetricFmt(curV,taMetric)}${taDeltaHtml(curV,prevV,taMetric)}${sub}</td>`;
+  });
+  document.getElementById('tbl-ta').innerHTML=`<thead><tr><th>Leverandør</th>${maaneder.map(m=>`<th style="text-align:right">${taMndLabel(m)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}${aktiveLev.length>1?`<tr style="border-top:2px solid #e5e7eb"><td style="font-weight:600;color:#111">Totalt</td>${totCells.join('')}</tr>`:''}</tbody>`;
+}
+
 
 // ===== BRUKERTILGANG =====
 async function loadBrukere(){
@@ -11426,6 +11649,13 @@ async function loadArbeidstid(){
 }
 
 function applyAccessControl(){
+  // Oversikt skjult midlertidig 12.09.2026 (Thomas' ønske) — RAPPORTER-gruppen
+  // (Lisenser/Kickback/Trans.avgift-rapport/Aldersfordelt) dekker nå det samme
+  // behovet, og Oversikt ga ikke nok ekstra verdi til å beholde som eget
+  // menypunkt. IKKE fjernet fra MODULER/koden, kun skjult — gjelder for ALLE
+  // roller inkludert admin (derfor plassert FØR admin-early-return under).
+  // Reverser ved å fjerne denne ene linjen hvis Oversikt skal tilbake.
+  document.getElementById('tab-oversikt').style.display='none';
   if(userRole==='admin'){salgTilgang=true;return;} // Admin ser og kan skrive alt
   // Finn bruker basert på e-post eller azure ID
   const me=brukere.find(b=>
