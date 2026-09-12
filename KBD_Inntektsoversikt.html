@@ -463,7 +463,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.118 · Oppdatert: 12. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.119 · Oppdatert: 12. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7905,6 +7905,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.119',dato:'12.09.2026',punkter:[
+    'Brukertilgang-tabellen: overskriftene gikk over i hverandre etter at Trans.avgift-rapport og Fakturaoppfølging kom til som nye kolonner. Faste kolonnebredder (colgroup) og tekstbryting på overskriftene fikser dette, og hele tabellen er lagt i en horisontalt scrollbar beholder som sikkerhet mot enda flere fremtidige moduler.'
+  ]},
   {versjon:'v1.48.118',dato:'12.09.2026',punkter:[
     'Aldersfordelt er nå ett enkelt menypunkt uten undermeny (samme forenkling som Susoft RMA/Idébank) — den overflødige "Saldo"-undermenyen er fjernet.',
     'Ny «🧾 Fakturaoppfølging» under DRIFT (mellom Silent Ordering System og Gymtimen), med «🔔 Purring-SMS» som eneste underpunkt — flyttet ut av Aldersfordelt.',
@@ -11784,13 +11787,21 @@ function renderBrukere(){
     el.innerHTML=`<p style="color:#9ca3af;font-size:13px;padding:12px 0">Ingen brukere registrert ennå. Legg til brukere for å styre tilgang.</p>`;
     return;
   }
-  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
+  el.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;min-width:900px;table-layout:fixed;border-collapse:collapse;font-size:13px">
+    <colgroup>
+      <col style="width:15%">
+      <col style="width:17%">
+      ${MODULER.map(()=>`<col style="width:${(58/MODULER.length).toFixed(2)}%">`).join('')}
+      <col style="width:4%">
+      <col style="width:4%">
+      <col style="width:2%">
+    </colgroup>
     <thead><tr style="border-bottom:2px solid #f3f4f6">
-      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">Navn</th>
-      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">E-post</th>
-      ${MODULER.map(m=>`<th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px;max-width:60px">${m.label.split(' ')[1]}</th>`).join('')}
-      <th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px">Redigere</th>
-      <th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px">Salg</th>
+      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600;text-transform:none">Navn</th>
+      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600;text-transform:none">E-post</th>
+      ${MODULER.map(m=>`<th style="text-align:center;padding:8px 3px;color:#6b7280;font-weight:600;font-size:10px;letter-spacing:.1px;line-height:1.25;overflow-wrap:break-word;word-break:break-word;vertical-align:bottom">${m.label.split(' ')[1]}</th>`).join('')}
+      <th style="text-align:center;padding:8px 3px;color:#6b7280;font-weight:600;font-size:10px;overflow-wrap:break-word;word-break:break-word;vertical-align:bottom">Redigere</th>
+      <th style="text-align:center;padding:8px 3px;color:#6b7280;font-weight:600;font-size:10px;overflow-wrap:break-word;word-break:break-word;vertical-align:bottom">Salg</th>
       <th></th>
     </tr></thead>
     <tbody>${brukere.map(b=>`<tr style="border-bottom:1px solid #f9fafb">
@@ -11816,7 +11827,7 @@ function renderBrukere(){
         <button class="btn-icon del" onclick="deleteBruker('${b.id}')" title="Slett">✕</button>
       </div></td>
     </tr>`).join('')}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function openNyBruker(){
