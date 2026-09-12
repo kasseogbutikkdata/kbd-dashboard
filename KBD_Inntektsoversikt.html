@@ -463,7 +463,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.123 · Oppdatert: 12. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.124 · Oppdatert: 12. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7913,6 +7913,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.124',dato:'12.09.2026',punkter:[
+    '«🔔 Trenger oppmerksomhet» på Hjem-siden tar nå også med forfalte Kundesaker (Notat/Tilbud/Oppfølging fra Kunde360) som du selv er ansvarlig for — manglet i første versjon av seksjonen.'
+  ]},
   {versjon:'v1.48.123',dato:'12.09.2026',punkter:[
     'Hjem-siden: hele «Snarveier»-seksjonen fjernet, inkludert «+ Ny utleie» og «+ Ny reservasjon» — Thomas sitt ønske om at ingen snarveier skal ligge på forsiden. Begge funksjonene finnes fortsatt under sine egne faner (Utleie og Reservasjon).'
   ]},
@@ -9030,6 +9033,28 @@ function hentTrengerOppmerksomhet(){
   susoftRma.filter(r=>r.ansvarligKbd&&r.ansvarligKbd===mittNavn&&r.status!=='Ferdig').forEach(r=>{
     punkter.push({ikon:'🔧',tekst:`RMA-sak ${r.sakNummer??''} – ${r.kundeNavn||'(uten navn)'} (${r.status})`,handling:()=>jumpToRmaSak(r.id)});
   });
+
+  // Kundesaker (Kunde360: Notat/Tilbud/Oppfølging) — personlig, filtrert på
+  // egne saker (opprettetAv), samme "forfalt"-vurdering (dato+klokkeslett
+  // passert) som Kundesaker-tabellens egen renderKundesaker()-kolonne.
+  // Lagt til 12.09.2026 — manglet i første versjon av denne seksjonen.
+  {
+    const alleKunderForOpp=[...vismaKunder,...hentProspektKunder()];
+    const naa=new Date();
+    // "er min sak"-sjekk på samme robuste måte som resten av Kunde360
+    // (se renderVarselMeny()): e-post først (sikrest), navn kun som
+    // reserveløsning for eldre oppføringer uten lagret e-post.
+    kundeNotater.filter(n=>{
+      if(n.status!=='Åpen')return false;
+      const erMin=(n.opprettetAvEpost&&currentUser?.username&&n.opprettetAvEpost.toLowerCase()===currentUser.username.toLowerCase())
+        ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name);
+      if(!erMin)return false;
+      return n.forfallsdato&&!isNaN(new Date(n.forfallsdato))&&new Date(n.forfallsdato)<naa;
+    }).forEach(n=>{
+      const kundeNavn=n.kundeNavn||alleKunderForOpp.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim())?.navn||'Ukjent kunde';
+      punkter.push({ikon:'📁',tekst:`${n.type} – ${kundeNavn} – ${n.tittel||'(uten tittel)'} – forfalt`,handling:()=>gaTilKundeFraSak(n.id)});
+    });
+  }
 
   // Fakturaoppfølging — team-bredt (ingen personlig eier på selve fakturaen i
   // dag, kun en logg over hvem som sist gjorde noe), derfor tilgangsstyrt på
