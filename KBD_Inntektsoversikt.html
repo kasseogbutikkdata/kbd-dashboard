@@ -705,11 +705,6 @@ tr:hover td{background:#fafafa}
     <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Siste fra hver modul</div>
     <div id="hjem-snapshot-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
 
-    <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Snarveier</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-      <button class="prim editor-only" onclick="openNyUtleieModal()">+ Ny utleie</button>
-      <button class="btn-sm editor-only" onclick="openNyReservasjon()">+ Ny reservasjon</button>
-    </div>
   </div>
 
   <div id="tp-oversikt" class="tp">
@@ -7919,7 +7914,7 @@ function leggTilLoggpost(id){
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
   {versjon:'v1.48.122',dato:'12.09.2026',punkter:[
-    'Hjem-siden: fjernet snarveien «🏋️ Søk om arbeidstid» fra Snarveier — siste rest av Gymtimen på forsiden, nå som ukeoversikten allerede er borte derfra. Fortsatt fullt tilgjengelig under Gymtimen-fanen i menyen.'
+    'Hjem-siden: hele «Snarveier»-seksjonen fjernet (Ny utleie, Ny reservasjon, Søk om arbeidstid) — Thomas sitt ønske. Disse funksjonene finnes fortsatt inne under sine respektive faner (Utleie, Reservasjon og Arbeidstid).'
   ]},
   {versjon:'v1.48.121',dato:'12.09.2026',punkter:[
     'Hjem-siden fornyet (sparring med Thomas): full ukeoversikt for Gymtimen fjernet fra forsiden (finnes fortsatt under Gymtimen-fanen). Ny «🔔 Trenger oppmerksomhet»-seksjon samler RMA-saker tildelt deg, forfalt fakturaoppfølging, utleie uten registrert retur og røde Jobbstatus-jobber ett sted, med direkte lenke til hver sak. Ny «📣 Siste kunngjøring»-seksjon løfter frem de nyeste kunngjøringene. Ny bursdags-/jubileumshilsen med konfetti når noen har fødselsdag eller årsjubileum i KBD — «Født» og «Startet i KBD» kan nå fylles inn under Innstillinger → Brukertilgang → Rediger bruker.'
