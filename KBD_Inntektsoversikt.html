@@ -463,7 +463,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.116 · Oppdatert: 12. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.117 · Oppdatert: 12. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2554,6 +2554,7 @@ tr:hover td{background:#fafafa}
     <p class="sec-title">Leverandør</p>
     <div class="filters" id="ta-lev-filters"></div>
     <div class="chart-wrap"><canvas id="chart-ta" height="220"></canvas></div>
+    <div id="ta-arstotaler" style="display:grid;gap:10px;margin:16px 0 0"></div>
     <div id="ta-maaneder" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:16px 0"></div>
     <div class="tbl-wrap"><table id="tbl-ta"></table></div>
   </div>
@@ -7910,6 +7911,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.117',dato:'12.09.2026',punkter:[
+    'Trans.avgift-rapport: lagt til årstotal-kort (fra og med 2025, med %-endring vs. forrige år) mellom grafen og månedskortene — samme mønster som årskortene på Lisenser/Kickback sin Årssammenligning.'
+  ]},
   {versjon:'v1.48.116',dato:'12.09.2026',punkter:[
     'Lagt til en tynn skillelinje under RAPPORTER/DRIFT/ADMIN-overskriftene i venstremenyen — Thomas sitt forslag for å gi dem litt mer visuell tyngde.'
   ]},
@@ -11489,6 +11493,27 @@ function taAggregerPerMaaned(){
   return {maaneder,agg};
 }
 
+// Summerer rådata for ETT ÅR på tvers av alle måneder i det året OG de
+// aktive leverandørene — brukt av årstotal-kortene (lagt til 12.09.2026,
+// Thomas' ønske om en årssammenligning à la Lisenser/Kickback sin, plassert
+// mellom grafen og månedsraden).
+function taKombinerAar(agg,maaneder,aar,aktiveLev){
+  const maanederIAaret=maaneder.filter(m=>m.startsWith(String(aar)));
+  const sum={totaltBelop:0,antallKunder:0,antallOpprettet:0,antallFeilet:0,antallManueltAvklart:0};
+  maanederIAaret.forEach(m=>{
+    aktiveLev.forEach(lev=>{
+      const d=agg[lev]?.[m];
+      if(!d)return;
+      sum.totaltBelop+=d.totaltBelop;
+      sum.antallKunder+=d.antallKunder;
+      sum.antallOpprettet+=d.antallOpprettet;
+      sum.antallFeilet+=d.antallFeilet;
+      sum.antallManueltAvklart+=d.antallManueltAvklart;
+    });
+  });
+  return sum;
+}
+
 // Summerer rådata på tvers av de leverandørene som er aktive i filteret —
 // brukt av både månedskortene (kombinert linje) og "Totalt"-raden i tabellen.
 function taKombiner(agg,maaned,aktiveLev){
@@ -11570,6 +11595,7 @@ function renderTransavgiftRapport(){
 
   if(maaneder.length===0){
     dC('ta');
+    document.getElementById('ta-arstotaler').innerHTML='';
     document.getElementById('ta-maaneder').innerHTML=`<div class="hint">Ingen fakturakjøringer registrert ennå — kommer så snart Nets eller Verifone trans.avgift har blitt fakturert minst én gang.</div>`;
     document.getElementById('tbl-ta').innerHTML='';
     return;
@@ -11584,6 +11610,26 @@ function renderTransavgiftRapport(){
       datasets:aktiveLev.map(lev=>({label:lev,data:maaneder.map(m=>taMetricVerdi(agg[lev][m],taMetric)),backgroundColor:TA_LEV_FARGE[lev],borderRadius:2}))
     },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:aktiveLev.length>1,position:'top',align:'end',labels:{boxWidth:10,font:{size:11}}},tooltip:{backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',borderColor:'#e5e7eb',borderWidth:1,padding:10,callbacks:{label:c=>`${c.dataset.label}: ${taMetricFmt(c.raw,taMetric)}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9ca3af'}},y:{grid:{color:'#f3f4f6'},ticks:{font:{size:11},color:'#9ca3af',callback:v=>taMetric==='kvalitet'?v+'%':taMetricFmt(v,taMetric)},border:{display:false}}}}});
   }
+
+  // Årstotaler — Thomas' ønske 12.09.2026, samme kort-med-delta-mønster som
+  // skick-yearly i renderKickSammenligning(), men fra og med 2025 (bevisst
+  // "gulv" — ingen reell trans.avgift-historikk finnes lenger tilbake ennå,
+  // men listen utvides automatisk oppover etter hvert som nye år kommer til).
+  const idagAar=new Date().getFullYear();
+  const arListe=[...new Set([2025,...maaneder.map(m=>parseInt(m.slice(0,4),10))])].filter(y=>y>=2025).sort((a,b)=>a-b);
+  const arVerdier=arListe.map(aar=>taMetricVerdi(taKombinerAar(agg,maaneder,aar,aktiveLev),taMetric));
+  document.getElementById('ta-arstotaler').style.gridTemplateColumns=`repeat(${arListe.length},1fr)`;
+  document.getElementById('ta-arstotaler').innerHTML=arListe.map((aar,i)=>{
+    const curV=arVerdier[i];
+    const prevV=i>0?arVerdier[i-1]:null;
+    const cur=taKombinerAar(agg,maaneder,aar,aktiveLev);
+    const sub=taMetric==='kvalitet'?`<div style="font-size:10px;color:#9ca3af;margin-top:2px">${taKvalitetSubtekst(cur)}</div>`:'';
+    return `<div style="background:white;border-radius:8px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center">
+      <div style="font-size:12px;color:#6b7280;margin-bottom:4px">${aar===idagAar?aar+' YTD':aar}</div>
+      <div style="font-size:18px;font-weight:700;color:#1A3A6B">${taMetricFmt(curV,taMetric)}</div>
+      ${taDeltaHtml(curV,prevV,taMetric)}${sub}
+    </div>`;
+  }).join('');
 
   // Månedskort — Thomas ønsket ALLE måneder (ikke begrenset til f.eks. 3
   // siste), derfor horisontal scroll i stedet for et fast grid som ville blitt
