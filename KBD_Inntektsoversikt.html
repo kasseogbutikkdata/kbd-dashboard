@@ -463,7 +463,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.117 · Oppdatert: 12. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.118 · Oppdatert: 12. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -506,33 +506,16 @@ tr:hover td{background:#fafafa}
       <div class="nav-item" id="tab-transavgiftrapport" onclick="showTab('transavgiftrapport',this)">
         <span class="nav-item-icon">📈</span>Trans.avgift-rapport
       </div>
-<div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this);toggleAldersfordeltSub(true)">
-        <span class="nav-item-icon">⏱️</span>Aldersfordelt
-      </div>
-      <!-- Undermeny lagt til 10.09.2026: skiller ukentlig saldo-oversikt (dagens
-           innhold, uendret) fra ny "Fakturaoppfølging"-arbeidsliste (én rad per
-           åpen faktura, hentet av FakturaoppfolgingSync i kbd-kunde360-func) —
-           samme nav-sub/toggleXSub-mønster som Lisenser/Kickback/Kunde360 osv.
-           Veronika (Mirrow) har i dag tilgang til hele Aldersfordelt-menyen,
-           så Fakturaoppfølging blir automatisk synlig for henne også via
-           MODULER/tilgang.aldersfordelt — det er tilsiktet, se seksjon 19 i
+<!-- Forenklet 12.09.2026 (Thomas' ønske): Aldersfordelt er nå ETT punkt uten
+           undermeny (samme "egen fane, ikke underfane"-mønster som Susoft
+           RMA/Idébank) — viser Saldo-innholdet direkte. Fakturaoppfølging og
+           Purring-SMS er flyttet til DRIFT som en egen, uavhengig
+           tilgangsstyrt gruppe (se tab-fakturaoppfolging under, og
+           MODULER/tilgang.fakturaoppfolging) — de deler ikke lenger
+           tilgang.aldersfordelt. Se seksjon 20/21 i
            KBD-Command-Center-prosjektstatus.md. -->
-      <div class="nav-sub" id="aldersfordelt-sub-nav">
-        <div class="nav-sub-item active" id="asub-aldersfordelt" onclick="showTab('aldersfordelt',document.getElementById('tab-aldersfordelt'));setAldersfordeltSubActive('aldersfordelt')">📊 Saldo</div>
-        <div class="nav-sub-item" id="asub-fakturaoppfolging" onclick="showTab('fakturaoppfolging',document.getElementById('tab-aldersfordelt'));setAldersfordeltSubActive('fakturaoppfolging')">🧾 Fakturaoppfølging</div>
-        <!-- Purring-SMS flyttet hit fra "SMS utsendelse" 11.09.2026 (Thomas'
-             ønske) — se showTab() for oppdatert effectiveTab/toggle-logikk.
-             MERK (avklart eksplisitt med Thomas samme dag): dette betyr at
-             Veronika (Mirrow), som i dag har tilgang.aldersfordelt=true, nå
-             AUTOMATISK får se og bruke Purring-SMS også (kundetelefonnumre,
-             meldingsmaler, "Aktivert"-bryter, godkjenne/sende SMS) — hele
-             aldersfordelt-sub-nav vises/skjules fortsatt som ÉN enhet i
-             applyAccessControl(), ingen egen finmasket tilgang per
-             undermenypunkt. Thomas svarte "Det er greit, så kan vi justere
-             dette en annen gang" — altså en bevisst, midlertidig aksept, ikke
-             en avsluttet avgjørelse. Vurder en egen tilgangssjekk her hvis
-             dette skal strammes inn senere. -->
-        <div class="nav-sub-item" id="asub-purring" onclick="showTab('purring',document.getElementById('tab-aldersfordelt'));setAldersfordeltSubActive('purring')">🔔 Purring-SMS</div>
+      <div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this)">
+        <span class="nav-item-icon">⏱️</span>Aldersfordelt
       </div>
       <div class="nav-section-label">Drift</div>
       <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this);toggleKunder360Sub(true)">
@@ -641,6 +624,21 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="silentordering-sub-nav">
         <div class="nav-sub-item active" id="sossub-oversikt" onclick="showSilentOrderingView('oversikt')">🎫 Oversikt</div>
         <div class="nav-sub-item" id="sossub-innstillinger" style="display:none" onclick="showSilentOrderingView('innstillinger')">⚙️ Innstillinger</div>
+      </div>
+      <!-- Ny 12.09.2026 (Thomas' ønske, tidligere undermeny under Aldersfordelt,
+           se seksjon 21 i KBD-Command-Center-prosjektstatus.md): eget DRIFT-punkt
+           for fakturaoppfølging-arbeidslisten, med Purring-SMS som eneste
+           underpunkt (ingen selvrefererende "Fakturaoppfølging"-underpunkt —
+           samme forenkling som Aldersfordelt/Saldo over). Egen, uavhengig
+           tilgang.fakturaoppfolging i MODULER (IKKE lenger koblet til
+           tilgang.aldersfordelt) — starter avhuket for alle brukere i
+           Brukertilgang, inkl. Veronika (Mirrow), inntil Thomas velger hvem
+           som skal ha tilgang. -->
+      <div class="nav-item" id="tab-fakturaoppfolging" onclick="showTab('fakturaoppfolging',this);toggleFakturaoppfolgingSub(true)">
+        <span class="nav-item-icon">🧾</span>Fakturaoppfølging
+      </div>
+      <div class="nav-sub" id="fakturaoppfolging-sub-nav">
+        <div class="nav-sub-item" id="fosub-purring" onclick="showTab('purring',document.getElementById('tab-fakturaoppfolging'));setFakturaoppfolgingSubActive('purring')">🔔 Purring-SMS</div>
       </div>
       <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
         <span class="nav-item-icon">🏋️</span>Gymtimen
@@ -896,29 +894,25 @@ tr:hover td{background:#fafafa}
   </div>
 
   <!-- Purring-SMS — opprinnelig flyttet hit 02.09.2026 fra Innstillinger
-       (den gang inn under "📱 SMS utsendelse"). FLYTTET IGJEN 11.09.2026, nå
-       til undermeny under "⏱️ Aldersfordelt" (Thomas' eksplisitte ønske —
-       naturlig samlokalisering med Fakturaoppfølging, samme
-       forfalt-fakturaer-tema). Selve tp-purring-panelet under er urørt av
-       denne flyttingen — kun sub-nav-plasseringen/showTab()-routingen endret,
-       se aldersfordelt-sub-nav i sidebaren og showTab().
-       VIKTIG konsekvens for tilgangsstyring (bevisst avklart med Thomas
-       samme dag, ikke en forglemmelse): aldersfordelt-sub-nav vises/skjules
-       som ÉN enhet basert på tilgang.aldersfordelt i applyAccessControl() —
-       det finnes INGEN egen finmasket tilgang per undermenypunkt. Det betyr
-       at Veronika (Mirrow), som allerede har tilgang.aldersfordelt=true for
-       Fakturaoppfølging, nå AUTOMATISK får se og bruke Purring-SMS også
-       (kundetelefonnumre, meldingsmaler, "Aktivert"-bryter, godkjenne/sende
-       SMS) — IKKE lenger styrt av tilgang.smsutsendelse. Thomas svarte
-       eksplisitt "Det er greit, så kan vi justere dette en annen gang" da
-       dette ble lagt frem — vurder en egen tilgangssjekk her (skjul
-       asub-purring spesifikt for brukere uten tilgang.smsutsendelse, selv om
-       de har tilgang.aldersfordelt) hvis dette skal strammes inn senere. Se
-       purring_sms.py sin docstring, avsnittet "SENDEMÅTE", for
-       forretningslogikken. Kortene mangler bevisst card-public (i likhet med
-       tp-smsutsendelse sin kompose-visning) siden dette er
-       skjema/handlingskort som fjerner/utløser ekte SMS-sending — skjules
-       dermed fortsatt for Leser-rollen av applyRoleUI(). -->
+       (den gang inn under "📱 SMS utsendelse"), så 11.09.2026 til en
+       undermeny under "⏱️ Aldersfordelt", og FLYTTET IGJEN 12.09.2026
+       (Thomas' ønske) til å bli det eneste underpunktet under det nye
+       DRIFT-punktet "🧾 Fakturaoppfølging" — se fakturaoppfolging-sub-nav i
+       sidebaren og showTab(). Selve tp-purring-panelet under er urørt av
+       flyttingene — kun sub-nav-plasseringen/showTab()-routingen endret.
+       Tidligere hadde Purring-SMS automatisk samme tilgang som Aldersfordelt
+       (bevisst, midlertidig akseptert av Thomas 11.09.2026). Det er nå
+       LØST: Purring-SMS/Fakturaoppfølging styres av sin egen,
+       uavhengige tilgang.fakturaoppfolging i MODULER (se seksjon 21 i
+       KBD-Command-Center-prosjektstatus.md), IKKE lenger av
+       tilgang.aldersfordelt eller tilgang.smsutsendelse. Denne starter
+       avhuket for INGEN brukere (inkl. Veronika/Mirrow) — Thomas velger selv
+       hvem som skal ha tilgang i Brukertilgang. Se purring_sms.py sin
+       docstring, avsnittet "SENDEMÅTE", for forretningslogikken. Kortene
+       mangler bevisst card-public (i likhet med tp-smsutsendelse sin
+       kompose-visning) siden dette er skjema/handlingskort som
+       fjerner/utløser ekte SMS-sending — skjules dermed fortsatt for
+       Leser-rollen av applyRoleUI(). -->
   <div id="tp-purring" class="tp">
     <div class="card" style="max-width:640px">
       <div class="card-title">🔔 Automatisk SMS-påminnelse ved forfalt faktura</div>
@@ -2904,7 +2898,7 @@ function _erKbdTypiskBransje(n){
 }
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
-const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'transavgiftrapport',label:'📈 Trans.avgift-rapport'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'smsutsendelse',label:'📱 SMS utsendelse'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
+const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'transavgiftrapport',label:'📈 Trans.avgift-rapport'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'fakturaoppfolging',label:'🧾 Fakturaoppfølging'},{id:'utleie',label:'🔄 Utleie'},{id:'smsutsendelse',label:'📱 SMS utsendelse'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
 const CLIENT_ID="b0ff1861-62de-4ecc-8a13-fd463cb5af45";
 const TENANT_ID="c5f9c7ae-f91d-40e1-bbac-303409fa7a8d";
 const SP_SITE="kbd1.sharepoint.com:/sites/KBDDashboard";
@@ -7911,6 +7905,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.118',dato:'12.09.2026',punkter:[
+    'Aldersfordelt er nå ett enkelt menypunkt uten undermeny (samme forenkling som Susoft RMA/Idébank) — den overflødige "Saldo"-undermenyen er fjernet.',
+    'Ny «🧾 Fakturaoppfølging» under DRIFT (mellom Silent Ordering System og Gymtimen), med «🔔 Purring-SMS» som eneste underpunkt — flyttet ut av Aldersfordelt.',
+    'Fakturaoppfølging/Purring-SMS har nå sin egen, uavhengige tilgangsstyring (ny FAKTURAOPPFØLGING-kolonne i Brukertilgang) i stedet for å dele tilgang.aldersfordelt — starter avhuket for alle brukere, inkl. Veronika (Mirrow), inntil Thomas velger hvem som skal ha tilgang.'
+  ]},
   {versjon:'v1.48.117',dato:'12.09.2026',punkter:[
     'Trans.avgift-rapport: lagt til årstotal-kort (fra og med 2025, med %-endring vs. forrige år) mellom grafen og månedskortene — samme mønster som årskortene på Lisenser/Kickback sin Årssammenligning.'
   ]},
@@ -9649,7 +9648,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':(name==='fakturaoppfolging'||name==='purring')?'aldersfordelt':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':name==='purring'?'fakturaoppfolging':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -9661,15 +9660,15 @@ function showTab(name,btn){
   toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk');
   toggleTransaksjonsavgiftSub(name==='verifone'||name==='nets');
   toggleSilentOrderingSub(name==='silentordering');
-  toggleAldersfordeltSub(name==='aldersfordelt'||name==='fakturaoppfolging'||name==='purring');
+  toggleFakturaoppfolgingSub(name==='fakturaoppfolging'||name==='purring');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
   if(name==='kicksammenligning'){renderKickSammenligning();}
   if(name==='oversikt'){renderTrend();renderKPIs();}
   if(name==='transavgiftrapport'){renderTransavgiftRapport();}
-  if(name==='aldersfordelt'){setAldersfordeltSubActive('aldersfordelt');renderAging();}
-  if(name==='fakturaoppfolging'){setAldersfordeltSubActive('fakturaoppfolging');renderFakturaoppfolging();}
+  if(name==='aldersfordelt'){renderAging();}
+  if(name==='fakturaoppfolging'){renderFakturaoppfolging();}
   if(name==='innstillinger'){renderSettings();showInnstillingerView(userRole==='admin'?'brukertilgang':'produkter');}
   if(name==='arbeidstid')showArbeidstidView('oversikt',document.getElementById('asub-oversikt'));
   if(name==='hjem')renderHjem();
@@ -9680,7 +9679,7 @@ function showTab(name,btn){
   if(name==='smsutsendelse'){setSmsUtsendelseSubActive('smsutsendelse');renderSmsUtsendelse();smsHentSaldo();}
   if(name==='smsplanlagt'){setSmsUtsendelseSubActive('smsplanlagt');renderSmsPlanlagt();}
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
-  if(name==='purring'){setAldersfordeltSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
+  if(name==='purring'){setFakturaoppfolgingSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');setTransaksjonsavgiftSubActive('verifone');}
   if(name==='nets'){renderNets();showNetsView('ny');setTransaksjonsavgiftSubActive('nets');}
@@ -9760,9 +9759,11 @@ function toggleSmsUtsendelseSub(open){
 
 function setSmsUtsendelseSubActive(view){
   document.querySelectorAll('#smsutsendelse-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  // 'purring' fjernet fra idMap 11.09.2026 — Purring-SMS flyttet til
-  // Aldersfordelt-undermenyen (styres nå av setAldersfordeltSubActive()), se
-  // showTab() og HTML-kommentaren ved aldersfordelt-sub-nav.
+  // 'purring' fjernet fra idMap 11.09.2026 — Purring-SMS flyttet ut av
+  // SMS utsendelse, og fra 12.09.2026 styrt av
+  // setFakturaoppfolgingSubActive() under det nye DRIFT-punktet
+  // Fakturaoppfølging, se showTab() og HTML-kommentaren ved
+  // fakturaoppfolging-sub-nav.
   const idMap={smsutsendelse:'smssub-smsutsendelse',smsplanlagt:'smssub-smsplanlagt',smshistorikk:'smssub-smshistorikk'};
   const el=document.getElementById(idMap[view]||'smssub-smsutsendelse');
   if(el)el.classList.add('active');
@@ -9773,13 +9774,17 @@ function toggleKickbackSub(open){
   if(sub)sub.className='nav-sub'+(open?' open':'');
 }
 
-function toggleAldersfordeltSub(open){
-  const sub=document.getElementById('aldersfordelt-sub-nav');
+// toggleAldersfordeltSub/setAldersfordeltSubActive fjernet 12.09.2026 —
+// Aldersfordelt har ikke lenger noen undermeny (ett enkelt punkt, se
+// tab-aldersfordelt). Fakturaoppfølging/Purring-SMS er flyttet til DRIFT som
+// eget punkt med egen undermeny, styrt av funksjonene under.
+function toggleFakturaoppfolgingSub(open){
+  const sub=document.getElementById('fakturaoppfolging-sub-nav');
   if(sub)sub.className='nav-sub'+(open?' open':'');
 }
-function setAldersfordeltSubActive(view){
-  document.querySelectorAll('#aldersfordelt-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  const el=document.getElementById('asub-'+view);
+function setFakturaoppfolgingSubActive(view){
+  document.querySelectorAll('#fakturaoppfolging-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById('fosub-'+view);
   if(el)el.classList.add('active');
 }
 
@@ -11744,8 +11749,8 @@ function applyAccessControl(){
       const sub=document.getElementById('smsutsendelse-sub-nav');
       if(sub)sub.style.display=har?'':'none';
     }
-    if(m.id==='aldersfordelt'){
-      const sub=document.getElementById('aldersfordelt-sub-nav');
+    if(m.id==='fakturaoppfolging'){
+      const sub=document.getElementById('fakturaoppfolging-sub-nav');
       if(sub)sub.style.display=har?'':'none';
     }
   });
