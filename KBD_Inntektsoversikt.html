@@ -463,7 +463,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.122 · Oppdatert: 12. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.123 · Oppdatert: 12. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7913,8 +7913,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.123',dato:'12.09.2026',punkter:[
+    'Hjem-siden: hele «Snarveier»-seksjonen fjernet, inkludert «+ Ny utleie» og «+ Ny reservasjon» — Thomas sitt ønske om at ingen snarveier skal ligge på forsiden. Begge funksjonene finnes fortsatt under sine egne faner (Utleie og Reservasjon).'
+  ]},
   {versjon:'v1.48.122',dato:'12.09.2026',punkter:[
-    'Hjem-siden: hele «Snarveier»-seksjonen fjernet (Ny utleie, Ny reservasjon, Søk om arbeidstid) — Thomas sitt ønske. Disse funksjonene finnes fortsatt inne under sine respektive faner (Utleie, Reservasjon og Arbeidstid).'
+    'Hjem-siden: fjernet snarveien «🏋️ Søk om arbeidstid» fra Snarveier — siste rest av Gymtimen på forsiden, nå som ukeoversikten allerede er borte derfra. Fortsatt fullt tilgjengelig under Gymtimen-fanen i menyen.'
   ]},
   {versjon:'v1.48.121',dato:'12.09.2026',punkter:[
     'Hjem-siden fornyet (sparring med Thomas): full ukeoversikt for Gymtimen fjernet fra forsiden (finnes fortsatt under Gymtimen-fanen). Ny «🔔 Trenger oppmerksomhet»-seksjon samler RMA-saker tildelt deg, forfalt fakturaoppfølging, utleie uten registrert retur og røde Jobbstatus-jobber ett sted, med direkte lenke til hver sak. Ny «📣 Siste kunngjøring»-seksjon løfter frem de nyeste kunngjøringene. Ny bursdags-/jubileumshilsen med konfetti når noen har fødselsdag eller årsjubileum i KBD — «Født» og «Startet i KBD» kan nå fylles inn under Innstillinger → Brukertilgang → Rediger bruker.'
