@@ -463,7 +463,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.125 · Oppdatert: 12. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.126 · Oppdatert: 22. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4445,16 +4445,34 @@ function jsFormaterJobbVerdi(v){
 }
 // Prøver å tolke Melding som JSON (de 9 Python-jobbene) og gjøre den lesbar;
 // er den ikke gyldig JSON (PowerShell-jobbene skriver allerede ren tekst),
-// vises den uendret. Returnerer alltid HTML-escapet tekst.
-function jsFormaterMelding(meldingRaw){
+// vises den uendret. jsFormaterMeldingRaw returnerer UESCAPET tekst — brukes
+// av jobbstatusVurder() under, som selv flyter videre til steder som
+// escaper selv (renderJobbstatus/renderTrengerOppmerksomhet). jsFormaterMelding
+// (brukt direkte i renderJobbstatus sin fallback) escaper og beholder gammel
+// signatur.
+function jsFormaterMeldingRaw(meldingRaw){
   if(!meldingRaw)return'';
   let parsed;
-  try{parsed=JSON.parse(meldingRaw);}catch(e){return jsEscapeHtml(meldingRaw);}
-  return jsEscapeHtml(jsFormaterJobbVerdi(parsed));
+  try{parsed=JSON.parse(meldingRaw);}catch(e){return meldingRaw;}
+  return jsFormaterJobbVerdi(parsed);
+}
+function jsFormaterMelding(meldingRaw){
+  return jsEscapeHtml(jsFormaterMeldingRaw(meldingRaw));
 }
 function jobbstatusVurder(rad,konfig){
   if(!rad)return{erRod:false,erUkjent:true,arsak:'Har aldri rapportert status'};
-  if(rad.resultat==='Feil')return{erRod:true,erUkjent:false,arsak:'Siste kjøring feilet'};
+  if(rad.resultat==='Feil'){
+    // FIKS 22.09.2026 (Thomas' tilbakemelding): viste tidligere alltid en fast
+    // generisk tekst her og kastet bort den faktiske feilmeldingen som
+    // run.ps1/jobbstatus.py sin catch-blokk allerede lagrer i rad.melding —
+    // måtte inn i Azure Portal for å se hva som faktisk gikk galt. Vis nå den
+    // ekte meldingen direkte i dashbordet (både Jobbstatus-fanen og "Trenger
+    // oppmerksomhet"); fall kun tilbake til generisk tekst hvis meldingen av
+    // en eller annen grunn mangler (f.eks. at selve rapporteringen også
+    // feilet stille, se Report-Jobbstatus sin egen try/catch).
+    const feilTxt=jsFormaterMeldingRaw(rad.melding);
+    return{erRod:true,erUkjent:false,arsak:feilTxt||'Siste kjøring feilet (ingen feilmelding lagret)'};
+  }
   if(!rad.sistKjort)return{erRod:true,erUkjent:false,arsak:'Ugyldig/manglende tidsstempel'};
   const minutterSiden=(Date.now()-new Date(rad.sistKjort).getTime())/60000;
   if(minutterSiden>konfig.maksMinutter){
@@ -7913,6 +7931,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.126',dato:'22.09.2026',punkter:[
+    'Jobbstatus (både fanen og «🔔 Trenger oppmerksomhet»): en rød/feilet jobb viste tidligere kun en fast tekst «Siste kjøring feilet» — nå vises den faktiske feilmeldingen fra jobben direkte, uten å måtte inn i Azure Portal for å se hva som gikk galt.'
+  ]},
   {versjon:'v1.48.125',dato:'12.09.2026',punkter:[
     '«🔔 Trenger oppmerksomhet»: Utleie-påminnelser var ikke klikkbare (manglet fanebytte til Utleie) — fikset. Klikk hopper nå riktig til raden i Utleieoversikt, samme som de andre punktene i lista.'
   ]},
