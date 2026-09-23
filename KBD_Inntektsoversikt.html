@@ -190,7 +190,13 @@ tr:hover td{background:#fafafa}
 .nav-sub-sub-item{display:flex;align-items:center;gap:8px;padding:6px 16px 6px 52px;cursor:pointer;font-size:12.5px;font-weight:500;color:#9ca3af;border-left:3px solid transparent;transition:all .1s}
 .nav-sub-sub-item:hover{background:#f9fafb;color:#6b7280}
 .nav-sub-sub-item.active{color:#1A3A6B;font-weight:600;border-left-color:#93c5fd;background:#f0f4ff}
-.sidebar-divider{height:1px;background:#f3f4f6;margin:6px 12px}
+.sidebar-divider{height:1px;background:#d1d5db;margin:6px 12px}
+/* Menyseksjons-overskrifter (RAPPORTER/DRIFT/ADMIN), lagt til 12.09.2026 på
+   Thomas' ønske om å dele venstremenyen i tydelige grupper i stedet for én
+   lang, udelt liste — erstatter den gamle rene sidebar-divider-streken foran
+   Idébank (nå "Admin"-overskrift i stedet). Ren tekstoverskrift, ikke
+   klikkbar/utvidbar — selve nav-item-ene under står som nå. */
+.nav-section-label{padding:18px 16px 8px;font-size:12px;font-weight:800;color:#4b5563;text-transform:uppercase;letter-spacing:.7px;user-select:none;border-bottom:1px solid #e5e7eb;margin-bottom:2px}
 .sidebar-bottom{padding:12px 16px;border-top:1px solid #f3f4f6}
 .sidebar-user{font-size:12px;color:#6b7280}
 .main-content{flex:1;min-width:0;padding:24px;overflow:auto}
@@ -321,6 +327,14 @@ tr:hover td{background:#fafafa}
 .vf-detail-inner{padding:10px 14px 14px 44px}
 .vf-detail-inner table{background:transparent;width:100%;border-collapse:collapse}
 .vf-detail-inner th{background:transparent;padding:6px 10px;font-size:10px;text-align:left;color:#6b7280;text-transform:uppercase}
+/* Rettet 09.09.2026 (Thomas oppdaget forskjøvne kolonneoverskrifter i Nets-
+   detaljvisningen): ".vf-detail-inner th" over er mer spesifikk enn ".tr"
+   alene, så "text-align:left" vant over ".tr"s "text-align:right" for
+   th-elementer som HAR class="tr" (Antall/Pris pr. stk/Beløp) — de ble
+   dermed venstrejustert i overskriften mens tallene under var
+   høyrejustert. Gjaldt egentlig Verifone sin tilsvarende detaljtabell også
+   (samme mønster), bare mindre synlig der med færre kolonner. */
+.vf-detail-inner th.tr{text-align:right}
 .vf-detail-inner td{padding:6px 10px;border-bottom:none;font-size:12.5px;color:#6b7280}
 .vf-pill-status{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
 .vf-pill-ok{background:#e6f7ef;color:#0e8a58}
@@ -449,7 +463,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.85 · Oppdatert: 9. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.127 · Oppdatert: 23. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -468,6 +482,7 @@ tr:hover td{background:#fafafa}
       <div class="nav-item" id="tab-oversikt" onclick="showTab('oversikt',this)">
         <span class="nav-item-icon">📊</span>Oversikt
       </div>
+      <div class="nav-section-label">Rapporter</div>
       <div class="nav-item" id="tab-lisenser" onclick="showTab('lisenser',this);toggleLisenserSub(true)">
         <span class="nav-item-icon">📋</span>Lisenser
       </div>
@@ -482,9 +497,27 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="ksub-kickback" onclick="showKickbackView('kickback')">📋 Registreringer</div>
         <div class="nav-sub-item" id="ksub-kicksammenligning" onclick="showKickbackView('kicksammenligning')">📈 Årssammenligning</div>
       </div>
-<div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this)">
+      <!-- Trans.avgift-rapport — lagt til 12.09.2026 (Thomas' ønske, se
+           KBD-Command-Center-prosjektstatus.md seksjon 17): ren aggregering av
+           eksisterende VerifoneHistorikk/NetsHistorikk (ingen nye SharePoint-
+           felt), gruppert per KALENDERMÅNED (ikke kvartal), Nets og Verifone
+           som atskilte serier — se renderTransavgiftRapport(). Ingen egen
+           nav-sub (kun én visning), samme mønster som Susoft RMA/Idébank. -->
+      <div class="nav-item" id="tab-transavgiftrapport" onclick="showTab('transavgiftrapport',this)">
+        <span class="nav-item-icon">📈</span>Trans.avgift-rapport
+      </div>
+<!-- Forenklet 12.09.2026 (Thomas' ønske): Aldersfordelt er nå ETT punkt uten
+           undermeny (samme "egen fane, ikke underfane"-mønster som Susoft
+           RMA/Idébank) — viser Saldo-innholdet direkte. Fakturaoppfølging og
+           Purring-SMS er flyttet til DRIFT som en egen, uavhengig
+           tilgangsstyrt gruppe (se tab-fakturaoppfolging under, og
+           MODULER/tilgang.fakturaoppfolging) — de deler ikke lenger
+           tilgang.aldersfordelt. Se seksjon 20/21 i
+           KBD-Command-Center-prosjektstatus.md. -->
+      <div class="nav-item" id="tab-aldersfordelt" onclick="showTab('aldersfordelt',this)">
         <span class="nav-item-icon">⏱️</span>Aldersfordelt
       </div>
+      <div class="nav-section-label">Drift</div>
       <div class="nav-item" id="tab-kunder" onclick="showTab('kunder',this);toggleKunder360Sub(true)">
         <span class="nav-item-icon">🧑‍💼</span>Kunde360
       </div>
@@ -531,7 +564,6 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="smssub-smsutsendelse" onclick="showTab('smsutsendelse',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsutsendelse')">📤 Ny utsendelse</div>
         <div class="nav-sub-item" id="smssub-smsplanlagt" onclick="showTab('smsplanlagt',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smsplanlagt')">🕐 Planlagt</div>
         <div class="nav-sub-item" id="smssub-smshistorikk" onclick="showTab('smshistorikk',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('smshistorikk')">🕘 Tidligere utsendelser</div>
-        <div class="nav-sub-item" id="smssub-purring" onclick="showTab('purring',document.getElementById('tab-smsutsendelse'));setSmsUtsendelseSubActive('purring')">🔔 Purring-SMS</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick="showTab('utleie',this);toggleUtleieSub(true)">
         <span class="nav-item-icon">🔄</span>Utleie
@@ -543,26 +575,31 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item" id="usub-enheter" onclick="showUtleieView('enheter',this)">🔧 Enheter</div>
         <div class="nav-sub-item" id="usub-logg" onclick="showUtleieView('logg',this)">📋 Logg</div>
       </div>
-      <div class="nav-item" id="tab-verifone" onclick="showTab('verifone',this);toggleVerifoneSub(true)">
-        <span class="nav-item-icon">🧾</span>Verifone trans.avgift
+      <!-- Transaksjonsavgift — samlemeny lagt til 09.09.2026 (Thomas' ønske):
+           slår sammen Verifone trans.avgift og Nets trans.avgift under én
+           felles overskrift i venstremenyen, i stedet for to separate
+           toppnivå-menypunkter. Samme tre-nivå-mønster som Kunde360 nester
+           Nyetableringer sine Oversikt/Forhandlerområder-underpunkter under
+           seg (nav-sub-item for selve leverandøren, nav-sub-sub-item for
+           Ny faktura/Historikk under hver leverandør) — se
+           kunder360-sub-nav over. Selve fanene (tp-verifone/tp-nets),
+           vf-/nt-JS-en og all funksjonalitet for øvrig er UENDRET, dette er
+           en ren meny-omorganisering. -->
+      <div class="nav-item" id="tab-transaksjonsavgift" onclick="showTab('verifone',document.getElementById('tab-transaksjonsavgift'));toggleTransaksjonsavgiftSub(true)">
+        <span class="nav-item-icon">🧾</span>Transaksjonsavgift
       </div>
-      <!-- Undermeny lagt til 03.09.2026: skiller selve arbeidsflyten (opplasting →
-           matching → godkjenning → salgsordre) fra historikken over allerede
-           kjørte fakturaer — samme nav-sub/toggleXSub-mønster som
-           Utleie/Kickback/Arbeidstid bruker. Se vfRenderHistorikk()/vfLoggHistorikk().
-           (Gjenopprettet 03.09.2026 — falt ut av en versjon som ble bygget videre
-           fra en fil eldre enn v1.46.0, der denne først ble lagt til.) -->
-      <div class="nav-sub" id="verifone-sub-nav">
-        <div class="nav-sub-item active" id="vsub-ny" onclick="showVerifoneView('ny',this)">📤 Ny faktura</div>
-        <div class="nav-sub-item" id="vsub-historikk" onclick="showVerifoneView('historikk',this)">📋 Historikk</div>
-      </div>
-      <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
-        <span class="nav-item-icon">🏋️</span>Gymtimen
-      </div>
-      <div class="nav-sub" id="arbeidstid-sub-nav">
-        <div class="nav-sub-item active" id="asub-oversikt" onclick="showArbeidstidView('oversikt',this)">📋 Oversikt</div>
-        <div class="nav-sub-item" id="asub-soknader" onclick="showArbeidstidView('soknader',this)">📝 Søknader</div>
-        <div class="nav-sub-item" id="asub-ny" onclick="showArbeidstidView('ny',this)">➕ Ny søknad</div>
+      <div class="nav-sub" id="transaksjonsavgift-sub-nav">
+        <div class="nav-sub-item active" id="tasub-verifone" onclick="showTab('verifone',document.getElementById('tab-transaksjonsavgift'))">🧾 Verifone trans.avgift</div>
+        <!-- "📤 Ny faktura"-underpunktet fjernet 09.09.2026 (Thomas' ønske) —
+             overflødig ved siden av selve leverandør-raden over, som allerede
+             går til nøyaktig samme visning (showVerifoneView('ny') kalles
+             automatisk fra showTab(), se linjen "if(name==='verifone'){...
+             showVerifoneView('ny');...}"). "Historikk" er nå eneste
+             underpunkt, siden det er det ENESTE som faktisk skiller seg fra
+             leverandør-radens standardvisning. -->
+        <div class="nav-sub-sub-item" id="vsub-historikk" onclick="showVerifoneView('historikk',this)">📋 Historikk</div>
+        <div class="nav-sub-item" id="tasub-nets" onclick="showTab('nets',document.getElementById('tab-transaksjonsavgift'))">🧾 Nets trans.avgift</div>
+        <div class="nav-sub-sub-item" id="ntsub-historikk" onclick="showNetsView('historikk',this)">📋 Historikk</div>
       </div>
       <div class="nav-item" id="tab-susoftrma" onclick="showTab('susoftrma',this)">
         <span class="nav-item-icon">🔧</span>Susoft RMA
@@ -588,10 +625,45 @@ tr:hover td{background:#fafafa}
         <div class="nav-sub-item active" id="sossub-oversikt" onclick="showSilentOrderingView('oversikt')">🎫 Oversikt</div>
         <div class="nav-sub-item" id="sossub-innstillinger" style="display:none" onclick="showSilentOrderingView('innstillinger')">⚙️ Innstillinger</div>
       </div>
+      <!-- Ny 12.09.2026 (Thomas' ønske, tidligere undermeny under Aldersfordelt,
+           se seksjon 21 i KBD-Command-Center-prosjektstatus.md): eget DRIFT-punkt
+           for fakturaoppfølging-arbeidslisten, med Purring-SMS som eneste
+           underpunkt (ingen selvrefererende "Fakturaoppfølging"-underpunkt —
+           samme forenkling som Aldersfordelt/Saldo over). Egen, uavhengig
+           tilgang.fakturaoppfolging i MODULER (IKKE lenger koblet til
+           tilgang.aldersfordelt) — starter avhuket for alle brukere i
+           Brukertilgang, inkl. Veronika (Mirrow), inntil Thomas velger hvem
+           som skal ha tilgang. -->
+      <div class="nav-item" id="tab-fakturaoppfolging" onclick="showTab('fakturaoppfolging',this);toggleFakturaoppfolgingSub(true)">
+        <span class="nav-item-icon">🧾</span>Fakturaoppfølging
+      </div>
+      <div class="nav-sub" id="fakturaoppfolging-sub-nav">
+        <div class="nav-sub-item" id="fosub-purring" onclick="showTab('purring',document.getElementById('tab-fakturaoppfolging'));setFakturaoppfolgingSubActive('purring')">🔔 Purring-SMS</div>
+      </div>
+      <div class="nav-item" id="tab-arbeidstid" onclick="showTab('arbeidstid',this);toggleArbeidstidSub(true)">
+        <span class="nav-item-icon">🏋️</span>Gymtimen
+      </div>
+      <div class="nav-sub" id="arbeidstid-sub-nav">
+        <div class="nav-sub-item active" id="asub-oversikt" onclick="showArbeidstidView('oversikt',this)">📋 Oversikt</div>
+        <div class="nav-sub-item" id="asub-soknader" onclick="showArbeidstidView('soknader',this)">📝 Søknader</div>
+        <div class="nav-sub-item" id="asub-ny" onclick="showArbeidstidView('ny',this)">➕ Ny søknad</div>
+      </div>
+      <!-- Divideren flyttet hit 10.09.2026 (Thomas' ønske, justert samme
+           dag) — skiller Gymtimen fra Idébank/Jobbstatus/Innstillinger
+           under. -->
+      <div class="nav-section-label">Admin</div>
       <div class="nav-item" id="tab-idebank" onclick="showTab('idebank',this)">
         <span class="nav-item-icon">💡</span>Idébank og utvikling
       </div>
-      <div class="sidebar-divider"></div>
+      <!-- 🚦 Jobbstatus (lagt til 09.09.2026, Thomas' ønske om statuslys for
+           ALLE tidsstyrte bakgrunnsjobber etter to hendelser der en jobb
+           feilet stille i flere dager — pageNumber-buggen 31.08.2026,
+           nyetableringer-prioritetsscore 03.-06.09.2026). Egen fane, ikke
+           underfane, samme mønster som Susoft RMA/Silent Ordering over. Se
+           renderJobbstatus() og jobbstatus.py (kbd-verifone-func). -->
+      <div class="nav-item" id="tab-jobbstatus" onclick="showTab('jobbstatus',this)">
+        <span class="nav-item-icon">🚦</span>Jobbstatus
+      </div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
         <span class="nav-item-icon">⚙️</span>Innstillinger
       </div>
@@ -618,23 +690,21 @@ tr:hover td{background:#fafafa}
       <div id="hjem-date" style="font-size:13px;color:#6b7280;margin-top:2px"></div>
     </div>
 
+    <!-- Bursdag/jubileum — skjult (display:none) når ingen har merkedag i dag,
+         se sjekkDagensMarkeringer(). -->
+    <div id="hjem-feiring" style="display:none"></div>
+
+    <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">🔔 Trenger oppmerksomhet</div>
+    <div id="hjem-oppmerksomhet" style="margin-bottom:24px"></div>
+
+    <div id="hjem-kunngjoring-seksjon" style="margin-bottom:24px">
+      <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">📣 Siste kunngjøring</div>
+      <div id="hjem-kunngjoring"></div>
+    </div>
+
     <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Siste fra hver modul</div>
     <div id="hjem-snapshot-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
 
-    <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Snarveier</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:28px">
-      <button class="prim editor-only" onclick="openNyUtleieModal()">+ Ny utleie</button>
-      <button class="btn-sm editor-only" onclick="openNyReservasjon()">+ Ny reservasjon</button>
-      <button class="btn-sm" onclick="showTab('arbeidstid',document.getElementById('tab-arbeidstid'));showArbeidstidView('ny',document.getElementById('asub-ny'))">🏋️ Søk om arbeidstid</button>
-    </div>
-
-    <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">🏋️ Gymtimen — full ukeoversikt</div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Ansatt</th><th style="text-align:center">Man</th><th style="text-align:center">Tir</th><th style="text-align:center">Ons</th><th style="text-align:center">Tor</th><th style="text-align:center">Fre</th></tr></thead>
-        <tbody id="hjem-arbeidstid-body"></tbody>
-      </table>
-    </div>
   </div>
 
   <div id="tp-oversikt" class="tp">
@@ -821,16 +891,26 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
-  <!-- SMS UTSENDELSE — Purring-SMS (flyttet hit 02.09.2026 fra Innstillinger,
-       på Thomas' eksplisitte ønske — hørte naturlig hjemme sammen med resten
-       av SMS-funksjonaliteten. MERK konsekvens for tilgangsstyring: styres nå
-       av tilgang.smsutsendelse (samme modul-tilgang som resten av denne
-       undermenyen) i stedet for tilgang.innstillinger — se
-       purring_sms.py sin docstring, avsnittet "SENDEMÅTE", for hele
-       bakgrunnen. Kortene mangler bevisst card-public (i likhet med
-       tp-smsutsendelse sin kompose-visning) siden dette er
-       skjema/handlingskort som fjerner/utløser ekte SMS-sending — skjules
-       dermed fortsatt for Leser-rollen av applyRoleUI(). -->
+  <!-- Purring-SMS — opprinnelig flyttet hit 02.09.2026 fra Innstillinger
+       (den gang inn under "📱 SMS utsendelse"), så 11.09.2026 til en
+       undermeny under "⏱️ Aldersfordelt", og FLYTTET IGJEN 12.09.2026
+       (Thomas' ønske) til å bli det eneste underpunktet under det nye
+       DRIFT-punktet "🧾 Fakturaoppfølging" — se fakturaoppfolging-sub-nav i
+       sidebaren og showTab(). Selve tp-purring-panelet under er urørt av
+       flyttingene — kun sub-nav-plasseringen/showTab()-routingen endret.
+       Tidligere hadde Purring-SMS automatisk samme tilgang som Aldersfordelt
+       (bevisst, midlertidig akseptert av Thomas 11.09.2026). Det er nå
+       LØST: Purring-SMS/Fakturaoppfølging styres av sin egen,
+       uavhengige tilgang.fakturaoppfolging i MODULER (se seksjon 21 i
+       KBD-Command-Center-prosjektstatus.md), IKKE lenger av
+       tilgang.aldersfordelt eller tilgang.smsutsendelse. Denne starter
+       avhuket for INGEN brukere (inkl. Veronika/Mirrow) — Thomas velger selv
+       hvem som skal ha tilgang i Brukertilgang. Se purring_sms.py sin
+       docstring, avsnittet "SENDEMÅTE", for forretningslogikken. Kortene
+       mangler bevisst card-public (i likhet med tp-smsutsendelse sin
+       kompose-visning) siden dette er skjema/handlingskort som
+       fjerner/utløser ekte SMS-sending — skjules dermed fortsatt for
+       Leser-rollen av applyRoleUI(). -->
   <div id="tp-purring" class="tp">
     <div class="card" style="max-width:640px">
       <div class="card-title">🔔 Automatisk SMS-påminnelse ved forfalt faktura</div>
@@ -1232,6 +1312,145 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
+    <!-- Nets trans.avgift lagt til 09.09.2026 — speiler tp-verifone over
+         (samme HTML-struktur/CSS-klasser, "nt-" i stedet for "vf-" der det
+         trengs unikt), med disse bevisste forskjellene (besluttet av Thomas
+         09.09.2026):
+         - Ingen fast "Pris til kunde"-KPI (Nets-prisen varierer per linje,
+           hentet direkte fra fakturaen — se visma_client.opprett_salgsordre_utkast_nets()).
+           4. KPI viser i stedet periode(r) funnet på fakturaen.
+         - Kolonneoverskrift "Beløp" uten "(0,40 kr/stk)"-tillegget.
+         - "Navn (fra Nets)" i stedet for "Brukersted (fra Verifone)" i
+           Må avklares-tabellen (Nets sitt "Varemottaker: ... Navn"-felt).
+         - Kaller /api/parse_invoice_nets og /api/create_sales_orders_nets. -->
+    <div id="tp-nets" class="tp">
+    <div class="hdr">
+      <div class="hdr-left">
+        <div class="hdr-bar"></div>
+        <div>
+          <div class="hdr-title">Nets trans.avgift</div>
+          <div class="hdr-sub">Automatisert viderefakturering av Nets transaksjonsavgift</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="nets-ny">
+    <div class="vf-steps">
+      <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Faktura lastet opp</div></div>
+      <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Kunder matchet mot Visma</div></div>
+      <div class="vf-step active"><div class="vf-step-num">3</div><div class="vf-step-txt">Gjennomgang &amp; godkjenning</div></div>
+      <div class="vf-step"><div class="vf-step-num">4</div><div class="vf-step-txt">Salgsordre opprettet i Visma.net</div></div>
+    </div>
+
+    <div class="vf-upload-card">
+      <div class="vf-file-info">
+        <div class="vf-file-icon">📄</div>
+        <div>
+          <div class="vf-file-name" id="nt-upload-filename">Ingen faktura lastet opp ennå</div>
+          <div class="vf-file-meta" id="nt-upload-meta">Last opp en Nets-faktura (PDF) for å starte</div>
+        </div>
+      </div>
+      <div>
+        <input type="file" id="nt-file-input" accept="application/pdf" style="display:none" onchange="ntLastOppFaktura(this.files[0])">
+        <button class="btn-sm" onclick="document.getElementById('nt-file-input').click()">Last opp faktura</button>
+      </div>
+    </div>
+    <div class="vf-upload-error" id="nt-upload-error"></div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-lbl">Transaksjonslinjer lest</div>
+        <div class="kpi-val" id="nt-kpi-total-lines">—</div>
+        <div class="kpi-sub" id="nt-kpi-total-bax">—</div>
+      </div>
+      <div class="kpi accent">
+        <div class="kpi-lbl">Klar til fakturering</div>
+        <div class="kpi-val vf-green" id="nt-kpi-matched-sum">—</div>
+        <div class="kpi-sub" id="nt-kpi-matched-count">—</div>
+      </div>
+      <div class="kpi vf-warn">
+        <div class="kpi-lbl">Må avklares</div>
+        <div class="kpi-val vf-warn" id="nt-kpi-unmatched-sum">—</div>
+        <div class="kpi-sub" id="nt-kpi-unmatched-count">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Periode</div>
+        <div class="kpi-val" id="nt-kpi-periode" style="font-size:15px">—</div>
+        <div class="kpi-sub">hentet fra Nets-faktura</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="nt-tabbtn-matched" onclick="ntSwitchTab('matched')">Klar til fakturering <span class="tab-count" id="nt-tab-count-matched">0</span></button>
+      <button class="tab vf-warn-tab" id="nt-tabbtn-unmatched" onclick="ntSwitchTab('unmatched')">Må avklares <span class="tab-count" id="nt-tab-count-unmatched">0</span></button>
+    </div>
+
+    <div class="vftp active" id="nttp-matched">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:24px"></th>
+            <th>Kundenr</th>
+            <th>Kunde</th>
+            <th class="tr">Antall trans.</th>
+            <th class="tr">Beløp</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="nt-matched-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="vftp" id="nttp-unmatched">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>BAX-nr</th>
+            <th>Navn (fra Nets)</th>
+            <th class="tr">Antall trans.</th>
+            <th class="tr">Beløp</th>
+            <th>Koble til kunde</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="nt-unmatched-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="vf-approve-bar">
+      <div class="vf-approve-sum">
+        <b id="nt-approve-total">—</b> klar for salgsordre-utkast i Visma.net
+        <span id="nt-approve-pending" style="display:block;color:#d97706;margin-top:2px"></span>
+      </div>
+      <button class="prim green" id="nt-approve-btn" onclick="ntApprove()" disabled>Opprett salgsordre-utkast i Visma.net →</button>
+    </div>
+    </div>
+
+    <!-- Historikk — samme mønster som verifone-historikk over, egen liste
+         NetsHistorikk i SharePoint (besluttet av Thomas 09.09.2026). -->
+    <div id="nets-historikk" style="display:none">
+      <div class="card">
+        <div class="card-title">📋 Historikk — kjørte fakturaer</div>
+        <div class="hint">Fakturaer der salgsordre-utkast faktisk er opprettet i Visma.net. Grunnlag for statistikk over videreført Nets-transaksjonsavgift over tid.</div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Dato</th>
+            <th>Fakturareferanse</th>
+            <th class="tr">Totalt beløp</th>
+            <th class="tr">Antall salgsordre</th>
+            <th class="tr">Opprettet</th>
+            <th class="tr">Feilet</th>
+            <th class="tr">Avklart manuelt</th>
+            <th>Opprettet av</th>
+          </tr></thead>
+          <tbody id="nt-historikk-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 <div id="tp-lisenser" class="tp">
     <div class="card">
       <div class="card-title">Legg til registrering</div>
@@ -1266,7 +1485,7 @@ tr:hover td{background:#fafafa}
       <div class="card-title">Legg til kickback</div>
       <div class="fg fg4">
         <div class="fgrp"><label>År</label><input type="number" id="kf-year" min="2015" max="2040" value="2026" style="width:100%"/></div>
-        <div class="fgrp"><label>Kilde</label><select id="kf-src" onchange="onSrcChange()" id="kf-src"></select></div>
+        <div class="fgrp"><label>Kilde</label><select id="kf-src" onchange="onSrcChange()"></select></div>
         <div class="fgrp"><label>Periode <span class="hint" id="kf-hint">(månedlig)</span></label><select id="kf-per"></select></div>
         <div class="fgrp"><label>Beløp (kr)</label><input type="number" id="kf-amt" placeholder="f.eks. 95 000"/></div>
       </div>
@@ -1970,7 +2189,14 @@ tr:hover td{background:#fafafa}
           <div id="u-enhet-multi" style="max-height:170px;overflow-y:auto;border:1.5px solid #d0d5dd;border-radius:8px;padding:8px 10px"></div>
         </div>
       </div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Kunde</label><input type="text" id="u-kunde" placeholder="Kundenavn"/></div>
+      <div class="fgrp" style="margin-bottom:10px">
+        <label>Kunde</label>
+        <div class="vf-kunde-ac" style="min-width:100%">
+          <input type="text" id="u-kunde" placeholder="Søk Visma-kunde eller skriv kundenavn fritt…" oninput="uKundeAcSok()" onfocus="uKundeAcSok()" onblur="setTimeout(()=&gt;{const d=document.getElementById('u-kunde-treff');if(d)d.style.display='none';},150)" autocomplete="off" style="width:100%"/>
+          <div id="u-kunde-treff" class="vf-ac-treff"></div>
+        </div>
+        <input type="hidden" id="u-kunde-nr"/>
+      </div>
       <div class="fg" id="u-dato-row" style="grid-template-columns:1fr;margin-bottom:10px">
         <div class="fgrp"><label>Utleieperiode</label>
           <div class="date-range-group">
@@ -2045,6 +2271,47 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
+  <!-- FAKTURAOPPFØLGING -->
+  <!-- Lagt til 10.09.2026 — arbeidsliste for oppfølging av forfalte fakturaer,
+       som del av trappetrinn-planen for å automatisere jobben Mirrow (Veronika)
+       gjør i dag. Data kommer fra SharePoint-lista Fakturaoppfolging (synket av
+       FakturaoppfolgingSync i kbd-kunde360-func), kommentarer/logg skrives til
+       FakturaoppfolgingLogg. Se seksjon 19 i KBD-Command-Center-prosjektstatus.md
+       for hele bakgrunnen. -->
+  <div id="tp-fakturaoppfolging" class="tp">
+    <p style="font-size:12px;color:#6b7280;margin:-4px 0 14px;display:flex;align-items:center;gap:6px">
+      <span>ℹ️</span>Åpne fakturaer synkes automatisk fra Visma flere ganger daglig. Kommentarer og status settes her og påvirker ikke Visma.
+    </p>
+    <div class="kpis" id="fo-kpis" style="grid-template-columns:repeat(4,1fr)"></div>
+
+    <div class="card" style="margin-top:14px">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <input type="text" id="fo-search" placeholder="Søk faktura, kunde eller kundenr…" oninput="setFoSearch(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px"/>
+          <div id="fo-bucket-filters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"></div>
+          <select id="fo-status-filter" onchange="setFoStatusFilter(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+            <option value="alle">Alle statuser</option>
+            <option value="Ikke kontaktet">Ikke kontaktet</option>
+            <option value="Kontaktet">Kontaktet</option>
+            <option value="Lovet betaling">Lovet betaling</option>
+            <option value="Sendt til inkasso">Sendt til inkasso</option>
+            <option value="Bestridt">Bestridt</option>
+          </select>
+          <span id="fo-bucket-sum" style="font-size:12px;color:#6b7280;white-space:nowrap"></span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="fo-kun-forfalte" checked onchange="setFoKunForfalte(this.checked)"/>
+          Vis kun forfalte
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="fo-vis-betalte" onchange="setFoVisBetalte(this.checked)"/>
+          Vis også betalte
+        </label>
+      </div>
+      <div id="fo-tabell"></div>
+    </div>
+  </div>
+
   <!-- ARBEIDSTID -->
   <div id="tp-arbeidstid" class="tp">
     <div id="arbeidstid-oversikt">
@@ -2114,6 +2381,20 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
 
+  <!-- 🚦 JOBBSTATUS (lagt til 09.09.2026) — statuslys for ALLE 13 tidsstyrte
+       bakgrunnsjobber (9 Python-timer-triggere i kbd-verifone-func + 4
+       PowerShell-jobber i kbd-kunde360-func). Leser SharePoint-lista
+       "Jobbstatus" — se jobbstatus.py for hele bakgrunnen/e-postvarslingen
+       ved rødt/uteblitt. card-public — ren lesehandling, ingen
+       handlingsknapper her, samme begrunnelse som tp-susoftrma over. -->
+  <div id="tp-jobbstatus" class="tp">
+    <div class="card card-public">
+      <div class="card-title">🚦 Jobbstatus — tidsstyrte bakgrunnsjobber</div>
+      <div class="hint">Oversikt over alle automatiske jobber i KBD Command Center (nattlige synk-jobber, varsling, SMS-utsendelse m.m.). 🟢 kjørte som forventet · 🔴 feilet, ELLER har ikke kjørt innen forventet tid («uteblitt») · ⚪ har ikke rapportert status ennå. Et rødt lys sender automatisk én e-post til Thomas (ikke gjentatt for samme pågående hendelse — se jobbstatus.py).</div>
+      <div id="jobbstatus-tabell" style="margin-top:10px"></div>
+    </div>
+  </div>
+
   <!-- INNSTILLINGER -->
   <div id="tp-innstillinger" class="tp">
     <div id="innst-produkter">
@@ -2170,6 +2451,16 @@ tr:hover td{background:#fafafa}
           <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
             <div class="fgrp"><label>Navn</label><input type="text" id="bf-navn" placeholder="Fullt navn"/></div>
             <div class="fgrp"><label>E-post</label><input type="text" id="bf-epost" placeholder="bruker@kbd.as"/></div>
+          </div>
+          <!-- Født/Startet i KBD — lagt til 12.09.2026 for bursdags-/jubileumshilsen
+               på Hjem-siden (se sjekkDagensMarkeringer()). Lagres IKKE som egne
+               SharePoint-kolonner — Tilgang-feltet på Brukere-lista er allerede en
+               fri JSON-blob (se loadBrukere()/saveBruker()), så de to datoene put
+               inn som ekstra nøkler der (tilgang.fodselsdato/tilgang.startetIKBD)
+               i stedet for å utvide selve SharePoint-skjemaet. -->
+          <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+            <div class="fgrp"><label>Født</label><input type="date" id="bf-fodt"/></div>
+            <div class="fgrp"><label>Startet i KBD</label><input type="date" id="bf-startet"/></div>
           </div>
           <div style="margin-bottom:14px">
             <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:8px">Tilgang til moduler</label>
@@ -2244,6 +2535,30 @@ tr:hover td{background:#fafafa}
     <div class="chart-wrap"><canvas id="chart-skick" height="200"></canvas></div>
     <div id="skick-yearly" style="display:grid;gap:10px;margin-bottom:16px"></div>
     <div class="tbl-wrap"><table id="tbl-skick"></table></div>
+  </div>
+
+  <!-- TRANS.AVGIFT-RAPPORT — lagt til 12.09.2026, se renderTransavgiftRapport().
+       Ren aggregering av VerifoneHistorikk/NetsHistorikk (samme rådata som
+       vises i Historikk-fanene under selve Transaksjonsavgift-menyen), gruppert
+       per kalendermåned. Ingen kundedetaljer (Thomas ønsket eksplisitt at det
+       IKKE var nødvendig) — kun totalbeløp/antall salgsordre/kvalitet per
+       leverandør per måned. Samme graf+filter+tabell-mønster som Kickback sin
+       Årssammenligning over, med én ekstra "mål"-velger (Thomas' alternativ A:
+       étt tall om gangen — Totalbeløp/Antall salgsordre/Kvalitet — i stedet for
+       å vise alle tre samtidig). -->
+  <div id="tp-transavgiftrapport" class="tp">
+    <div class="card">
+      <div class="card-title">📈 Trans.avgift-rapport — Nets og Verifone</div>
+      <div class="hint">Månedlig oversikt over hva som er fakturert i transaksjonsavgift, basert på historikken fra Verifone og Nets trans.avgift. Ingen kundedetaljer her — se «📋 Historikk» under hver leverandør i Transaksjonsavgift-menyen for det.</div>
+    </div>
+    <p class="sec-title" style="margin-top:16px">Vis</p>
+    <div class="filters" id="ta-metric-filters"></div>
+    <p class="sec-title">Leverandør</p>
+    <div class="filters" id="ta-lev-filters"></div>
+    <div class="chart-wrap"><canvas id="chart-ta" height="220"></canvas></div>
+    <div id="ta-arstotaler" style="display:grid;gap:10px;margin:16px 0 0"></div>
+    <div id="ta-maaneder" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:16px 0"></div>
+    <div class="tbl-wrap"><table id="tbl-ta"></table></div>
   </div>
 
 <!-- IMPORT MODAL -->
@@ -2380,6 +2695,14 @@ let notatDatePicker=null; // flatpickr-instans for #n-forfallsdato, satt opp i i
 // applyAccessControl() basert på tilgang.salg for vanlige brukere, alltid true
 // for admin. kundeNotater = alle rader fra SharePoint-listen "KundeNotater".
 let salgTilgang=false,kundeNotater=[];
+// fakturaoppfolging/fakturaoppfolgingLogg = arbeidsliste for oppfølging av
+// forfalte fakturaer (lagt til 10.09.2026), se undermenypunktet
+// "Fakturaoppfølging" under Aldersfordelt (renderFakturaoppfolging()).
+// Fylles fra SharePoint-listene Fakturaoppfolging/FakturaoppfolgingLogg i
+// loadDataFromSP() — samme mønster som kundeNotater over.
+let fakturaoppfolging=[],fakturaoppfolgingLogg=[];
+let foSort={col:'forfall',dir:'desc'},foVisBetalte=false,foKunForfalte=true,foSearch='',foStatusFilter='alle',foApenRad=null,foBucket='alle';
+const FO_STATUSER=['Ikke kontaktet','Kontaktet','Lovet betaling','Sendt til inkasso','Bestridt'];
 // forsteTilgangssjekkGjort: styrer om applyAccessControl() skal tvinge brukeren
 // til Hjem-fanen. Satt til true etter FØRSTE gjennomkjøring (se bunnen av
 // applyAccessControl()). Lagt til 01.09.2026 som fix for feilrapport fra
@@ -2435,6 +2758,13 @@ let susoftRmaInnstillinger={varsleSusoftAktivert:false},susoftRmaInnstillingerSp
 // sist bytte/egen kontakt) flyttet UT av vismaKunder-objektene og inn i
 // denne egne lista, der flere rader kan dele samme vismaKundeNummer.
 let sosSaker=[],sosKunder=[];
+// jobbstatusRader — Jobbstatus-lista (lagt til 09.09.2026), én rad pr.
+// tidsstyrt bakgrunnsjobb, skrevet til av jobbstatus.py (kbd-verifone-func)
+// og Report-Jobbstatus i run.ps1-filene (kbd-kunde360-func). Se
+// renderJobbstatus() og JOBBER_KONFIG under for statuslys-logikken (samme
+// forventede-intervall-tall som JOBBER i jobbstatus.py — dupliseres bevisst,
+// se den filens docstring for begrunnelsen).
+let jobbstatusRader=[];
 // sosInnstillinger — ÉN rad på SharePoint-lista SOSInnstillinger, samme
 // mønster som susoftRmaInnstillinger over. aktivert=false som trygg standard
 // helt til Thomas/Geir bevisst skrur den på. Feltnavn MÅ stemme med FELT_*-
@@ -2576,7 +2906,7 @@ function _erKbdTypiskBransje(n){
 }
 let brukere=[];
 let arbeidstid=[],asokFilter='Venter',ansattManuell=[];
-const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'utleie',label:'🔄 Utleie'},{id:'smsutsendelse',label:'📱 SMS utsendelse'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
+const MODULER=[{id:'oversikt',label:'📊 Oversikt'},{id:'lisenser',label:'📋 Lisenser'},{id:'kickback',label:'💰 Kickback'},{id:'transavgiftrapport',label:'📈 Trans.avgift-rapport'},{id:'aldersfordelt',label:'⏱️ Aldersfordelt'},{id:'fakturaoppfolging',label:'🧾 Fakturaoppfølging'},{id:'utleie',label:'🔄 Utleie'},{id:'smsutsendelse',label:'📱 SMS utsendelse'},{id:'innstillinger',label:'⚙️ Innstillinger'}];
 const CLIENT_ID="b0ff1861-62de-4ecc-8a13-fd463cb5af45";
 const TENANT_ID="c5f9c7ae-f91d-40e1-bbac-303409fa7a8d";
 const SP_SITE="kbd1.sharepoint.com:/sites/KBDDashboard";
@@ -2790,12 +3120,25 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
-  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems,sosKundeItems]=await Promise.all([
-    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[]),spGetItems('SOSSaker').catch(()=>[]),spGetItems('SOSInnstillinger').catch(()=>[]),spGetItems('SOSKunder').catch(()=>[])
+  const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems,sosKundeItems,nhItems,jsItems,foItems,folItems]=await Promise.all([
+    spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[]),spGetItems('SOSSaker').catch(()=>[]),spGetItems('SOSInnstillinger').catch(()=>[]),spGetItems('SOSKunder').catch(()=>[]),
+    // NetsHistorikk (lagt til 09.09.2026) — se vhItems/vfHistorikk over for samme mønster.
+    // Egen liste (ikke samlet med VerifoneHistorikk), besluttet av Thomas 09.09.2026.
+    spGetItems('NetsHistorikk').catch(()=>[]),
+    // Jobbstatus (lagt til 09.09.2026) — statuslys for alle 13 tidsstyrte
+    // bakgrunnsjobber, skrevet til av jobbstatus.py (kbd-verifone-func) og
+    // Report-Jobbstatus i run.ps1-filene (kbd-kunde360-func). .catch(()=>[])
+    // som resten her — lista finnes kanskje ikke ennå (se README/jobbstatus.py).
+    spGetItems('Jobbstatus').catch(()=>[]),
+    // Fakturaoppfolging/FakturaoppfolgingLogg (lagt til 10.09.2026) — se
+    // undermenypunktet "Fakturaoppfølging" under Aldersfordelt.
+    spGetItems('Fakturaoppfolging').catch(()=>[]),spGetItems('FakturaoppfolgingLogg').catch(()=>[])
   ]);
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   aging=agItems.map(i=>({id:`sp${i.id}`,spId:i.id,date:i.fields.Dato||'',d1_30:parseFloat(i.fields.D1_30)||0,d31_60:parseFloat(i.fields.D31_60)||0,d61_90:parseFloat(i.fields.D61_90)||0,d90plus:parseFloat(i.fields.D90plus)||0,note:i.fields.Note||''}));
+  fakturaoppfolging=foItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturanr:i.fields.Title||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',status:i.fields.Status||'Ikke kontaktet',belop:parseFloat(i.fields.Belop)||0,utestaende:parseFloat(i.fields.UtestaendeBelop)||0,forfallsdato:i.fields.FakturaForfallsdato||'',betaltDato:i.fields.BetaltDato||'',nesteOppfolging:i.fields.NesteOppfolging||'',notatImportert:i.fields.VismaNotatImportert||'',sistSynket:i.fields.SistSynket||''}));
+  fakturaoppfolgingLogg=folItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturanr:i.fields.Fakturanummer||'',skrevetAv:i.fields.SkrevetAv||'',type:i.fields.HenvendelseType||'',kilde:i.fields.Kilde||'',dato:i.fields.Dato||'',kommentar:i.fields.Kommentar||''}));
   omsetning=omsItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   // MERK 08.09.2026: sos*-feltene som tidligere lå direkte på vismaKunder-
   // objektene (sosAktiv/sosFarge/sosLogoPaaLokk/sosAntallBrikker/sosType/
@@ -2899,6 +3242,14 @@ async function loadDataFromSP(){
   // vfLoggHistorikk() (kalt fra vfApprove()). Kun summerte tall per faktura,
   // ikke per-kunde-detalj — se vfRenderHistorikk().
   vfHistorikk=vhItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturareferanse:i.fields.Title||'',dato:i.fields.Dato||'',totaltBelop:parseFloat(i.fields.TotaltBelop)||0,antallKunder:parseInt(i.fields.AntallKunder)||0,antallOpprettet:parseInt(i.fields.AntallOpprettet)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,antallManueltAvklart:parseInt(i.fields.AntallManueltAvklart)||0,opprettetAv:i.fields.OpprettetAv||''}));
+  // NetsHistorikk (lagt til 09.09.2026) -- samme mønster som VerifoneHistorikk
+  // over, men egen liste (ikke slått sammen), besluttet av Thomas 09.09.2026.
+  // Skrives av ntLoggHistorikk() (kalt fra ntApprove()).
+  ntHistorikk=nhItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturareferanse:i.fields.Title||'',dato:i.fields.Dato||'',totaltBelop:parseFloat(i.fields.TotaltBelop)||0,antallKunder:parseInt(i.fields.AntallKunder)||0,antallOpprettet:parseInt(i.fields.AntallOpprettet)||0,antallFeilet:parseInt(i.fields.AntallFeilet)||0,antallManueltAvklart:parseInt(i.fields.AntallManueltAvklart)||0,opprettetAv:i.fields.OpprettetAv||''}));
+  // Jobbstatus (lagt til 09.09.2026) — FELT_JS_*-navnene under må stemme med
+  // konstantene i graph_client.py (kbd-verifone-func), verifiser via Graph
+  // Explorer FØR skarp bruk, se README/Kunde360-oppsett-sjekkliste.md.
+  jobbstatusRader=jsItems.map(i=>({id:`sp${i.id}`,spId:i.id,jobbnavn:i.fields.Title||'',sistKjort:i.fields.SistKjort||'',resultat:i.fields.Resultat||'',melding:i.fields.Melding||'',varselSendt:i.fields.VarselSendt===true}));
   // SusoftRma (lagt til 04.09.2026) -- se Kunde360-oppsett-sjekkliste.md Liste 12
   // og susoft_rma_varsling.py (kbd-verifone-func) for backend-varslingen.
   // IKKE verifisert mot et faktisk SharePoint-site ennaa -- verifiser interne
@@ -4025,6 +4376,131 @@ let rmaSort={col:'saknr',dir:'desc'};
 function sortRmaBy(col){
   if(rmaSort.col===col){rmaSort.dir=rmaSort.dir==='asc'?'desc':'asc';}else{rmaSort.col=col;rmaSort.dir='asc';}
   renderRmaTabell();
+}
+
+// ===== 🚦 JOBBSTATUS (lagt til 09.09.2026) =====
+// JOBBER_KONFIG dupliserer bevisst JOBBER-konfigen i jobbstatus.py
+// (kbd-verifone-func) — samme "ingen felles konfig på tvers av
+// Python/PowerShell/JS"-mønster som resten av prosjektet allerede bruker
+// (cron-schedulene er også dupliserte som kommentarer flere steder). Hold
+// disse to i sync manuelt hvis et forventet intervall noensinne endres.
+const JOBBER_KONFIG={
+  sjekk_varslinger:{visningsnavn:'Kunde 360 – varsling forfall',maksMinutter:15},
+  send_planlagte_sms:{visningsnavn:'Planlagt SMS-utsendelse',maksMinutter:15},
+  hent_nyetableringer:{visningsnavn:'Nyetableringer – Brønnøysund',maksMinutter:26*60},
+  hent_nyetableringer_forhandlere:{visningsnavn:'Nyetableringer – forhandlerområder',maksMinutter:26*60},
+  sjekk_konkurser:{visningsnavn:'Konkursvarsling',maksMinutter:26*60},
+  sjekk_forfalte_fakturaer:{visningsnavn:'Purring-SMS (steg 1 – forfalte fakturaer)',maksMinutter:75*60},
+  fyll_pureservice_orgnr:{visningsnavn:'Pureservice org.nr-synk',maksMinutter:26*60},
+  sjekk_susoft_rma:{visningsnavn:'Susoft RMA-varsling',maksMinutter:26*60},
+  sjekk_sos_invitasjoner:{visningsnavn:'Silent Ordering-invitasjoner',maksMinutter:26*60},
+  // RETTET 10.09.2026: disse tre sto med 6*60 (6t), men jobbene kjører kun én
+  // gang i døgnet — 6t margin garanterte rødt hver kveld uten reell feil.
+  // Hevet til 26*60, samme som de andre daglige jobbene over.
+  KundeSync:{visningsnavn:'Kunde 360 – kundesynk',maksMinutter:26*60},
+  KontraktSync:{visningsnavn:'Kunde 360 – kontraktsynk (del 1 av 2)',maksMinutter:26*60},
+  KontraktSyncDel2:{visningsnavn:'Kunde 360 – kontraktsynk (del 2 av 2)',maksMinutter:26*60},
+  AldersfordeltSync:{visningsnavn:'Aldersfordelt saldo (ukentlig)',maksMinutter:9*24*60},
+};
+function jsEscapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+// Samme rød/grønn-vurdering som _er_rod() i jobbstatus.py — se den filens
+// docstring for begrunnelsen bak hver gren (uteblivelse teller som rødt,
+// akkurat som en eksplisitt feilet kjøring).
+// De 9 Python-jobbene i kbd-verifone-func rapporterer sin Melding som en
+// JSON.dumps()-streng av resultat-dicten (se function_app.py), mens de 4
+// PowerShell-jobbene i kbd-kunde360-func skriver ferdig lesbar tekst direkte
+// (se Report-Jobbstatus i hver run.ps1). JOBBSTATUS_FELT_NAVN/-SKJUL under
+// oversetter JSON-nøklene til noe lesbart for statuslys-fanen, lagt til
+// 10.09.2026 etter Thomas' tilbakemelding om at de rå JSON-meldingene var
+// vanskelige å lese sammenlignet med PowerShell-jobbenes ferdige tekst.
+const JOBBSTATUS_FELT_NAVN={
+  antallSjekket:'sjekket',antallSendt:'sendt',antallForsinket:'forsinket',
+  antallVarslet:'varslet',antallVarsletEkstern:'varslet eksternt',
+  forfalte:'forfalte',sendt:'sendt',feilet:'feilet',
+  omrade:'område',fraDato:'fra',tilDato:'til',
+  hentetHovedenheter:'hovedenheter hentet',hentetUnderenheter:'underenheter hentet',
+  nyeLagt:'nye lagt til',ekskludert:'ekskludert',kbdTreffFunnet:'KBD-treff',
+  varselSendt:'varsel sendt',kandidaterFraEndringsfeed:'kandidater sjekket',
+  kbdKunderTreff:'KBD-kunder truffet',nyeKonkurser:'nye konkurser',
+  firmaHentet:'firma hentet',manglerOrgnr:'mangler org.nr',matchet:'matchet',
+  oppdatert:'oppdatert',ikkeMatchet:'ikke matchet',
+  eksternVarslingAktivert:'ekstern varsling',
+};
+const JOBBSTATUS_FELT_SKJUL=['dryRun']; // interne teknisk-flagg, ikke interessant å vise fram
+function jsFormaterJobbVerdi(v){
+  if(Array.isArray(v)){
+    if(v.length===0)return'0';
+    if(typeof v[0]==='object'&&v[0]!==null)return v.map(jsFormaterJobbVerdi).join('; ');
+    return v.join(', ');
+  }
+  if(v&&typeof v==='object'){
+    return Object.entries(v).filter(([k])=>!JOBBSTATUS_FELT_SKJUL.includes(k)).map(([k,val])=>{
+      if(k==='feil')return`${Array.isArray(val)?val.length:0} feilet`;
+      const navn=JOBBSTATUS_FELT_NAVN[k]||k;
+      if(typeof val==='boolean')return`${navn}: ${val?'ja':'nei'}`;
+      return`${navn}: ${jsFormaterJobbVerdi(val)}`;
+    }).join(', ');
+  }
+  return String(v);
+}
+// Prøver å tolke Melding som JSON (de 9 Python-jobbene) og gjøre den lesbar;
+// er den ikke gyldig JSON (PowerShell-jobbene skriver allerede ren tekst),
+// vises den uendret. jsFormaterMeldingRaw returnerer UESCAPET tekst — brukes
+// av jobbstatusVurder() under, som selv flyter videre til steder som
+// escaper selv (renderJobbstatus/renderTrengerOppmerksomhet). jsFormaterMelding
+// (brukt direkte i renderJobbstatus sin fallback) escaper og beholder gammel
+// signatur.
+function jsFormaterMeldingRaw(meldingRaw){
+  if(!meldingRaw)return'';
+  let parsed;
+  try{parsed=JSON.parse(meldingRaw);}catch(e){return meldingRaw;}
+  return jsFormaterJobbVerdi(parsed);
+}
+function jsFormaterMelding(meldingRaw){
+  return jsEscapeHtml(jsFormaterMeldingRaw(meldingRaw));
+}
+function jobbstatusVurder(rad,konfig){
+  if(!rad)return{erRod:false,erUkjent:true,arsak:'Har aldri rapportert status'};
+  if(rad.resultat==='Feil'){
+    // FIKS 22.09.2026 (Thomas' tilbakemelding): viste tidligere alltid en fast
+    // generisk tekst her og kastet bort den faktiske feilmeldingen som
+    // run.ps1/jobbstatus.py sin catch-blokk allerede lagrer i rad.melding —
+    // måtte inn i Azure Portal for å se hva som faktisk gikk galt. Vis nå den
+    // ekte meldingen direkte i dashbordet (både Jobbstatus-fanen og "Trenger
+    // oppmerksomhet"); fall kun tilbake til generisk tekst hvis meldingen av
+    // en eller annen grunn mangler (f.eks. at selve rapporteringen også
+    // feilet stille, se Report-Jobbstatus sin egen try/catch).
+    const feilTxt=jsFormaterMeldingRaw(rad.melding);
+    return{erRod:true,erUkjent:false,arsak:feilTxt||'Siste kjøring feilet (ingen feilmelding lagret)'};
+  }
+  if(!rad.sistKjort)return{erRod:true,erUkjent:false,arsak:'Ugyldig/manglende tidsstempel'};
+  const minutterSiden=(Date.now()-new Date(rad.sistKjort).getTime())/60000;
+  if(minutterSiden>konfig.maksMinutter){
+    return{erRod:true,erUkjent:false,arsak:`Har ikke kjørt på ${(minutterSiden/60).toFixed(1)} t (forventet innen ${(konfig.maksMinutter/60).toFixed(1)} t)`};
+  }
+  return{erRod:false,erUkjent:false,arsak:''};
+}
+function renderJobbstatus(){
+  const el=document.getElementById('jobbstatus-tabell');
+  if(!el)return;
+  if(jobbstatusRader.length===0){
+    el.innerHTML='<p class="hint">Ingen data ennå — «Jobbstatus»-lista er enten ikke opprettet ennå i SharePoint, eller ingen av jobbene har rapportert status ennå. Se README.md i kbd-verifone-func for oppsett.</p>';
+    return;
+  }
+  const radHtml=Object.entries(JOBBER_KONFIG).map(([jobbnavn,konfig])=>{
+    const rad=jobbstatusRader.find(r=>r.jobbnavn===jobbnavn);
+    const{erRod,erUkjent,arsak}=jobbstatusVurder(rad,konfig);
+    const lys=erUkjent?'⚪':(erRod?'🔴':'🟢');
+    const sistKjortTxt=rad&&rad.sistKjort?new Date(rad.sistKjort).toLocaleString('nb-NO'):'—';
+    const arsakTxt=erUkjent?'':(arsak?jsEscapeHtml(arsak):jsFormaterMelding(rad?rad.melding:''));
+    return`<tr>
+      <td style="white-space:nowrap">${lys}</td>
+      <td>${jsEscapeHtml(konfig.visningsnavn)}<div class="hint" style="margin:0">${jobbnavn}</div></td>
+      <td style="white-space:nowrap">${sistKjortTxt}</td>
+      <td>${arsakTxt}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Status</th><th>Jobb</th><th>Sist kjørt</th><th>Detaljer</th></tr></thead><tbody>${radHtml}</tbody></table></div>`;
 }
 
 function renderSusoftRma(){
@@ -5449,6 +5925,18 @@ function handleDeepLink(){
   },150);
 }
 
+// Knapp for å slå opp selskapet direkte på Proff.no (søker på org.nr for
+// eksakt treff — samme «kun ved eksplisitt knappetrykk, ingen automatisk
+// henting»-filosofi som Gule Sider/Proff-lenken på daglig leder i
+// hentBrregInfo() over). Lagt til 10.09.2026, brukt på begge
+// kundekort-variantene (ordinært Visma-kort og prospekt-/manuelt kort) for
+// konsistens, samme presedens som k360-nokkeltall.
+function seProffKnappHtml(orgNr,navn){
+  const nr=normOrgNr(orgNr);
+  if(nr.length!==9)return'';
+  return`<a class="btn-sm" href="https://www.proff.no/bransjes%C3%B8k?q=${nr}" target="_blank" rel="noopener" style="text-decoration:none;white-space:nowrap;align-self:center" title="Søk «${(navn||'').replace(/"/g,'')}» (org.nr ${nr}) på Proff.no (åpner i ny fane, ingen automatisk henting)">🔍 Se Proff</a>`;
+}
+
 function renderKundeKort(k){
   if(k.erProspekt){renderProspektKundeKort(k);return;}
   const kNr=String(k.vismaNummer||'').trim();
@@ -5460,7 +5948,14 @@ function renderKundeKort(k){
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div>
-          <div style="font-size:34px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.15">${k.navn||'(uten navn)'}</div>
+          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn||'(uten navn)'}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
+              ${seProffKnappHtml(k.orgNr,k.navn)}
+              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
+            </div>
+          </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · Visma-nr ${k.vismaNummer||'—'} · ${k.status||'—'}</div>
         </div>
       </div>
@@ -5473,13 +5968,7 @@ function renderKundeKort(k){
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
-            <p class="sec-title" style="margin-bottom:0">Kontaktinfo (Visma)</p>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
-              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
-            </div>
-          </div>
+          <p class="sec-title">Kontaktinfo (Visma)</p>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
               <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
@@ -5549,7 +6038,14 @@ function renderProspektKundeKort(k){
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div>
-          <div style="font-size:34px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.15">${k.navn||'(uten navn)'}</div>
+          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn||'(uten navn)'}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
+              ${seProffKnappHtml(k.orgNr,k.navn)}
+              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
+            </div>
+          </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · ${k.manueltOpprettet?'📞 Manuelt registrert':'🆕 Ny etablering'} — ikke registrert som kunde i Visma ennå</div>
         </div>
       </div>
@@ -5558,13 +6054,7 @@ function renderProspektKundeKort(k){
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
-            <p class="sec-title" style="margin-bottom:0">Kontaktinfo</p>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
-              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
-            </div>
-          </div>
+          <p class="sec-title">Kontaktinfo</p>
           <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
@@ -5584,6 +6074,17 @@ function renderProspektKundeKort(k){
           <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
         </div>
       </div>
+
+      <!-- k360-nokkeltall (lagt til her 10.09.2026) — fantes fra før KUN på
+           det ordinære Visma-kundekortet (renderKundeKort()), ikke her. Feilen
+           ble oppdaget da Thomas testet på nettopp et manuelt/prospekt-kort og
+           ikke så panelet i det hele tatt. Nøkkeltallene kommer fra
+           Regnskapsregisteret via org.nr, helt uavhengig av Visma-status, så
+           det er ingen grunn til at det skal mangle her — fylles av samme
+           hentBrregInfo()/renderNokkeltall() som resten av kortet, trigges av
+           «Hent fra Brønnøysundregistrene»-knappen over, akkurat som
+           k360-brreg. -->
+      <div id="k360-nokkeltall"></div>
 
       ${renderKundeNotaterHTML(k)}
     </div>
@@ -5723,7 +6224,7 @@ const K360_NOTAT_FARGER={Notat:{c:'#6b7280',bg:'#f3f4f6'},Tilbud:{c:'#6d28d9',bg
 // Sortering: samme mønster som Utleie-fanens sortUtleieBy()/sh-*-spennene.
 let kundesakerSort={col:'forfallsdato',dir:'asc'};
 let kundesakerTypeFilter='alle'; // 'alle'/'Notat'/'Tilbud'/'Oppfølging'
-let kundesakerBrukerFilter='alle'; // 'alle' viser ALLE kollegers saker, ikke bare innlogget bruker — se renderKundesaker()
+let kundesakerBrukerFilter=null; // null = ikke satt ennå (kun ved aller første rendering denne økten) — se default-logikken i renderKundesaker(), som setter den til innlogget bruker. 'alle' viser ALLE kollegers saker og er et eksplisitt valg (dropdown/nullstill), ikke standardverdien lenger.
 let kundesakerVisLukkede=false;
 let kundesakerSearch=''; // fritekstsøk på firmanavn/tittel, samme "likt søkefelt"-ønske som Kunde 360-forsiden, 28.08.2026
 
@@ -5742,17 +6243,52 @@ function renderKundesaker(){
 
   const grunnlag=kundesakerVisLukkede?kundeNotater:kundeNotater.filter(n=>n.status==='Åpen');
 
+  // Søkbar kunde-pool = ekte Visma-kunder + prospekter overført fra
+  // Nyetableringer, samme mønster som searchKunder360() — slik at "Ansvarlig"
+  // og firmanavnet stemmer uansett om Visma-synken har kjørt for kunden ennå.
+  // Flyttet hit (før type-knappene) i v1.48.127 — navnFor trengs nå av
+  // søkefilteret i personGrunnlag, som igjen brukes av knappetellerne.
+  const alleKunder=[...vismaKunder,...hentProspektKunder()];
+  const finnKunde=n=>alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+  const navnFor=n=>n.kundeNavn||finnKunde(n)?.navn||'Ukjent kunde';
+
+  // brukerListe + default for kundesakerBrukerFilter — flyttet hit (før
+  // type-knappene) i v1.48.127. Må være avklart FØR personGrunnlag bygges,
+  // siden knappetellerne (Alle/Notat/Tilbud/Oppfølging) nå skal telle per
+  // valgt ansvarlig+søk, ikke på hele det ufiltrerte grunnlaget.
+  const brukerListe=[...new Set(kundeNotater.map(n=>n.opprettetAv).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nb'));
+  if(kundesakerBrukerFilter===null){
+    // Første rendering denne økten — defaulter til innlogget bruker (samme
+    // navnekilde som fyllAnsvarligSelect() bruker: currentUser.name/username)
+    // dersom vedkommende faktisk har egne saker i lista, ellers 'alle' (så
+    // f.eks. en helt ny selger ikke bare ser en tom liste). Lagt til
+    // 10.09.2026 på Thomas' ønske — måtte før velge seg selv manuelt hver
+    // gang han åpnet Kundesaker-fanen. «✕ Nullstill filtre» går fortsatt til
+    // 'alle' (vis alle), ikke tilbake til denne default-logikken.
+    const mittNavn=currentUser?.name||currentUser?.username||'';
+    kundesakerBrukerFilter=brukerListe.includes(mittNavn)?mittNavn:'alle';
+  }
+  if(kundesakerBrukerFilter!=='alle'&&!brukerListe.includes(kundesakerBrukerFilter))kundesakerBrukerFilter='alle';
+
+  // personGrunnlag = grunnlag filtrert på valgt ansvarlig + søk (IKKE type) —
+  // NY v1.48.127 (23.09.2026, Thomas' ønske). Brukes både som grunnlag for
+  // knappetellerne (antall()) og som utgangspunkt for rader, slik at
+  // type-knappenes tall faktisk reflekterer valgt person/søk — før dette
+  // viste knappene alltid totalen for ALLE ansvarlige/uansett søk, selv når
+  // man hadde filtrert på en enkelt selger.
+  let personGrunnlag=grunnlag;
+  if(kundesakerBrukerFilter!=='alle')personGrunnlag=personGrunnlag.filter(n=>n.opprettetAv===kundesakerBrukerFilter);
+  if(kundesakerSearch)personGrunnlag=personGrunnlag.filter(n=>navnFor(n).toLowerCase().includes(kundesakerSearch)||(n.tittel||'').toLowerCase().includes(kundesakerSearch));
+
   const filterDiv=document.getElementById('kundesaker-filters');
   if(filterDiv){
-    const antall=t=>t==='alle'?grunnlag.length:grunnlag.filter(n=>n.type===t).length;
+    const antall=t=>t==='alle'?personGrunnlag.length:personGrunnlag.filter(n=>n.type===t).length;
     const pill=(val,lbl,farge)=>`<button class="fpill${kundesakerTypeFilter===val?' f-on':''}" style="${kundesakerTypeFilter===val?`border-color:${farge}`:''}" onclick="setKundesakerTypeFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${kundesakerTypeFilter===val?`font-weight:600;color:${farge}`:''}">${lbl} (${antall(val)})</span></button>`;
     filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Notat','Notat',K360_NOTAT_FARGER.Notat.c)+pill('Tilbud','Tilbud',K360_NOTAT_FARGER.Tilbud.c)+pill('Oppfølging','Oppfølging',K360_NOTAT_FARGER.Oppfølging.c);
   }
 
   const dropdownDiv=document.getElementById('kundesaker-dropdown-filters');
   if(dropdownDiv){
-    const brukerListe=[...new Set(kundeNotater.map(n=>n.opprettetAv).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nb'));
-    if(kundesakerBrukerFilter!=='alle'&&!brukerListe.includes(kundesakerBrukerFilter))kundesakerBrukerFilter='alle';
     const opts=`<option value="alle"${kundesakerBrukerFilter==='alle'?' selected':''}>Alle ansvarlige</option>`+brukerListe.map(b=>`<option value="${b.replace(/"/g,'&quot;')}"${kundesakerBrukerFilter===b?' selected':''}>${b}</option>`).join('');
     const lukketToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
       <input type="checkbox" id="kundesaker-lukket-toggle" ${kundesakerVisLukkede?'checked':''} onchange="setKundesakerVisLukkede(this.checked)"/>
@@ -5768,17 +6304,12 @@ function renderKundesaker(){
   const target=document.getElementById('kundesaker-tabell');
   if(!target)return;
 
-  // Søkbar kunde-pool = ekte Visma-kunder + prospekter overført fra
-  // Nyetableringer, samme mønster som searchKunder360() — slik at "Ansvarlig"
-  // og firmanavnet stemmer uansett om Visma-synken har kjørt for kunden ennå.
-  const alleKunder=[...vismaKunder,...hentProspektKunder()];
-  const finnKunde=n=>alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
-  const navnFor=n=>n.kundeNavn||finnKunde(n)?.navn||'Ukjent kunde';
-
-  let rader=grunnlag.slice();
+  // rader tar nå utgangspunkt i personGrunnlag (allerede filtrert på
+  // ansvarlig+søk over) — kun type-filteret gjenstår å anvende her.
+  // De gamle ansvarlig-/søkefiltrene direkte på rader er fjernet i v1.48.127,
+  // siden personGrunnlag nå dekker akkurat det.
+  let rader=personGrunnlag.slice();
   if(kundesakerTypeFilter!=='alle')rader=rader.filter(n=>n.type===kundesakerTypeFilter);
-  if(kundesakerBrukerFilter!=='alle')rader=rader.filter(n=>n.opprettetAv===kundesakerBrukerFilter);
-  if(kundesakerSearch)rader=rader.filter(n=>navnFor(n).toLowerCase().includes(kundesakerSearch)||(n.tittel||'').toLowerCase().includes(kundesakerSearch));
 
   if(rader.length===0){
     target.innerHTML=`<div class="empty">Ingen ${kundesakerVisLukkede?'':'åpne '}saker matcher valgte filtre${kundesakerSearch?'/søket':''}.
@@ -7419,6 +7950,137 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.127',dato:'23.09.2026',punkter:[
+    'Kunde360 → Kundesaker: type-knappene (Alle/Notat/Tilbud/Oppfølging) viste tidligere alltid antall saker for ALLE ansvarlige/uansett søk, selv om man hadde filtrert på én selger eller søkt opp et firma — nå regner knappetallene ut fra samme person-/søkefilter som resten av lista viser, så tallene faktisk stemmer med det du ser.'
+  ]},
+  {versjon:'v1.48.126',dato:'22.09.2026',punkter:[
+    'Jobbstatus (både fanen og «🔔 Trenger oppmerksomhet»): en rød/feilet jobb viste tidligere kun en fast tekst «Siste kjøring feilet» — nå vises den faktiske feilmeldingen fra jobben direkte, uten å måtte inn i Azure Portal for å se hva som gikk galt.'
+  ]},
+  {versjon:'v1.48.125',dato:'12.09.2026',punkter:[
+    '«🔔 Trenger oppmerksomhet»: Utleie-påminnelser var ikke klikkbare (manglet fanebytte til Utleie) — fikset. Klikk hopper nå riktig til raden i Utleieoversikt, samme som de andre punktene i lista.'
+  ]},
+  {versjon:'v1.48.124',dato:'12.09.2026',punkter:[
+    '«🔔 Trenger oppmerksomhet» på Hjem-siden tar nå også med forfalte Kundesaker (Notat/Tilbud/Oppfølging fra Kunde360) som du selv er ansvarlig for — manglet i første versjon av seksjonen.'
+  ]},
+  {versjon:'v1.48.123',dato:'12.09.2026',punkter:[
+    'Hjem-siden: hele «Snarveier»-seksjonen fjernet, inkludert «+ Ny utleie» og «+ Ny reservasjon» — Thomas sitt ønske om at ingen snarveier skal ligge på forsiden. Begge funksjonene finnes fortsatt under sine egne faner (Utleie og Reservasjon).'
+  ]},
+  {versjon:'v1.48.122',dato:'12.09.2026',punkter:[
+    'Hjem-siden: fjernet snarveien «🏋️ Søk om arbeidstid» fra Snarveier — siste rest av Gymtimen på forsiden, nå som ukeoversikten allerede er borte derfra. Fortsatt fullt tilgjengelig under Gymtimen-fanen i menyen.'
+  ]},
+  {versjon:'v1.48.121',dato:'12.09.2026',punkter:[
+    'Hjem-siden fornyet (sparring med Thomas): full ukeoversikt for Gymtimen fjernet fra forsiden (finnes fortsatt under Gymtimen-fanen). Ny «🔔 Trenger oppmerksomhet»-seksjon samler RMA-saker tildelt deg, forfalt fakturaoppfølging, utleie uten registrert retur og røde Jobbstatus-jobber ett sted, med direkte lenke til hver sak. Ny «📣 Siste kunngjøring»-seksjon løfter frem de nyeste kunngjøringene. Ny bursdags-/jubileumshilsen med konfetti når noen har fødselsdag eller årsjubileum i KBD — «Født» og «Startet i KBD» kan nå fylles inn under Innstillinger → Brukertilgang → Rediger bruker.'
+  ]},
+  {versjon:'v1.48.120',dato:'12.09.2026',punkter:[
+    'Brukertilgang: «Fakturaoppfølging»-overskriften i tabellen brytes nå kontrollert som «Faktura / oppfølging» (i stedet for at nettleseren brøt midt i et vilkårlig tegn) — Thomas sitt ønske etter forrige fiks.'
+  ]},
+  {versjon:'v1.48.119',dato:'12.09.2026',punkter:[
+    'Brukertilgang-tabellen: overskriftene gikk over i hverandre etter at Trans.avgift-rapport og Fakturaoppfølging kom til som nye kolonner. Faste kolonnebredder (colgroup) og tekstbryting på overskriftene fikser dette, og hele tabellen er lagt i en horisontalt scrollbar beholder som sikkerhet mot enda flere fremtidige moduler.'
+  ]},
+  {versjon:'v1.48.118',dato:'12.09.2026',punkter:[
+    'Aldersfordelt er nå ett enkelt menypunkt uten undermeny (samme forenkling som Susoft RMA/Idébank) — den overflødige "Saldo"-undermenyen er fjernet.',
+    'Ny «🧾 Fakturaoppfølging» under DRIFT (mellom Silent Ordering System og Gymtimen), med «🔔 Purring-SMS» som eneste underpunkt — flyttet ut av Aldersfordelt.',
+    'Fakturaoppfølging/Purring-SMS har nå sin egen, uavhengige tilgangsstyring (ny FAKTURAOPPFØLGING-kolonne i Brukertilgang) i stedet for å dele tilgang.aldersfordelt — starter avhuket for alle brukere, inkl. Veronika (Mirrow), inntil Thomas velger hvem som skal ha tilgang.'
+  ]},
+  {versjon:'v1.48.117',dato:'12.09.2026',punkter:[
+    'Trans.avgift-rapport: lagt til årstotal-kort (fra og med 2025, med %-endring vs. forrige år) mellom grafen og månedskortene — samme mønster som årskortene på Lisenser/Kickback sin Årssammenligning.'
+  ]},
+  {versjon:'v1.48.116',dato:'12.09.2026',punkter:[
+    'Lagt til en tynn skillelinje under RAPPORTER/DRIFT/ADMIN-overskriftene i venstremenyen — Thomas sitt forslag for å gi dem litt mer visuell tyngde.'
+  ]},
+  {versjon:'v1.48.115',dato:'12.09.2026',punkter:[
+    'Overskriftene RAPPORTER/DRIFT/ADMIN i venstremenyen er gjort tydeligere (mørkere og litt større) — Thomas syntes de var for diskrete sammenlignet med resten av menyen.'
+  ]},
+  {versjon:'v1.48.114',dato:'12.09.2026',punkter:[
+    'Venstremenyen er delt inn i tre grupper — RAPPORTER (Lisenser/Kickback/Trans.avgift-rapport/Aldersfordelt), DRIFT (Kunde360 og nedover) og ADMIN (Idébank/Jobbstatus/Innstillinger) — for bedre oversikt.',
+    '«Oversikt» er skjult inntil videre (samme innhold finnes fordelt på Lisenser og Kickback).',
+    'Ny «📈 Trans.avgift-rapport» under RAPPORTER — månedlig graf/tabell over hva som er fakturert i Nets/Verifone trans.avgift, med valg mellom Totalbeløp/Antall salgsordre/Kvalitet og filter på leverandør. Bygget kun på det som allerede logges i Historikk-listene, ingen kundedetaljer.'
+  ]},
+  {versjon:'v1.48.113',dato:'11.09.2026',punkter:[
+    'Ny utleie: Kunde-feltet er nå et Visma-søk (samme mønster som RMA/SOS-kunde/SOS-sak/Verifone/Nets) i stedet for rått fritekstfelt — søk på navn eller org.nr, eller la det stå som fritekst hvis kunden ikke finnes i Visma.'
+  ]},
+  {versjon:'v1.48.112',dato:'11.09.2026',punkter:[
+    'Purring-SMS flyttet fra «SMS utsendelse» til en ny undermeny under «⏱️ Aldersfordelt» (sammen med Fakturaoppfølging) — naturlig samlokalisering siden begge handler om forfalte fakturaer. OBS: dette betyr at Veronika (Mirrow) nå også ser Purring-SMS, siden hun allerede har tilgang til resten av Aldersfordelt-menyen.'
+  ]},
+  {versjon:'v1.48.111',dato:'11.09.2026',punkter:[
+    'Fakturaoppfølging — flere forbedringer i loggpanelet etter tilbakemelding fra Thomas: (1) større skrift i kommentarfeltet, (2) status og neste oppfølging vises nå som en liten oppsummering øverst til høyre for «Oppfølgingslogg» (i tillegg til feltene i skjemaet), (3) fakturaraden får en tydelig ramme/utheving mens loggpanelet under er åpent, og (4) et 💬-ikon i oversikten viser hvilke fakturaer som har kommentarer fra før — enten egen logg eller importert Visma-notat.'
+  ]},
+  {versjon:'v1.48.110',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: «Forfalt antall» og «Forfalt beløp»-kortene oppdaterer seg nå live når man velger en aldersgruppe (1–30/31–60/61–90/Over 90 dager) eller «Alle» i pill-filteret, i stedet for alltid å vise summen for alle forfalte fakturaer.'
+  ]},
+  {versjon:'v1.48.109',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: flyttet statusfilteret («Alle statuser» osv.) til høyre for aldersgruppe-pillsene, rett etter «Over 90 dager» — antall/beløp-sammendraget kommer nå etterpå igjen.'
+  ]},
+  {versjon:'v1.48.108',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: delt opp KPI-kortet «Forfalt» i to egne felt («Forfalt antall» og «Forfalt beløp», begge i rødt) — nå 4 like KPI-kort på rad i stedet for 3.'
+  ]},
+  {versjon:'v1.48.107',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: flyttet de nye aldersgruppe-filtrene til høyre for søkefeltet (samme rad), og lagt til antall fakturaer + sum utestående beløp som vises når du velger en spesifikk periode (f.eks. «31–60 dager»).'
+  ]},
+  {versjon:'v1.48.106',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: lagt til samme fargede filterrad som i Aldersfordelt («Vis: Alle / 1–30 / 31–60 / 61–90 / Over 90 dager») for raskt å avgrense arbeidslisten til én aldersgruppe om gangen.'
+  ]},
+  {versjon:'v1.48.105',dato:'10.09.2026',punkter:[
+    'Fakturaoppfølging: lagt til en «Vis kun forfalte»-bryter (PÅ som standard) — listen viser nå kun fakturaer som faktisk har passert forfallsdato, ikke alle åpne fakturaer. Skru av for å se hele lista igjen.'
+  ]},
+  {versjon:'v1.48.104',dato:'10.09.2026',punkter:[
+    'Ny undermeny «🧾 Fakturaoppfølging» under Aldersfordelt: sorterbar liste over alle åpne fakturaer (kontaktinfo, beløp/utestående, forfalt, prioriteringsscore, status og neste oppfølging), med søk, statusfilter og mulighet til å skjule/vise betalte fakturaer. Hver faktura har en egen logg for å registrere henvendelser (telefon/e-post/SMS) og oppdatere status/neste oppfølging — henter automatisk inn eksisterende notater fra Visma.'
+  ]},
+  {versjon:'v1.48.103',dato:'10.09.2026',punkter:[
+    'Fjernet en duplisert id="kf-src" på Kickback-skjemaets kilde-nedtrekksmeny (skrevet to ganger på samme element ved en feil tidligere — ufarlig i praksis siden nettlesere bruker den første, men plukket opp av det nye automatiske pre-publish-sjekket og ryddet bort).'
+  ]},
+  {versjon:'v1.48.102',dato:'10.09.2026',punkter:[
+    '🚦 Jobbstatus: rettet feil terskel for «Kunde 360 – kundesynk/kontraktsynk (del 1 og 2)» — sto med 6 timers margin selv om jobbene kun kjører én gang i døgnet, som garanterte rødt lys (og falsk e-postvarsel) hver ettermiddag/kveld uten at noe faktisk var galt. Hevet til 26 timer, samme margin som de andre daglige jobbene.'
+  ]},
+  {versjon:'v1.48.101',dato:'10.09.2026',punkter:[
+    'Kundesaker: «Ansvarlig»-filteret defaulter nå til innlogget bruker første gang man åpner fanen denne økten (i stedet for «Alle ansvarlige»), forutsatt at brukeren faktisk har egne saker i lista. «✕ Nullstill filtre» går fortsatt til «Alle ansvarlige».'
+  ]},
+  {versjon:'v1.48.100',dato:'10.09.2026',punkter:[
+    'Kunde 360: byttet rekkefølge på «🔍 Gule Sider» og «📱 Send SMS»-knappene ved selskapsnavnet (begge kortvarianter) — Gule Sider kommer nå før Send SMS.'
+  ]},
+  {versjon:'v1.48.99',dato:'10.09.2026',punkter:[
+    'Kunde 360: «📱 Send SMS» og «🔍 Gule Sider»-knappene flyttet opp ved siden av «🔍 Se Proff» og selskapsnavnet øverst på kortet (begge kortvarianter), i stedet for i Kontaktinfo-seksjonen lenger ned — samler alle de tre eksterne oppslags-/handlingsknappene på ett sted.'
+  ]},
+  {versjon:'v1.48.98',dato:'10.09.2026',punkter:[
+    'Kunde 360: ny «🔍 Se Proff»-knapp til høyre for selskapsnavnet på kundekortet (begge kortvarianter) — søker opp org.nr direkte på Proff.no i ny fane, samme prinsipp som Proff-lenken på daglig leder under «Brønnøysundregistrene».'
+  ]},
+  {versjon:'v1.48.97',dato:'10.09.2026',punkter:[
+    'Kunde 360: «Nøkkeltall»-panelet manglet på kundekortet for manuelt registrerte/prospekt-kunder (kun det ordinære Visma-kundekortet hadde det) — lagt til der også, siden tallene kommer fra org.nr uavhengig av Visma-status.'
+  ]},
+  {versjon:'v1.48.96',dato:'10.09.2026',punkter:[
+    'Kunde 360-kundekortet: «Nøkkeltall»-panelet (soliditet/likviditet/lønnsomhet fra Brønnøysunds Regnskapsregister) hentet nå faktisk data — det har vært synlig, men alltid vist «kunne ikke hentes» siden det ble bygget 19.08.2026, fordi API-et ikke tillater kall direkte fra nettleseren. Går nå via et nytt endepunkt i kbd-verifone-func i stedet.'
+  ]},
+  {versjon:'v1.48.95',dato:'10.09.2026',punkter:[
+    'Justert skillelinjen i venstremenyen enda ett hakk opp — ligger nå mellom «Gymtimen» og «Idébank og utvikling».'
+  ]},
+  {versjon:'v1.48.94',dato:'10.09.2026',punkter:[
+    'Flyttet skillelinjen i venstremenyen opp til mellom «Idébank og utvikling» og «Jobbstatus» (i stedet for mellom Jobbstatus og Innstillinger), og gjort den litt tydeligere.'
+  ]},
+  {versjon:'v1.48.93',dato:'10.09.2026',punkter:[
+    '🚦 Jobbstatus: lyskolonnen har nå kolonneoverskriften «Status», og «Detaljer»-kolonnen for jobbene i kbd-verifone-func (som rapporterer med rå JSON) vises nå oversatt til lesbar norsk tekst, samme stil som kbd-kunde360-func-jobbenes ferdige tekst.'
+  ]},
+  {versjon:'v1.48.92',dato:'09.09.2026',punkter:[
+    'Ny fane «🚦 Jobbstatus»: statuslys-oversikt for alle 13 tidsstyrte bakgrunnsjobber (nattlige synk-jobber, varsling, SMS-utsendelse m.m.) — 🟢 kjørte som forventet, 🔴 feilet eller «uteblitt» (ikke kjørt innen forventet tid), ⚪ har ikke rapportert ennå. Et rødt lys sender automatisk e-post til Thomas. Krever ny SharePoint-liste «Jobbstatus» og backend-endringer i kbd-verifone-func/kbd-kunde360-func — se prosjektstatus for oppsett.'
+  ]},
+  {versjon:'v1.48.91',dato:'09.09.2026',punkter:[
+    'Flyttet «🏋️ Gymtimen» i venstremenyen til mellom Silent Ordering System og Idébank og utvikling.'
+  ]},
+  {versjon:'v1.48.90',dato:'09.09.2026',punkter:[
+    'Rettet forskjøvne kolonneoverskrifter i detaljvisningen for godkjente Nets-/Verifone-kunder (Antall/Beløp-overskriftene var venstrejustert mens tallene under var høyrejustert).'
+  ]},
+  {versjon:'v1.48.89',dato:'09.09.2026',punkter:[
+    'Nets trans.avgift: salgsordrene splittes nå på korttype (BankAxept/Visa-Mastercard/Diners m.fl.) i stedet for å slås sammen til én linje med snittpris — hver korttype får sin egen ordrelinje med riktig Nets-pris. Detaljvisningen for en godkjent kunde viser nå korttype og pris/stk for hver linje.'
+  ]},
+  {versjon:'v1.48.88',dato:'09.09.2026',punkter:[
+    'Under «Transaksjonsavgift»: fjernet det overflødige «📤 Ny faktura»-underpunktet for Verifone og Nets — det gjorde nøyaktig det samme som å trykke på selve leverandørnavnet («Verifone trans.avgift»/«Nets trans.avgift») rett over. «📋 Historikk» er nå eneste underpunkt for hver av dem.'
+  ]},
+  {versjon:'v1.48.87',dato:'09.09.2026',punkter:[
+    'Venstremenyen: «Verifone trans.avgift» og «Nets trans.avgift» ligger nå samlet under ett nytt menypunkt «Transaksjonsavgift», i stedet for to separate menypunkter. Ny faktura/Historikk-underpunktene for hver av dem er uendret, bare flyttet inn under den nye samlefanen.'
+  ]},
+  {versjon:'v1.48.86',dato:'09.09.2026',punkter:[
+    'Ny fane «🧾 Nets trans.avgift» — automatisert viderefakturering av Nets sin transaksjonsavgift, samme arbeidsflyt som Verifone trans.avgift: last opp Nets-faktura (PDF), automatisk matching mot kunder via BAX-nummer, gjennomgang/godkjenning, og opprettelse av salgsordre-utkast i Visma.net (status «Hold», klar for kontroll før den sendes til kunde). Egen historikk-logg («📋 Historikk»-underfanen).',
+    'For Nets brukes prisen som står på selve Nets-fakturaen direkte — ikke et fast KBD-pristillegg som for Verifone.'
+  ]},
   {versjon:'v1.48.85',dato:'09.09.2026',punkter:[
     'Susoft RMA: alle kolonner i sakstabellen kan nå sorteres stigende/synkende ved å klikke på kolonneoverskriften (Sak nr, Kunde, Maskin/Serienr., Forhandler, Ansvarlig, Status, Sendt Susoft, Mottatt fra Susoft) — samme sorteringsmønster som Kunde 360/Nyetableringer/Utleie. Status sorteres etter saksflytens rekkefølge (Feilmelding mottatt → … → Ferdig), ikke alfabetisk. Standardvisning er nå Sak nr synkende (nyeste sak øverst), i praksis samme rekkefølge som før.'
   ]},
@@ -7967,10 +8629,14 @@ function renderNokkeltall(regnskap){
   `;
 }
 
-function renderNokkeltallCorsBlokkert(){
+// Erstatter det tidligere renderNokkeltallCorsBlokkert() (10.09.2026) — nå
+// som kallet går via backend (se hentBrregInfo()) er CORS ikke lenger en
+// mulig feilårsak, så meldingen må dekke faktiske feil (backend nede, feil
+// fra Regnskapsregisteret, e.l.) i stedet for å alltid peke på CORS.
+function renderNokkeltallFeil(melding){
   const target=document.getElementById('k360-nokkeltall');
   if(!target)return;
-  target.innerHTML='<p class="sec-title">Nøkkeltall</p><div class="tbl-wrap"><div class="empty">Regnskapstall kunne ikke hentes direkte — dette API-et tillater ikke kall fra nettleseren (CORS), bekreftet 19.08.2026. Løses med en liten mellomtjener som kommer sammen med Azure-oppsettet for Visma-synken.</div></div>';
+  target.innerHTML=`<p class="sec-title">Nøkkeltall</p><div class="tbl-wrap"><div class="empty">Regnskapstall kunne ikke hentes: ${melding||'ukjent feil'}</div></div>`;
 }
 
 async function hentBrregInfo(orgNr){
@@ -8021,19 +8687,35 @@ async function hentBrregInfo(orgNr){
   }
 
   // Regnskapstall — eget forsøk, egen feilhåndtering. Dette API-et sender ikke
-  // CORS-headere (bekreftet i praksis 19.08.2026), så et direkte nettleserkall
-  // vil alltid feile inntil vi har en liten mellomtjener foran det (kommer
-  // sammen med Azure Function-oppsettet som allerede er under arbeid for
-  // Visma-synken — samme løsning, ett kall til).
-  try{
-    const regnskapRes=await fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${nr}`);
-    if(!regnskapRes.ok)throw new Error(`HTTP ${regnskapRes.status}`);
-    const regnskap=await regnskapRes.json();
-    console.log('Regnskapsregisteret-respons (for feltnavn-verifisering):',regnskap);
-    renderNokkeltall(Array.isArray(regnskap)?regnskap[0]:regnskap);
-  }catch(e){
-    console.warn('Regnskapstall kunne ikke hentes direkte (trolig CORS):',e);
-    renderNokkeltallCorsBlokkert();
+  // CORS-headere, så et direkte nettleserkall fra nettleseren feiler alltid
+  // (bekreftet i praksis 19.08.2026). Går derfor via kbd-verifone-func sitt
+  // nye /api/regnskapstall-endepunkt (lagt til 10.09.2026, "mellomtjeneren"
+  // denne kommentaren tidligere varslet om) — samme Azure AD-innloggings-
+  // mønster (vfGetApiToken()/vfApiUrl()) som /api/pureservice_saker og
+  // /api/sms_saldo over. Backend videresender responsen uendret (ingen
+  // hemmelighet å skjule her, kun CORS å omgå — se regnskapstall_client.py).
+  if(!VF_CONFIG.baseUrl){
+    renderNokkeltallFeil('ikke koblet til Azure Function ennå');
+  }else{
+    try{
+      const token=await vfGetApiToken();
+      const regnskapRes=await fetch(vfApiUrl(`/api/regnskapstall?orgnr=${nr}`),{
+        headers:{'Authorization':`Bearer ${token}`},
+      });
+      const regnskap=await regnskapRes.json();
+      if(!regnskapRes.ok)throw new Error(regnskap?.error||`HTTP ${regnskapRes.status}`);
+      console.log('Regnskapsregisteret-respons (for feltnavn-verifisering):',regnskap);
+      // Nyeste år først (API-et returnerer en samling, ikke bare siste år) —
+      // sorter på regnskapsperiode.tilDato, ikke bare regnskap[0], siden
+      // rekkefølgen fra API-et ikke er dokumentert garantert.
+      const nyeste=Array.isArray(regnskap)&&regnskap.length
+        ?regnskap.slice().sort((a,b)=>new Date(b.regnskapsperiode?.tilDato||0)-new Date(a.regnskapsperiode?.tilDato||0))[0]
+        :null;
+      renderNokkeltall(nyeste);
+    }catch(e){
+      console.warn('Regnskapstall kunne ikke hentes:',e);
+      renderNokkeltallFeil(e.message);
+    }
   }
 }
 
@@ -8332,6 +9014,248 @@ function latestPeriodSummary(arr){
   return{label,sum};
 }
 
+// ===== HJEM — "Trenger oppmerksomhet", kunngjøring-kort og bursdag/jubileum
+// (lagt til 12.09.2026, se KBD-Command-Center-prosjektstatus.md). Forsiden
+// besto tidligere kun av statiske "siste tall"-kort + en full ukeoversikt for
+// Gymtimen — ingen av delene pekte på noe som faktisk trengte en handling.
+// Disse funksjonene bygger i stedet en samlet, personlig oppgaveliste på
+// tvers av moduler, i tillegg til et lite kunngjørings- og feiringsinnslag.
+
+// Samme oppslagslogikk som applyAccessControl() bruker for å finne "meg selv"
+// i Brukere-lista — egen liten funksjon fremfor å endre applyAccessControl()
+// til å returnere/cache dette, for å ikke røre en funksjon som kjøres på
+// hvert eneste auto-refresh og har hatt minst én tidligere bug (se
+// forsteTilgangssjekkGjort-kommentaren rett over den).
+function finnMinBrukerprofil(){
+  return brukere.find(b=>
+    b.epost.toLowerCase()===currentUser?.username?.toLowerCase()||
+    b.azureId===currentUser?.localAccountId
+  );
+}
+// Modulene i MODULER-arrayet er de eneste som faktisk styres av Brukertilgang
+// (se applyAccessControl()) — Susoft RMA og Jobbstatus er IKKE i den lista og
+// er dermed synlige for alle uansett rolle, så de sjekkes ikke her.
+function harTilgangTilModul(modulId){
+  if(userRole==='admin')return true;
+  const meg=finnMinBrukerprofil();
+  return meg?.tilgang?.[modulId]===true;
+}
+
+// Gjenbruker JOBBER_KONFIG/jobbstatusRader/jobbstatusVurder — nøyaktig samme
+// vurdering som renderJobbstatus() bruker for det røde/grønne/grå lyset, slik
+// at "Trenger oppmerksomhet" og Jobbstatus-fanen aldri kan vise ulikt svar.
+// Kun faktisk RØDE jobber tas med (ikke ukjent/grå) — en jobb som aldri har
+// rapportert ennå (f.eks. rett etter en ny deploy) er et oppsett-spørsmål,
+// ikke noe en vanlig ansatt skal "gjøre noe med" fra forsiden.
+function hentRodeJobber(){
+  return Object.entries(JOBBER_KONFIG).map(([jobbnavn,konfig])=>{
+    const rad=jobbstatusRader.find(r=>r.jobbnavn===jobbnavn);
+    const{erRod,arsak}=jobbstatusVurder(rad,konfig);
+    return{jobbnavn,visningsnavn:konfig.visningsnavn||jobbnavn,erRod,arsak};
+  }).filter(j=>j.erRod);
+}
+
+function jumpToRmaSak(id){
+  const el=document.getElementById('tab-susoftrma');
+  if(el)showTab('susoftrma',el);
+  setTimeout(()=>openRmaModal(id),60);
+}
+function jumpToFakturaoppfolging(fakturanr){
+  const el=document.getElementById('tab-fakturaoppfolging');
+  if(el)showTab('fakturaoppfolging',el);
+  setTimeout(()=>{if(foApenRad!==fakturanr)toggleFoDetalj(fakturanr);},60);
+}
+
+// Bygger selve punktlisten. `handling` er en funksjon (ikke en streng), så
+// disse kan IKKE settes rett i et onclick-attributt i innerHTML — se
+// renderTrengerOppmerksomhet() som binder dem via querySelectorAll i stedet.
+function hentTrengerOppmerksomhet(){
+  const punkter=[];
+  const mittNavn=currentUser?.name||currentUser?.username||'';
+  const idag=new Date();idag.setHours(0,0,0,0);
+
+  // RMA-saker tildelt meg, ikke ferdigstilt — Susoft RMA er ikke tilgangsstyrt
+  // (se harTilgangTilModul-kommentaren), så denne vises for alle det gjelder.
+  susoftRma.filter(r=>r.ansvarligKbd&&r.ansvarligKbd===mittNavn&&r.status!=='Ferdig').forEach(r=>{
+    punkter.push({ikon:'🔧',tekst:`RMA-sak ${r.sakNummer??''} – ${r.kundeNavn||'(uten navn)'} (${r.status})`,handling:()=>jumpToRmaSak(r.id)});
+  });
+
+  // Kundesaker (Kunde360: Notat/Tilbud/Oppfølging) — personlig, filtrert på
+  // egne saker (opprettetAv), samme "forfalt"-vurdering (dato+klokkeslett
+  // passert) som Kundesaker-tabellens egen renderKundesaker()-kolonne.
+  // Lagt til 12.09.2026 — manglet i første versjon av denne seksjonen.
+  {
+    const alleKunderForOpp=[...vismaKunder,...hentProspektKunder()];
+    const naa=new Date();
+    // "er min sak"-sjekk på samme robuste måte som resten av Kunde360
+    // (se renderVarselMeny()): e-post først (sikrest), navn kun som
+    // reserveløsning for eldre oppføringer uten lagret e-post.
+    kundeNotater.filter(n=>{
+      if(n.status!=='Åpen')return false;
+      const erMin=(n.opprettetAvEpost&&currentUser?.username&&n.opprettetAvEpost.toLowerCase()===currentUser.username.toLowerCase())
+        ||(!n.opprettetAvEpost&&n.opprettetAv&&currentUser?.name&&n.opprettetAv===currentUser.name);
+      if(!erMin)return false;
+      return n.forfallsdato&&!isNaN(new Date(n.forfallsdato))&&new Date(n.forfallsdato)<naa;
+    }).forEach(n=>{
+      const kundeNavn=n.kundeNavn||alleKunderForOpp.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim())?.navn||'Ukjent kunde';
+      punkter.push({ikon:'📁',tekst:`${n.type} – ${kundeNavn} – ${n.tittel||'(uten tittel)'} – forfalt`,handling:()=>gaTilKundeFraSak(n.id)});
+    });
+  }
+
+  // Fakturaoppfølging — team-bredt (ingen personlig eier på selve fakturaen i
+  // dag, kun en logg over hvem som sist gjorde noe), derfor tilgangsstyrt på
+  // modulnivå i stedet for på person.
+  if(harTilgangTilModul('fakturaoppfolging')){
+    fakturaoppfolging.filter(f=>{const d=parseLD(f.nesteOppfolging);return d&&!f.betaltDato&&d<=idag;}).forEach(f=>{
+      punkter.push({ikon:'🧾',tekst:`Faktura ${f.fakturanr} – ${f.kundenavn||'(uten navn)'} – oppfølging forfalt`,handling:()=>jumpToFakturaoppfolging(f.fakturanr)});
+    });
+  }
+
+  // Utleie forfalt (TilDato passert, ingen registrert retur) — team-bredt,
+  // gjenbruker getRentalStatus() sin egen 'forfalt'-vurdering.
+  if(harTilgangTilModul('utleie')){
+    rentals.filter(r=>getRentalStatus(r)==='forfalt').forEach(r=>{
+      const enhet=units.find(u=>u.id===r.unitId);
+      punkter.push({ikon:'🔄',tekst:`Utleie – ${enhet?.name||'ukjent enhet'} hos ${r.customer||'(uten kunde)'} – ikke registrert retur`,handling:()=>jumpToUtleieRow(r.id)});
+    });
+  }
+
+  // Jobbstatus — synlig for alle, se hentRodeJobber().
+  hentRodeJobber().forEach(j=>{
+    punkter.push({ikon:'🚦',tekst:`${j.visningsnavn} – ${j.arsak}`,handling:()=>{const el=document.getElementById('tab-jobbstatus');if(el)showTab('jobbstatus',el);}});
+  });
+
+  return punkter;
+}
+
+function renderTrengerOppmerksomhet(){
+  const el=document.getElementById('hjem-oppmerksomhet');
+  if(!el)return;
+  const punkter=hentTrengerOppmerksomhet();
+  if(punkter.length===0){
+    el.innerHTML=`<div style="background:#ecfdf3;border-radius:10px;padding:14px 16px;color:#15803d;font-size:13.5px;font-weight:500">👍 Alt er i orden — ingenting som krever oppmerksomhet akkurat nå.</div>`;
+    return;
+  }
+  el.innerHTML=`<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;overflow:hidden">
+    ${punkter.map((p,i)=>`<div class="hjem-opp-rad" data-i="${i}" style="display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;${i>0?'border-top:1px solid #ffedd5':''}" onmouseover="this.style.background='#ffedd5'" onmouseout="this.style.background=''">
+      <span style="font-size:15px">${p.ikon}</span>
+      <span style="font-size:13px;color:#7c2d12;flex:1">${jsEscapeHtml(p.tekst)}</span>
+      <span style="color:#c2410c;font-size:12px">→</span>
+    </div>`).join('')}
+  </div>`;
+  el.querySelectorAll('.hjem-opp-rad').forEach(rad=>{
+    rad.onclick=()=>punkter[parseInt(rad.dataset.i,10)].handling();
+  });
+}
+
+// Løfter de(n) siste kunngjøringen(e) opp på forsiden i tillegg til
+// megafon-menyen (📣-ikonet i toppen) — samme data (kunngjoringer-arrayet),
+// samme "åpne/marker som sett"-funksjon (apneKunngjoring), ingen ny lagring.
+function renderHjemKunngjoring(){
+  const el=document.getElementById('hjem-kunngjoring');
+  if(!el)return;
+  if(kunngjoringer.length===0){el.innerHTML='';el.style.display='none';return;}
+  el.style.display='';
+  const siste=kunngjoringer.slice(0,2);
+  el.innerHTML=siste.map(k=>{
+    const usett=!erKunngjoringSett(k);
+    const utdrag=(k.innhold||'').slice(0,110)+((k.innhold||'').length>110?'…':'');
+    return`<div onclick="apneKunngjoring('${k.id}')" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin-bottom:8px;cursor:pointer" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+        ${usett?'<span style="width:7px;height:7px;border-radius:50%;background:#1A3A6B;flex-shrink:0"></span>':''}
+        <span style="font-size:13px;font-weight:600;color:#111">📣 ${k.patrengende?'📌 ':''}${jsEscapeHtml(k.tittel||'(uten tittel)')}</span>
+      </div>
+      <div style="font-size:12.5px;color:#4b5563">${jsEscapeHtml(utdrag)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ---- Bursdag/jubileum + konfetti (lagt til 12.09.2026, Thomas' eksplisitte
+// ønske) ----
+// Dag+måned-match, IKKE fullt datolikhet — fødselsår/startår varierer jo per
+// person og skal ikke være med i selve sammenligningen, kun i teksten som
+// vises. Jubileum krever i tillegg startår < inneværende år (unngår en
+// merkelig "0 år i KBD"-hilsen samme dag noen registreres).
+function hentDagensMarkeringer(){
+  const idag=new Date();
+  const dd=idag.getDate(),mm=idag.getMonth()+1;
+  const markeringer=[];
+  brukere.forEach(b=>{
+    const fodt=parseLD(b.tilgang?.fodselsdato);
+    if(fodt&&fodt.getDate()===dd&&fodt.getMonth()+1===mm){
+      markeringer.push({navn:b.navn,tekst:`🎂 Gratulerer med dagen, ${(b.navn||'').split(' ')[0]}! (${idag.getFullYear()-fodt.getFullYear()} år)`});
+    }
+    const startet=parseLD(b.tilgang?.startetIKBD);
+    if(startet&&startet.getDate()===dd&&startet.getMonth()+1===mm&&startet.getFullYear()<idag.getFullYear()){
+      markeringer.push({navn:b.navn,tekst:`🎉 Gratulerer med ${idag.getFullYear()-startet.getFullYear()} år i KBD, ${(b.navn||'').split(' ')[0]}!`});
+    }
+  });
+  return markeringer;
+}
+
+function sjekkDagensMarkeringer(){
+  const el=document.getElementById('hjem-feiring');
+  if(!el)return;
+  const markeringer=hentDagensMarkeringer();
+  if(markeringer.length===0){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='';
+  el.innerHTML=`<div style="background:linear-gradient(135deg,#fef3c7,#fce7f3);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;flex-direction:column;gap:5px">
+    ${markeringer.map(m=>`<div style="font-size:15px;font-weight:700;color:#7c2d12">${jsEscapeHtml(m.tekst)}</div>`).join('')}
+  </div>`;
+  // Konfettien skal bare fyres ÉN gang pr. nettleser pr. dag, ikke hver gang
+  // Hjem rendres på nytt (skjer bl.a. ved hvert 5-minutters auto-refresh) —
+  // huskes derfor i localStorage, ikke i en vanlig JS-variabel.
+  const lagringsnokkel='kbd-feiring-vist-'+idagISO();
+  let alleredeVist=[];
+  try{alleredeVist=JSON.parse(localStorage.getItem(lagringsnokkel)||'[]');}catch{alleredeVist=[];}
+  const nye=markeringer.filter(m=>!alleredeVist.includes(m.tekst));
+  if(nye.length>0){
+    fyrKonfetti();
+    try{localStorage.setItem(lagringsnokkel,JSON.stringify([...alleredeVist,...markeringer.map(m=>m.tekst)]));}catch{}
+  }
+}
+function idagISO(){return new Date().toISOString().slice(0,10);}
+
+// Enkel, selvstendig konfetti-animasjon i canvas — ingen eksternt bibliotek,
+// i tråd med resten av dashbordet (se creating_outputs/prosjektkonvensjon om
+// ingen eksterne script-avhengigheter i denne filen).
+function fyrKonfetti(){
+  const canvas=document.createElement('canvas');
+  canvas.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9999';
+  canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx=canvas.getContext('2d');
+  const farger=['#1A3A6B','#2a78d6','#eb6834','#f5a623','#16a34a','#be185d'];
+  const biter=Array.from({length:150},()=>({
+    x:Math.random()*canvas.width,
+    y:-20-Math.random()*canvas.height*0.4,
+    vx:(Math.random()-0.5)*2.6,
+    vy:2.2+Math.random()*3,
+    rot:Math.random()*360,
+    vrot:(Math.random()-0.5)*10,
+    farge:farger[Math.floor(Math.random()*farger.length)],
+    bredde:6+Math.random()*5,
+    hoyde:9+Math.random()*6
+  }));
+  const start=performance.now();
+  function tegn(nu){
+    const t=nu-start;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    biter.forEach(b=>{
+      b.x+=b.vx;b.y+=b.vy;b.vy+=0.025;b.rot+=b.vrot;
+      ctx.save();
+      ctx.translate(b.x,b.y);
+      ctx.rotate(b.rot*Math.PI/180);
+      ctx.fillStyle=b.farge;
+      ctx.fillRect(-b.bredde/2,-b.hoyde/2,b.bredde,b.hoyde);
+      ctx.restore();
+    });
+    if(t<4200)requestAnimationFrame(tegn);
+    else canvas.remove();
+  }
+  requestAnimationFrame(tegn);
+}
+
 function renderHjem(){
   const greetEl=document.getElementById('hjem-greeting');
   const dateEl=document.getElementById('hjem-date');
@@ -8393,25 +9317,15 @@ function renderHjem(){
     ].join('');
   }
 
-  const tbody=document.getElementById('hjem-arbeidstid-body');
-  if(tbody){
-    const godkjente=arbeidstid.filter(a=>a.status==='Godkjent');
-    const navnSet=new Set(brukere.map(b=>b.navn).filter(Boolean));
-    arbeidstid.forEach(a=>{if(a.ansatt)navnSet.add(a.ansatt);});
-    ARBEIDSTID_SKJULT.forEach(n=>navnSet.delete(n));
-    const ansattListe=[...navnSet].sort((a,b)=>a.localeCompare(b,'nb'));
-    tbody.innerHTML=ansattListe.length?ansattListe.map(navn=>{
-      const cells=UKEDAGER.map(dag=>{
-        const avtale=godkjente.find(a=>a.ansatt===navn&&a.ukedager.includes(dag));
-        const monster=avtale?avtale.monster:'Standard';
-        const bg=ARBEIDSTID_COLORS[monster]||'#e5e7eb';
-        const txt=ARBEIDSTID_TXT[monster]||'#6b7280';
-        const lbl=monster==='Standard'?'Std':monster==='Flex07'?'07–15':'09–17';
-        return`<td style="text-align:center"><span style="display:inline-block;min-width:52px;padding:4px 8px;border-radius:6px;background:${bg};color:${txt};font-size:11px;font-weight:700">${lbl}</span></td>`;
-      }).join('');
-      return`<tr><td style="font-weight:500">${navn}</td>${cells}</tr>`;
-    }).join(''):`<tr><td colspan="6" class="empty">Ingen ansatte registrert ennå</td></tr>`;
-  }
+  // Gymtimen sin fulle ukeoversikt er fjernet fra Hjem 12.09.2026 (Thomas'
+  // eksplisitte ønske — tok for mye plass uten å peke på noe som trengte en
+  // handling). Full oversikt finnes fortsatt under Gymtimen-fanen i menyen
+  // (arbeidstid-fanen) for de som vil dit. hjem-arbeidstid-body finnes derfor
+  // ikke lenger i HTML-en.
+
+  renderTrengerOppmerksomhet();
+  renderHjemKunngjoring();
+  sjekkDagensMarkeringer();
 }
 
 function renderTrend(){
@@ -8580,7 +9494,7 @@ function renderKickTable(){
 
 function renderAll(){
   renderHjem();
-  renderKPIs();renderTrend();renderLicChart();renderLicTable();renderKickChart();renderKickTable();renderSammenligning();renderSettings();renderAging();
+  renderKPIs();renderTrend();renderLicChart();renderLicTable();renderKickChart();renderKickTable();renderSammenligning();renderSettings();renderAging();renderFakturaoppfolging();
 }
 
 // ===== ÅRSSAMMENLIGNING =====
@@ -8621,6 +9535,275 @@ function toggleAgingFilter(k){
   if(agingFilters.has(k)){agingFilters.delete(k);}else{agingFilters.add(k);}
   if(agingFilters.size===AGING_KEYS.length)agingFilters=new Set();
   renderAging();
+}
+
+// ===== FAKTURAOPPFØLGING (lagt til 10.09.2026) =====
+// Arbeidsliste for oppfølging av forfalte fakturaer — én rad per åpen faktura
+// (til forskjell fra Aldersfordelt over, som er ukentlige aggregerte
+// bucket-summer). Data synkes inn av FakturaoppfolgingSync i kbd-kunde360-func
+// (Visma -> SharePoint, en-veis). Kommentarer/status/neste oppfølging skrives
+// herfra og ligger IKKE i Visma. Se seksjon 19 i
+// KBD-Command-Center-prosjektstatus.md for hele bakgrunnen/trappetrinn-planen.
+function sortFoBy(col){
+  if(foSort.col===col){foSort.dir=foSort.dir==='asc'?'desc':'asc';}else{foSort.col=col;foSort.dir='asc';}
+  renderFakturaoppfolging();
+}
+function setFoVisBetalte(v){foVisBetalte=v;renderFakturaoppfolging();}
+function setFoKunForfalte(v){foKunForfalte=v;renderFakturaoppfolging();}
+function setFoSearch(v){foSearch=(v||'').trim().toLowerCase();renderFakturaoppfolging();}
+function setFoStatusFilter(v){foStatusFilter=v;renderFakturaoppfolging();}
+function setFoBucket(k){foBucket=k;renderFakturaoppfolging();}
+function foInBucket(f,bucket){
+  if(bucket==='alle')return true;
+  const d=foDagerForfalt(f);
+  switch(bucket){
+    case 'd1_30': return d>=1&&d<=30;
+    case 'd31_60': return d>=31&&d<=60;
+    case 'd61_90': return d>=61&&d<=90;
+    case 'd90plus': return d>90;
+    default: return true;
+  }
+}
+function toggleFoDetalj(fakturanr){foApenRad=foApenRad===fakturanr?null:fakturanr;renderFakturaoppfolging();}
+
+// Dager forfalt regnes fra lokal midnatt (parseLD), ikke rå Date-diff, for å
+// unngå av/på-med-en-dag-feil rundt tidssone/sommertid — samme fallgruve som
+// resten av aldersfordelt-koden allerede tar hensyn til.
+function foDagerForfalt(f){
+  const d=parseLD(f.forfallsdato);
+  if(!d)return 0;
+  const idag=new Date();idag.setHours(0,0,0,0);
+  const ms=idag-d;
+  return ms>0?Math.round(ms/86400000):0;
+}
+// Score v1 = dager forfalt × utestående beløp (ikke totalbeløp — se
+// UtestaendeBelop-kommentaren i Kunde360-oppsett-sjekkliste.md). Gir en enkel
+// prioriteringsrekkefølge: store, gamle, ubetalte krav øverst. Kan
+// forfines senere (f.eks. vekte inn kredittklasse fra VismaKunder).
+function foScore(f){return foDagerForfalt(f)*(f.utestaende||0);}
+function foStatusBadge(s){
+  const farger={'Ikke kontaktet':'#6b7280','Kontaktet':'#2563eb','Lovet betaling':'#d97706','Sendt til inkasso':'#dc2626','Bestridt':'#7c3aed'};
+  const c=farger[s]||'#6b7280';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${c}1a;color:${c}">${s||'—'}</span>`;
+}
+
+function renderFakturaoppfolging(){
+  const apneAlle=fakturaoppfolging.filter(f=>!f.betaltDato);
+  const kpiDiv=document.getElementById('fo-kpis');
+  if(kpiDiv){
+    const sumUtestaende=apneAlle.reduce((s,f)=>s+f.utestaende,0);
+    // "Forfalt antall"/"Forfalt beløp" tar hensyn til valgt aldersgruppe-pill
+    // (foBucket), slik at de to KPI-tallene oppdaterer seg live når man velger
+    // f.eks. "31–60 dager" — men er upåvirket av søk/status/kun-forfalte-filtrene,
+    // siden de skal vise et stabilt "forfalt akkurat nå"-øyeblikksbilde.
+    // Lagt til 10.09.2026 etter ønske fra Thomas.
+    const forfalt=apneAlle.filter(f=>foDagerForfalt(f)>0&&(foBucket==='alle'||foInBucket(f,foBucket)));
+    const sumForfalt=forfalt.reduce((s,f)=>s+f.utestaende,0);
+    kpiDiv.innerHTML=`
+      <div class="kpi"><div class="kpi-lbl">Åpne fakturaer</div><div style="font-size:24px;font-weight:700">${apneAlle.length}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Utestående totalt</div><div style="font-size:24px;font-weight:700">${fF(sumUtestaende)}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Forfalt antall</div><div style="font-size:24px;font-weight:700;color:#dc2626">${forfalt.length}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Forfalt beløp</div><div style="font-size:24px;font-weight:700;color:#dc2626">${fF(sumForfalt)}</div></div>`;
+  }
+
+  const target=document.getElementById('fo-tabell');
+  if(!target)return;
+
+  let rader=foVisBetalte?fakturaoppfolging.slice():apneAlle;
+  if(foKunForfalte)rader=rader.filter(f=>foDagerForfalt(f)>0);
+  if(foBucket!=='alle')rader=rader.filter(f=>foInBucket(f,foBucket));
+  if(foStatusFilter!=='alle')rader=rader.filter(f=>f.status===foStatusFilter);
+  if(foSearch)rader=rader.filter(f=>f.fakturanr.toLowerCase().includes(foSearch)||f.kundenavn.toLowerCase().includes(foSearch)||f.kundenr.toLowerCase().includes(foSearch));
+
+  // Aldersfordelt-bøtte-pills (samme visuelle mønster som Aldersfordelt-fanen,
+  // men enkeltvalg — én aktiv bøtte om gangen — siden dette er en arbeidsliste
+  // og ikke en trendgraf. Lagt til 10.09.2026 etter ønske fra Thomas.
+  const bucketFiltersEl=document.getElementById('fo-bucket-filters');
+  if(bucketFiltersEl) bucketFiltersEl.innerHTML=
+    `<span class="filter-lbl">Vis:</span>`+
+    `<button class="fpill" style="${foBucket==='alle'?'border-color:#1A3A6B':''}" onclick="setFoBucket('alle')">
+      <span style="font-weight:600;color:${foBucket==='alle'?'#1A3A6B':'#9ca3af'}">Alle</span>
+    </button>`+
+    AGING_KEYS.map((k,i)=>{
+      const on=foBucket===k;
+      const c=AGING_COLORS[i];
+      return`<button class="fpill${foBucket==='alle'?'':(on?' f-on':' f-off')}" style="${on?`border-color:${c}`:''}" onclick="setFoBucket('${k}')">
+        <span class="fpill-dot" style="background:${on||foBucket==='alle'?c:'#d0d5dd'}"></span>
+        <span style="color:${on||foBucket==='alle'?c:'#9ca3af'};font-weight:600">${AGING_LABELS[i]}</span>
+      </button>`;
+    }).join('');
+
+  // Antall/beløp-sammendrag for valgt aldersgruppe — vises kun når en periode
+  // (ikke "Alle") er valgt, regnet ut fra samme filtrerte liste som vises i
+  // tabellen (dvs. tar også hensyn til søk/status/kun forfalte). Lagt til
+  // 10.09.2026 etter ønske fra Thomas.
+  const bucketSumEl=document.getElementById('fo-bucket-sum');
+  if(bucketSumEl){
+    if(foBucket!=='alle'){
+      const antall=rader.length;
+      const sum=rader.reduce((s,f)=>s+(f.utestaende||0),0);
+      bucketSumEl.textContent=`${antall} faktura${antall===1?'':'er'} · ${fF(sum)}`;
+    }else{
+      bucketSumEl.textContent='';
+    }
+  }
+
+  if(!rader.length){
+    target.innerHTML=`<div class="empty">Ingen fakturaer matcher valgte filtre${foSearch?'/søket':''}.</div>`;
+    return;
+  }
+
+  const dir=foSort.dir==='asc'?1:-1;
+  rader.sort((a,b)=>{
+    switch(foSort.col){
+      case 'faktura': return dir*a.fakturanr.localeCompare(b.fakturanr);
+      case 'kunde': return dir*a.kundenavn.localeCompare(b.kundenavn);
+      case 'belop': return dir*(a.belop-b.belop);
+      case 'utestaende': return dir*(a.utestaende-b.utestaende);
+      case 'score': return dir*(foScore(a)-foScore(b));
+      case 'status': return dir*a.status.localeCompare(b.status);
+      case 'neste': return dir*(new Date(a.nesteOppfolging||0)-new Date(b.nesteOppfolging||0));
+      case 'forfall': default: return dir*(new Date(a.forfallsdato||0)-new Date(b.forfallsdato||0));
+    }
+  });
+
+  // Brukes til 💬-ikonet i oversikten (punkt 4, ønsket av Thomas 11.09.2026):
+  // ett felles ikon uansett om kommentaren kommer fra egen logg (KBD CC) eller
+  // er importert fra Visma sitt merknadsfelt — forhåndsberegnet én gang per
+  // render, ikke inni .map(), for å unngå gjentatt .some()-søk per rad.
+  const foLoggFakturaSet=new Set(fakturaoppfolgingLogg.map(l=>l.fakturanr));
+
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+      <th style="cursor:pointer" onclick="sortFoBy('faktura')">Faktura <span id="fosh-faktura"></span></th>
+      <th style="cursor:pointer" onclick="sortFoBy('kunde')">Kunde <span id="fosh-kunde"></span></th>
+      <th>Kontakt</th>
+      <th class="tr" style="cursor:pointer" onclick="sortFoBy('belop')">Beløp <span id="fosh-belop"></span></th>
+      <th class="tr" style="cursor:pointer" onclick="sortFoBy('utestaende')">Utestående <span id="fosh-utestaende"></span></th>
+      <th style="cursor:pointer" onclick="sortFoBy('forfall')">Forfalt <span id="fosh-forfall"></span></th>
+      <th class="tr" style="cursor:pointer" onclick="sortFoBy('score')">Score <span id="fosh-score"></span></th>
+      <th style="cursor:pointer" onclick="sortFoBy('status')">Status <span id="fosh-status"></span></th>
+      <th style="cursor:pointer" onclick="sortFoBy('neste')">Neste <span id="fosh-neste"></span></th>
+      <th></th>
+    </tr></thead><tbody>${rader.map(f=>{
+      const dager=foDagerForfalt(f);
+      const score=foScore(f);
+      const apen=foApenRad===f.fakturanr;
+      // Felles 💬-ikon uansett kilde (egen logg i KBD CC ELLER importert
+      // Visma-notat) — ønsket av Thomas 11.09.2026, se foLoggFakturaSet over.
+      const harKommentar=(f.notatImportert&&f.notatImportert.trim())||foLoggFakturaSet.has(f.fakturanr);
+      // Når raden er åpen, gis den en synlig "ramme" (lys blå bakgrunn + en
+      // fargeaksent til venstre) slik at det er tydelig hvilken faktura
+      // loggpanelet under tilhører — ønsket av Thomas 11.09.2026.
+      const radStil=apen?' style="background:#eef2ff"':'';
+      const forsteCelleStil=apen?' style="border-left:3px solid #1A3A6B"':'';
+      const rows=[`<tr${radStil}>
+        <td${forsteCelleStil}>${f.fakturanr}${harKommentar?' <span title="Har kommentarer/logg" style="cursor:default">💬</span>':''}</td>
+        <td>${f.kundenavn}<div style="font-size:11px;color:#9ca3af">Kundenr ${f.kundenr}</div></td>
+        <td style="font-size:12px;color:#374151">${f.kontaktNavn||''}${f.kontaktTelefon?`<div style="color:#6b7280">${f.kontaktTelefon}</div>`:''}${f.kontaktEpost?`<div style="color:#6b7280">${f.kontaktEpost}</div>`:''}</td>
+        <td class="tr">${fF(f.belop)}</td>
+        <td class="tr">${fF(f.utestaende)}</td>
+        <td>${fDateShort(f.forfallsdato)}${dager>0?`<div style="color:#dc2626;font-size:11px">${dager} dager forfalt</div>`:''}${f.betaltDato?`<div style="color:#1baf7a;font-size:11px">✓ Betalt ${fDateShort(f.betaltDato)}</div>`:''}</td>
+        <td class="tr">${score>0?Math.round(score).toLocaleString('nb-NO'):'—'}</td>
+        <td>${foStatusBadge(f.status)}</td>
+        <td>${f.nesteOppfolging?fDateShort(f.nesteOppfolging):'—'}</td>
+        <td><button class="btn-sm" onclick="toggleFoDetalj('${f.fakturanr}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
+      </tr>`];
+      if(apen){
+        rows.push(`<tr style="background:#eef2ff"><td colspan="9" style="border-left:3px solid #1A3A6B;padding:0">${renderFoDetaljPanel(f)}</td></tr>`);
+      }
+      return rows.join('');
+    }).join('')}</tbody></table></div>`;
+
+  ['faktura','kunde','belop','utestaende','forfall','score','status','neste'].forEach(c=>{
+    const el=document.getElementById('fosh-'+c);
+    if(el)el.innerHTML=foSort.col===c?(foSort.dir==='asc'?'↑':'↓'):'↕';
+  });
+}
+
+function renderFoDetaljPanel(f){
+  const historikk=fakturaoppfolgingLogg.filter(l=>l.fakturanr===f.fakturanr).sort((a,b)=>new Date(b.dato)-new Date(a.dato));
+  const historikkHtml=historikk.length?historikk.map(l=>`
+    <div style="padding:8px 0;border-bottom:1px solid #e5e7eb">
+      <div style="font-size:12px;color:#6b7280">${fDateShort(l.dato)} · ${l.type||'—'} · ${l.kilde||'—'} · ${l.skrevetAv||'—'}</div>
+      <div style="font-size:13px;white-space:pre-wrap">${(l.kommentar||'').replace(/</g,'&lt;')}</div>
+    </div>`).join(''):'<div class="empty" style="padding:10px 0">Ingen loggførte henvendelser ennå.</div>';
+
+  const notatHtml=f.notatImportert?`
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px">Notater fra Visma</div>
+      <div style="font-size:12px;white-space:pre-wrap;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;max-height:160px;overflow:auto">${f.notatImportert.replace(/</g,'&lt;')}</div>
+    </div>`:'';
+
+  return `<div style="padding:14px 16px">
+      ${notatHtml}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
+        <div style="font-size:12px;font-weight:600;color:#6b7280">Oppfølgingslogg</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;white-space:nowrap">
+          ${foStatusBadge(f.status)}
+          <span>Neste: ${f.nesteOppfolging?fDateShort(f.nesteOppfolging):'—'}</span>
+        </div>
+      </div>
+      <div style="max-height:200px;overflow:auto;margin-bottom:14px">${historikkHtml}</div>
+      <div class="fg" style="grid-template-columns:140px 1fr;margin-bottom:8px">
+        <div class="fgrp"><label>Type</label><select id="fo-type-${f.fakturanr}"><option>Telefon</option><option>E-post</option><option>SMS</option><option>Annet</option></select></div>
+        <div class="fgrp"><label>Kommentar</label><textarea id="fo-kommentar-${f.fakturanr}" rows="2" style="width:100%;font-family:inherit;font-size:14px;padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;resize:vertical"></textarea></div>
+      </div>
+      <div class="fg" style="grid-template-columns:170px 170px 1fr;align-items:end">
+        <div class="fgrp"><label>Status</label><select id="fo-statusvalg-${f.fakturanr}">${FO_STATUSER.map(s=>`<option${s===f.status?' selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="fgrp"><label>Neste oppfølging</label><input type="date" id="fo-neste-${f.fakturanr}" value="${f.nesteOppfolging?f.nesteOppfolging.split('T')[0]:''}"/></div>
+        <div style="text-align:right"><button class="prim" onclick="lagreFoOppfolging('${f.fakturanr}')">💾 Lagre</button></div>
+      </div>
+    </div>`;
+}
+
+// Lagrer i to deler: (1) ny loggrad i FakturaoppfolgingLogg hvis kommentar er
+// fylt ut — Kilde="KBD CC" så den senere kan skilles fra automatiske
+// utsendelser fra purring_sms.py (Kilde="Automatisk", når den kobles på), og
+// (2) Status/NesteOppfolging på selve Fakturaoppfolging-raden hvis endret.
+// Samme "oppdater lokalt med én gang, synk til SharePoint i bakgrunnen,
+// vis feil med alert() om det feiler"-mønster som saveNotat() på Kunde 360.
+function lagreFoOppfolging(fakturanr){
+  const f=fakturaoppfolging.find(x=>x.fakturanr===fakturanr);
+  if(!f)return;
+  const typeEl=document.getElementById(`fo-type-${fakturanr}`);
+  const kommentarEl=document.getElementById(`fo-kommentar-${fakturanr}`);
+  const statusEl=document.getElementById(`fo-statusvalg-${fakturanr}`);
+  const nesteEl=document.getElementById(`fo-neste-${fakturanr}`);
+  const kommentar=(kommentarEl?.value||'').trim();
+  const nyStatus=statusEl?statusEl.value:f.status;
+  const nesteRaw=nesteEl?nesteEl.value:'';
+  const nesteISO=nesteRaw?new Date(nesteRaw+'T08:00').toISOString():'';
+
+  const statusEndret=nyStatus!==f.status;
+  const nesteEndret=nesteISO!==(f.nesteOppfolging||'');
+
+  if(!kommentar&&!statusEndret&&!nesteEndret){alert('Ingen endringer å lagre.');return;}
+
+  setSPStatus('⏳ Lagrer…');
+  const oppgaver=[];
+
+  if(kommentar){
+    const skrevetAv=currentUser?.name||currentUser?.username||'Ukjent';
+    const nyLoggRad={id:`temp${uid()}`,fakturanr,skrevetAv,type:typeEl?typeEl.value:'Annet',kilde:'KBD CC',dato:new Date().toISOString(),kommentar};
+    fakturaoppfolgingLogg.push(nyLoggRad);
+    oppgaver.push(spCreate('FakturaoppfolgingLogg',{Fakturanummer:fakturanr,SkrevetAv:skrevetAv,HenvendelseType:nyLoggRad.type,Kilde:'KBD CC',Dato:nyLoggRad.dato,Kommentar:kommentar}).then(r=>{nyLoggRad.id=`sp${r.id}`;nyLoggRad.spId=r.id;}));
+  }
+  if(statusEndret)f.status=nyStatus;
+  if(nesteEndret)f.nesteOppfolging=nesteISO;
+  if((statusEndret||nesteEndret)&&f.spId){
+    const felt={};
+    if(statusEndret)felt.Status=nyStatus;
+    if(nesteEndret)felt.NesteOppfolging=nesteISO||null;
+    oppgaver.push(spUpdate('Fakturaoppfolging',f.spId,felt));
+  }
+
+  renderFakturaoppfolging();
+  Promise.all(oppgaver).then(()=>{
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+  }).catch(e=>{
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);
+  });
 }
 
 function renderAging(){
@@ -8769,7 +9952,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt'||name==='purring')?'smsutsendelse':name;
+  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':name==='purring'?'fakturaoppfolging':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -8778,15 +9961,18 @@ function showTab(name,btn){
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
-  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk'||name==='purring');
-  toggleVerifoneSub(name==='verifone');
+  toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk');
+  toggleTransaksjonsavgiftSub(name==='verifone'||name==='nets');
   toggleSilentOrderingSub(name==='silentordering');
+  toggleFakturaoppfolgingSub(name==='fakturaoppfolging'||name==='purring');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
   if(name==='kicksammenligning'){renderKickSammenligning();}
   if(name==='oversikt'){renderTrend();renderKPIs();}
-  if(name==='aldersfordelt')renderAging();
+  if(name==='transavgiftrapport'){renderTransavgiftRapport();}
+  if(name==='aldersfordelt'){renderAging();}
+  if(name==='fakturaoppfolging'){renderFakturaoppfolging();}
   if(name==='innstillinger'){renderSettings();showInnstillingerView(userRole==='admin'?'brukertilgang':'produkter');}
   if(name==='arbeidstid')showArbeidstidView('oversikt',document.getElementById('asub-oversikt'));
   if(name==='hjem')renderHjem();
@@ -8797,17 +9983,35 @@ function showTab(name,btn){
   if(name==='smsutsendelse'){setSmsUtsendelseSubActive('smsutsendelse');renderSmsUtsendelse();smsHentSaldo();}
   if(name==='smsplanlagt'){setSmsUtsendelseSubActive('smsplanlagt');renderSmsPlanlagt();}
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
-  if(name==='purring'){setSmsUtsendelseSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
+  if(name==='purring'){setFakturaoppfolgingSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
-  if(name==='verifone'){renderVerifone();showVerifoneView('ny');}
+  if(name==='verifone'){renderVerifone();showVerifoneView('ny');setTransaksjonsavgiftSubActive('verifone');}
+  if(name==='nets'){renderNets();showNetsView('ny');setTransaksjonsavgiftSubActive('nets');}
   if(name==='susoftrma'){renderSusoftRma();}
   if(name==='silentordering'){renderSilentOrdering();showSilentOrderingView('oversikt');}
+  if(name==='jobbstatus'){renderJobbstatus();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
-function toggleVerifoneSub(open){
-  const sub=document.getElementById('verifone-sub-nav');
+// Transaksjonsavgift — samlemeny lagt til 09.09.2026, se HTML-kommentaren ved
+// transaksjonsavgift-sub-nav. Erstatter de tidligere separate
+// toggleVerifoneSub()/toggleNetsSub() (én felles nav-sub for begge
+// leverandørene nå). setTransaksjonsavgiftSubActive() styrer hvilken av de to
+// leverandør-radene (tasub-verifone/tasub-nets) som er uthevet, kalt fra
+// showTab()'s verifone/nets-håndtering. showVerifoneView()/showNetsView()
+// under styrer fortsatt sine egne Ny faktura/Historikk-underpunkter direkte
+// via ID (vsub-*/ntsub-*) — disse ligger nå nestet som nav-sub-sub-item
+// under sin respektive leverandør-rad i samme delte nav-sub-container,
+// akkurat som Nyetableringer sine to underpunkter under Kunde360.
+function toggleTransaksjonsavgiftSub(open){
+  const sub=document.getElementById('transaksjonsavgift-sub-nav');
   if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+function setTransaksjonsavgiftSubActive(leverandor){
+  document.querySelectorAll('#transaksjonsavgift-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('tasub-'+leverandor);
+  if(btn)btn.classList.add('active');
 }
 
 function showVerifoneView(view,btn){
@@ -8815,10 +10019,25 @@ function showVerifoneView(view,btn){
   const histEl=document.getElementById('verifone-historikk');
   if(nyEl)nyEl.style.display=view==='ny'?'':'none';
   if(histEl)histEl.style.display=view==='historikk'?'':'none';
-  document.querySelectorAll('#verifone-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  const subBtn=document.getElementById('vsub-'+view);
-  if(subBtn)subBtn.classList.add('active');
+  // "vsub-ny" finnes ikke lenger som eget menypunkt (fjernet 09.09.2026 —
+  // overflødig ved siden av selve leverandør-raden, se HTML-kommentaren ved
+  // transaksjonsavgift-sub-nav) — kun "vsub-historikk" kan faktisk bli
+  // uthevet her, men vi lar view==='ny' fortsatt kalles trygt (bare fjerner
+  // historikk sin active-klasse, uten å prøve å sette noen for "ny").
+  document.getElementById('vsub-historikk')?.classList.remove('active');
+  if(view==='historikk')document.getElementById('vsub-historikk')?.classList.add('active');
   if(view==='historikk')vfRenderHistorikk();
+}
+
+function showNetsView(view,btn){
+  const nyEl=document.getElementById('nets-ny');
+  const histEl=document.getElementById('nets-historikk');
+  if(nyEl)nyEl.style.display=view==='ny'?'':'none';
+  if(histEl)histEl.style.display=view==='historikk'?'':'none';
+  // "ntsub-ny" finnes ikke lenger — se tilsvarende kommentar i showVerifoneView().
+  document.getElementById('ntsub-historikk')?.classList.remove('active');
+  if(view==='historikk')document.getElementById('ntsub-historikk')?.classList.add('active');
+  if(view==='historikk')ntRenderHistorikk();
 }
 
 function toggleUtleieSub(open){
@@ -8844,7 +10063,12 @@ function toggleSmsUtsendelseSub(open){
 
 function setSmsUtsendelseSubActive(view){
   document.querySelectorAll('#smsutsendelse-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
-  const idMap={smsutsendelse:'smssub-smsutsendelse',smsplanlagt:'smssub-smsplanlagt',smshistorikk:'smssub-smshistorikk',purring:'smssub-purring'};
+  // 'purring' fjernet fra idMap 11.09.2026 — Purring-SMS flyttet ut av
+  // SMS utsendelse, og fra 12.09.2026 styrt av
+  // setFakturaoppfolgingSubActive() under det nye DRIFT-punktet
+  // Fakturaoppfølging, se showTab() og HTML-kommentaren ved
+  // fakturaoppfolging-sub-nav.
+  const idMap={smsutsendelse:'smssub-smsutsendelse',smsplanlagt:'smssub-smsplanlagt',smshistorikk:'smssub-smshistorikk'};
   const el=document.getElementById(idMap[view]||'smssub-smsutsendelse');
   if(el)el.classList.add('active');
 }
@@ -8852,6 +10076,20 @@ function setSmsUtsendelseSubActive(view){
 function toggleKickbackSub(open){
   const sub=document.getElementById('kickback-sub-nav');
   if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+
+// toggleAldersfordeltSub/setAldersfordeltSubActive fjernet 12.09.2026 —
+// Aldersfordelt har ikke lenger noen undermeny (ett enkelt punkt, se
+// tab-aldersfordelt). Fakturaoppfølging/Purring-SMS er flyttet til DRIFT som
+// eget punkt med egen undermeny, styrt av funksjonene under.
+function toggleFakturaoppfolgingSub(open){
+  const sub=document.getElementById('fakturaoppfolging-sub-nav');
+  if(sub)sub.className='nav-sub'+(open?' open':'');
+}
+function setFakturaoppfolgingSubActive(view){
+  document.querySelectorAll('#fakturaoppfolging-sub-nav .nav-sub-item').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById('fosub-'+view);
+  if(el)el.classList.add('active');
 }
 
 function toggleInnstillingerSub(open){
@@ -9492,10 +10730,52 @@ function updateEnhetMultiCount(){
   if(el)el.textContent=n>0?`— ${n} valgt`:'';
 }
 
+// ---- Kunde-autocomplete i Ny utleie-modalen (Visma-oppslag ELLER fritekst) ----
+// Lagt til 11.09.2026 — Utleie var siste sted i dashbordet med et rått
+// fritekstfelt for kunde, mens RMA/SOS-kunde/SOS-sak/Verifone/Nets alle
+// bruker samme søk-mot-vismaKunder-mønster (se rmaKundeAcSok() for
+// "kildefunksjonen" dette er kopiert fra). u-kunde-nr fylles ut når
+// brukeren velger et Visma-treff, men sendes IKKE til SharePoint ennå —
+// Utleie-lista (Liste-kolonnene brukt i spCreate/spUpdate over) har ingen
+// KundeNr-kolonne per nå, og den skal ikke legges til uverifisert (se
+// prosjektkonvensjon: sjekk kolonnenavn i Graph Explorer først). Feltet
+// finnes likevel klart for når/hvis det blir aktuelt — kun navnet
+// (u-kunde) lagres foreløpig, akkurat som customer-verdien alltid har gjort.
+function uKundeAcSok(){
+  const raw=(document.getElementById('u-kunde').value||'').trim();
+  const treffDiv=document.getElementById('u-kunde-treff');
+  if(!raw){treffDiv.style.display='none';treffDiv.innerHTML='';return;}
+  const orgNrSok=normOrgNr(raw);
+  let treff=[];
+  if(orgNrSok.length===9)treff=vismaKunder.filter(k=>normOrgNr(k.orgNr)===orgNrSok);
+  if(treff.length===0){
+    const q=raw.toLowerCase();
+    treff=vismaKunder.filter(k=>(k.navn||'').toLowerCase().includes(q));
+  }
+  treff=treff.slice(0,15);
+  if(treff.length===0){
+    treffDiv.innerHTML=`<div class="vf-ac-empty">Ingen Visma-treff — lagres som fritekst-kunde</div>`;
+  }else{
+    treffDiv.innerHTML=treff.map(k=>`
+      <div class="vf-ac-item" onmousedown="uKundeAcVelg('${k.vismaNummer}','${(k.navn||'').replace(/'/g,"\\'")}')">
+        <div class="vf-ac-name">${k.navn}</div>
+        <div class="vf-ac-meta">Kundenr ${k.vismaNummer||'—'} · Org.nr ${k.orgNr||'—'}</div>
+      </div>`).join('');
+  }
+  treffDiv.style.display='block';
+}
+function uKundeAcVelg(vismaNummer,navn){
+  document.getElementById('u-kunde').value=navn;
+  document.getElementById('u-kunde-nr').value=vismaNummer;
+  document.getElementById('u-kunde-treff').style.display='none';
+}
+
 function openNyUtleieModal(){
   document.getElementById('utleie-modal-title').textContent='Ny utleie';
   document.getElementById('u-edit-id').value='';
   document.getElementById('u-kunde').value='';
+  document.getElementById('u-kunde-nr').value='';
+  document.getElementById('u-kunde-treff').innerHTML='';document.getElementById('u-kunde-treff').style.display='none';
   document.getElementById('u-ordre').value='';
   document.getElementById('u-fra').value=new Date().toISOString().slice(0,10);
   document.getElementById('u-til').value='';
@@ -9531,6 +10811,13 @@ function highlightUtleieRow(rentalId){
 }
 
 function jumpToUtleieRow(rentalId){
+  // Manglet showTab-kallet som jumpToRmaSak()/jumpToFakturaoppfolging() har —
+  // uten det ble Utleie-fanen aldri faktisk åpnet når man klikket på en
+  // Utleie-påminnelse i "Trenger oppmerksomhet" fra Hjem-siden (fanen ligger
+  // display:none inntil showTab('utleie',...) kjøres). Fikset 12.09.2026 på
+  // Thomas' tilbakemelding.
+  const tabEl=document.getElementById('tab-utleie');
+  if(tabEl)showTab('utleie',tabEl);
   utleieFilter='alle';utleieSearch='';
   const searchInp=document.getElementById('utleie-search-inp');if(searchInp)searchInp.value='';
   const clearBtn=document.getElementById('utleie-search-clear');if(clearBtn)clearBtn.style.display='none';
@@ -9558,6 +10845,8 @@ function editUtleie(id){
   document.getElementById('utleie-modal-title').textContent='Rediger utleie';
   document.getElementById('u-edit-id').value=id;
   document.getElementById('u-kunde').value=r.customer;
+  document.getElementById('u-kunde-nr').value='';
+  document.getElementById('u-kunde-treff').innerHTML='';document.getElementById('u-kunde-treff').style.display='none';
   document.getElementById('u-ordre').value=r.orderNr||'';
   document.getElementById('u-fra').value=r.fromDate;
   document.getElementById('u-til').value=r.toDate;
@@ -10478,6 +11767,225 @@ function renderKickSammenligning(){
   document.getElementById('tbl-skick').innerHTML=`<thead><tr><th>Kilde</th>${years.map(y=>`<th style="text-align:right">${y==2026?'2026 YTD':y}</th>`).join('')}</tr></thead><tbody>${kickRows.join('')}<tr style="border-top:2px solid #e5e7eb"><td style="font-weight:600;color:#111">Total</td>${ktotCells.join('')}</tr></tbody>`;
 }
 
+// ===== TRANS.AVGIFT-RAPPORT (lagt til 12.09.2026) =====
+// Ren frontend-aggregering av vfHistorikk/ntHistorikk (allerede lastet av
+// loadDataFromSP(), se linjene der vfHistorikk/ntHistorikk fylles) — INGEN nye
+// SharePoint-felt eller backend-endringer. Gruppert per kalendermåned
+// ('YYYY-MM' fra dato-feltet, som er en ISO-tidsstempel-streng). Bevisst uten
+// kundedetaljer (Thomas' eksplisitte ønske 12.09.2026) — kun de samme
+// aggregerte tallene som allerede logges per fakturakjøring: totaltBelop,
+// antallKunder (=antall salgsordre, én pr. BAX), antallOpprettet, antallFeilet,
+// antallManueltAvklart. Samme graf/filter/tabell-oppskrift som
+// renderKickSammenligning() over (kilde->leverandør, år->måned), pluss en
+// "mål"-velger siden vi her har tre ulike tall å vise (Thomas' alternativ A:
+// ett tall om gangen, ikke alle samtidig).
+const NO_MND_KORT=['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+const TA_LEV_FARGE={Nets:'#f59e0b',Verifone:'#1A3A6B'};
+let taMetric='belop'; // 'belop' | 'antall' | 'kvalitet'
+let taLevFilters=new Set(); // tom = vis alle leverandører, samme mønster som skickFilters
+
+function taMndLabel(m){ // m='YYYY-MM'
+  const [y,mo]=m.split('-');
+  return `${NO_MND_KORT[parseInt(mo,10)-1]} ${y}`;
+}
+
+function taAggregerPerMaaned(){
+  const alle=[...vfHistorikk.map(r=>({...r,lev:'Verifone'})),...ntHistorikk.map(r=>({...r,lev:'Nets'}))];
+  const maaneder=[...new Set(alle.map(r=>(r.dato||'').slice(0,7)))].filter(Boolean).sort();
+  const agg={Nets:{},Verifone:{}};
+  ['Nets','Verifone'].forEach(lev=>{
+    maaneder.forEach(m=>{agg[lev][m]={totaltBelop:0,antallKunder:0,antallOpprettet:0,antallFeilet:0,antallManueltAvklart:0};});
+  });
+  alle.forEach(r=>{
+    const m=(r.dato||'').slice(0,7);
+    if(!m||!agg[r.lev]||!agg[r.lev][m])return;
+    const d=agg[r.lev][m];
+    d.totaltBelop+=r.totaltBelop||0;
+    d.antallKunder+=r.antallKunder||0;
+    d.antallOpprettet+=r.antallOpprettet||0;
+    d.antallFeilet+=r.antallFeilet||0;
+    d.antallManueltAvklart+=r.antallManueltAvklart||0;
+  });
+  return {maaneder,agg};
+}
+
+// Summerer rådata for ETT ÅR på tvers av alle måneder i det året OG de
+// aktive leverandørene — brukt av årstotal-kortene (lagt til 12.09.2026,
+// Thomas' ønske om en årssammenligning à la Lisenser/Kickback sin, plassert
+// mellom grafen og månedsraden).
+function taKombinerAar(agg,maaneder,aar,aktiveLev){
+  const maanederIAaret=maaneder.filter(m=>m.startsWith(String(aar)));
+  const sum={totaltBelop:0,antallKunder:0,antallOpprettet:0,antallFeilet:0,antallManueltAvklart:0};
+  maanederIAaret.forEach(m=>{
+    aktiveLev.forEach(lev=>{
+      const d=agg[lev]?.[m];
+      if(!d)return;
+      sum.totaltBelop+=d.totaltBelop;
+      sum.antallKunder+=d.antallKunder;
+      sum.antallOpprettet+=d.antallOpprettet;
+      sum.antallFeilet+=d.antallFeilet;
+      sum.antallManueltAvklart+=d.antallManueltAvklart;
+    });
+  });
+  return sum;
+}
+
+// Summerer rådata på tvers av de leverandørene som er aktive i filteret —
+// brukt av både månedskortene (kombinert linje) og "Totalt"-raden i tabellen.
+function taKombiner(agg,maaned,aktiveLev){
+  const sum={totaltBelop:0,antallKunder:0,antallOpprettet:0,antallFeilet:0,antallManueltAvklart:0};
+  aktiveLev.forEach(lev=>{
+    const d=agg[lev]?.[maaned];
+    if(!d)return;
+    sum.totaltBelop+=d.totaltBelop;
+    sum.antallKunder+=d.antallKunder;
+    sum.antallOpprettet+=d.antallOpprettet;
+    sum.antallFeilet+=d.antallFeilet;
+    sum.antallManueltAvklart+=d.antallManueltAvklart;
+  });
+  return sum;
+}
+
+// Kvalitet vises som suksessrate (opprettet / (opprettet+feilet)) — antall
+// manuelt avklarte er ikke en feil i seg selv (bare BAX som måtte kobles
+// manuelt før fakturering), så det holdes utenfor selve prosentregningen og
+// vises i stedet som ren tekst i tabellcellen/kortet.
+function taMetricVerdi(d,metric){
+  if(metric==='belop')return d.totaltBelop;
+  if(metric==='antall')return d.antallKunder;
+  if(metric==='kvalitet'){
+    const tot=d.antallOpprettet+d.antallFeilet;
+    return tot>0?Math.round(d.antallOpprettet/tot*1000)/10:null;
+  }
+}
+function taMetricFmt(v,metric){
+  if(v===null||v===undefined)return '—';
+  if(metric==='belop')return fS(v);
+  if(metric==='antall')return v.toLocaleString('nb-NO');
+  if(metric==='kvalitet')return v.toFixed(1).replace('.',',')+' %';
+}
+function taKvalitetSubtekst(d){
+  return `${d.antallOpprettet} opprettet · ${d.antallFeilet} feilet · ${d.antallManueltAvklart} avklart`;
+}
+// Delta vs. forrige måned — relativ %-endring for beløp/antall, men
+// PROSENTPOENG-differanse for kvalitet (siden det allerede er en prosent —
+// relativ endring av en prosent blir fort misvisende/forvirrende å lese).
+function taDeltaHtml(cur,prev,metric){
+  if(cur===null||cur===undefined||prev===null||prev===undefined)return '';
+  if(metric==='kvalitet'){
+    const diff=cur-prev;
+    if(Math.abs(diff)<0.05)return '';
+    return `<div style="font-size:10px;color:${diff>=0?'#16a34a':'#dc2626'};margin-top:1px">${diff>=0?'▲':'▼'}${Math.abs(diff).toFixed(1)} poeng</div>`;
+  }
+  if(!prev)return '';
+  const pct=(cur-prev)/prev*100;
+  return `<div style="font-size:10px;color:${pct>=0?'#16a34a':'#dc2626'};margin-top:1px">${pct>=0?'▲':'▼'}${Math.abs(pct).toFixed(1)}%</div>`;
+}
+
+function toggleTaLevFilter(lev){
+  if(taLevFilters.has(lev))taLevFilters.delete(lev);else{taLevFilters=new Set(taLevFilters);taLevFilters.add(lev);}
+  renderTransavgiftRapport();
+}
+function setTaMetric(m){taMetric=m;renderTransavgiftRapport();}
+
+function renderTransavgiftRapport(){
+  const {maaneder,agg}=taAggregerPerMaaned();
+  const alleLev=['Nets','Verifone'];
+  const aktiveLev=alleLev.filter(l=>taLevFilters.size===0||taLevFilters.has(l));
+
+  // Mål-velger (Totalbeløp/Antall salgsordre/Kvalitet) — enkeltvalg.
+  const metricDefs=[{id:'belop',label:'Totalbeløp'},{id:'antall',label:'Antall salgsordre'},{id:'kvalitet',label:'Kvalitet'}];
+  document.getElementById('ta-metric-filters').innerHTML=metricDefs.map(md=>{
+    const on=taMetric===md.id;
+    return `<button class="fpill${on?' f-on':' f-off'}" style="${on?'border-color:#1A3A6B':''}" onclick="setTaMetric('${md.id}')"><span style="font-weight:600;color:${on?'#1A3A6B':'#9ca3af'}">${md.label}</span></button>`;
+  }).join('');
+
+  // Leverandør-filter — samme "Alle"-mønster som Kickback sine kilde-piller.
+  const levPills=alleLev.map(lev=>{
+    const filtered=taLevFilters.size>0;
+    const on=!filtered||taLevFilters.has(lev);
+    const c=TA_LEV_FARGE[lev];
+    return `<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${on?`border-color:${c}`:''}" onclick="toggleTaLevFilter('${lev}')"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${lev}</button>`;
+  });
+  document.getElementById('ta-lev-filters').innerHTML=`<span class="filter-lbl">Vis:</span>`+`<button class="fpill" style="${taLevFilters.size===0?'border-color:#1A3A6B':''}" onclick="taLevFilters=new Set();renderTransavgiftRapport()"><span style="font-weight:600;color:${taLevFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`+levPills.join('');
+
+  if(maaneder.length===0){
+    dC('ta');
+    document.getElementById('ta-arstotaler').innerHTML='';
+    document.getElementById('ta-maaneder').innerHTML=`<div class="hint">Ingen fakturakjøringer registrert ennå — kommer så snart Nets eller Verifone trans.avgift har blitt fakturert minst én gang.</div>`;
+    document.getElementById('tbl-ta').innerHTML='';
+    return;
+  }
+
+  // Graf
+  dC('ta');
+  const taCtx=document.getElementById('chart-ta');
+  if(taCtx){
+    charts['ta']=new Chart(taCtx,{type:'bar',data:{
+      labels:maaneder.map(taMndLabel),
+      datasets:aktiveLev.map(lev=>({label:lev,data:maaneder.map(m=>taMetricVerdi(agg[lev][m],taMetric)),backgroundColor:TA_LEV_FARGE[lev],borderRadius:2}))
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:aktiveLev.length>1,position:'top',align:'end',labels:{boxWidth:10,font:{size:11}}},tooltip:{backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',borderColor:'#e5e7eb',borderWidth:1,padding:10,callbacks:{label:c=>`${c.dataset.label}: ${taMetricFmt(c.raw,taMetric)}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9ca3af'}},y:{grid:{color:'#f3f4f6'},ticks:{font:{size:11},color:'#9ca3af',callback:v=>taMetric==='kvalitet'?v+'%':taMetricFmt(v,taMetric)},border:{display:false}}}}});
+  }
+
+  // Årstotaler — Thomas' ønske 12.09.2026, samme kort-med-delta-mønster som
+  // skick-yearly i renderKickSammenligning(), men fra og med 2025 (bevisst
+  // "gulv" — ingen reell trans.avgift-historikk finnes lenger tilbake ennå,
+  // men listen utvides automatisk oppover etter hvert som nye år kommer til).
+  const idagAar=new Date().getFullYear();
+  const arListe=[...new Set([2025,...maaneder.map(m=>parseInt(m.slice(0,4),10))])].filter(y=>y>=2025).sort((a,b)=>a-b);
+  const arVerdier=arListe.map(aar=>taMetricVerdi(taKombinerAar(agg,maaneder,aar,aktiveLev),taMetric));
+  document.getElementById('ta-arstotaler').style.gridTemplateColumns=`repeat(${arListe.length},1fr)`;
+  document.getElementById('ta-arstotaler').innerHTML=arListe.map((aar,i)=>{
+    const curV=arVerdier[i];
+    const prevV=i>0?arVerdier[i-1]:null;
+    const cur=taKombinerAar(agg,maaneder,aar,aktiveLev);
+    const sub=taMetric==='kvalitet'?`<div style="font-size:10px;color:#9ca3af;margin-top:2px">${taKvalitetSubtekst(cur)}</div>`:'';
+    return `<div style="background:white;border-radius:8px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center">
+      <div style="font-size:12px;color:#6b7280;margin-bottom:4px">${aar===idagAar?aar+' YTD':aar}</div>
+      <div style="font-size:18px;font-weight:700;color:#1A3A6B">${taMetricFmt(curV,taMetric)}</div>
+      ${taDeltaHtml(curV,prevV,taMetric)}${sub}
+    </div>`;
+  }).join('');
+
+  // Månedskort — Thomas ønsket ALLE måneder (ikke begrenset til f.eks. 3
+  // siste), derfor horisontal scroll i stedet for et fast grid som ville blitt
+  // uleselig trangt med mange måneder.
+  document.getElementById('ta-maaneder').innerHTML=maaneder.map((m,i)=>{
+    const cur=taKombiner(agg,m,aktiveLev);
+    const prev=i>0?taKombiner(agg,maaneder[i-1],aktiveLev):null;
+    const curV=taMetricVerdi(cur,taMetric);
+    const prevV=prev?taMetricVerdi(prev,taMetric):null;
+    const sub=taMetric==='kvalitet'?`<div style="font-size:10px;color:#9ca3af;margin-top:2px">${taKvalitetSubtekst(cur)}</div>`:'';
+    return `<div style="flex:0 0 auto;min-width:120px;background:white;border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:4px">${taMndLabel(m)}</div>
+      <div style="font-size:16px;font-weight:700;color:#1A3A6B">${taMetricFmt(curV,taMetric)}</div>
+      ${taDeltaHtml(curV,prevV,taMetric)}${sub}
+    </div>`;
+  }).join('');
+
+  // Tabell — rader = aktive leverandører + Totalt-rad, kolonner = måneder.
+  const rows=aktiveLev.map(lev=>{
+    const cells=maaneder.map((m,i)=>{
+      const cur=agg[lev][m];
+      const prev=i>0?agg[lev][maaneder[i-1]]:null;
+      const curV=taMetricVerdi(cur,taMetric);
+      const prevV=prev?taMetricVerdi(prev,taMetric):null;
+      const sub=taMetric==='kvalitet'?`<div style="font-size:9.5px;color:#9ca3af;margin-top:1px">${taKvalitetSubtekst(cur)}</div>`:'';
+      return `<td class="tr">${taMetricFmt(curV,taMetric)}${taDeltaHtml(curV,prevV,taMetric)}${sub}</td>`;
+    });
+    return `<tr><td><span class="dot" style="background:${TA_LEV_FARGE[lev]}"></span>${lev}</td>${cells.join('')}</tr>`;
+  });
+  const totCells=maaneder.map((m,i)=>{
+    const cur=taKombiner(agg,m,aktiveLev);
+    const prev=i>0?taKombiner(agg,maaneder[i-1],aktiveLev):null;
+    const curV=taMetricVerdi(cur,taMetric);
+    const prevV=prev?taMetricVerdi(prev,taMetric):null;
+    const sub=taMetric==='kvalitet'?`<div style="font-size:9.5px;color:#9ca3af;margin-top:1px">${taKvalitetSubtekst(cur)}</div>`:'';
+    return `<td class="tr" style="font-weight:600">${taMetricFmt(curV,taMetric)}${taDeltaHtml(curV,prevV,taMetric)}${sub}</td>`;
+  });
+  document.getElementById('tbl-ta').innerHTML=`<thead><tr><th>Leverandør</th>${maaneder.map(m=>`<th style="text-align:right">${taMndLabel(m)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}${aktiveLev.length>1?`<tr style="border-top:2px solid #e5e7eb"><td style="font-weight:600;color:#111">Totalt</td>${totCells.join('')}</tr>`:''}</tbody>`;
+}
+
 
 // ===== BRUKERTILGANG =====
 async function loadBrukere(){
@@ -10509,6 +12017,13 @@ async function loadArbeidstid(){
 }
 
 function applyAccessControl(){
+  // Oversikt skjult midlertidig 12.09.2026 (Thomas' ønske) — RAPPORTER-gruppen
+  // (Lisenser/Kickback/Trans.avgift-rapport/Aldersfordelt) dekker nå det samme
+  // behovet, og Oversikt ga ikke nok ekstra verdi til å beholde som eget
+  // menypunkt. IKKE fjernet fra MODULER/koden, kun skjult — gjelder for ALLE
+  // roller inkludert admin (derfor plassert FØR admin-early-return under).
+  // Reverser ved å fjerne denne ene linjen hvis Oversikt skal tilbake.
+  document.getElementById('tab-oversikt').style.display='none';
   if(userRole==='admin'){salgTilgang=true;return;} // Admin ser og kan skrive alt
   // Finn bruker basert på e-post eller azure ID
   const me=brukere.find(b=>
@@ -10545,6 +12060,10 @@ function applyAccessControl(){
       const sub=document.getElementById('smsutsendelse-sub-nav');
       if(sub)sub.style.display=har?'':'none';
     }
+    if(m.id==='fakturaoppfolging'){
+      const sub=document.getElementById('fakturaoppfolging-sub-nav');
+      if(sub)sub.style.display=har?'':'none';
+    }
   });
   // Alle lander på Hjem ved FØRSTE innlasting, uansett rolle og modul-tilgang.
   //
@@ -10576,13 +12095,21 @@ function renderBrukere(){
     el.innerHTML=`<p style="color:#9ca3af;font-size:13px;padding:12px 0">Ingen brukere registrert ennå. Legg til brukere for å styre tilgang.</p>`;
     return;
   }
-  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
+  el.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;min-width:900px;table-layout:fixed;border-collapse:collapse;font-size:13px">
+    <colgroup>
+      <col style="width:15%">
+      <col style="width:17%">
+      ${MODULER.map(()=>`<col style="width:${(58/MODULER.length).toFixed(2)}%">`).join('')}
+      <col style="width:4%">
+      <col style="width:4%">
+      <col style="width:2%">
+    </colgroup>
     <thead><tr style="border-bottom:2px solid #f3f4f6">
-      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">Navn</th>
-      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600">E-post</th>
-      ${MODULER.map(m=>`<th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px;max-width:60px">${m.label.split(' ')[1]}</th>`).join('')}
-      <th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px">Redigere</th>
-      <th style="text-align:center;padding:8px 4px;color:#6b7280;font-weight:600;font-size:11px">Salg</th>
+      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600;text-transform:none">Navn</th>
+      <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600;text-transform:none">E-post</th>
+      ${MODULER.map(m=>{const navn=m.label.split(' ')[1];const visning=m.id==='fakturaoppfolging'?'Faktura<br>oppfølging':navn;return `<th style="text-align:center;padding:8px 3px;color:#6b7280;font-weight:600;font-size:10px;letter-spacing:.1px;line-height:1.25;overflow-wrap:break-word;word-break:break-word;vertical-align:bottom">${visning}</th>`;}).join('')}
+      <th style="text-align:center;padding:8px 3px;color:#6b7280;font-weight:600;font-size:10px;overflow-wrap:break-word;word-break:break-word;vertical-align:bottom">Redigere</th>
+      <th style="text-align:center;padding:8px 3px;color:#6b7280;font-weight:600;font-size:10px;overflow-wrap:break-word;word-break:break-word;vertical-align:bottom">Salg</th>
       <th></th>
     </tr></thead>
     <tbody>${brukere.map(b=>`<tr style="border-bottom:1px solid #f9fafb">
@@ -10608,13 +12135,15 @@ function renderBrukere(){
         <button class="btn-icon del" onclick="deleteBruker('${b.id}')" title="Slett">✕</button>
       </div></td>
     </tr>`).join('')}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function openNyBruker(){
   document.getElementById('bruker-form-title').textContent='Legg til bruker';
   document.getElementById('bf-navn').value='';
   document.getElementById('bf-epost').value='';
+  document.getElementById('bf-fodt').value='';
+  document.getElementById('bf-startet').value='';
   document.getElementById('bf-edit-id').value='';
   const el=document.getElementById('bf-moduler');
   if(el)el.innerHTML=MODULER.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:13px">
@@ -10636,6 +12165,8 @@ function editBruker(id){
   document.getElementById('bruker-form-title').textContent='Rediger bruker';
   document.getElementById('bf-navn').value=b.navn;
   document.getElementById('bf-epost').value=b.epost;
+  document.getElementById('bf-fodt').value=b.tilgang.fodselsdato||'';
+  document.getElementById('bf-startet').value=b.tilgang.startetIKBD||'';
   document.getElementById('bf-edit-id').value=id;
   const el=document.getElementById('bf-moduler');
   if(el)el.innerHTML=MODULER.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;font-size:13px">
@@ -10663,6 +12194,10 @@ async function saveBruker(){
   MODULER.forEach(m=>{tilgang[m.id]=document.getElementById('bfm-'+m.id)?.checked===true;});
   tilgang.redaktor=document.getElementById('bfm-redaktor')?.checked===true;
   tilgang.salg=document.getElementById('bfm-salg')?.checked===true;
+  // fodselsdato/startetIKBD — se kommentaren ved bf-fodt/bf-startet i HTML-en
+  // for hvorfor disse ligger i Tilgang-JSON-en og ikke som egne SP-kolonner.
+  tilgang.fodselsdato=document.getElementById('bf-fodt')?.value||'';
+  tilgang.startetIKBD=document.getElementById('bf-startet')?.value||'';
   const editId=document.getElementById('bf-edit-id').value;
   const spFields={Title:navn,Epost:epost,Tilgang:JSON.stringify(tilgang)};
   closeBrukerForm();
@@ -11567,6 +13102,392 @@ async function vfLoggHistorikk(godkjente, resultater, referanse){
     });
   } catch (err) {
     console.warn('Kunne ikke logge til VerifoneHistorikk (salgsordrene er uansett opprettet i Visma.net):', err);
+  }
+}
+
+/* ===== Nets trans.avgift (nt-) — lagt til 09.09.2026 =====
+   Speiler Verifone-blokken over (samme flyt: last opp -> match -> godkjenn ->
+   opprett salgsordre-utkast -> logg historikk). Gjenbruker BEVISST følgende
+   generiske vf-prefikserte hjelpere i stedet for å duplisere dem (de er ikke
+   faktisk Verifone-spesifikke, kun oppkalt før Nets fantes): VF_CONFIG
+   (samme kbd-verifone-func Azure Function App, se arkitekturvalg 09.09.2026),
+   VF_API_SCOPE, vfGetApiToken(), vfApiUrl(), vfErForhandler() (samme
+   forhandler-unntak gjelder for Nets, bekreftet av Thomas 09.09.2026),
+   vfShowToast(), vfNf/vfNfi/vfKr og CSS-klassene .vf- og .vftp.
+
+   Bevisste forskjeller fra Verifone, se også HTML-blokken (#tp-nets):
+   - Ingen fast KBD-pris — Nets-prisen varierer per linje og hentes direkte
+     fra fakturaen (se matcher.match_nets_linjer() / visma_client.
+     opprett_salgsordre_utkast_nets()). 4. KPI viser i stedet periode(r)
+     funnet på fakturaen (ntUpdatePeriodeKpi()).
+   - Kaller /api/parse_invoice_nets og /api/create_sales_orders_nets.
+   - Skriver historikk til den EGNE lista NetsHistorikk (ikke
+     VerifoneHistorikk), besluttet av Thomas 09.09.2026.
+   - Sender "kundenavn" i godkjente-payloaden til /api/create_sales_orders_nets
+     (Verifone-payloaden sender også kundenavn, men backend der ignorerer det
+     — Nets-backend BRUKER det til Beskrivelse-feltet, se
+     visma_client._bygg_beskrivelse_nets()). */
+
+let ntData = { matched: [], unmatched: [], conflicts: [] };
+let ntHistorikk = []; // fylt av loadDataFromSP() (lista NetsHistorikk) — se ntRenderHistorikk()/ntLoggHistorikk()
+let ntSisteFakturaReferanse = "";
+const ntLinkedState = {};
+
+function ntSwitchTab(name){
+  document.getElementById('nt-tabbtn-matched').classList.toggle('active', name==='matched');
+  document.getElementById('nt-tabbtn-unmatched').classList.toggle('active', name==='unmatched');
+  document.getElementById('nttp-matched').classList.toggle('active', name==='matched');
+  document.getElementById('nttp-unmatched').classList.toggle('active', name==='unmatched');
+}
+
+function ntToggleDetail(idx){
+  const row = document.getElementById('nt-detail-'+idx);
+  const chev = document.getElementById('nt-chev-'+idx);
+  const open = row.style.display !== 'table-row';
+  row.style.display = open ? 'table-row' : 'none';
+  chev.classList.toggle('open', open);
+}
+
+async function ntLastOppFaktura(file){
+  if (!file) return;
+  if (!VF_CONFIG.baseUrl){
+    ntShowUploadError("Ikke koblet til Azure Function ennå — sett VF_CONFIG.baseUrl i scriptet.");
+    return;
+  }
+  ntHideUploadError();
+  document.getElementById('nt-upload-filename').textContent = file.name;
+  document.getElementById('nt-upload-meta').textContent = "Leser og matcher mot Visma.net …";
+
+  const formData = new FormData();
+  formData.append('faktura', file);
+
+  try {
+    const token = await vfGetApiToken();
+    const resp = await fetch(vfApiUrl('/api/parse_invoice_nets'), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      ntShowUploadError(data.error || `Feil fra server (${resp.status})`);
+      document.getElementById('nt-upload-meta').textContent = "Opplasting feilet — se feilmelding under.";
+      return;
+    }
+    ntData = data;
+    ntSisteFakturaReferanse = file.name.replace(/\.pdf$/i, '');
+    document.getElementById('nt-upload-meta').textContent =
+      `${data.antallLinjerLest} transaksjonslinjer lest · matchet mot Visma.net`;
+    ntRenderMatched();
+    ntRenderUnmatched();
+    ntUpdatePeriodeKpi();
+    document.getElementById('nt-approve-btn').disabled = false;
+    document.getElementById('nt-approve-btn').textContent = 'Opprett salgsordre-utkast i Visma.net →';
+  } catch (err) {
+    ntShowUploadError(`Kunne ikke nå Azure Function: ${err.message}`);
+    document.getElementById('nt-upload-meta').textContent = "Opplasting feilet — se feilmelding under.";
+  }
+}
+
+function ntShowUploadError(msg){
+  const el = document.getElementById('nt-upload-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function ntHideUploadError(){
+  document.getElementById('nt-upload-error').style.display = 'none';
+}
+
+// Viser periode(r) funnet på fakturaen i 4. KPI-en — Nets har ikke en fast
+// "pris til kunde"-visning slik Verifone har (prisen varierer per linje), se
+// begrunnelse i blokk-kommentaren over. Samler perioder fra matched+
+// unmatched+conflicts slik at KPI-en stemmer uansett om alt er automatisk
+// matchet ennå.
+function ntUpdatePeriodeKpi(){
+  const perioder = new Set();
+  (ntData.matched||[]).forEach(m => (m.periods||[]).forEach(p => perioder.add(p.periode)));
+  (ntData.unmatched||[]).forEach(u => (u.periods||[]).forEach(p => perioder.add(p.periode)));
+  (ntData.conflicts||[]).forEach(c => (c.periods||[]).forEach(p => perioder.add(p.periode)));
+  const arr = [...perioder];
+  const el = document.getElementById('nt-kpi-periode');
+  if (!el) return;
+  el.textContent = arr.length === 0 ? '—' : arr.length === 1 ? arr[0] : `${arr[0]} (+${arr.length - 1})`;
+}
+
+function ntRenderMatched(){
+  const tbody = document.getElementById('nt-matched-body');
+  if (!tbody) return;
+  let totalAntall = 0, totalBelop = 0;
+  tbody.innerHTML = ntData.matched.map((m, i) => {
+    totalAntall += m.totalAntall;
+    totalBelop += m.totalBelop;
+    const erForhandler = vfErForhandler(m.kundenr);
+    // Én rad per (periode, korttype) — lagt til 09.09.2026: hver korttype
+    // (BankAxept/Visa-Mastercard/Diners osv.) blir sin EGEN salgsordrelinje
+    // med sin egen faktiske Nets-pris (se matcher.match_nets_linjer() og
+    // visma_client.opprett_salgsordre_utkast_nets()), så detaljvisningen her
+    // viser nå korttype + pris/stk i tillegg til periode/antall/beløp — det
+    // Wenche faktisk godkjenner er én ordrelinje per rad her, ikke bare én
+    // sum per BAX.
+    const detailRows = m.periods.map(p => `
+      <tr><td>${p.korttype||'—'}</td><td>${p.periode}</td><td class="tr">${vfNfi.format(p.antall)} trans.</td><td class="tr">${vfKr(p.antall?p.belop/p.antall:0)}/stk</td><td class="tr">${vfKr(p.belop)}</td></tr>
+    `).join('');
+    return `
+      <tr class="rowhover" onclick="ntToggleDetail(${i})" style="cursor:pointer">
+        <td><span class="vf-chev" id="nt-chev-${i}">▶</span></td>
+        <td class="vf-kundenr">${m.kundenr}</td>
+        <td class="vf-kundenavn">${m.kundenavn}<div style="font-weight:400;font-size:11px;color:#9ca3af;margin-top:2px">${m.brukersted||''} · BAX: ${m.bax||''}${erForhandler ? ' · <span style="color:#0e7490;font-weight:600">🏷️ Forhandler — uten ekspedisjonsgebyr</span>' : ''}</div></td>
+        <td class="tr">${vfNfi.format(m.totalAntall)}</td>
+        <td class="tr" style="color:#0e8a58;font-weight:700">${vfKr(m.totalBelop)}</td>
+        <td><span class="vf-pill-status vf-pill-ok">✓ BAX-match</span></td>
+      </tr>
+      <tr class="vf-detail-row" id="nt-detail-${i}" style="display:none">
+        <td colspan="6"><div class="vf-detail-inner"><table>
+          <thead><tr><th>Korttype</th><th>Periode</th><th class="tr">Antall</th><th class="tr">Pris/stk</th><th class="tr">Beløp</th></tr></thead>
+          <tbody>${detailRows}</tbody>
+        </table></div></td>
+      </tr>`;
+  }).join('');
+
+  const totalLinjer = ntData.matched.reduce((s,m)=>s+m.periods.length,0) + ntData.unmatched.reduce((s,u)=>s+u.periods.length,0);
+  document.getElementById('nt-kpi-total-lines').textContent = vfNfi.format(totalLinjer);
+  document.getElementById('nt-kpi-total-bax').textContent = (ntData.matched.length + ntData.unmatched.length) + ' unike BAX-numre';
+  document.getElementById('nt-kpi-matched-sum').textContent = vfKr(totalBelop);
+  document.getElementById('nt-kpi-matched-count').textContent = ntData.matched.length + ' salgsordre(r) · ' + vfNfi.format(totalAntall) + ' trans.';
+  document.getElementById('nt-tab-count-matched').textContent = ntData.matched.length;
+  ntUpdateApproveBar();
+}
+
+function ntRenderUnmatched(){
+  const tbody = document.getElementById('nt-unmatched-body');
+  if (!tbody) return;
+  let totalBelop = 0;
+  tbody.innerHTML = ntData.unmatched.map((u, i) => {
+    totalBelop += u.totalBelop;
+    return `
+      <tr class="vf-flag-row">
+        <td class="vf-flag-bax">${u.bax}</td>
+        <td>${u.brukersted}</td>
+        <td class="tr">${vfNfi.format(u.totalAntall)}</td>
+        <td class="tr" style="color:#92400e;font-weight:700">${vfKr(u.totalBelop)}</td>
+        <td>
+          ${ntRenderKundeAutocomplete(i)}
+        </td>
+        <td><button class="vf-link-btn" id="nt-btn-${i}" onclick="ntLinkCustomer(${i})">Koble</button></td>
+      </tr>`;
+  }).join('');
+  document.getElementById('nt-kpi-unmatched-sum').textContent = vfKr(totalBelop);
+  document.getElementById('nt-kpi-unmatched-count').textContent = ntData.unmatched.length + ' BAX-numre uten treff';
+  document.getElementById('nt-tab-count-unmatched').textContent = ntData.unmatched.length;
+}
+
+// Kunde-autocomplete for Nets sin "Må avklares"-fane — identisk søkelogikk
+// som vfRenderKundeAutocomplete()/vfKundeAcSok() (gjenbruker samme
+// vismaKunder-array), egne DOM-id-er (nt-ac-*) for å ikke kollidere med
+// Verifone-fanens elementer når begge er lastet i samme dashbord.
+function ntRenderKundeAutocomplete(baxId, forhandsvalgtVismaNummer){
+  const forhandsvalgt = forhandsvalgtVismaNummer
+    ? vismaKunder.find(k => k.vismaNummer === forhandsvalgtVismaNummer)
+    : null;
+  return `
+    <div class="vf-kunde-ac">
+      <input type="text" id="nt-ac-input-${baxId}"
+             placeholder="Søk kundenavn eller org.nr…"
+             value="${forhandsvalgt ? forhandsvalgt.navn.replace(/"/g,'&quot;') : ''}"
+             oninput="ntKundeAcSok(${baxId})"
+             onfocus="ntKundeAcSok(${baxId})"
+             onblur="document.getElementById('nt-ac-treff-${baxId}').style.display='none'"
+             autocomplete="off"/>
+      <div id="nt-ac-treff-${baxId}" class="vf-ac-treff"></div>
+      <input type="hidden" id="nt-ac-value-${baxId}" value="${forhandsvalgt ? forhandsvalgt.vismaNummer : ''}"/>
+    </div>`;
+}
+
+function ntKundeAcSok(baxId){
+  const raw = (document.getElementById(`nt-ac-input-${baxId}`).value || '').trim();
+  const treffDiv = document.getElementById(`nt-ac-treff-${baxId}`);
+  if (!raw) { treffDiv.style.display = 'none'; treffDiv.innerHTML = ''; return; }
+
+  const orgNrSok = normOrgNr(raw);
+  let treff = [];
+  if (orgNrSok.length === 9) treff = vismaKunder.filter(k => normOrgNr(k.orgNr) === orgNrSok);
+  if (treff.length === 0) {
+    const q = raw.toLowerCase();
+    treff = vismaKunder.filter(k => (k.navn || '').toLowerCase().includes(q));
+  }
+  treff = treff.slice(0, 15);
+
+  if (treff.length === 0) {
+    treffDiv.innerHTML = `<div class="vf-ac-empty">Ingen treff</div>`;
+  } else {
+    treffDiv.innerHTML = treff.map(k => `
+      <div class="vf-ac-item"
+           onmousedown="ntKundeAcVelg(${baxId},'${k.vismaNummer}','${(k.navn||'').replace(/'/g,"\\'")}')">
+        <div class="vf-ac-name">${k.navn}</div>
+        <div class="vf-ac-meta">Kundenr ${k.vismaNummer || '—'} · Org.nr ${k.orgNr || '—'}</div>
+      </div>`).join('');
+  }
+  treffDiv.style.display = 'block';
+}
+
+function ntKundeAcVelg(baxId, vismaNummer, navn){
+  document.getElementById(`nt-ac-input-${baxId}`).value = navn;
+  document.getElementById(`nt-ac-value-${baxId}`).value = vismaNummer;
+  document.getElementById(`nt-ac-treff-${baxId}`).style.display = 'none';
+}
+
+function ntLinkCustomer(i){
+  const valueInput = document.getElementById('nt-ac-value-'+i);
+  const textInput = document.getElementById('nt-ac-input-'+i);
+  const btn = document.getElementById('nt-btn-'+i);
+  if(!valueInput.value){ textInput.focus(); return; }
+  ntLinkedState[i] = { vismaNummer: valueInput.value, navn: textInput.value };
+  btn.textContent = '✓ Koblet';
+  btn.classList.add('linked');
+  textInput.disabled = true;
+  vfShowToast(ntData.unmatched[i].brukersted + ' koblet til ' + textInput.value + ' — tas med i salgsordre-utkastet');
+  ntUpdateApproveBar();
+}
+
+// Slår sammen automatisk matchede (ntData.matched) og manuelt koblede
+// (ntLinkedState) BAX-numre til én liste — identisk prinsipp som
+// vfBuildGodkjenteListe() (én salgsordre PR. BAX, se matcher.
+// grupper_per_bax_matched()). "kundenavn" sendes med og BRUKES faktisk av
+// create_sales_orders_nets/_bygg_beskrivelse_nets() (i motsetning til
+// Verifone-payloaden der feltet sendes men ignoreres av backend).
+function ntBuildGodkjenteListe(){
+  const baxMap = {};
+  ntData.matched.forEach(m => {
+    baxMap[m.bax] = { kundenr: m.kundenr, kundenavn: m.kundenavn, bax: m.bax, brukersted: m.brukersted, erForhandler: vfErForhandler(m.kundenr), periods: [...m.periods] };
+  });
+  Object.keys(ntLinkedState).forEach(i => {
+    const link = ntLinkedState[i];
+    const u = ntData.unmatched[i];
+    if (!u) return;
+    baxMap[u.bax] = {
+      kundenr: link.vismaNummer, kundenavn: link.navn, bax: u.bax, brukersted: u.brukersted,
+      erForhandler: vfErForhandler(link.vismaNummer),
+      periods: u.periods.map(p => ({...p, bax: u.bax, brukersted: u.brukersted})),
+    };
+  });
+  return Object.values(baxMap);
+}
+
+function ntUpdateApproveBar(){
+  const godkjente = ntBuildGodkjenteListe();
+  const totalBelop = godkjente.reduce((s,k)=>s+k.periods.reduce((s2,p)=>s2+p.belop,0),0);
+  document.getElementById('nt-approve-total').textContent = vfKr(totalBelop) + ' (' + godkjente.length + ' salgsordre)';
+  const pendingCount = ntData.unmatched.length - Object.keys(ntLinkedState).length;
+  const pendingEl = document.getElementById('nt-approve-pending');
+  pendingEl.textContent = pendingCount > 0 ? `${pendingCount} BAX-numre venter fortsatt på kobling` : '';
+}
+
+async function ntApprove(){
+  if (!VF_CONFIG.baseUrl){
+    vfShowToast('Ikke koblet til Azure Function ennå.');
+    return;
+  }
+  const godkjente = ntBuildGodkjenteListe();
+  if (!godkjente.length){
+    vfShowToast('Ingenting å opprette — last opp en faktura først.');
+    return;
+  }
+  const btn = document.getElementById('nt-approve-btn');
+  btn.disabled = true;
+  btn.textContent = 'Oppretter utkast…';
+
+  const payload = {
+    godkjente: godkjente.map(k => ({ kundenr: k.kundenr, kundenavn: k.kundenavn, erForhandler: !!k.erForhandler, periods: k.periods })),
+    fakturareferanse: ntSisteFakturaReferanse || 'Nets transaksjonsavgift',
+  };
+
+  try {
+    const token = await vfGetApiToken();
+    const resp = await fetch(vfApiUrl('/api/create_sales_orders_nets'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      vfShowToast(data.error || `Feil fra server (${resp.status})`);
+      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+      return;
+    }
+    const ok = data.resultater.filter(r => r.status === 'ok').length;
+    const feilet = data.resultater.filter(r => r.status === 'feil');
+    await ntLoggHistorikk(godkjente, data.resultater, payload.fakturareferanse);
+    if (feilet.length === 0) {
+      btn.textContent = '✓ Opprettet — se Visma.net for gjennomgang';
+      vfShowToast(`${ok} salgsordre-utkast opprettet i Visma.net`);
+    } else {
+      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+      vfShowToast(`${ok} opprettet, ${feilet.length} feilet — se konsoll`);
+      console.warn('Kunder som feilet:', feilet);
+    }
+  } catch (err) {
+    btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
+    vfShowToast(`Kunne ikke nå Azure Function: ${err.message}`);
+  }
+}
+
+function renderNets(){
+  ntRenderMatched();
+  ntRenderUnmatched();
+  ntUpdatePeriodeKpi();
+}
+
+function ntRenderHistorikk(){
+  const tbody = document.getElementById('nt-historikk-body');
+  if (!tbody) return;
+  const sorted = [...ntHistorikk].sort((a,b) => new Date(b.dato) - new Date(a.dato));
+  if (!sorted.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Ingen fakturakjøringer registrert ennå — historikk logges automatisk når "Opprett salgsordre-utkast i Visma.net" kjøres.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sorted.map(h => `
+    <tr>
+      <td>${h.dato ? new Date(h.dato).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+      <td>${h.fakturareferanse || '—'}</td>
+      <td class="tr" style="font-weight:700">${vfKr(h.totaltBelop)}</td>
+      <td class="tr">${h.antallKunder}</td>
+      <td class="tr" style="color:#0e8a58;font-weight:600">${h.antallOpprettet}</td>
+      <td class="tr" style="color:${h.antallFeilet > 0 ? '#dc2626' : '#9ca3af'}">${h.antallFeilet}</td>
+      <td class="tr">${h.antallManueltAvklart}</td>
+      <td>${h.opprettetAv || '—'}</td>
+    </tr>`).join('');
+}
+
+// Logger én rad i NetsHistorikk-lista i SharePoint — se vfLoggHistorikk()
+// over for begrunnelsen (kun reelle, fullførte kjøringer telles). Egen
+// liste, ikke slått sammen med VerifoneHistorikk (besluttet av Thomas
+// 09.09.2026). Feiler denne SharePoint-skrivingen (f.eks. fordi lista ikke
+// er opprettet ennå i SharePoint), skal IKKE selve salgsordre-flyten stoppes
+// eller vises som feilet — salgsordrene er uansett allerede opprettet i
+// Visma.net på dette tidspunktet.
+async function ntLoggHistorikk(godkjente, resultater, referanse){
+  try {
+    const totaltBelop = godkjente.reduce((s,k) => s + k.periods.reduce((s2,p) => s2 + p.belop, 0), 0);
+    const fields = {
+      Title: referanse,
+      Dato: new Date().toISOString(),
+      TotaltBelop: totaltBelop,
+      AntallKunder: godkjente.length, // antall SALGSORDRE (én pr. BAX), se tilsvarende merknad i vfLoggHistorikk()
+      AntallOpprettet: resultater.filter(r => r.status === 'ok').length,
+      AntallFeilet: resultater.filter(r => r.status === 'feil').length,
+      AntallManueltAvklart: Object.keys(ntLinkedState).length,
+      OpprettetAv: currentUser?.name || currentUser?.username || 'Ukjent',
+    };
+    const created = await spCreate('NetsHistorikk', fields);
+    ntHistorikk.push({
+      id: `sp${created.id}`, spId: created.id,
+      fakturareferanse: fields.Title, dato: fields.Dato, totaltBelop: fields.TotaltBelop,
+      antallKunder: fields.AntallKunder, antallOpprettet: fields.AntallOpprettet,
+      antallFeilet: fields.AntallFeilet, antallManueltAvklart: fields.AntallManueltAvklart,
+      opprettetAv: fields.OpprettetAv,
+    });
+  } catch (err) {
+    console.warn('Kunne ikke logge til NetsHistorikk (salgsordrene er uansett opprettet i Visma.net) — sjekk om lista er opprettet i SharePoint ennå:', err);
   }
 }
 
