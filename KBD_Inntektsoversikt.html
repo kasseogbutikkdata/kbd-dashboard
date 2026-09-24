@@ -7,6 +7,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"></script>
+<!-- jsPDF — for «Last ned PDF»-knappen på Susoft RMA (lagt til 24.09.2026,
+     Thomas' ønske): genererer en enkel, printvennlig PDF med saksinfo som kan
+     legges fysisk med kassen når den sendes til Susoft. Ren klientside, ingen
+     backend/nettverkskall involvert. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- Flatpickr — moderne dato/klokkeslett-velger, lagt til 24.08.2026 for
      Forfallsdato-feltet på Salg & oppfølging (erstatter nettleserens
      innebygde datetime-local-popup, som ikke lar seg style og ser ulikt/
@@ -463,7 +468,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.127 · Oppdatert: 23. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.128 · Oppdatert: 24. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1905,9 +1910,12 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Kommentar</label><textarea id="rma-kommentar" rows="3" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <input type="hidden" id="rma-edit-id"/>
-      <div class="modal-footer">
-        <button class="btn-sm" onclick="closeRmaModal()">Avbryt</button>
-        <button class="prim" onclick="saveRma()">Lagre</button>
+      <div class="modal-footer" style="justify-content:space-between">
+        <button class="btn-sm" id="rma-last-ned-pdf-btn" onclick="lastNedRmaPdf()" style="display:none">📄 Last ned PDF</button>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <button class="btn-sm" onclick="closeRmaModal()">Avbryt</button>
+          <button class="prim" onclick="saveRma()">Lagre</button>
+        </div>
       </div>
     </div>
   </div>
@@ -4680,6 +4688,12 @@ function fyllAnsvarligSelectRma(gjeldendeNavn){
 function openRmaModal(id){
   document.getElementById('rma-edit-id').value=id||'';
   document.getElementById('rma-kunde-treff').innerHTML='';document.getElementById('rma-kunde-treff').style.display='none';
+  // «Last ned PDF»-knappen vises kun ved redigering av en allerede lagret sak
+  // (id satt) — for en helt ny, ulagret sak er det ingen sak å dokumentere
+  // ennå. Lagt til 24.09.2026, Thomas' ønske om en utskrift å legge med
+  // kassen når den sendes til Susoft.
+  const pdfBtn=document.getElementById('rma-last-ned-pdf-btn');
+  if(pdfBtn)pdfBtn.style.display=id?'':'none';
   if(id){
     const r=susoftRma.find(x=>x.id===id);if(!r)return;
     document.getElementById('rma-modal-title').textContent='Rediger RMA-sak';
@@ -4722,6 +4736,88 @@ function openRmaModal(id){
   document.getElementById('rma-modal').classList.add('open');
 }
 function closeRmaModal(){document.getElementById('rma-modal').classList.remove('open');}
+
+// «Last ned PDF» — genererer en enkel, printvennlig PDF med saksinfo for den
+// RMA-saken som står åpen i redigeringsmodalen, til fysisk utskrift som
+// følger med kassen når den sendes til Susoft. Lagt til 24.09.2026, Thomas'
+// ønske. Leser direkte fra modalens felter (samme «WYSIWYG»-prinsipp som
+// saveRma()) i stedet for fra susoftRma-arrayet, slik at PDF-en alltid
+// stemmer med det som faktisk står i skjemaet — også ulagrede endringer.
+// Ren klientside via jsPDF, ingen backend/nettverkskall.
+function lastNedRmaPdf(){
+  if(typeof window.jspdf==='undefined'){alert('PDF-biblioteket er ikke ferdig lastet ennå — prøv igjen om et par sekunder.');return;}
+  const {jsPDF}=window.jspdf;
+  const v=idx=>(document.getElementById(idx).value||'').trim();
+  const sakNr=v('rma-saknummer')||'—';
+  const kunde=v('rma-kunde-input')||'—';
+  const forhandler=v('rma-forhandler')||'—';
+  const refForhandler=v('rma-ref-forhandler')||'—';
+  const maskin=v('rma-maskin')||'—';
+  const serienr=v('rma-serienr')||'—';
+  const problem=v('rma-problem')||'—';
+  const bildeVideo=v('rma-bilde-video')||'—';
+  const ansvarligSel=document.getElementById('rma-ansvarlig');
+  const ansvarlig=(ansvarligSel&&ansvarligSel.value)||'—';
+  const status=v('rma-status')||'—';
+  const datoFmt=raw=>raw?new Date(raw).toLocaleDateString('nb-NO'):'—';
+  const feilmelding=datoFmt(v('rma-dato-feilmelding'));
+  const nySendt=datoFmt(v('rma-dato-ny-sendt'));
+  const sendtSusoft=datoFmt(v('rma-dato-sendt-susoft'));
+  const mottattSusoft=datoFmt(v('rma-dato-mottatt-susoft'));
+  const kommentar=v('rma-kommentar');
+
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const mL=20,mR=190;let y=24;
+
+  doc.setFont(undefined,'bold');doc.setFontSize(18);doc.setTextColor(20);
+  doc.text(`RMA-sak nr. ${sakNr}`,mL,y);
+  y+=7;
+  doc.setFont(undefined,'normal');doc.setFontSize(10);doc.setTextColor(110);
+  doc.text('Kasse og Butikkdata AS — defekt kassemaskin sendt til Susoft',mL,y);
+  y+=6;
+  doc.setDrawColor(190);doc.line(mL,y,mR,y);
+  y+=10;
+
+  const felt=(label,verdi,opts)=>{
+    doc.setFont(undefined,'bold');doc.setFontSize(9);doc.setTextColor(120);
+    doc.text(label.toUpperCase(),mL,y);
+    doc.setFont(undefined,'normal');doc.setFontSize(12);doc.setTextColor(15);
+    const bredde=(opts&&opts.bredde)||(mR-mL);
+    const linjer=doc.splitTextToSize(verdi||'—',bredde);
+    doc.text(linjer,mL,y+5.5);
+    y+=5.5+linjer.length*5.5+5;
+  };
+  const feltPar=(label1,verdi1,label2,verdi2)=>{
+    const halvBredde=(mR-mL)/2-6;
+    const startY=y;
+    doc.setFont(undefined,'bold');doc.setFontSize(9);doc.setTextColor(120);
+    doc.text(label1.toUpperCase(),mL,y);
+    doc.text(label2.toUpperCase(),mL+(mR-mL)/2,y);
+    doc.setFont(undefined,'normal');doc.setFontSize(12);doc.setTextColor(15);
+    const l1=doc.splitTextToSize(verdi1||'—',halvBredde);
+    const l2=doc.splitTextToSize(verdi2||'—',halvBredde);
+    doc.text(l1,mL,startY+5.5);
+    doc.text(l2,mL+(mR-mL)/2,startY+5.5);
+    y=startY+5.5+Math.max(l1.length,l2.length)*5.5+5;
+  };
+
+  felt('Kunde',kunde);
+  feltPar('Forhandler',forhandler,'Ref. hos forhandler',refForhandler);
+  feltPar('Maskin',maskin,'Serienr.',serienr);
+  felt('Problem',problem);
+  feltPar('Har bilde/video?',bildeVideo,'Ansvarlig hos KBD',ansvarlig);
+  felt('Status',status);
+  feltPar('Feilmelding mottatt',feilmelding,'Ny maskin sendt kunde',nySendt);
+  feltPar('Sendt Susoft',sendtSusoft,'Mottatt fra Susoft',mottattSusoft);
+  if(kommentar)felt('Kommentar',kommentar);
+
+  doc.setDrawColor(190);doc.line(mL,y+2,mR,y+2);
+  doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(150);
+  doc.text(`Generert fra KBD Command Center ${new Date().toLocaleDateString('nb-NO')} kl. ${new Date().toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}`,mL,y+8);
+
+  const kundeSlug=kunde.toLowerCase().replace(/[^a-z0-9æøå]+/g,'-').replace(/(^-|-$)/g,'').slice(0,40)||'ukjent';
+  doc.save(`RMA-sak-${sakNr}-${kundeSlug}.pdf`);
+}
 
 // SharePoint-feltnavn MÅ matche susoft_rma_varsling.py sine FELT_*-konstanter
 // og Kunde360-oppsett-sjekkliste.md Liste 12 nøyaktig — se advarselen der om
@@ -7950,6 +8046,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.128',dato:'24.09.2026',punkter:[
+    'Susoft RMA: ny «📄 Last ned PDF»-knapp i «Rediger RMA-sak»-modalen — laster ned en enkel, printvennlig PDF med all saksinfo (sak nr, kunde, forhandler, maskin, serienr, problem, ansvarlig, status, datoer, kommentar), til å legge fysisk med kassen når den sendes til Susoft.'
+  ]},
   {versjon:'v1.48.127',dato:'23.09.2026',punkter:[
     'Kunde360 → Kundesaker: type-knappene (Alle/Notat/Tilbud/Oppfølging) viste tidligere alltid antall saker for ALLE ansvarlige/uansett søk, selv om man hadde filtrert på én selger eller søkt opp et firma — nå regner knappetallene ut fra samme person-/søkefilter som resten av lista viser, så tallene faktisk stemmer med det du ser.'
   ]},
