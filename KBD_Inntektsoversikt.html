@@ -468,7 +468,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.132 · Oppdatert: 27. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.133 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -6793,7 +6793,7 @@ function renderKundeNotaterHTML(k){
           ${n.type==='Tilbud'&&!lukket?`<button class="btn-sm" style="color:#15803d;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Vunnet')" title="Marker som vunnet">✅ Vunnet</button>
           <button class="btn-sm" style="color:#d03b3b;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Tapt')" title="Marker som tapt">❌ Tapt</button>`
           :`<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne saken':'Merk saken som lukket'}" style="white-space:nowrap">${lukket?'↺ Gjenåpne':'✓ Lukk'}</button>`}
-          <button class="btn-icon" onclick="openRedigerNotat('${n.id}')" title="Rediger">✎</button>
+          <button class="btn-sm" style="color:#2a78d6;white-space:nowrap" onclick="openRedigerNotat('${n.id}')" title="Rediger">✎ Rediger</button>
           <button class="btn-icon del" onclick="deleteNotat('${n.id}')" title="Slett">✕</button>
         </div>`:''}
       </div>
@@ -8323,6 +8323,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.133',dato:'27.09.2026',punkter:[
+    'Kundesaker: «✎ Rediger»-knappen på en oppføring er gjort mer synlig (samme stil som ✅ Vunnet/❌ Tapt), i stedet for det diskré blyantikonet den hadde før.'
+  ]},
   {versjon:'v1.48.132',dato:'27.09.2026',punkter:[
     'Kunde360 → Kundesaker: nytt «Tilbudspipeline»-kort — et Tilbud kan nå få en totalsum og en sannsynlighet (glidebryter), som til sammen gir en vektet «pipelinereserve» (f.eks. tilbud på 50.000 kr med 50 % sjanse = 25.000 kr i reserve).',
     'Å lukke et Tilbud spør nå om utfall (✅ Vunnet / ❌ Tapt) i stedet for bare «lukket» — gir grunnlag for en ny oversikt over vunnet salgssum pr. selger pr. måned.',
