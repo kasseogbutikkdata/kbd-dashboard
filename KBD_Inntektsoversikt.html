@@ -473,7 +473,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.136 · Oppdatert: 27. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.137 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -499,6 +499,7 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="lisenser-sub-nav">
         <div class="nav-sub-item active" id="lsub-lisenser" onclick="showTab('lisenser',document.getElementById('tab-lisenser'));setLisenserSubActive('lisenser')">📋 Registreringer</div>
         <div class="nav-sub-item" id="lsub-sammenligning" onclick="showTab('sammenligning',document.getElementById('tab-lisenser'));setLisenserSubActive('sammenligning')">📈 Årssammenligning</div>
+        <div class="nav-sub-item" id="lsub-licmaaned" onclick="showTab('licmaaned',document.getElementById('tab-lisenser'));setLisenserSubActive('licmaaned')">📅 Månedssammenligning</div>
       </div>
       <div class="nav-item" id="tab-kickback" onclick="showTab('kickback',this);toggleKickbackSub(true)">
         <span class="nav-item-icon">💰</span>Kickback
@@ -2574,6 +2575,22 @@ tr:hover td{background:#fafafa}
     <div class="tbl-wrap" style="margin-bottom:28px"><table id="tbl-slic"></table></div>
   </div>
 
+  <!-- LISENSER — MÅNEDSSAMMENLIGNING (v1.48.137, 27.09.2026). Thomas' ønske:
+       «sammenligne juli 2025 mot juli 2026». Ren frontend-aggregering av
+       månedsradene i Lisenser (Period = Jan..Des), som LisensSync henter fra
+       Visma hver natt (historikk fra 2022 backfillet samme dag, se
+       prosjektstatus seksjon 23). Bevisst uten .card-klassen (samme som
+       Årssammenligning over), så applyRoleUI() ikke skjuler innholdet. -->
+  <div id="tp-licmaaned" class="tp">
+    <p class="sec-title">Lisenser per måned — år mot år</p>
+    <div class="filters" id="lmnd-filters"></div>
+    <div class="filters" id="lmnd-years"></div>
+    <div class="chart-wrap"><canvas id="chart-lmnd" height="240"></canvas></div>
+    <div id="lmnd-ytd" style="display:grid;gap:10px;margin-bottom:16px"></div>
+    <div class="tbl-wrap" style="margin-bottom:12px"><table id="tbl-lmnd"></table></div>
+    <p style="font-size:12px;color:#9ca3af;margin-bottom:28px">Kun månedsrader er med (Visma-synk, fordelt på fakturadato). Inneværende måned er delvis frem til måneden er ferdig fakturert.</p>
+  </div>
+
   <!-- TILLEGGSSALG -->
   <div id="tp-tilleggssalg" class="tp">
     <div class="kpis" id="tillegg-kpis"></div>
@@ -4544,6 +4561,8 @@ const JOBBER_KONFIG={
   KontraktSync:{visningsnavn:'Kunde 360 – kontraktsynk (del 1 av 2)',maksMinutter:26*60},
   KontraktSyncDel2:{visningsnavn:'Kunde 360 – kontraktsynk (del 2 av 2)',maksMinutter:26*60},
   AldersfordeltSync:{visningsnavn:'Aldersfordelt saldo (ukentlig)',maksMinutter:9*24*60},
+  // Lagt til 27.09.2026 (v1.48.137) — LisensSync, daglig 03:45 UTC. I sync med jobbstatus.py.
+  LisensSync:{visningsnavn:'Lisenser – Visma-synk',maksMinutter:26*60},
 };
 function jsEscapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 // Samme rød/grønn-vurdering som _er_rod() i jobbstatus.py — se den filens
@@ -8466,6 +8485,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.137',dato:'27.09.2026',punkter:[
+    'Lisenser hentes nå automatisk fra Visma hver natt — fakturaer og kreditnotaer per vareprofil, fordelt på måned etter fakturadato. Du trenger ikke lenger registrere lisenstall manuelt.',
+    'Hele historikken fra januar 2022 er erstattet med Visma-tall per måned. Kvartalstallene kan derfor avvike litt (typisk 0,1–1 %) fra tidligere manuelt registrerte tall, fordi kreditnotaer nå trekkes riktig fra.',
+    'Ny undermeny Lisenser → «📅 Månedssammenligning»: én linje per år over januar–desember, en tabell med hver måned mot samme måned året før (f.eks. juli 2025 mot juli 2026), og «hittil i år»-sammenligning for de samme månedene. Filtrer på produkt og velg hvilke år som vises.',
+    'Jobbstatus: den nye nattjobben «Lisenser – Visma-synk» vises nå i statuslys-oversikten.'
+  ]},
   {versjon:'v1.48.136',dato:'27.09.2026',punkter:[
     'Susoft RMA: «Automatisk purring til Susoft»-kortet utnytter nå hele bredden av siden i stedet for å være låst til 640px — checkbox, advarselstekst og Lagre-knapp står nå på én rad, så kortet tar merkbart mindre plass i høyden.'
   ]},
@@ -10801,11 +10826,11 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=name==='sammenligning'?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':name==='purring'?'fakturaoppfolging':name;
+  const effectiveTab=(name==='sammenligning'||name==='licmaaned')?'lisenser':name==='kicksammenligning'?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':name==='purring'?'fakturaoppfolging':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
-  toggleLisenserSub(name==='lisenser'||name==='sammenligning');
+  toggleLisenserSub(name==='lisenser'||name==='sammenligning'||name==='licmaaned');
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning');
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
@@ -10815,6 +10840,7 @@ function showTab(name,btn){
   toggleSilentOrderingSub(name==='silentordering');
   toggleFakturaoppfolgingSub(name==='fakturaoppfolging'||name==='purring');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
+  if(name==='licmaaned'){setLisenserSubActive('licmaaned');renderLicMaaned();}
   if(name==='lisenser'){setLisenserSubActive('lisenser');renderLicChart();renderLicTable();}
   if(name==='kickback'){renderKickChart();renderKickTable();document.querySelectorAll('#kickback-sub-nav .nav-sub-item').forEach((b,i)=>{b.classList.toggle('active',i===0);});}
   if(name==='kicksammenligning'){renderKickSammenligning();}
@@ -12562,6 +12588,104 @@ function showUtleieView(view,btn){
   if(view==='logg')renderUtleieLogg();
 }
 
+// ===== LISENSER — MÅNEDSSAMMENLIGNING (v1.48.137, 27.09.2026) =====
+// Én linje per år over Jan–Des, tabell måned × år med %-endring mot samme
+// måned året før, og «hittil i år»-kort for sammenlignbare måneder. Bruker
+// KUN månedsrader (period i MONTHS) — gamle kvartalsrader uten måned tas ikke
+// med, siden de ikke kan fordeles på måned.
+let lmndFilters=new Set(); // aktive produkter (tom = alle)
+let lmndYears=null;        // valgte år (null = siste tre år med data)
+function toggleLmndFilter(p){if(lmndFilters.has(p))lmndFilters.delete(p);else lmndFilters.add(p);renderLicMaaned();}
+function toggleLmndYear(y,alleAar){
+  if(!lmndYears)lmndYears=new Set(alleAar.slice(-3));
+  if(lmndYears.has(y)){if(lmndYears.size>1)lmndYears.delete(y);}else lmndYears.add(y);
+  renderLicMaaned();
+}
+function renderLicMaaned(){
+  const tbl=document.getElementById('tbl-lmnd');
+  if(!tbl)return;
+  const mRows=lic.filter(l=>MONTHS.includes(l.period));
+  const years=[...new Set(mRows.map(l=>l.year))].sort((a,b)=>a-b);
+  dC('lmnd');
+  if(!years.length){
+    ['lmnd-filters','lmnd-years','lmnd-ytd'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});
+    tbl.innerHTML='<tbody><tr><td class="empty">Ingen månedsdata ennå</td></tr></tbody>';
+    return;
+  }
+  const usedProds=products.filter(p=>mRows.some(l=>l.product===p));
+  const activeProd=usedProds.filter(p=>lmndFilters.size===0||lmndFilters.has(p));
+  const valgte=lmndYears?[...lmndYears].filter(y=>years.includes(y)):years.slice(-3);
+  const visYears=years.filter(y=>valgte.includes(y));
+
+  // sum[år][mnd] for valgte produkter; har[år][mnd] = måneden har data (uansett filter)
+  const sum={},har={};
+  years.forEach(y=>{sum[y]=Array(12).fill(0);har[y]=Array(12).fill(false);});
+  mRows.forEach(l=>{const i=MONTHS.indexOf(l.period);har[l.year][i]=true;if(activeProd.includes(l.product))sum[l.year][i]+=l.amount;});
+
+  const naa=new Date();const naaAar=naa.getFullYear();const naaMnd=naa.getMonth();
+  const sisteAar=years[years.length-1];
+  let sisteMnd=-1;har[sisteAar].forEach((h,i)=>{if(h)sisteMnd=i;});
+  const delvis=(y,i)=>y===naaAar&&i===naaMnd;
+  const pst=(v,p)=>p>0?((v-p)/p*100):null;
+  const pstHtml=(d,tekst)=>d===null?'':`<div style="font-size:10px;color:${d>=0?'#16a34a':'#dc2626'};margin-top:2px">${d>=0?'▲':'▼'}${Math.abs(d).toFixed(1)}%${tekst?` <span style="color:#9ca3af">${tekst}</span>`:''}</div>`;
+  const aarFarge=y=>{const idx=years.indexOf(y);return PALETTE[(years.length-1-idx)%PALETTE.length];};
+
+  // Produktfilter
+  const pills=usedProds.map(p=>{
+    const filtered=lmndFilters.size>0;const on=!filtered||lmndFilters.has(p);const c=prodColor(p);
+    return`<button class="fpill${filtered?(on?' f-on':' f-off'):''}" style="${on?`border-color:${c}`:''}" onclick="toggleLmndFilter('${p.replace(/'/g,"\\'")}')"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${p}</button>`;
+  });
+  document.getElementById('lmnd-filters').innerHTML=`<span class="filter-lbl">Produkt:</span><button class="fpill" style="${lmndFilters.size===0?'border-color:#1A3A6B':''}" onclick="lmndFilters=new Set();renderLicMaaned()"><span style="font-weight:600;color:${lmndFilters.size===0?'#1A3A6B':'#9ca3af'}">Alle</span></button>`+pills.join('');
+  // Årsvalg
+  const aarJson=JSON.stringify(years);
+  document.getElementById('lmnd-years').innerHTML=`<span class="filter-lbl">År:</span>`+years.map(y=>{
+    const on=visYears.includes(y);const c=aarFarge(y);
+    return`<button class="fpill${on?' f-on':' f-off'}" style="${on?`border-color:${c}`:''}" onclick="toggleLmndYear(${y},${aarJson})"><span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>${y}</button>`;
+  }).join('');
+
+  // Graf: én linje per valgt år
+  const ctx=document.getElementById('chart-lmnd');
+  if(ctx){
+    charts['lmnd']=new Chart(ctx,{type:'line',data:{labels:MONTHS,datasets:visYears.map(y=>({
+      label:String(y),
+      data:MONTHS.map((m,i)=>har[y][i]?Math.round(sum[y][i]):null),
+      borderColor:aarFarge(y),backgroundColor:aarFarge(y),
+      borderWidth:y===sisteAar?3:2,tension:.3,pointRadius:3,spanGaps:false
+    }))},options:{...bOpts,plugins:{...bOpts.plugins,legend:{display:true,position:'bottom',labels:{boxWidth:12,font:{size:11}}}}}});
+  }
+
+  // Hittil i år — samme måneder (Jan..sisteMnd) for hvert valgte år
+  const ytdEl=document.getElementById('lmnd-ytd');
+  if(sisteMnd>=0){
+    const ytd=y=>sum[y].slice(0,sisteMnd+1).reduce((a,b)=>a+b,0);
+    const periode=sisteMnd===0?MONTHS[0]:`${MONTHS[0]}–${MONTHS[sisteMnd]}`;
+    ytdEl.style.gridTemplateColumns=`repeat(${visYears.length},1fr)`;
+    ytdEl.innerHTML=visYears.map(y=>{
+      const v=ytd(y);const forrige=years.includes(y-1)?ytd(y-1):0;const d=pst(v,forrige);
+      return`<div style="background:white;border-radius:8px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center">
+        <div style="font-size:12px;color:#6b7280;margin-bottom:4px">${y} · ${periode}${y===sisteAar&&delvis(sisteAar,sisteMnd)?' (delvis)':''}</div>
+        <div style="font-size:18px;font-weight:700;color:#1A3A6B">${v?fS(v):'—'}</div>
+        ${d!==null?`<div style="font-size:13px;font-weight:600;color:${d>=0?'#16a34a':'#dc2626'};margin-top:4px">${d>=0?'▲':'▼'}${Math.abs(d).toFixed(1)}% vs ${y-1}</div>`:''}
+      </div>`;
+    }).join('');
+  }else{ytdEl.innerHTML='';}
+
+  // Tabell: måned × år
+  const rader=MONTHS.map((m,i)=>{
+    const celler=visYears.map(y=>{
+      if(!har[y][i])return'<td class="tr muted">—</td>';
+      const v=sum[y][i];const p=(years.includes(y-1)&&har[y-1][i])?sum[y-1][i]:0;
+      return`<td class="tr">${fF(v)}${delvis(y,i)?' <span class="muted" style="font-size:10px">(delvis)</span>':''}${pstHtml(pst(v,p),'')}</td>`;
+    }).join('');
+    return`<tr><td>${m}</td>${celler}</tr>`;
+  }).join('');
+  const sumRad=visYears.map(y=>{
+    const v=sum[y].reduce((a,b)=>a+b,0);const p=years.includes(y-1)?sum[y-1].reduce((a,b)=>a+b,0):0;
+    return`<td class="tr" style="font-weight:700">${fF(v)}${y===naaAar?' <span class="muted" style="font-size:10px">(hittil)</span>':''}${y===naaAar?'':pstHtml(pst(v,p),'')}</td>`;
+  }).join('');
+  tbl.innerHTML=`<thead><tr><th>Måned</th>${visYears.map(y=>`<th style="text-align:right">${y}</th>`).join('')}</tr></thead><tbody>${rader}<tr style="border-top:2px solid #e5e7eb"><td style="font-weight:700">Sum år</td>${sumRad}</tr></tbody>`;
+}
+
 function toggleSlicFilter(p){if(slicFilters.has(p)){slicFilters.delete(p);}else{slicFilters.add(p);}renderLicSammenligning();}
 function toggleSkickFilter(s){if(skickFilters.has(s)){skickFilters.delete(s);}else{skickFilters.add(s);}renderKickSammenligning();}
 
@@ -13128,7 +13252,7 @@ async function migrateUtleieToSP(){
   }catch(e){hideLoading();alert('Feil: '+e.message);}
 }
 
-function renderSammenligning(){renderLicSammenligning();renderKickSammenligning();}
+function renderSammenligning(){renderLicSammenligning();renderKickSammenligning();renderLicMaaned();}
 
 // ===== SKJEMA & CRUD =====
 function onSrcChange(){
