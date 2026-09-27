@@ -468,7 +468,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.131 · Oppdatert: 27. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.132 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -753,6 +753,15 @@ tr:hover td{background:#fafafa}
        kundeNotater-datagrunnlag som kundekortets "Salg & oppfølging"-fane —
        ingen ny SharePoint-liste. -->
   <div id="tp-kundesaker" class="tp">
+    <!-- Tilbudspipeline (27.09.2026) — samme card-public-begrunnelse som
+         kortet under: ren lesevisning (vektet reserve + vunnet pr. selger/
+         måned), skal ikke skjules for Leser-rollen. Fylles av
+         renderTilbudspipeline(), kalt fra renderKundesaker(). -->
+    <div class="card card-public">
+      <div class="card-title">💰 Tilbudspipeline</div>
+      <div class="hint">Vektet verdi av alle åpne tilbud (sum × sannsynlighet), og vunnet salgssum gruppert på selger og måned.</div>
+      <div id="tilbudspipeline-body" style="margin-top:10px"></div>
+    </div>
     <!-- card-public lagt til 03.09.2026: SAMME bug som Casper/Nyetableringer/SMS-planlagt
          (se forklaringer lenger ned i filen) — uten card-public skjuler applyRoleUI()
          HELE dette kortet (søkefelt, type-filtre, ansvarlig-filter, "vis lukkede") for
@@ -761,7 +770,7 @@ tr:hover td{background:#fafafa}
          av Thomas via Geir Hagen (Leser)'s visning 03.09.2026. Trygt å gjøre offentlig:
          søk/sortering/filtrering er rene lesehandlinger, og "➕ Ny kunde"-knappen inni
          kortet styres uavhengig av salgTilgang (renderKundesaker()), ikke av rollen her. -->
-    <div class="card card-public">
+    <div class="card card-public" style="margin-top:16px">
       <div class="card-title">🗂️ Kundesaker — alle Notat/Tilbud/Oppfølging</div>
       <div class="frow" style="margin-bottom:4px">
         <input type="text" id="kundesaker-search" placeholder="Søk på firmanavn eller tittel…" style="flex:1" oninput="setKundesakerSearch(this.value)" onkeydown="if(event.key==='Enter')setKundesakerSearch(this.value)"/>
@@ -1755,6 +1764,21 @@ tr:hover td{background:#fafafa}
            OpprettetAvEpost fortsatt kan oppdateres riktig ved endring (viktig
            for "Mine saker"-filtrering, se erMin-sjekken i renderVarsler()). -->
       <div class="fgrp" style="margin-bottom:10px"><label>Ansvarlig/selger</label><select id="n-ansvarlig"></select></div>
+      <!-- Totalsum/sannsynlighet — lagt til 27.09.2026, «Tilbudspipeline»
+           (Thomas' ønske om en vektet pipelinereserve, à la andre CRM-
+           systemer: tilbud på 50.000 × 50 % sjanse = 25.000 i reserve). Vises
+           KUN for type Tilbud (styres av updateNotatFormFields()) — Notat/
+           Oppfølging har ingen tilbudssum å vekte. Påkrevd ved OPPRETTELSE av
+           et nytt Tilbud (se saveNotat()), men IKKE ved redigering av en
+           eksisterende sak — bevisst, for ikke å blokkere andre endringer
+           (f.eks. en loggkommentar) på gamle tilbud som mangler verdiene. -->
+      <div class="fgrp" id="n-tilbud-wrap" style="display:none;margin-bottom:10px;background:#f5f0ff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px">
+        <div class="fg" style="grid-template-columns:1fr 1fr">
+          <div class="fgrp"><label>Totalsum tilbud (kr)</label><input type="number" id="n-tilbudsum" min="0" step="500" placeholder="F.eks. 50000" oninput="oppdaterTilbudVektetVisning()"/></div>
+          <div class="fgrp"><label>Sannsynlighet: <span id="n-sannsynlighet-verdi">50</span> %</label><input type="range" id="n-sannsynlighet" min="0" max="100" step="5" value="50" style="width:100%;accent-color:#6d28d9;margin-top:10px" oninput="document.getElementById('n-sannsynlighet-verdi').textContent=this.value;oppdaterTilbudVektetVisning();"/></div>
+        </div>
+        <div id="n-tilbud-vektet" style="font-size:12px;color:#6d28d9;margin-top:8px;font-weight:600"></div>
+      </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Tittel</label><input type="text" id="n-tittel" placeholder="Kort overskrift"/></div>
       <div class="fgrp" style="margin-bottom:10px"><label>Innhold</label><textarea id="n-innhold" rows="4" placeholder="Notat, tilbudsdetaljer eller hva som skal følges opp…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <input type="hidden" id="n-edit-id"/>
@@ -3147,21 +3171,24 @@ async function spHentFilBlob(sti){
 }
 // Prøver lagreFn(felter); dersom HELE kallet feiler prøves det på nytt UTEN
 // feltene i mykeFelter — for rene sorterings-/kategoriseringsfelter (som
-// GjelderMeny) som ennå ikke har fått sin kolonne i SharePoint. Graph gir en
-// hard 400-feil på HELE PATCH/POST-kallet (ikke bare det ene feltet) dersom
-// EN kolonne som sendes med ikke finnes ennå — uten denne fallback-en ville
-// altså EN manglende, valgfri kolonne stoppet lagring av HELE ideen (tittel,
-// beskrivelse, alt). Brukes KUN for felter der en midlertidig tapt verdi er
-// ufarlig og selvreparerende (neste lagring prøver igjen) — ALDRI for Bilde,
-// der brukeren skal få vite tydelig om en bevisst handling (bilde valgt/
-// fjernet) faktisk feilet, se saveIde().
+// GjelderMeny, og Tilbud-feltene TilbudSum/Sannsynlighet/TilbudUtfall/
+// TilbudLukketDato) som ennå ikke har fått sin kolonne i SharePoint. Graph
+// gir en hard 400-feil på HELE PATCH/POST-kallet (ikke bare det ene feltet)
+// dersom EN kolonne som sendes med ikke finnes ennå — uten denne fallback-en
+// ville altså EN manglende, valgfri kolonne stoppet lagring av HELE
+// oppføringen (tittel, beskrivelse, alt). Generisk hjelpefunksjon, brukt av
+// BÅDE Idébank (saveIde) og Kundesaker/Tilbud (saveNotat/toggleNotatStatus/
+// lukkTilbudMedUtfall) — brukes KUN for felter der en midlertidig tapt verdi
+// er ufarlig og selvreparerende (neste lagring prøver igjen) — ALDRI for
+// Bilde, der brukeren skal få vite tydelig om en bevisst handling (bilde
+// valgt/fjernet) faktisk feilet, se saveIde().
 async function spLagreMedMykFallback(lagreFn,felter,mykeFelter){
   try{
     return await lagreFn(felter);
   }catch(e){
     const relevante=mykeFelter.filter(f=>f in felter);
     if(!relevante.length)throw e;
-    console.warn(`Idébank-lagring feilet med ${relevante.join(', ')} inkludert (kolonnen finnes trolig ikke ennå i SharePoint) — prøver på nytt uten dem:`,e);
+    console.warn(`Lagring feilet med ${relevante.join(', ')} inkludert (kolonnen finnes trolig ikke ennå i SharePoint) — prøver på nytt uten dem:`,e);
     const reduserte={...felter};
     relevante.forEach(f=>delete reduserte[f]);
     return await lagreFn(reduserte);
@@ -3276,7 +3303,12 @@ async function loadDataFromSP(){
   // varslingsjobben i backend (varsling.py) skal slippe å slå opp navnet fra
   // VismaKunder-lista på hver 5-minutters kjøring bare for å sette det i
   // e-postens emnefelt.
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  // TilbudSum/Sannsynlighet/TilbudUtfall/TilbudLukketDato (lagt til 27.09.2026,
+  // «Tilbudspipeline») — kun i bruk for type Tilbud, se notatFieldsPayload().
+  // IKKE opprettet i SharePoint ennå (se Liste 25 i sjekklisten) — feltene
+  // kommer da rett og slett tilbake som undefined fra Graph, og ||null/!=null
+  // -sjekkene under gir da bare null/tom streng, helt ufarlig.
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -6376,6 +6408,74 @@ async function lagreNyKunde(){
 // legge til/redigere/lukke/slette — alle andre med tilgang til Kunde 360 kan lese.
 const K360_NOTAT_FARGER={Notat:{c:'#6b7280',bg:'#f3f4f6'},Tilbud:{c:'#6d28d9',bg:'#f5f0ff'},Oppfølging:{c:'#0f766e',bg:'#effaf8'}};
 
+// ===== TILBUDSPIPELINE (lagt til 27.09.2026) =====
+// Thomas' ønske: samme prinsipp som "weighted pipeline value" i andre CRM-
+// systemer — et tilbud på 50.000 kr med 50% antatt sjanse teller som 25.000
+// kr i "reserve" (forventet fremtidig ordreinngang), i stedet for å telle
+// enten hele beløpet eller ingenting. Bygger videre på de eksisterende
+// Tilbud-oppføringene i kundeNotater (IKKE en egen liste/modul) — se
+// TilbudSum/Sannsynlighet/TilbudUtfall/TilbudLukketDato i notatFieldsPayload.
+// Vises to steder (Thomas' eksplisitte valg): et kompakt kort på Hjem-siden
+// (se renderHjem) og en full oversikt i Kunde360 → Kundesaker (se
+// renderTilbudspipeline() under, kalt fra renderKundesaker()).
+function kundesakerApneTilbud(){
+  return kundeNotater.filter(n=>n.type==='Tilbud'&&n.status==='Åpen'&&n.tilbudSum>0);
+}
+function kundesakerPipelineReserve(){
+  return kundesakerApneTilbud().reduce((sum,n)=>sum+n.tilbudSum*((n.sannsynlighet||0)/100),0);
+}
+// Vunnet-summen brukes BÅDE til "vunnet denne måned" (Hjem-kortet) og til
+// "vunnet pr. selger pr. måned"-tabellen i Kunde360. Grupperes på
+// TilbudLukketDato — faller tilbake til opprettetDato for et tilbud som ble
+// lukket FØR TilbudLukketDato-kolonnen fantes (uten dette ville gamle vunnede
+// tilbud rett og slett forsvunnet fra oversikten, ikke bare vist feil måned).
+function kundesakerVunnetPrSelgerManed(){
+  const grupper={};
+  kundeNotater.filter(n=>n.type==='Tilbud'&&n.tilbudUtfall==='Vunnet').forEach(n=>{
+    const dato=n.tilbudLukketDato||n.opprettetDato;
+    if(!dato)return;
+    const d=new Date(dato);if(isNaN(d))return;
+    const key=`${n.opprettetAv||'Ukjent'}|${d.getFullYear()}-${d.getMonth()}`;
+    if(!grupper[key])grupper[key]={selger:n.opprettetAv||'Ukjent',aar:d.getFullYear(),maaned:d.getMonth(),sum:0,antall:0};
+    grupper[key].sum+=n.tilbudSum||0;
+    grupper[key].antall++;
+  });
+  return Object.values(grupper).sort((a,b)=>b.aar-a.aar||b.maaned-a.maaned||a.selger.localeCompare(b.selger,'nb'));
+}
+function kundesakerVunnetDenneMaaned(){
+  const naa=new Date();
+  return kundesakerVunnetPrSelgerManed()
+    .filter(g=>g.aar===naa.getFullYear()&&g.maaned===naa.getMonth())
+    .reduce((sum,g)=>sum+g.sum,0);
+}
+const KS_MAANEDSNAVN=['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
+function renderTilbudspipeline(){
+  const target=document.getElementById('tilbudspipeline-body');
+  if(!target)return; // fanen er ikke synlig/rendret ennå — samme mønster som renderKundesaker() sin egen DOM-sjekk
+  const apne=kundesakerApneTilbud();
+  const reserve=kundesakerPipelineReserve();
+  const fullSum=apne.reduce((sum,n)=>sum+n.tilbudSum,0);
+  const grupper=kundesakerVunnetPrSelgerManed();
+  const card=(icon,label,val,sub,color,bg)=>`<div style="background:${bg};border-radius:10px;padding:14px 16px;border-left:3px solid ${color}">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span style="font-size:14px">${icon}</span>
+      <span style="font-size:12.5px;color:${color};font-weight:600">${label}</span>
+    </div>
+    <div style="font-size:19px;font-weight:700;color:#111">${val}</div>
+    <div style="font-size:11.5px;color:#6b7280;margin-top:1px">${sub}</div>
+  </div>`;
+  target.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px">
+      ${card('💰','Pipelinereserve',fS(reserve),`${apne.length} åpne tilbud · ${fS(fullSum)} i full sum`,'#6d28d9','#f5f0ff')}
+      ${card('✅','Vunnet denne måned',fS(kundesakerVunnetDenneMaaned()),'summert på lukkedato','#15803d','#ecfdf3')}
+    </div>
+    <div class="hint" style="margin-bottom:8px">Vunnet pr. selger pr. måned</div>
+    ${grupper.length?`<div class="tbl-wrap"><table><thead><tr><th>Selger</th><th>Måned</th><th>Vunnet sum</th><th>Antall</th></tr></thead><tbody>
+      ${grupper.map(g=>`<tr><td>${g.selger}</td><td>${KS_MAANEDSNAVN[g.maaned]} ${g.aar}</td><td>${fS(g.sum)}</td><td>${g.antall}</td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="empty">Ingen vunnede tilbud registrert ennå.</div>'}
+  `;
+}
+
 // ===== KUNDESAKER (lagt til 28.08.2026) =====
 // Samlet, sorterbar oversikt over ALLE Notat/Tilbud/Oppfølging på tvers av
 // kunder (motsatt av kundekortets "Salg & oppfølging"-fane, som viser dette
@@ -6402,6 +6502,7 @@ function setKundesakerVisLukkede(v){kundesakerVisLukkede=v;renderKundesaker();}
 function setKundesakerSearch(v){kundesakerSearch=(v||'').trim().toLowerCase();renderKundesaker();}
 
 function renderKundesaker(){
+  renderTilbudspipeline(); // egen "card-public" over selve søk/filter-kortet, se HTML-en
   const nyKundeBtn=document.getElementById('kundesaker-ny-kunde-btn');
   if(nyKundeBtn)nyKundeBtn.style.display=salgTilgang?'':'none';
 
@@ -6520,7 +6621,7 @@ function renderKundesaker(){
         <td>${n.opprettetAv||'—'}</td>
         <td style="white-space:nowrap">${opprettetTxt}</td>
         <td style="white-space:nowrap${forfalt?';color:#d03b3b;font-weight:600':''}">${forfalt?'⏰ ':''}${datoTxt}</td>
-        <td style="white-space:nowrap">${salgTilgang?`<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${n.status==='Åpen'?'Merk som lukket':'Gjenåpne'}">${n.status==='Åpen'?'🟢 Åpen':'⚪ Lukket'}</button>`:(n.status==='Åpen'?'🟢 Åpen':'⚪ Lukket')}</td>
+        <td style="white-space:nowrap">${renderNotatStatusHTML(n)}</td>
         <td><button class="btn-sm" onclick="gaTilKundeFraSak('${n.id}')">Åpne</button></td>
       </tr>`;
     }).join('')}
@@ -6677,20 +6778,26 @@ function renderKundeNotaterHTML(k){
     const tf=K360_NOTAT_FARGER[n.type]||K360_NOTAT_FARGER.Notat;
     const lukket=n.status==='Lukket';
     const forfalt=erForfalt(n);
+    // Sum/sannsynlighet/vektet verdi (27.09.2026, «Tilbudspipeline») — vises
+    // for et Tilbud som faktisk har fått fylt inn en totalsum, uansett status.
+    const tilbudInfoHtml=(n.type==='Tilbud'&&n.tilbudSum)?`<div style="font-size:12px;color:#6d28d9;font-weight:600;margin-bottom:6px">💰 ${fS(n.tilbudSum)}${n.status==='Åpen'&&n.sannsynlighet!=null?` · ${n.sannsynlighet}% sjanse · ≈${fS(n.tilbudSum*(n.sannsynlighet||0)/100)} vektet`:''}</div>`:'';
     return `<div id="notat-${n.spId}" style="background:#fff;border:1px solid #e5e7eb;${forfalt?'border-left:3px solid #d03b3b;':''}border-radius:8px;padding:12px 14px;margin-bottom:8px;${lukket?'opacity:.6':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:11px;font-weight:600;color:${tf.c};background:${tf.bg};padding:2px 8px;border-radius:20px">${n.type}</span>
-          ${lukket?'<span style="font-size:11px;color:#9ca3af">✓ Lukket</span>':''}
+          ${lukket?`<span style="font-size:11px;color:#9ca3af">${n.type==='Tilbud'&&n.tilbudUtfall?(n.tilbudUtfall==='Vunnet'?'✅ Vunnet':'❌ Tapt'):'✓ Lukket'}</span>`:''}
           ${forfalt?'<span style="font-size:11px;color:#d03b3b;font-weight:600">⚠️ Forfalt</span>':''}
           <span style="font-weight:600;font-size:13px;color:#111">${n.tittel||'(uten tittel)'}</span>
         </div>
         ${salgTilgang?`<div class="action-btns" style="align-items:center">
-          <button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne saken':'Merk saken som lukket'}" style="white-space:nowrap">${lukket?'↺ Gjenåpne':'✓ Lukk'}</button>
+          ${n.type==='Tilbud'&&!lukket?`<button class="btn-sm" style="color:#15803d;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Vunnet')" title="Marker som vunnet">✅ Vunnet</button>
+          <button class="btn-sm" style="color:#d03b3b;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Tapt')" title="Marker som tapt">❌ Tapt</button>`
+          :`<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne saken':'Merk saken som lukket'}" style="white-space:nowrap">${lukket?'↺ Gjenåpne':'✓ Lukk'}</button>`}
           <button class="btn-icon" onclick="openRedigerNotat('${n.id}')" title="Rediger">✎</button>
           <button class="btn-icon del" onclick="deleteNotat('${n.id}')" title="Slett">✕</button>
         </div>`:''}
       </div>
+      ${tilbudInfoHtml}
       ${renderNotatInnholdHTML(n)}
       <div style="font-size:11px;color:#9ca3af">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · Forfallsdato: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · ${[n.varsleEpost?'✉️':'',n.varsleDashbord?'🔔':''].filter(Boolean).join(' ')}`:''}`:''}</div>
       ${renderNotatLoggHTML(n)}
@@ -6831,6 +6938,9 @@ function openNyNotatModal(kNr,navn){
   fyllAnsvarligSelect(currentUser?.name||currentUser?.username||'');
   document.getElementById('n-tittel').value='';
   document.getElementById('n-innhold').value='';
+  document.getElementById('n-tilbudsum').value='';
+  document.getElementById('n-sannsynlighet').value=50;
+  document.getElementById('n-sannsynlighet-verdi').textContent='50';
   if(notatDatePicker)notatDatePicker.clear();else document.getElementById('n-forfallsdato').value='';
   document.getElementById('n-varsle-epost').checked=true;
   document.getElementById('n-varsle-dashbord').checked=true;
@@ -6855,6 +6965,10 @@ function openRedigerNotat(id){
   document.getElementById('n-type').value=n.type;
   document.getElementById('n-tittel').value=n.tittel;
   document.getElementById('n-innhold').value=n.innhold;
+  document.getElementById('n-tilbudsum').value=n.tilbudSum!=null?n.tilbudSum:'';
+  const eksSans=n.sannsynlighet!=null?n.sannsynlighet:50;
+  document.getElementById('n-sannsynlighet').value=eksSans;
+  document.getElementById('n-sannsynlighet-verdi').textContent=eksSans;
   if(notatDatePicker)n.forfallsdato?notatDatePicker.setDate(new Date(n.forfallsdato)):notatDatePicker.clear();
   else document.getElementById('n-forfallsdato').value=toLocalDatetimeInputValue(n.forfallsdato);
   document.getElementById('n-varsle-epost').checked=n.varsleEpost!==false;
@@ -7932,11 +8046,24 @@ function updateNotatFormFields(){
   // Forfallsdato + varsling (e-post/dashbord) er tilgjengelig for ALLE typer
   // (Notat/Tilbud/Oppfølging) siden 24.08.2026 — tidligere kun for
   // Oppfølging. Feltene er uansett valgfrie (se saveNotat()), så det er
-  // trygt å alltid vise dem. Funksjonen beholdes (fremfor å fjerne
-  // display-styringen helt) i tilfelle et fremtidig felt SKAL være
-  // type-avhengig igjen.
+  // trygt å alltid vise dem.
   document.getElementById('n-forfallsdato-wrap').style.display='';
   document.getElementById('n-varsel-wrap').style.display='';
+  // Totalsum/sannsynlighet (27.09.2026) ER type-avhengig — kun Tilbud.
+  const erTilbud=document.getElementById('n-type').value==='Tilbud';
+  const tilbudWrap=document.getElementById('n-tilbud-wrap');
+  if(tilbudWrap)tilbudWrap.style.display=erTilbud?'':'none';
+  if(erTilbud)oppdaterTilbudVektetVisning();
+}
+
+// Viser vektet verdi (sum × sannsynlighet) live mens man fyller ut et Tilbud
+// — samme beregning som kundesakerPipelineReserve() bruker for den samlede
+// reserven, se den for bakgrunnen (27.09.2026, «Tilbudspipeline»).
+function oppdaterTilbudVektetVisning(){
+  const el=document.getElementById('n-tilbud-vektet');if(!el)return;
+  const sum=Number(document.getElementById('n-tilbudsum')?.value)||0;
+  const sans=Number(document.getElementById('n-sannsynlighet')?.value)||0;
+  el.textContent=sum>0?`≈ ${fS(sum*sans/100)} i vektet verdi (${sans}% sjanse av ${fS(sum)})`:'';
 }
 
 // Feltnøklene Innhold/Innhold0 under er IKKE en skrivefeil — se MERK 3 ved
@@ -7945,8 +8072,24 @@ function updateNotatFormFields(){
 // "Innhold" har internt navn "Innhold0". Bekreftet 20.08.2026 via Graph
 // Explorer. Sjekk faktisk internt navn på nytt før dette endres.
 function notatFieldsPayload(n){
-  return{Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,NotatType:n.type,Innhold0:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,Innhold:n.opprettetAv,OpprettetDato:n.opprettetDato,Logg:JSON.stringify(n.logg||[]),VarsleEpost:n.varsleEpost===true,VarsleDashbord:n.varsleDashbord===true,OpprettetAvEpost:n.opprettetAvEpost||'',VarselSendt:n.varselSendt===true,KundeNavn:n.kundeNavn||''};
+  const felter={Title:n.tittel||'(uten tittel)',VismaKundeNummer:n.vismaKundeNummer,NotatType:n.type,Innhold0:n.innhold,Status:n.status,Forfallsdato:n.forfallsdato||null,Innhold:n.opprettetAv,OpprettetDato:n.opprettetDato,Logg:JSON.stringify(n.logg||[]),VarsleEpost:n.varsleEpost===true,VarsleDashbord:n.varsleDashbord===true,OpprettetAvEpost:n.opprettetAvEpost||'',VarselSendt:n.varselSendt===true,KundeNavn:n.kundeNavn||''};
+  // Tilbud-feltene (27.09.2026) er BEVISST kun med i payloaden når type
+  // faktisk er Tilbud — slik at Notat/Oppfølging ALDRI kan påvirkes av om
+  // disse fire kolonnene finnes i SharePoint ennå. Selve lagringen (se
+  // saveNotat()/toggleNotatStatus()/lukkTilbudMedUtfall()) kjører uansett
+  // gjennom spLagreMedMykFallback med disse som "myke" felter, siden de
+  // fylles ut på hver lagring av et Tilbud (samme resonnement som
+  // GjelderMeny i Idébank) — IKKE en sjelden, bevisst handling som Bilde,
+  // der en feilet lagring skal varsle brukeren tydelig.
+  if(n.type==='Tilbud'){
+    felter.TilbudSum=n.tilbudSum!=null?n.tilbudSum:null;
+    felter.Sannsynlighet=n.sannsynlighet!=null?n.sannsynlighet:null;
+    felter.TilbudUtfall=n.tilbudUtfall||'';
+    felter.TilbudLukketDato=n.tilbudLukketDato||null;
+  }
+  return felter;
 }
+const TILBUD_MYKE_FELTER=['TilbudSum','Sannsynlighet','TilbudUtfall','TilbudLukketDato'];
 
 function saveNotat(){
   const tittel=document.getElementById('n-tittel').value.trim();
@@ -7967,7 +8110,17 @@ function saveNotat(){
   const kNavn=document.getElementById('n-kunde-navn').value;
   const editId=document.getElementById('n-edit-id').value;
   const ansvarligNavn=(document.getElementById('n-ansvarlig')?.value||'').trim();
+  // Totalsum/sannsynlighet (27.09.2026) — lest uansett type (feltene ligger
+  // uansett i DOM-en, bare skjult), men kun FAKTISK brukt/lagret når
+  // type==='Tilbud' (se notatFieldsPayload). Påkrevd kun ved OPPRETTELSE av
+  // et NYTT Tilbud (Thomas' eksplisitte ønske) — ikke ved redigering av en
+  // eksisterende sak, se kommentaren ved n-tilbud-wrap i HTML-en.
+  const tilbudSumRaw=document.getElementById('n-tilbudsum')?.value||'';
+  const sannsynlighetRaw=document.getElementById('n-sannsynlighet')?.value||'';
+  const tilbudSum=tilbudSumRaw?Number(tilbudSumRaw):null;
+  const sannsynlighet=sannsynlighetRaw!==''?Number(sannsynlighetRaw):null;
   if(!tittel){alert('Fyll inn en tittel');return;}
+  if(type==='Tilbud'&&!editId&&(!tilbudSum||tilbudSum<=0)){alert('Fyll inn en totalsum for tilbudet');return;}
   if((varsleEpost||varsleDashbord)&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato/klokkeslett for å kunne varsle');return;}
   closeNotatModal();
 
@@ -7976,7 +8129,7 @@ function saveNotat(){
     // VarselSendt nullstilles ved enhver redigering av en Oppfølging, slik at
     // en endret/utsatt frist faktisk gir nytt varsel i stedet for å bli
     // stille undertrykt av at et tidligere (nå utdatert) varsel alt er sendt.
-    n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;n.varsleEpost=varsleEpost;n.varsleDashbord=varsleDashbord;n.varselSendt=false;n.kundeNavn=kNavn;
+    n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;n.varsleEpost=varsleEpost;n.varsleDashbord=varsleDashbord;n.varselSendt=false;n.kundeNavn=kNavn;n.tilbudSum=tilbudSum;n.sannsynlighet=sannsynlighet;
     // Ansvarlig/selger — lagt til 03.09.2026 (Terjes spørsmål om å kunne endre
     // "selger" på saker overført fra Nyetableringer). Oppdaterer OGSÅ
     // OpprettetAvEpost via oppslag i `brukere`, slik at "Mine saker"-visningen
@@ -7989,7 +8142,12 @@ function saveNotat(){
     if(k360Valgt)renderKundeKort(k360Valgt);
     if(n.spId){
       setSPStatus('⏳ Lagrer…');
-      spUpdate('KundeNotater',n.spId,notatFieldsPayload(n)).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+      // Tilbud-feltene sendes som "myke" — se spLagreMedMykFallback-
+      // kommentaren og notatFieldsPayload(). For Notat/Oppfølging er
+      // TILBUD_MYKE_FELTER uansett irrelevant (notatFieldsPayload inkluderer
+      // dem aldri for andre typer enn Tilbud), så dette er 100% uendret
+      // oppførsel for dem.
+      spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),TILBUD_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
     }
   } else {
     const now=new Date().toISOString();
@@ -8000,11 +8158,11 @@ function saveNotat(){
     const ansvarligValgt=ansvarligNavn||currentUser?.name||currentUser?.username||'Ukjent';
     const ansvarligMatch=brukere.find(b=>b.navn===ansvarligValgt);
     const ansvarligEpost=ansvarligMatch?.epost||(ansvarligValgt===(currentUser?.name||currentUser?.username)?(currentUser?.username||''):'');
-    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,logg:[]};
+    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,tilbudSum,sannsynlighet,tilbudUtfall:'',tilbudLukketDato:'',logg:[]};
     kundeNotater.push(nyNotat);
     if(k360Valgt)renderKundeKort(k360Valgt);
     setSPStatus('⏳ Lagrer…');
-    spCreate('KundeNotater',notatFieldsPayload(nyNotat)).then(r=>{
+    spLagreMedMykFallback(f=>spCreate('KundeNotater',f),notatFieldsPayload(nyNotat),TILBUD_MYKE_FELTER).then(r=>{
       const midlertidigId=nyNotat.id;
       nyNotat.spId=r.id;nyNotat.id=`sp${r.id}`;
       setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
@@ -8031,21 +8189,72 @@ function saveNotat(){
       }
     }).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppføringen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);});
   }
+  renderKundesaker(); // se kommentar ved toggleNotatStatus() under — samme datagrunnlag vises der og i Tilbudspipeline-oversikten
   renderVarselMeny(); // varsel-bjellen skal reflektere endringen umiddelbart, ikke vente på neste 30-sekunders tikk
+}
+
+// Lukker en Tilbud-sak MED et valgt utfall (Vunnet/Tapt) — erstatter den
+// vanlige toggleNotatStatus() for selve LUKKINGEN av et Tilbud (27.09.2026,
+// «Tilbudspipeline»). Nødvendig fordi reserve-/vunnet-beregningen trenger å
+// vite om et lukket tilbud faktisk ble til et salg eller ikke — ren
+// Åpen/Lukket (som er nok for Notat/Oppfølging) forteller ikke det.
+// toggleNotatStatus() brukes fortsatt for å GJENÅPNE et lukket Tilbud (se
+// der), og uendret for Notat/Oppfølging i alle tilfeller.
+function lukkTilbudMedUtfall(id,utfall){
+  const n=kundeNotater.find(x=>x.id===id);if(!n)return;
+  n.status='Lukket';n.tilbudUtfall=utfall;n.tilbudLukketDato=new Date().toISOString();
+  if(k360Valgt)renderKundeKort(k360Valgt);
+  renderKundesaker();
+  if(n.spId){
+    setSPStatus('⏳ Lagrer…');
+    spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),TILBUD_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lukking ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+  renderVarselMeny();
+}
+
+// Delt av tabellraden (renderKundesaker) og kortet (renderKundeNotaterHTML):
+// et ÅPENT Tilbud får to knapper (Vunnet/Tapt, se lukkTilbudMedUtfall) i
+// stedet for den vanlige ✓ Lukk-knappen, siden lukking av et tilbud MÅ ha et
+// utfall for at pipelinereserven skal stemme. Alt annet (Notat/Oppfølging,
+// og et allerede lukket/gjenåpnet Tilbud) beholder den vanlige toggleNotat-
+// Status()-knappen, uendret oppførsel.
+function renderNotatStatusHTML(n){
+  if(n.type==='Tilbud'&&n.status==='Åpen'){
+    if(!salgTilgang)return '🟣 Tilbud ute';
+    return `<div style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn-sm" style="color:#15803d;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Vunnet')" title="Marker som vunnet">✅ Vunnet</button>
+      <button class="btn-sm" style="color:#d03b3b;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Tapt')" title="Marker som tapt">❌ Tapt</button>
+    </div>`;
+  }
+  const lukket=n.status==='Lukket';
+  const lbl=lukket?(n.type==='Tilbud'&&n.tilbudUtfall?(n.tilbudUtfall==='Vunnet'?'✅ Vunnet':'❌ Tapt'):'⚪ Lukket'):'🟢 Åpen';
+  if(!salgTilgang)return lbl;
+  return `<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne':'Merk som lukket'}">${lbl}</button>`;
 }
 
 function toggleNotatStatus(id){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   n.status=n.status==='Åpen'?'Lukket':'Åpen';
+  // Gjenåpnes et Tilbud, nullstilles utfall/lukkedato — en gjenåpnet sak er
+  // verken vunnet eller tapt lenger, og skal tilbake i pipelinereserven.
+  if(n.type==='Tilbud'&&n.status==='Åpen'){n.tilbudUtfall='';n.tilbudLukketDato='';}
   if(k360Valgt)renderKundeKort(k360Valgt);
   // Samme kundeNotater-datagrunnlag vises nå OGSÅ i den samlede "🗂️ Kundesaker"
-  // -fanen (lagt til 28.08.2026) — oppdater den også, uansett om den fanen er
-  // synlig akkurat nå eller ikke (renderKundesaker() sjekker selv om elementene
-  // finnes i DOM-en, samme mønster som renderVarselMeny() under).
+  // -fanen (lagt til 28.08.2026) og i Tilbudspipeline-oversikten (27.09.2026)
+  // — oppdater den også, uansett om den fanen er synlig akkurat nå eller ikke
+  // (renderKundesaker() sjekker selv om elementene finnes i DOM-en, samme
+  // mønster som renderVarselMeny() under).
   renderKundesaker();
   if(n.spId){
     setSPStatus('⏳ Lagrer…');
-    spUpdate('KundeNotater',n.spId,{Status:n.status}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Statusendring ble ikke lagret til SharePoint:\n'+e.message);});
+    // For Tilbud sendes hele payloaden (myk fallback på Tilbud-feltene), slik
+    // at TilbudUtfall/TilbudLukketDato faktisk nullstilles i SharePoint ved
+    // gjenåpning — for Notat/Oppfølging er dette fortsatt kun et rent
+    // Status-kall, helt uendret fra før.
+    const lagre=n.type==='Tilbud'
+      ?spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),TILBUD_MYKE_FELTER)
+      :spUpdate('KundeNotater',n.spId,{Status:n.status});
+    lagre.then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Statusendring ble ikke lagret til SharePoint:\n'+e.message);});
   }
   renderVarselMeny();
 }
@@ -8114,6 +8323,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.132',dato:'27.09.2026',punkter:[
+    'Kunde360 → Kundesaker: nytt «Tilbudspipeline»-kort — et Tilbud kan nå få en totalsum og en sannsynlighet (glidebryter), som til sammen gir en vektet «pipelinereserve» (f.eks. tilbud på 50.000 kr med 50 % sjanse = 25.000 kr i reserve).',
+    'Å lukke et Tilbud spør nå om utfall (✅ Vunnet / ❌ Tapt) i stedet for bare «lukket» — gir grunnlag for en ny oversikt over vunnet salgssum pr. selger pr. måned.',
+    'Begge tall (pipelinereserve og vunnet denne måneden) vises kompakt på Hjem-siden, og full oversikt (inkl. pr. selger/måned-tabellen) i Kunde360 → Kundesaker.'
+  ]},
   {versjon:'v1.48.131',dato:'27.09.2026',punkter:[
     'Idébank og utvikling: «Gjelder meny»-lista viste i forrige versjon også alle undermenyer og ble for lang/detaljert — forenklet til kun hovedmenyene i venstremenyen.'
   ]},
@@ -9778,12 +9992,18 @@ function renderHjem(){
       <div style="font-size:11.5px;color:#6b7280;margin-top:1px">${sub}</div>
     </div>`;
 
+    // Tilbudspipeline (27.09.2026) — kompakt kort her på Hjem, full oversikt
+    // (inkl. vunnet pr. selger pr. måned) i Kunde360 → Kundesaker, se
+    // renderTilbudspipeline(). Samme aggregeringsfunksjoner brukes begge steder.
+    const apneTilbud=kundesakerApneTilbud();
+
     gridEl.innerHTML=[
       card('📋','Lisenser',licS?fS(licS.sum):'—',licS?`sist registrert (${licS.label})`:'Ingen data','#1A3A6B','#eef2ff'),
       card('💰','Kickback',kickS?fS(kickS.sum):'—',kickS?`sist registrert (${kickS.label})`:'Ingen data','#15803d','#ecfdf3'),
       card('⏱️','Aldersfordelt',agingSum!=null?fS(agingSum):'—',agingLast?`saldo pr. ${fDateShort(agingLast.date)}`:'Ingen data','#eb6834','#fff2e8'),
       card('🔄','Utleie',`${aktiveUtleie} aktive`,snartForfaller>0?`${snartForfaller} forfaller snart`:'Ingen forfaller snart','#2a78d6','#eef6ff'),
       card('🟡','Reservasjoner',`${aktiveRes} aktive`,'venter/pågår','#6d28d9','#f5f0ff'),
+      card('📈','Tilbudspipeline',fS(kundesakerPipelineReserve()),`${apneTilbud.length} åpne tilbud · vunnet denne mnd: ${fS(kundesakerVunnetDenneMaaned())}`,'#6d28d9','#f5f0ff'),
       card('🏋️',dayNames[todayIdx]+' i dag',monsterLbl,'ditt mønster','#0f766e','#effaf8'),
     ].join('');
   }
