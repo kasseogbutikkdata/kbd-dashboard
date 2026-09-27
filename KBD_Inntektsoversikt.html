@@ -473,7 +473,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.135 · Oppdatert: 27. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.136 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1072,15 +1072,23 @@ tr:hover td{background:#fafafa}
          docstring for hele bakgrunnen (to uavhengige sikkerhetslag: denne
          bryteren OG SUSOFT_RMA_VARSEL_DRY_RUN i Azure må begge være
          på/av for at ekte e-post skal gå til Susoft). -->
-    <div class="card" id="rma-innst-block" style="display:none;max-width:640px">
+    <div class="card" id="rma-innst-block" style="display:none">
       <div class="card-title">📧 Automatisk purring til Susoft</div>
-      <p class="hint" style="margin-bottom:12px">I tillegg til det interne varselet til Geir (banneret over) kan dashbordet også sende en e-post DIREKTE til Susoft sin kontakt når en sak har ligget hos dem i over 3 uker — med spørsmål om status. Gjentas ukentlig helt til saken er løst, akkurat som det interne varselet, men er en egen, uavhengig bryter.</p>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:10px 12px;background:#f9fafb;border-radius:8px">
-        <input type="checkbox" id="rma-susoft-ekstern-aktivert" style="width:18px;height:18px" onchange="rmaOppdaterEksternHint()"/>
-        <label for="rma-susoft-ekstern-aktivert" style="font-weight:600;cursor:pointer">Aktivert — send automatisk purre-e-post til Susoft (jarle@susoft.com)</label>
+      <p class="hint" style="margin-bottom:10px">I tillegg til det interne varselet til Geir (banneret over) kan dashbordet også sende en e-post DIREKTE til Susoft sin kontakt når en sak har ligget hos dem i over 3 uker — med spørsmål om status. Gjentas ukentlig helt til saken er løst, akkurat som det interne varselet, men er en egen, uavhengig bryter.</p>
+      <!-- Checkbox+label, advarselshint og Lagre-knapp slått sammen til ÉN
+           bred flex-rad (i stedet for tre stablede blokker) — v1.48.136,
+           24.09.2026, Thomas' ønske om at kortet skal utnytte bredden og ta
+           mindre plass i høyden. max-width:640px på selve kortet fjernet av
+           samme grunn. rmaOppdaterEksternHint() (viser/skjuler advarselen)
+           er uendret — virker likt uansett layout. -->
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 12px;background:#f9fafb;border-radius:8px">
+        <div style="display:flex;align-items:center;gap:10px;white-space:nowrap">
+          <input type="checkbox" id="rma-susoft-ekstern-aktivert" style="width:18px;height:18px" onchange="rmaOppdaterEksternHint()"/>
+          <label for="rma-susoft-ekstern-aktivert" style="font-weight:600;cursor:pointer">Aktivert — send automatisk purre-e-post til Susoft (jarle@susoft.com)</label>
+        </div>
+        <div id="rma-susoft-ekstern-hint" class="hint" style="color:#b45309;flex:1;min-width:240px">⚠️ Avslått som standard. Saker sendes IKKE til Susoft før denne krysses av og lagres.</div>
+        <button class="btn-sm prim" onclick="lagreSusoftRmaInnstillinger()" style="margin-left:auto">Lagre</button>
       </div>
-      <div id="rma-susoft-ekstern-hint" class="hint" style="margin-bottom:10px;color:#b45309">⚠️ Avslått som standard. Saker sendes IKKE til Susoft før denne krysses av og lagres.</div>
-      <button class="btn-sm prim" onclick="lagreSusoftRmaInnstillinger()">Lagre</button>
     </div>
     <div id="rma-tabell"></div>
   </div>
@@ -8458,6 +8466,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.136',dato:'27.09.2026',punkter:[
+    'Susoft RMA: «Automatisk purring til Susoft»-kortet utnytter nå hele bredden av siden i stedet for å være låst til 640px — checkbox, advarselstekst og Lagre-knapp står nå på én rad, så kortet tar merkbart mindre plass i høyden.'
+  ]},
   {versjon:'v1.48.135',dato:'27.09.2026',punkter:[
     'Tilbudspipeline: ny liste «Avsluttede tilbud» viser hver enkelt vunnet/tapt sak for seg, med årsaken vist som ren tekst (ikke bare hover) på tapte tilbud.',
     'Radene i denne listen er klikkbare — trykk på en sak for å hoppe rett til kunden og den aktuelle oppføringen, samme funksjon som «Åpne»-knappen i Kundesaker-tabellen.'
