@@ -468,7 +468,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.130 · Oppdatert: 27. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.131 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -8114,8 +8114,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.131',dato:'27.09.2026',punkter:[
+    'Idébank og utvikling: «Gjelder meny»-lista viste i forrige versjon også alle undermenyer og ble for lang/detaljert — forenklet til kun hovedmenyene i venstremenyen.'
+  ]},
   {versjon:'v1.48.130',dato:'27.09.2026',punkter:[
-    'Idébank og utvikling: ny «Gjelder meny»-velger på hver idé (valgfri) — henter automatisk opp alle menypunkter (inkl. undermenyer) fra venstremenyen, så en idé kan merkes med hvilken del av dashbordet den gjelder. Vises som en liten badge på kortet, og lista kan nå filtreres på meny øverst i fanen.'
+    'Idébank og utvikling: ny «Gjelder meny»-velger på hver idé (valgfri) — henter automatisk opp menypunkter fra venstremenyen, så en idé kan merkes med hvilken del av dashbordet den gjelder. Vises som en liten badge på kortet, og lista kan nå filtreres på meny øverst i fanen.'
   ]},
   {versjon:'v1.48.129',dato:'27.09.2026',punkter:[
     'Idébank og utvikling: nå mulig å legge ved et bilde (f.eks. et skjermbilde) på en idé, både ved opprettelse og redigering — vises som en miniatyr på selve idé-kortet, og kan klikkes for å se i full størrelse.'
@@ -8503,18 +8506,13 @@ function renderIdeBank(){
 // (lagt til 27.09.2026, Thomas' eksplisitte ønske: "Autoopprette meny fra
 // venstre side") — ALDRI en egen, manuelt vedlikeholdt liste, som uunngåelig
 // ville gått ut av synk når menypunkter legges til/fjernes/endres over tid.
-// Leser .nav-item/.nav-sub-item/.nav-sub-sub-item i DOM-rekkefølge fra
-// <nav class="global-sidebar"> og bygger en "Toppnivå → Undernivå →
-// Under-undernivå"-sti per blad — nødvendig siden f.eks. "📋 Historikk" i dag
-// finnes under BÅDE Verifone og Nets trans.avgift; uten stien ville disse to
-// vært umulige å skille fra hverandre i valglista.
-//
-// .nav-sub-containere er kun visuelt kollapset (max-height:0 i CSS), ikke
-// display:none, så alle undermenypunkter leses uansett hvilken fane som er
-// åpen akkurat nå. Elementer som ER skjult for innlogget bruker akkurat nå
-// (rolle-styrt via style.display, f.eks. «⚙️ Innstillinger» under Silent
-// Ordering System) hoppes bevisst over — gir ingen mening å la noen tagge en
-// idé til en meny de selv ikke har tilgang til.
+// Leser KUN toppnivå .nav-item i DOM-rekkefølge fra <nav class="global-
+// sidebar"> — BEVISST ikke .nav-sub-item/.nav-sub-sub-item (undermenyer):
+// første forsøk tok med alle tre nivåene, men Thomas syntes det ble for
+// mye/for detaljert i praksis (27.09.2026, samme dag) — forenklet til kun
+// hovedmenyer. Elementer som ER skjult for innlogget bruker akkurat nå
+// (rolle-styrt via style.display) hoppes bevisst over — gir ingen mening å
+// la noen tagge en idé til en meny de selv ikke har tilgang til.
 //
 // id-attributtet (stabilt, endres normalt aldri) er selve LAGRET verdi —
 // visningsteksten kan trygt endres senere uten å ødelegge tidligere lagrede
@@ -8524,23 +8522,13 @@ function ideHentMenyValg(){
   const nav=document.querySelector('.global-sidebar');
   if(!nav)return[];
   const valg=[];
-  let toppNavn='',underNavn='';
-  nav.querySelectorAll('.nav-item,.nav-sub-item,.nav-sub-sub-item').forEach(el=>{
+  nav.querySelectorAll('.nav-item').forEach(el=>{
     if(!el.id)return;
     if(getComputedStyle(el).display==='none')return; // rolle-skjult for innlogget bruker akkurat nå
     const tekst=el.textContent.trim().replace(/\s+/g,' ')
-      .replace(/^([^\p{L}\p{N}\s]+)(\S)/u,'$1 $2'); // rom mellom ikon og tekst der HTML-en mangler det (kun toppnivå-punkter)
+      .replace(/^([^\p{L}\p{N}\s]+)(\S)/u,'$1 $2'); // rom mellom ikon og tekst der HTML-en mangler det
     if(!tekst)return;
-    if(el.classList.contains('nav-item')){
-      toppNavn=tekst;underNavn='';
-      valg.push({id:el.id,visning:tekst});
-    }else if(el.classList.contains('nav-sub-item')){
-      underNavn=tekst;
-      valg.push({id:el.id,visning:toppNavn?`${toppNavn} → ${tekst}`:tekst});
-    }else{ // nav-sub-sub-item
-      const sti=[toppNavn,underNavn,tekst].filter(Boolean).join(' → ');
-      valg.push({id:el.id,visning:sti});
-    }
+    valg.push({id:el.id,visning:tekst});
   });
   return valg;
 }
