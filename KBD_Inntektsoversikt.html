@@ -468,7 +468,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.128 · Oppdatert: 24. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.129 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2110,12 +2110,23 @@ tr:hover td{background:#fafafa}
           <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="addIdeDelmaal()">Legg til</button>
         </div>
       </div>
+      <div class="fgrp" style="margin-bottom:14px">
+        <label>Bilde (valgfritt)</label>
+        <div id="ide-bilde-preview" style="margin-bottom:6px"></div>
+        <input type="file" id="ide-bilde-input" accept="image/*" style="display:none" onchange="handleIdeBildeValgt(this.files[0])"/>
+        <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="document.getElementById('ide-bilde-input').click()">📷 Velg bilde</button>
+      </div>
       <input type="hidden" id="ide-edit-id"/>
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeIdeModal()">Avbryt</button>
         <button class="prim" onclick="saveIde()">Lagre</button>
       </div>
     </div>
+  </div>
+
+  <!-- IDÉBANK BILDE-LIGHTBOX (lagt til 27.09.2026) -->
+  <div class="modal-overlay" id="ide-bilde-lightbox" onclick="lukkIdeBildeLightbox()">
+    <img id="ide-bilde-lightbox-img" src="" alt="" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.4)"/>
   </div>
 
   <!-- KONVERTER MODAL -->
@@ -3109,6 +3120,36 @@ async function spCreate(list,fields){return graphReq(`sites/${siteId}/lists/${en
 async function spUpdate(list,spId,fields){return graphReq(`sites/${siteId}/lists/${encodeURIComponent(list)}/items/${spId}/fields`,'PATCH',fields);}
 async function spDelete(list,spId){return graphReq(`sites/${siteId}/lists/${encodeURIComponent(list)}/items/${spId}`,'DELETE');}
 
+// --- Binærfiler (bilder) i sitets standard dokumentbibliotek ---------------
+// Lagt til 27.09.2026 for Idébank-bilder (se ideFieldsPayload/Bilde-feltet).
+// Bruker samme delegerte Graph-token som spGetItems/spCreate over —
+// Sites.ReadWrite.All (se SCOPES) dekker allerede dokumentbiblioteket på
+// samme site, ingen ny tilgang/samtykke nødvendig. graphReq over kan ikke
+// gjenbrukes direkte siden den alltid JSON-koder body og setter
+// Content-Type: application/json — disse tre gjør rå binær-kall i stedet.
+function spDrivePath(sti){return sti.split('/').map(encodeURIComponent).join('/');}
+async function spLastOppFil(sti,blob){
+  const token=await getToken();
+  const res=await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${spDrivePath(sti)}:/content`,{method:'PUT',headers:{Authorization:`Bearer ${token}`,'Content-Type':blob.type||'application/octet-stream'},body:blob});
+  const data=await res.json();
+  if(!res.ok)throw new Error(data.error?.message||`HTTP ${res.status}`);
+  return data;
+}
+async function spHentFilBlob(sti){
+  const token=await getToken();
+  const res=await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${spDrivePath(sti)}:/content`,{headers:{Authorization:`Bearer ${token}`}});
+  if(!res.ok)return null;
+  return res.blob();
+}
+async function spSlettFil(sti){
+  // Best-effort — brukes til å rydde opp gamle/erstattede bilder. Skal ALDRI
+  // kunne stoppe selve lagringen av ideen om filen f.eks. allerede er borte.
+  try{
+    const token=await getToken();
+    await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${spDrivePath(sti)}`,{method:'DELETE',headers:{Authorization:`Bearer ${token}`}});
+  }catch(e){console.warn('Klarte ikke slette gammel fil (ikke kritisk):',sti,e);}
+}
+
 // Samme "fail soft, vis tom liste i stedet for å knekke hele innlastingen"-
 // oppførsel som de vanlige .catch(()=>[]) under, MEN logger den faktiske
 // feilen til konsollen (lagt til 01.09.2026). Bakgrunn: Casper fikk tilgang
@@ -3214,7 +3255,7 @@ async function loadDataFromSP(){
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
   // (samme fremgangsmåte som for KundeNotater over) og juster mappingen under
   // dersom noen navn ble avvikende.
-  ideBank=ideItems.map(i=>({id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',ideType:i.fields.IdeType||'Annet',beskrivelse:i.fields.Beskrivelse||'',status:i.fields.Status||'Idé',versjon:i.fields.IdeVersjon||'',prioritet:i.fields.Prioritet===undefined||i.fields.Prioritet===null||i.fields.Prioritet===''?null:parseFloat(i.fields.Prioritet),opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||'',delmaal:(()=>{try{const p=JSON.parse(i.fields.Delmaal||'[]');return Array.isArray(p)?p:[];}catch{return[];}})(),logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  ideBank=ideItems.map(i=>({id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',ideType:i.fields.IdeType||'Annet',beskrivelse:i.fields.Beskrivelse||'',status:i.fields.Status||'Idé',versjon:i.fields.IdeVersjon||'',prioritet:i.fields.Prioritet===undefined||i.fields.Prioritet===null||i.fields.Prioritet===''?null:parseFloat(i.fields.Prioritet),bilde:i.fields.Bilde||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||'',delmaal:(()=>{try{const p=JSON.parse(i.fields.Delmaal||'[]');return Array.isArray(p)?p:[];}catch{return[];}})(),logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Kunngjoringer = felles nyheter til alle ansatte (lagt til 24.08.2026).
   // Verifisert 24.08.2026 via Graph Explorer: alle fem kolonner (Title,
   // Innhold, PatrengendePopup, OpprettetAv, OpprettetDato) fikk internt navn
@@ -8046,6 +8087,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.129',dato:'27.09.2026',punkter:[
+    'Idébank og utvikling: nå mulig å legge ved et bilde (f.eks. et skjermbilde) på en idé, både ved opprettelse og redigering — vises som en miniatyr på selve idé-kortet, og kan klikkes for å se i full størrelse.'
+  ]},
   {versjon:'v1.48.128',dato:'24.09.2026',punkter:[
     'Susoft RMA: ny «📄 Last ned PDF»-knapp i «Rediger RMA-sak»-modalen — laster ned en enkel, printvennlig PDF med all saksinfo (sak nr, kunde, forhandler, maskin, serienr, problem, ansvarlig, status, datoer, kommentar), til å legge fysisk med kassen når den sendes til Susoft.'
   ]},
@@ -8308,6 +8352,14 @@ function renderVersjonslogg(){
     </div>`).join('');
 }
 let ideBank=[],ideBankVisAvsluttede=false,ideModalDelmaal=[];
+// Bilde-state for Ny/Rediger idé-modalen (lagt til 27.09.2026) —
+// ideModalBildeBlob er kun satt når brukeren har valgt en NY fil i akkurat
+// denne modal-økten (styrer om ideModalBildePreviewUrl skal revokes ved
+// lukking — en URL hentet fra ideBildeUrlCache er delt med selve idé-kortet
+// og skal ALDRI revokes derfra). ideBildeUrlCache/ideBildeLaster cacher
+// nedlastede bilder på tvers av rendringer, se ideBildeSrc().
+let ideModalBildeBlob=null,ideModalBildeFjernet=false,ideModalBildePreviewUrl='';
+const ideBildeUrlCache={},ideBildeLaster=new Set();
 const IDEBANK_STATUSER={
   'Idé':{c:'#6b7280',bg:'#f3f4f6'},
   'Under vurdering':{c:'#b45309',bg:'#fef3e2'},
@@ -8382,6 +8434,35 @@ function renderIdeBank(){
   `;
 }
 
+// Returnerer en visbar <img>-src for idea sitt bilde, eller '' hvis intet
+// bilde (ennå) er tilgjengelig. `_bildeUrlLokal` (satt av saveIde() rett
+// etter at brukeren velger et bilde, FØR selve opplastingen er ferdig) vises
+// først dersom satt — samme lokale blob som brukeren nettopp valgte, ingen
+// nettverkskall nødvendig. Ellers hentes/caches det faktiske SharePoint-
+// bildet via Graph (spHentFilBlob) — ÉN gang per sti (ideBildeLaster hindrer
+// dobbel-henting ved gjentatte render-kall), og selve rendringen oppdateres
+// automatisk (renderIdeBank()) når nedlastingen er ferdig.
+function ideBildeSrc(idea){
+  if(idea._bildeUrlLokal)return idea._bildeUrlLokal;
+  if(!idea.bilde)return '';
+  if(ideBildeUrlCache[idea.bilde])return ideBildeUrlCache[idea.bilde];
+  if(!ideBildeLaster.has(idea.bilde)){
+    ideBildeLaster.add(idea.bilde);
+    spHentFilBlob(idea.bilde).then(blob=>{
+      ideBildeLaster.delete(idea.bilde);
+      if(!blob)return;
+      ideBildeUrlCache[idea.bilde]=URL.createObjectURL(blob);
+      renderIdeBank();
+    }).catch(()=>{ideBildeLaster.delete(idea.bilde);});
+  }
+  return '';
+}
+function apneIdeBildeLightbox(src){
+  const img=document.getElementById('ide-bilde-lightbox-img');if(img)img.src=src;
+  const m=document.getElementById('ide-bilde-lightbox');if(m)m.classList.add('open');
+}
+function lukkIdeBildeLightbox(){const m=document.getElementById('ide-bilde-lightbox');if(m)m.classList.remove('open');}
+
 function renderIdeCard(idea,idx,liste,kanStyre){
   const st=IDEBANK_STATUSER[idea.status]||IDEBANK_STATUSER['Idé'];
   const full=ideFullforing(idea);
@@ -8418,6 +8499,7 @@ function renderIdeCard(idea,idx,liste,kanStyre){
         </div>
       </div>
       ${idea.beskrivelse?`<div style="font-size:13px;color:#374151;white-space:pre-wrap;margin-bottom:8px">${ideEsc(idea.beskrivelse)}</div>`:''}
+      ${(()=>{const src=ideBildeSrc(idea);return src?`<img src="${src}" alt="" style="display:block;max-width:100%;max-height:220px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:8px;cursor:zoom-in" onclick="apneIdeBildeLightbox(this.src)"/>`:'';})()}
       <div style="margin-bottom:8px">${progressHtml}</div>
       ${delmaalHtml?`<div style="margin-bottom:8px">${delmaalHtml}</div>`:''}
       <div style="font-size:11px;color:#9ca3af">${ideEsc(idea.opprettetAv||'Ukjent')} · ${idea.opprettetDato?new Date(idea.opprettetDato).toLocaleDateString('nb-NO'):'—'}</div>
@@ -8488,6 +8570,69 @@ function moveIdePriority(id,dir){
   }
 }
 
+// Skalerer/komprimerer et valgt bilde via canvas FØR opplasting (maks 1400px
+// på lengste side, JPEG kvalitet .85) — lagt til 27.09.2026 sammen med
+// Idébank-bilder. Holder både opplastingstid og dokumentbiblioteket lett,
+// og unngår i praksis Graph sin 4MB-grense for enkel opplasting helt.
+function ideKomprimerBilde(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('Klarte ikke lese bildefilen'));
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('Klarte ikke tolke bildefilen — er den virkelig et bilde?'));
+      img.onload=()=>{
+        const maxDim=1400;
+        let width=img.naturalWidth,height=img.naturalHeight;
+        if(width>maxDim||height>maxDim){
+          const skala=maxDim/Math.max(width,height);
+          width=Math.round(width*skala);height=Math.round(height*skala);
+        }
+        const canvas=document.createElement('canvas');
+        canvas.width=width;canvas.height=height;
+        canvas.getContext('2d').drawImage(img,0,0,width,height);
+        canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Klarte ikke komprimere bildet')),'image/jpeg',0.85);
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleIdeBildeValgt(file){
+  if(!file)return;
+  document.getElementById('ide-bilde-input').value=''; // slik at samme fil kan velges på nytt senere
+  if(!file.type.startsWith('image/')){alert('Kun bildefiler er støttet (jpg/png/osv.)');return;}
+  try{
+    const blob=await ideKomprimerBilde(file);
+    if(ideModalBildeBlob&&ideModalBildePreviewUrl)URL.revokeObjectURL(ideModalBildePreviewUrl);
+    ideModalBildeBlob=blob;
+    ideModalBildeFjernet=false;
+    ideModalBildePreviewUrl=URL.createObjectURL(blob);
+    renderIdeBildePreview();
+  }catch(e){alert('Kunne ikke lese bildet:\n'+e.message);}
+}
+
+function fjernIdeBilde(){
+  // Revokes KUN når bildet er en URL vi selv opprettet for et nyvalgt bilde i
+  // denne modal-økten — en URL hentet fra ideBildeUrlCache er delt med
+  // selve idé-kortets miniatyrbilde og skal aldri revokes herfra.
+  if(ideModalBildeBlob&&ideModalBildePreviewUrl)URL.revokeObjectURL(ideModalBildePreviewUrl);
+  ideModalBildeBlob=null;
+  ideModalBildePreviewUrl='';
+  ideModalBildeFjernet=true;
+  renderIdeBildePreview();
+}
+
+function renderIdeBildePreview(){
+  const el=document.getElementById('ide-bilde-preview');if(!el)return;
+  if(!ideModalBildePreviewUrl){el.innerHTML='';return;}
+  el.innerHTML=`<div style="position:relative;display:inline-block">
+    <img src="${ideModalBildePreviewUrl}" alt="" style="display:block;max-width:220px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb"/>
+    <button class="btn-icon del" style="position:absolute;top:-8px;right:-8px;background:#fff;border-radius:50%;line-height:1" onclick="fjernIdeBilde()" title="Fjern bilde">✕</button>
+  </div>`;
+}
+
 function openNyIdeModal(){
   document.getElementById('idebank-modal-title').textContent='Ny idé';
   document.getElementById('ide-type').value='Ny funksjon';
@@ -8499,6 +8644,9 @@ function openNyIdeModal(){
   document.getElementById('ide-edit-id').value='';
   ideModalDelmaal=[];
   renderIdeDelmaalEditor();
+  if(ideModalBildeBlob&&ideModalBildePreviewUrl)URL.revokeObjectURL(ideModalBildePreviewUrl);
+  ideModalBildeBlob=null;ideModalBildeFjernet=false;ideModalBildePreviewUrl='';
+  renderIdeBildePreview();
   updateIdeModalPermissions();
   document.getElementById('idebank-modal').classList.add('open');
 }
@@ -8515,6 +8663,23 @@ function openRedigerIde(id){
   document.getElementById('ide-edit-id').value=idea.id;
   ideModalDelmaal=(idea.delmaal||[]).map(d=>({...d}));
   renderIdeDelmaalEditor();
+  if(ideModalBildeBlob&&ideModalBildePreviewUrl)URL.revokeObjectURL(ideModalBildePreviewUrl);
+  ideModalBildeBlob=null;ideModalBildeFjernet=false;
+  ideModalBildePreviewUrl=idea.bilde?(ideBildeUrlCache[idea.bilde]||''):'';
+  renderIdeBildePreview();
+  if(idea.bilde&&!ideBildeUrlCache[idea.bilde]){
+    spHentFilBlob(idea.bilde).then(blob=>{
+      if(!blob)return;
+      const url=URL.createObjectURL(blob);
+      ideBildeUrlCache[idea.bilde]=url;
+      // Oppdater forhåndsvisningen kun hvis brukeren fortsatt redigerer
+      // NETTOPP denne ideen og ikke allerede har valgt et nytt bilde i mellomtiden.
+      if(document.getElementById('ide-edit-id')?.value===id&&!ideModalBildeBlob){
+        ideModalBildePreviewUrl=url;renderIdeBildePreview();
+      }
+      renderIdeBank();
+    }).catch(()=>{});
+  }
   updateIdeModalPermissions();
   document.getElementById('idebank-modal').classList.add('open');
 }
@@ -8578,11 +8743,35 @@ function moveIdeModalDelmaal(idx,dir){
 // navnet" ved forsøk på å opprette den (trolig en skjult/reservert kolonne på
 // denne listen, samme klasse problem som "Type"). Bruk derfor "IdeVersjon"
 // som kolonnenavn i SharePoint, ikke "Versjon".
+// Bilde (NY 27.09.2026, IKKE OPPRETTET I SHAREPOINT ENNÅ): Én linje med
+// tekst — husk klassisk «Opprett kolonne»-siden, ikke Valg (samme lærdom
+// som ellers i prosjektet). Lagrer den relative stien til bildet i sitets
+// standard dokumentbibliotek (mappen «Idebank-bilder/…», se
+// spLastOppFil/spHentFilBlob over), IKKE selve bildeinnholdet — tomt felt =
+// ingen bilde. Verifiser internt kolonnenavn via Graph Explorer FØR bruk,
+// samme fremgangsmåte som de andre feltene på denne listen.
+//
+// VIKTIG: Bilde er BEVISST IKKE med i dette grunnoppsettet av felter —
+// Graph gir en hard 400-feil på HELE PATCH/POST-kallet (ikke bare det ene
+// feltet) dersom en kolonne som sendes med ikke finnes ennå. Skulle Bilde stå
+// her ubetinget, ville lagring av EN HVILKEN SOM HELST idé (også uten bilde)
+// slutte å virke helt frem til kolonnen er opprettet i SharePoint. Se
+// saveIde() — Bilde legges kun til i selve kallet når brukeren faktisk har
+// endret bildet i akkurat denne lagringen.
 function ideFieldsPayload(idea){
   return{Title:idea.tittel||'(uten tittel)',IdeType:idea.ideType||'Annet',Beskrivelse:idea.beskrivelse||'',Status:idea.status||'Idé',IdeVersjon:idea.versjon||'',Prioritet:idea.prioritet==null?null:idea.prioritet,Delmaal:JSON.stringify(idea.delmaal||[]),Logg:JSON.stringify(idea.logg||[]),OpprettetAv:idea.opprettetAv||'',OpprettetDato:idea.opprettetDato||''};
 }
 
-function saveIde(){
+// Genererer en unik filsti for et nytt idébank-bilde i dokumentbiblioteket.
+// Prefikset (spId ved redigering, ellers et tidsstempel) er kun til
+// menneskelig gjenkjennelse ved manuell opprydding — selve unikheten kommer
+// fra tidsstempel+tilfeldig suffiks.
+function ideNyBildeSti(prefiks,blob){
+  const ext=blob.type==='image/png'?'png':'jpg';
+  return `Idebank-bilder/idebank-${prefiks}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+}
+
+async function saveIde(){
   const tittel=document.getElementById('ide-tittel').value.trim();
   const beskrivelse=document.getElementById('ide-beskrivelse').value.trim();
   const ideType=document.getElementById('ide-type').value;
@@ -8601,23 +8790,81 @@ function saveIde(){
     const prioRaw=document.getElementById('ide-prioritet').value;
     prioritet=prioRaw===''?null:parseFloat(prioRaw);
   }
+  // Fanges opp FØR modalen lukkes/nullstilles (openNyIdeModal/openRedigerIde
+  // nullstiller ideModalBildeBlob/-Fjernet ved neste åpning).
+  const nyttBildeBlob=ideModalBildeBlob;
+  const bildeFjernet=ideModalBildeFjernet;
 
   if(editId){
     const idea=ideBank.find(x=>x.id===editId);if(!idea)return;
+    const gammelBildeSti=idea.bilde||'';
     idea.tittel=tittel;idea.beskrivelse=beskrivelse;idea.ideType=ideType;idea.versjon=versjon;idea.delmaal=delmaal;
     if(kanStyre){idea.status=status;idea.prioritet=prioritet;}
-    closeIdeModal();renderIdeBank();
-    if(idea.spId){
-      setSPStatus('⏳ Lagrer…');
-      spUpdate('Idebank',idea.spId,ideFieldsPayload(idea)).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+    if(nyttBildeBlob){
+      // Vis det valgte bildet med det samme (samme blob brukeren nettopp så i
+      // forhåndsvisningen) — selve opplastingen til SharePoint skjer i bakgrunnen.
+      idea._bildeUrlLokal=URL.createObjectURL(nyttBildeBlob);
+    } else if(bildeFjernet){
+      idea.bilde='';idea._bildeUrlLokal=null;
     }
+    closeIdeModal();renderIdeBank();
+    (async()=>{
+      try{
+        if(nyttBildeBlob){
+          const sti=ideNyBildeSti(idea.spId||'ny',nyttBildeBlob);
+          await spLastOppFil(sti,nyttBildeBlob);
+          ideBildeUrlCache[sti]=idea._bildeUrlLokal; // gjenbruk samme objekt-URL, ingen ny nedlasting nødvendig
+          idea._bildeUrlLokal=null;
+          idea.bilde=sti;
+          if(gammelBildeSti)spSlettFil(gammelBildeSti);
+        } else if(bildeFjernet&&gammelBildeSti){
+          spSlettFil(gammelBildeSti);
+        }
+        if(idea.spId){
+          setSPStatus('⏳ Lagrer…');
+          // Bilde sendes KUN med når det faktisk ble endret i akkurat denne
+          // lagringen — se advarselen ved ideFieldsPayload() over (unngår at
+          // vanlig lagring feiler helt før Bilde-kolonnen finnes i SharePoint).
+          const felter=ideFieldsPayload(idea);
+          if(nyttBildeBlob||bildeFjernet)felter.Bilde=idea.bilde||'';
+          await spUpdate('Idebank',idea.spId,felter);
+          setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+        }
+        renderIdeBank();
+      }catch(e){
+        setSPStatus('❌ '+e.message,false);
+        alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);
+      }
+    })();
   } else {
     const now=new Date().toISOString();
-    const nyIde={id:'tmp'+Math.random().toString(36).slice(2),spId:null,tittel,beskrivelse,ideType,versjon,status,prioritet,delmaal,logg:[],opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetDato:now};
+    const nyIde={id:'tmp'+Math.random().toString(36).slice(2),spId:null,tittel,beskrivelse,ideType,versjon,status,prioritet,bilde:'',delmaal,logg:[],opprettetAv:currentUser?.name||currentUser?.username||'Ukjent',opprettetDato:now};
+    if(nyttBildeBlob)nyIde._bildeUrlLokal=URL.createObjectURL(nyttBildeBlob);
     ideBank.push(nyIde);
     closeIdeModal();renderIdeBank();
     setSPStatus('⏳ Lagrer…');
-    spCreate('Idebank',ideFieldsPayload(nyIde)).then(r=>{nyIde.spId=r.id;nyIde.id=`sp${r.id}`;setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Ideen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);});
+    (async()=>{
+      try{
+        if(nyttBildeBlob){
+          const sti=ideNyBildeSti('ny',nyttBildeBlob);
+          await spLastOppFil(sti,nyttBildeBlob);
+          ideBildeUrlCache[sti]=nyIde._bildeUrlLokal;
+          nyIde._bildeUrlLokal=null;
+          nyIde.bilde=sti;
+        }
+        // Bilde sendes KUN med når et bilde faktisk ble valgt ved opprettelse
+        // — se advarselen ved ideFieldsPayload() over.
+        const felter=ideFieldsPayload(nyIde);
+        if(nyttBildeBlob)felter.Bilde=nyIde.bilde||'';
+        const r=await spCreate('Idebank',felter);
+        nyIde.spId=r.id;nyIde.id=`sp${r.id}`;
+        setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+        renderIdeBank();
+      }catch(e){
+        setSPStatus('❌ '+e.message,false);
+        alert('⚠️ Ideen ble lagt til her, men kunne ikke lagres til SharePoint (forsvinner ved neste innlasting av siden):\n'+e.message);
+      }
+    })();
   }
 }
 
@@ -8627,6 +8874,7 @@ function deleteIde(id){
   if(!confirm(`Slette ideen «${idea.tittel}»?`))return;
   ideBank=ideBank.filter(x=>x.id!==id);
   renderIdeBank();
+  if(idea.bilde)spSlettFil(idea.bilde); // best-effort opprydding av bildet i dokumentbiblioteket
   if(idea.spId){
     setSPStatus('⏳ Sletter…');
     spDelete('Idebank',idea.spId).then(()=>{setSPStatus('✅ Slettet');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Sletting fra SharePoint feilet:\n'+e.message);});
