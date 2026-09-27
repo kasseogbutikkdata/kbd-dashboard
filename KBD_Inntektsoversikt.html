@@ -468,7 +468,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.133 · Oppdatert: 27. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.134 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1787,6 +1787,28 @@ tr:hover td{background:#fafafa}
       <div class="modal-footer">
         <button class="btn-sm" onclick="closeNotatModal()">Avbryt</button>
         <button class="prim" onclick="saveNotat()">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAPT-ÅRSAK MODAL (Tilbudspipeline, lagt til 27.09.2026) — obligatorisk
+       årsak når et Tilbud markeres som Tapt, for senere rapportering
+       (pris/løsning/timing osv). Fast liste + "Annet" med fritekst, se
+       TILBUD_TAPT_ARSAKER. Vunnet krever IKKE årsak, kun Tapt. -->
+  <div class="modal-overlay" id="tapt-arsak-modal" onclick="if(event.target===this)lukkTaptArsakModal()">
+    <div class="modal" style="max-width:420px">
+      <h3 style="margin-bottom:16px">❌ Marker tilbud som tapt</h3>
+      <div class="fgrp" style="margin-bottom:10px">
+        <label>Hva var hovedårsaken?</label>
+        <select id="ta-arsak" onchange="oppdaterTaptArsakForm()"></select>
+      </div>
+      <div class="fgrp" id="ta-detalj-wrap" style="display:none;margin-bottom:10px">
+        <label>Utdyp</label>
+        <textarea id="ta-detalj" rows="2" placeholder="Beskriv kort..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="lukkTaptArsakModal()">Avbryt</button>
+        <button class="prim" onclick="bekreftTaptMedArsak()" style="background:#d03b3b;border-color:#d03b3b">❌ Marker som tapt</button>
       </div>
     </div>
   </div>
@@ -3308,7 +3330,7 @@ async function loadDataFromSP(){
   // IKKE opprettet i SharePoint ennå (se Liste 25 i sjekklisten) — feltene
   // kommer da rett og slett tilbake som undefined fra Graph, og ||null/!=null
   // -sjekkene under gir da bare null/tom streng, helt ufarlig.
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',tilbudArsak:i.fields.TilbudArsak||'',tilbudArsakDetalj:i.fields.TilbudArsakDetalj||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -6449,6 +6471,22 @@ function kundesakerVunnetDenneMaaned(){
     .reduce((sum,g)=>sum+g.sum,0);
 }
 const KS_MAANEDSNAVN=['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
+// Tapt pr. årsak (27.09.2026) — Thomas' oppfølgingsønske til Tilbudspipeline:
+// "gå å se på alle Tapte tilbud, og se årsakene, er det pris, er det løsning
+// osv". Grupperer på TilbudArsak (fast liste, se TILBUD_TAPT_ARSAKER) — et
+// tapt tilbud uten årsak (lukket før denne funksjonen fantes, eller SharePoint-
+// kolonnen manglet ved lagringstidspunktet) havner i "Ikke oppgitt" i stedet
+// for å bare forsvinne fra oversikten.
+function kundesakerTaptPrArsak(){
+  const grupper={};
+  kundeNotater.filter(n=>n.type==='Tilbud'&&n.tilbudUtfall==='Tapt').forEach(n=>{
+    const arsak=n.tilbudArsak||'Ikke oppgitt';
+    if(!grupper[arsak])grupper[arsak]={arsak,antall:0,sum:0};
+    grupper[arsak].antall++;
+    grupper[arsak].sum+=n.tilbudSum||0;
+  });
+  return Object.values(grupper).sort((a,b)=>b.antall-a.antall);
+}
 function renderTilbudspipeline(){
   const target=document.getElementById('tilbudspipeline-body');
   if(!target)return; // fanen er ikke synlig/rendret ennå — samme mønster som renderKundesaker() sin egen DOM-sjekk
@@ -6456,6 +6494,7 @@ function renderTilbudspipeline(){
   const reserve=kundesakerPipelineReserve();
   const fullSum=apne.reduce((sum,n)=>sum+n.tilbudSum,0);
   const grupper=kundesakerVunnetPrSelgerManed();
+  const taptArsaker=kundesakerTaptPrArsak();
   const card=(icon,label,val,sub,color,bg)=>`<div style="background:${bg};border-radius:10px;padding:14px 16px;border-left:3px solid ${color}">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
       <span style="font-size:14px">${icon}</span>
@@ -6473,6 +6512,10 @@ function renderTilbudspipeline(){
     ${grupper.length?`<div class="tbl-wrap"><table><thead><tr><th>Selger</th><th>Måned</th><th>Vunnet sum</th><th>Antall</th></tr></thead><tbody>
       ${grupper.map(g=>`<tr><td>${g.selger}</td><td>${KS_MAANEDSNAVN[g.maaned]} ${g.aar}</td><td>${fS(g.sum)}</td><td>${g.antall}</td></tr>`).join('')}
     </tbody></table></div>`:'<div class="empty">Ingen vunnede tilbud registrert ennå.</div>'}
+    <div class="hint" style="margin:16px 0 8px">❌ Tapt pr. årsak</div>
+    ${taptArsaker.length?`<div class="tbl-wrap"><table><thead><tr><th>Årsak</th><th>Antall</th><th>Tapt sum</th></tr></thead><tbody>
+      ${taptArsaker.map(a=>`<tr><td>${a.arsak}</td><td>${a.antall}</td><td>${fS(a.sum)}</td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="empty">Ingen tapte tilbud registrert ennå.</div>'}
   `;
 }
 
@@ -6780,7 +6823,7 @@ function renderKundeNotaterHTML(k){
     const forfalt=erForfalt(n);
     // Sum/sannsynlighet/vektet verdi (27.09.2026, «Tilbudspipeline») — vises
     // for et Tilbud som faktisk har fått fylt inn en totalsum, uansett status.
-    const tilbudInfoHtml=(n.type==='Tilbud'&&n.tilbudSum)?`<div style="font-size:12px;color:#6d28d9;font-weight:600;margin-bottom:6px">💰 ${fS(n.tilbudSum)}${n.status==='Åpen'&&n.sannsynlighet!=null?` · ${n.sannsynlighet}% sjanse · ≈${fS(n.tilbudSum*(n.sannsynlighet||0)/100)} vektet`:''}</div>`:'';
+    const tilbudInfoHtml=(n.type==='Tilbud'&&n.tilbudSum)?`<div style="font-size:12px;color:#6d28d9;font-weight:600;margin-bottom:6px">💰 ${fS(n.tilbudSum)}${n.status==='Åpen'&&n.sannsynlighet!=null?` · ${n.sannsynlighet}% sjanse · ≈${fS(n.tilbudSum*(n.sannsynlighet||0)/100)} vektet`:''}${n.status==='Lukket'&&n.tilbudUtfall==='Tapt'&&n.tilbudArsak?` · Årsak: ${n.tilbudArsak}${n.tilbudArsakDetalj?' – '+n.tilbudArsakDetalj:''}`:''}</div>`:'';
     return `<div id="notat-${n.spId}" style="background:#fff;border:1px solid #e5e7eb;${forfalt?'border-left:3px solid #d03b3b;':''}border-radius:8px;padding:12px 14px;margin-bottom:8px;${lukket?'opacity:.6':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -6791,7 +6834,7 @@ function renderKundeNotaterHTML(k){
         </div>
         ${salgTilgang?`<div class="action-btns" style="align-items:center">
           ${n.type==='Tilbud'&&!lukket?`<button class="btn-sm" style="color:#15803d;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Vunnet')" title="Marker som vunnet">✅ Vunnet</button>
-          <button class="btn-sm" style="color:#d03b3b;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Tapt')" title="Marker som tapt">❌ Tapt</button>`
+          <button class="btn-sm" style="color:#d03b3b;white-space:nowrap" onclick="apneTaptArsakModal('${n.id}')" title="Marker som tapt">❌ Tapt</button>`
           :`<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne saken':'Merk saken som lukket'}" style="white-space:nowrap">${lukket?'↺ Gjenåpne':'✓ Lukk'}</button>`}
           <button class="btn-sm" style="color:#2a78d6;white-space:nowrap" onclick="openRedigerNotat('${n.id}')" title="Rediger">✎ Rediger</button>
           <button class="btn-icon del" onclick="deleteNotat('${n.id}')" title="Slett">✕</button>
@@ -8086,10 +8129,21 @@ function notatFieldsPayload(n){
     felter.Sannsynlighet=n.sannsynlighet!=null?n.sannsynlighet:null;
     felter.TilbudUtfall=n.tilbudUtfall||'';
     felter.TilbudLukketDato=n.tilbudLukketDato||null;
+    // TilbudArsak/TilbudArsakDetalj (27.09.2026) — kun i bruk når utfall er
+    // Tapt (Thomas' ønske: forstå HVORFOR tilbud ikke går igjennom — pris,
+    // løsning, timing, osv. — for Vunnet trengs ingen årsak). Se
+    // apneTaptArsakModal()/bekreftTaptMedArsak().
+    felter.TilbudArsak=n.tilbudArsak||'';
+    felter.TilbudArsakDetalj=n.tilbudArsakDetalj||'';
   }
   return felter;
 }
-const TILBUD_MYKE_FELTER=['TilbudSum','Sannsynlighet','TilbudUtfall','TilbudLukketDato'];
+const TILBUD_MYKE_FELTER=['TilbudSum','Sannsynlighet','TilbudUtfall','TilbudLukketDato','TilbudArsak','TilbudArsakDetalj'];
+// Faste årsakskategorier ved Tapt (27.09.2026) — bevisst en FAST liste (ikke
+// fritekst) slik at «Tapt pr. årsak»-oversikten faktisk kan telle opp/gruppere
+// i etterkant (Thomas' eksempel: «er det pris, er det løsning osv»). "Annet"
+// krever i tillegg en kort fritekst i TilbudArsakDetalj, se bekreftTaptMedArsak().
+const TILBUD_TAPT_ARSAKER=['Pris','Løsning/produkt','Timing','Valgte konkurrent','Ingen respons/budsjett','Annet'];
 
 function saveNotat(){
   const tittel=document.getElementById('n-tittel').value.trim();
@@ -8200,9 +8254,13 @@ function saveNotat(){
 // Åpen/Lukket (som er nok for Notat/Oppfølging) forteller ikke det.
 // toggleNotatStatus() brukes fortsatt for å GJENÅPNE et lukket Tilbud (se
 // der), og uendret for Notat/Oppfølging i alle tilfeller.
-function lukkTilbudMedUtfall(id,utfall){
+function lukkTilbudMedUtfall(id,utfall,arsak,arsakDetalj){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   n.status='Lukket';n.tilbudUtfall=utfall;n.tilbudLukketDato=new Date().toISOString();
+  // Årsak (27.09.2026) er kun relevant ved Tapt — ved Vunnet nullstilles den
+  // alltid, selv om en tidligere gjenåpnet/redigert sak skulle ha en fra før.
+  n.tilbudArsak=utfall==='Tapt'?(arsak||''):'';
+  n.tilbudArsakDetalj=utfall==='Tapt'?(arsakDetalj||''):'';
   if(k360Valgt)renderKundeKort(k360Valgt);
   renderKundesaker();
   if(n.spId){
@@ -8223,21 +8281,25 @@ function renderNotatStatusHTML(n){
     if(!salgTilgang)return '🟣 Tilbud ute';
     return `<div style="display:flex;gap:4px;flex-wrap:wrap">
       <button class="btn-sm" style="color:#15803d;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Vunnet')" title="Marker som vunnet">✅ Vunnet</button>
-      <button class="btn-sm" style="color:#d03b3b;white-space:nowrap" onclick="lukkTilbudMedUtfall('${n.id}','Tapt')" title="Marker som tapt">❌ Tapt</button>
+      <button class="btn-sm" style="color:#d03b3b;white-space:nowrap" onclick="apneTaptArsakModal('${n.id}')" title="Marker som tapt">❌ Tapt</button>
     </div>`;
   }
   const lukket=n.status==='Lukket';
+  const erTaptMedArsak=n.type==='Tilbud'&&n.tilbudUtfall==='Tapt'&&n.tilbudArsak;
   const lbl=lukket?(n.type==='Tilbud'&&n.tilbudUtfall?(n.tilbudUtfall==='Vunnet'?'✅ Vunnet':'❌ Tapt'):'⚪ Lukket'):'🟢 Åpen';
-  if(!salgTilgang)return lbl;
-  return `<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne':'Merk som lukket'}">${lbl}</button>`;
+  // Har et tapt tilbud en registrert årsak, vises den i title (hover) i
+  // STEDET for gjenåpne/lukk-teksten — ellers samme tittel som før.
+  const tittelTekst=erTaptMedArsak?`Årsak: ${n.tilbudArsak}${n.tilbudArsakDetalj?' – '+n.tilbudArsakDetalj:''}`:(lukket?'Gjenåpne':'Merk som lukket');
+  if(!salgTilgang)return `<span title="${tittelTekst}">${lbl}</span>`;
+  return `<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${tittelTekst}">${lbl}</button>`;
 }
 
 function toggleNotatStatus(id){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   n.status=n.status==='Åpen'?'Lukket':'Åpen';
-  // Gjenåpnes et Tilbud, nullstilles utfall/lukkedato — en gjenåpnet sak er
-  // verken vunnet eller tapt lenger, og skal tilbake i pipelinereserven.
-  if(n.type==='Tilbud'&&n.status==='Åpen'){n.tilbudUtfall='';n.tilbudLukketDato='';}
+  // Gjenåpnes et Tilbud, nullstilles utfall/lukkedato/årsak — en gjenåpnet sak
+  // er verken vunnet eller tapt lenger, og skal tilbake i pipelinereserven.
+  if(n.type==='Tilbud'&&n.status==='Åpen'){n.tilbudUtfall='';n.tilbudLukketDato='';n.tilbudArsak='';n.tilbudArsakDetalj='';}
   if(k360Valgt)renderKundeKort(k360Valgt);
   // Samme kundeNotater-datagrunnlag vises nå OGSÅ i den samlede "🗂️ Kundesaker"
   // -fanen (lagt til 28.08.2026) og i Tilbudspipeline-oversikten (27.09.2026)
@@ -8257,6 +8319,40 @@ function toggleNotatStatus(id){
     lagre.then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Statusendring ble ikke lagret til SharePoint:\n'+e.message);});
   }
   renderVarselMeny();
+}
+
+// TAPT-ÅRSAK-MODAL (27.09.2026) — åpnes i STEDET for å lukke tilbudet direkte
+// når selgeren trykker ❌ Tapt (se renderNotatStatusHTML/renderKundeNotaterHTML),
+// slik at årsak er obligatorisk før tilbudet faktisk merkes som tapt. Vunnet
+// går fortsatt rett gjennom lukkTilbudMedUtfall() uten denne modalen.
+let taptArsakId=null;
+function apneTaptArsakModal(id){
+  taptArsakId=id;
+  const sel=document.getElementById('ta-arsak');
+  sel.innerHTML=TILBUD_TAPT_ARSAKER.map(a=>`<option value="${a}">${a}</option>`).join('');
+  sel.value='Pris';
+  document.getElementById('ta-detalj').value='';
+  oppdaterTaptArsakForm();
+  document.getElementById('tapt-arsak-modal').classList.add('open');
+}
+function lukkTaptArsakModal(){
+  taptArsakId=null;
+  document.getElementById('tapt-arsak-modal').classList.remove('open');
+}
+// "Annet" krever en kort fritekst i tillegg — feltet vises kun da, se
+// bekreftTaptMedArsak() for selve valideringen.
+function oppdaterTaptArsakForm(){
+  const erAnnet=document.getElementById('ta-arsak').value==='Annet';
+  document.getElementById('ta-detalj-wrap').style.display=erAnnet?'':'none';
+}
+function bekreftTaptMedArsak(){
+  if(!taptArsakId)return;
+  const arsak=document.getElementById('ta-arsak').value;
+  const detalj=document.getElementById('ta-detalj').value.trim();
+  if(arsak==='Annet'&&!detalj){alert('Utdyp kort hva «Annet» gjelder');return;}
+  const id=taptArsakId;
+  lukkTaptArsakModal();
+  lukkTilbudMedUtfall(id,'Tapt',arsak,detalj);
 }
 
 function deleteNotat(id){
@@ -8323,6 +8419,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.134',dato:'27.09.2026',punkter:[
+    'Tilbudspipeline: å markere et tilbud som ❌ Tapt spør nå om en årsak (fast liste: Pris, Løsning/produkt, Timing, Valgte konkurrent, Ingen respons/budsjett, Annet — «Annet» krever i tillegg en kort utdyping). Ikke påkrevd ved ✅ Vunnet.',
+    'Ny «Tapt pr. årsak»-tabell i Kunde360 → Kundesaker → Tilbudspipeline, slik at man i etterkant kan se hvorfor tilbud går tapt, ikke bare hvor mange.',
+    'Årsaken vises også som hover-tekst og i kortvisningen på selve den tapte oppføringen.'
+  ]},
   {versjon:'v1.48.133',dato:'27.09.2026',punkter:[
     'Kundesaker: «✎ Rediger»-knappen på en oppføring er gjort mer synlig (samme stil som ✅ Vunnet/❌ Tapt), i stedet for det diskré blyantikonet den hadde før.'
   ]},
