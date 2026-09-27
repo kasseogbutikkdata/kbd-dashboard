@@ -473,7 +473,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.137 · Oppdatert: 27. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.138 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4563,6 +4563,10 @@ const JOBBER_KONFIG={
   AldersfordeltSync:{visningsnavn:'Aldersfordelt saldo (ukentlig)',maksMinutter:9*24*60},
   // Lagt til 27.09.2026 (v1.48.137) — LisensSync, daglig 03:45 UTC. I sync med jobbstatus.py.
   LisensSync:{visningsnavn:'Lisenser – Visma-synk',maksMinutter:26*60},
+  // Lagt til 27.09.2026 (v1.48.138) — FakturaoppfolgingSync har rapportert til
+  // Jobbstatus siden 10.09.2026, men manglet her. Kjører 03:05/08:05/12:05 UTC;
+  // lengste opphold 15 t + margin. I sync med jobbstatus.py.
+  FakturaoppfolgingSync:{visningsnavn:'Fakturaoppfølging – Visma-synk',maksMinutter:17*60},
 };
 function jsEscapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 // Samme rød/grønn-vurdering som _er_rod() i jobbstatus.py — se den filens
@@ -8485,6 +8489,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.138',dato:'27.09.2026',punkter:[
+    'Jobbstatus: «Fakturaoppfølging – Visma-synk» vises nå i statuslys-oversikten og overvåkes for uteblitte kjøringer (jobben kjører tre ganger i døgnet). Du får også e-postvarsel hvis den feiler eller uteblir.'
+  ]},
   {versjon:'v1.48.137',dato:'27.09.2026',punkter:[
     'Lisenser hentes nå automatisk fra Visma hver natt — fakturaer og kreditnotaer per vareprofil, fordelt på måned etter fakturadato. Du trenger ikke lenger registrere lisenstall manuelt.',
     'Hele historikken fra januar 2022 er erstattet med Visma-tall per måned. Kvartalstallene kan derfor avvike litt (typisk 0,1–1 %) fra tidligere manuelt registrerte tall, fordi kreditnotaer nå trekkes riktig fra.',
