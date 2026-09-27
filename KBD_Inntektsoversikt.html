@@ -130,6 +130,11 @@ details[open].prod-mgr summary::before{content:'▼'}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:10px 14px;color:#6b7280;font-weight:500;border-bottom:1px solid #f3f4f6;background:#fafafa;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
 td{padding:9px 14px;border-bottom:1px solid #f9fafb;color:#374151;vertical-align:middle}
+/* Klikkbar tabellrad (Tilbudspipeline "Avsluttede tilbud", 27.09.2026) — hopper
+   til kunden/saken via gaTilKundeFraSak(), samme funksjon som "Åpne"-knappen i
+   selve Kundesaker-tabellen bruker. */
+tr.rad-klikkbar{cursor:pointer}
+tr.rad-klikkbar:hover td{background:#f9fafb}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafafa}
 .tr{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
@@ -468,7 +473,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.134 · Oppdatert: 27. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.135 · Oppdatert: 27. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -6487,6 +6492,22 @@ function kundesakerTaptPrArsak(){
   });
   return Object.values(grupper).sort((a,b)=>b.antall-a.antall);
 }
+// Avsluttede tilbud, enkeltvis (27.09.2026, Thomas' ønske: «kan vi få frem
+// årsak til Tapt på oversikten» + «gjøre Vunnet og Tapt saker klikkbare»).
+// De to tabellene over (Vunnet pr. selger/måned, Tapt pr. årsak) er
+// AGGREGERTE tall — denne listen viser hver enkelt avsluttede sak for seg,
+// med årsak som synlig tekst (ikke bare hover) og en klikkbar rad som hopper
+// rett til kunden/saken (samme `gaTilKundeFraSak()` som "Åpne"-knappen i selv
+// Kundesaker-tabellen bruker). Samme navn-oppslag som `navnFor()` i
+// renderKundesaker() — dupliseres lokalt siden denne kalles FØR navnFor
+// defineres der (renderTilbudspipeline kalles helt øverst i renderKundesaker).
+function kundesakerAvsluttedeTilbud(){
+  const alleKunder=[...vismaKunder,...hentProspektKunder()];
+  const navnFor=n=>n.kundeNavn||alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim())?.navn||'Ukjent kunde';
+  return kundeNotater.filter(n=>n.type==='Tilbud'&&n.status==='Lukket'&&n.tilbudUtfall)
+    .map(n=>({n,kunde:navnFor(n)}))
+    .sort((a,b)=>new Date(b.n.tilbudLukketDato||b.n.opprettetDato||0)-new Date(a.n.tilbudLukketDato||a.n.opprettetDato||0));
+}
 function renderTilbudspipeline(){
   const target=document.getElementById('tilbudspipeline-body');
   if(!target)return; // fanen er ikke synlig/rendret ennå — samme mønster som renderKundesaker() sin egen DOM-sjekk
@@ -6495,6 +6516,8 @@ function renderTilbudspipeline(){
   const fullSum=apne.reduce((sum,n)=>sum+n.tilbudSum,0);
   const grupper=kundesakerVunnetPrSelgerManed();
   const taptArsaker=kundesakerTaptPrArsak();
+  const avsluttede=kundesakerAvsluttedeTilbud();
+  const VIS_MAX_AVSLUTTEDE=20;
   const card=(icon,label,val,sub,color,bg)=>`<div style="background:${bg};border-radius:10px;padding:14px 16px;border-left:3px solid ${color}">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
       <span style="font-size:14px">${icon}</span>
@@ -6516,6 +6539,22 @@ function renderTilbudspipeline(){
     ${taptArsaker.length?`<div class="tbl-wrap"><table><thead><tr><th>Årsak</th><th>Antall</th><th>Tapt sum</th></tr></thead><tbody>
       ${taptArsaker.map(a=>`<tr><td>${a.arsak}</td><td>${a.antall}</td><td>${fS(a.sum)}</td></tr>`).join('')}
     </tbody></table></div>`:'<div class="empty">Ingen tapte tilbud registrert ennå.</div>'}
+    <div class="hint" style="margin:16px 0 8px">Avsluttede tilbud (klikk en rad for å åpne saken)</div>
+    ${avsluttede.length?`<div class="tbl-wrap"><table><thead><tr><th>Kunde</th><th>Utfall</th><th>Sum</th><th>Årsak</th><th>Lukket</th></tr></thead><tbody>
+      ${avsluttede.slice(0,VIS_MAX_AVSLUTTEDE).map(({n,kunde})=>{
+        const erVunnet=n.tilbudUtfall==='Vunnet';
+        const utfallHtml=erVunnet?'<span style="color:#15803d;font-weight:600">✅ Vunnet</span>':'<span style="color:#d03b3b;font-weight:600">❌ Tapt</span>';
+        const arsakTxt=erVunnet?'—':`${n.tilbudArsak||'Ikke oppgitt'}${n.tilbudArsakDetalj?' – '+n.tilbudArsakDetalj:''}`;
+        const lukketTxt=n.tilbudLukketDato&&!isNaN(new Date(n.tilbudLukketDato))?new Date(n.tilbudLukketDato).toLocaleDateString('nb-NO'):'—';
+        return `<tr class="rad-klikkbar" onclick="gaTilKundeFraSak('${n.id}')" title="Åpne saken hos ${kunde}">
+          <td><strong>${kunde}</strong></td>
+          <td>${utfallHtml}</td>
+          <td>${fS(n.tilbudSum||0)}</td>
+          <td>${arsakTxt}</td>
+          <td style="white-space:nowrap">${lukketTxt}</td>
+        </tr>`;
+      }).join('')}
+    </tbody></table></div>${avsluttede.length>VIS_MAX_AVSLUTTEDE?`<div class="hint" style="margin-top:6px">Viser de ${VIS_MAX_AVSLUTTEDE} sist avsluttede av ${avsluttede.length} totalt.</div>`:''}`:'<div class="empty">Ingen avsluttede tilbud registrert ennå.</div>'}
   `;
 }
 
@@ -8419,6 +8458,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.135',dato:'27.09.2026',punkter:[
+    'Tilbudspipeline: ny liste «Avsluttede tilbud» viser hver enkelt vunnet/tapt sak for seg, med årsaken vist som ren tekst (ikke bare hover) på tapte tilbud.',
+    'Radene i denne listen er klikkbare — trykk på en sak for å hoppe rett til kunden og den aktuelle oppføringen, samme funksjon som «Åpne»-knappen i Kundesaker-tabellen.'
+  ]},
   {versjon:'v1.48.134',dato:'27.09.2026',punkter:[
     'Tilbudspipeline: å markere et tilbud som ❌ Tapt spør nå om en årsak (fast liste: Pris, Løsning/produkt, Timing, Valgte konkurrent, Ingen respons/budsjett, Annet — «Annet» krever i tillegg en kort utdyping). Ikke påkrevd ved ✅ Vunnet.',
     'Ny «Tapt pr. årsak»-tabell i Kunde360 → Kundesaker → Tilbudspipeline, slik at man i etterkant kan se hvorfor tilbud går tapt, ikke bare hvor mange.',
