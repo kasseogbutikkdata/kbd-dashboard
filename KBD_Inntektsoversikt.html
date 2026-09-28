@@ -473,7 +473,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.139 · Oppdatert: 28. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.140 · Oppdatert: 28. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -499,7 +499,7 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="lisenser-sub-nav">
         <div class="nav-sub-item active" id="lsub-lisenser" onclick="showTab('lisenser',document.getElementById('tab-lisenser'));setLisenserSubActive('lisenser')">📋 Registreringer</div>
         <div class="nav-sub-item" id="lsub-sammenligning" onclick="showTab('sammenligning',document.getElementById('tab-lisenser'));setLisenserSubActive('sammenligning')">📈 Årssammenligning</div>
-        <div class="nav-sub-item" id="lsub-licmaaned" onclick="showTab('licmaaned',document.getElementById('tab-lisenser'));setLisenserSubActive('licmaaned')">📅 Månedssammenligning</div>
+        <div class="nav-sub-item" id="lsub-licmaaned" onclick="showTab('licmaaned',document.getElementById('tab-lisenser'));setLisenserSubActive('licmaaned')" style="white-space:nowrap">📅 Måned mot måned</div>
       </div>
       <div class="nav-item" id="tab-kickback" onclick="showTab('kickback',this);toggleKickbackSub(true)">
         <span class="nav-item-icon">💰</span>Kickback
@@ -507,7 +507,7 @@ tr:hover td{background:#fafafa}
       <div class="nav-sub" id="kickback-sub-nav">
         <div class="nav-sub-item active" id="ksub-kickback" onclick="showKickbackView('kickback')">📋 Registreringer</div>
         <div class="nav-sub-item" id="ksub-kicksammenligning" onclick="showKickbackView('kicksammenligning')">📈 Årssammenligning</div>
-        <div class="nav-sub-item" id="ksub-kickmaaned" onclick="showKickbackView('kickmaaned')">📅 Månedssammenligning</div>
+        <div class="nav-sub-item" id="ksub-kickmaaned" onclick="showKickbackView('kickmaaned')" style="white-space:nowrap">📅 Måned mot måned</div>
       </div>
       <!-- Trans.avgift-rapport — lagt til 12.09.2026 (Thomas' ønske, se
            KBD-Command-Center-prosjektstatus.md seksjon 17): ren aggregering av
@@ -1481,7 +1481,12 @@ tr:hover td{background:#fafafa}
   </div>
 
 <div id="tp-lisenser" class="tp">
-    <div class="card">
+    <!-- Manuell registrering skjult 28.09.2026 (v1.48.140) — lisensomsetningen hentes nå
+         automatisk fra Visma hver natt (LisensSync, se prosjektstatus seksjon 23).
+         Skjemaet er beholdt skjult (ikke slettet) fordi refreshProdDropdowns()/
+         refreshSrcDropdowns()/onSrcChange() fortsatt fyller feltene. -->
+    <p style="font-size:12px;color:#6b7280;margin:0 0 14px">🔄 Lisensomsetningen hentes automatisk fra Visma hver natt. Enkeltrader kan fortsatt rettes med ✎ i tabellen, men rader for de siste 12 månedene blir overskrevet av neste synk.</p>
+    <div class="card" style="display:none">
       <div class="card-title">Legg til registrering</div>
       <div class="fg fg4b">
         <div class="fgrp"><label>År</label><input type="number" id="lf-year" min="2015" max="2040" value="2026" style="width:100%"/></div>
@@ -1510,7 +1515,12 @@ tr:hover td{background:#fafafa}
 
   <!-- KICKBACK -->
   <div id="tp-kickback" class="tp">
-    <div class="card">
+    <!-- Manuell registrering skjult 28.09.2026 (v1.48.140) — kickback hentes nå
+         automatisk fra Visma hver natt (LisensSync, se prosjektstatus seksjon 23).
+         Skjemaet er beholdt skjult (ikke slettet) fordi refreshProdDropdowns()/
+         refreshSrcDropdowns()/onSrcChange() fortsatt fyller feltene. -->
+    <p style="font-size:12px;color:#6b7280;margin:0 0 14px">🔄 Kickback hentes automatisk fra Visma hver natt. Enkeltrader kan fortsatt rettes med ✎ i tabellen, men rader for de siste 12 månedene blir overskrevet av neste synk.</p>
+    <div class="card" style="display:none">
       <div class="card-title">Legg til kickback</div>
       <div class="fg fg4">
         <div class="fgrp"><label>År</label><input type="number" id="kf-year" min="2015" max="2040" value="2026" style="width:100%"/></div>
@@ -8504,6 +8514,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.140',dato:'28.09.2026',punkter:[
+    'Lisenser og Kickback: skjemaene «Legg til registrering» og «Legg til kickback» er fjernet, siden tallene nå hentes automatisk fra Visma hver natt. Enkeltrader kan fortsatt rettes med ✎ i tabellen.',
+    'Menyvalget «Månedssammenligning» heter nå «📅 Måned mot måned», så det får plass på én linje.'
+  ]},
   {versjon:'v1.48.139',dato:'28.09.2026',punkter:[
     'Kickback hentes nå automatisk fra Visma hver natt, fordelt på opptjeningsmåned/-kvartal (lest fra fakturateksten, f.eks. «Elavon provisjon … juni»). Hele historikken fra 2021 er erstattet med Visma-tall. Nets vises nå uten mva, og Nordea Finans er ny kilde (årlig kickback, vist i Q4).',
     'Ny undermeny Kickback → «📅 Månedssammenligning», samme visning som for lisenser: én linje per år, tabell med hver måned mot samme måned året før og «hittil i år»-sammenligning. Kvartalsvise kilder (Nets, Vipps, Nordea Finans) vises i Årssammenligning.',
