@@ -502,7 +502,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.145 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.146 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -8742,6 +8742,16 @@ function saveNotat(){
       n.opprettetAv=ansvarligNavn;
       const match=brukere.find(b=>b.navn===ansvarligNavn);
       n.opprettetAvEpost=match?.epost||'';
+    }else if(ansvarligNavn){
+      // v1.48.146 (29.09.2026): synkroniser OGSÅ e-posten når navnet er
+      // uendret. Før dette ble OpprettetAvEpost bare oppdatert ved BYTTE av
+      // ansvarlig — en sak lagret med en gammel adresse (f.eks.
+      // thomas@kbd.as → hassel@kbd.as ved kontobytte) ble derfor aldri rettet
+      // ved «Rediger → Lagre», og ukentlig salgsoppsummering/«Mine saker»
+      // fortsatte å bruke den gamle adressen. Endres kun når Brukere-lista
+      // faktisk har en (ikke-tom) adresse for navnet.
+      const match=brukere.find(b=>b.navn===ansvarligNavn);
+      if(match?.epost&&match.epost.trim().toLowerCase()!==(n.opprettetAvEpost||'').trim().toLowerCase())n.opprettetAvEpost=match.epost.trim();
     }
     if(k360Valgt)renderKundeKort(k360Valgt);
     if(n.spId){
@@ -9009,6 +9019,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.146',dato:'29.09.2026',punkter:[
+    'Når du redigerer og lagrer en sak, oppdateres nå også e-postadressen til ansvarlig fra brukerlisten, ikke bare når du bytter ansvarlig. Saker lagret med en gammel adresse blir dermed rettet når du lagrer dem på nytt.'
+  ]},
   {versjon:'v1.48.145',dato:'29.09.2026',punkter:[
     'Kundekortet: under feltet for loggkommentar kan du velge «Neste frist» (I morgen, Om 3 dager, Om 1 uke, Om 2 uker, kl. 09:00). Fristen lagres sammen med kommentaren, og du kan også sette en frist uten å skrive noe.',
     'Tilbudsanalyse: ny tabell «Treffprosent pr. selger» som viser hvor stor andel av tilbudene som er vunnet, i antall og i kroner, og hvor mange dager det i snitt tar fra tilbud til avgjørelse.',
