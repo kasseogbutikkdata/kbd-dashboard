@@ -543,7 +543,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.153 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.154 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1113,7 +1113,7 @@ tr:hover td{background:#fafafa}
     <div id="rma-varsel-banner"></div>
     <div class="card card-public">
       <div class="card-title">🔧 Susoft RMA — defekte kassemaskiner sendt til Susoft</div>
-      <div class="hint">Sporer maskiner som er sendt til Susoft for garantivurdering/reparasjon/ombytte — fra feilmelding mottatt, via ny maskin til kunden og retur av den defekte maskinen, til den er tilbake fra Susoft. En sak som har ligget hos Susoft i over 3 uker uten registrert retur varsles automatisk ukentlig til Geir på e-post. Har kunden ikke returnert den defekte maskinen 14 dager etter at ny maskin ble sendt, varsles den som registrerte utsendelsen (i varselbjella og på e-post). Se banner over ved forsinkede saker.</div>
+      <div class="hint">Sporer maskiner som er sendt til Susoft for garantivurdering/reparasjon/ombytte — fra feilmelding mottatt, via ny maskin til kunden og retur av den defekte maskinen, til den er tilbake fra Susoft. En sak som har ligget hos Susoft i over 3 uker uten registrert retur varsles automatisk ukentlig til Geir på e-post. Er saken meldt til Susoft, men ikke sendt etter 7 dager, går det også et varsel. Har kunden ikke returnert den defekte maskinen 14 dager etter at ny maskin ble sendt, varsles den som registrerte utsendelsen (i varselbjella og på e-post). Se banner over ved forsinkede saker.</div>
       <div class="frow" style="margin-top:10px">
         <input type="text" id="rma-search" placeholder="Søk på kunde, maskin eller serienr…" style="flex:1" oninput="rmaSetSearch(this.value)"/>
         <select id="rma-status-filter" onchange="rmaSetStatusFilter(this.value)" style="max-width:220px">
@@ -1121,8 +1121,8 @@ tr:hover td{background:#fafafa}
           <option value="Feilmelding mottatt">Feilmelding mottatt</option>
           <option value="Ny maskin sendt til kunde">Ny maskin sendt til kunde</option>
           <option value="Mottatt retur fra kunde">Mottatt retur fra kunde</option>
+          <option value="Meldt til Susoft">Meldt til Susoft</option>
           <option value="Sendt til Susoft">Sendt til Susoft</option>
-          <option value="Hos Susoft">Hos Susoft</option>
           <option value="Mottatt retur fra Susoft">Mottatt retur fra Susoft</option>
           <option value="Ferdig">Ferdig</option>
         </select>
@@ -2072,8 +2072,8 @@ tr:hover td{background:#fafafa}
           <option>Feilmelding mottatt</option>
           <option>Ny maskin sendt til kunde</option>
           <option>Mottatt retur fra kunde</option>
+          <option>Meldt til Susoft</option>
           <option>Sendt til Susoft</option>
-          <option>Hos Susoft</option>
           <option>Mottatt retur fra Susoft</option>
           <option>Ferdig</option>
         </select>
@@ -2085,11 +2085,15 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="fg" style="grid-template-columns:1fr 1fr">
         <div class="fgrp"><label>Mottatt retur fra kunde</label><input type="date" id="rma-dato-retur-kunde"/></div>
-        <div class="fgrp"><label>Sendt Susoft</label><input type="date" id="rma-dato-sendt-susoft"/></div>
+        <div class="fgrp"><label>Meldt til Susoft</label><input type="date" id="rma-dato-meldt-susoft"/></div>
       </div>
       <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Sendt Susoft</label><input type="date" id="rma-dato-sendt-susoft"/></div>
         <div class="fgrp"><label>Mottatt retur fra Susoft</label><input type="date" id="rma-dato-mottatt-susoft"/></div>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr 1fr">
         <div class="fgrp"><label>Ny maskin sendt av</label><input type="text" id="rma-ny-sendt-av" disabled placeholder="Settes automatisk" style="background:#f9fafb;color:#6b7280"/></div>
+        <div></div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Kommentar</label><textarea id="rma-kommentar" rows="3" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <input type="hidden" id="rma-edit-id"/>
@@ -3571,7 +3575,7 @@ async function loadDataFromSP(){
   // Alle interne kolonnenavn verifisert via Graph Explorer (04.09 og 29.09.2026,
   // sistnevnte inkl. de seks nye kolonnene fra v1.48.151). Status normaliseres
   // via rmaNormStatus() (gammel «Mottatt fra Susoft» -> «Mottatt retur fra Susoft»).
-  susoftRma=srmaItems.map(i=>({id:`sp${i.id}`,spId:i.id,sakNummer:(i.fields.SakNummer!=null&&i.fields.SakNummer!==''?parseInt(i.fields.SakNummer,10):null),kundeNr:i.fields.KundeNr||'',kundeNavn:i.fields.KundeNavn||'',forhandler:i.fields.Forhandler||'',refHosForhandler:i.fields.RefHosForhandler||'',maskin:i.fields.Maskin||'',serieNr:i.fields.SerieNr||'',problem:i.fields.Problem||'',harBildeVideo:i.fields.HarBildeVideo||'',ansvarligKbd:i.fields.AnsvarligKBD||'',status:rmaNormStatus(i.fields.Status||'Feilmelding mottatt'),datoFeilmeldingMottatt:i.fields.DatoFeilmeldingMottatt||'',datoNyMaskinSendtKunde:i.fields.DatoNyMaskinSendtKunde||'',datoMottattReturKunde:i.fields.DatoMottattReturKunde||'',datoSendtSusoft:i.fields.DatoSendtSusoft||'',datoMottattFraSusoft:i.fields.DatoMottattFraSusoft||'',salgsordreVisma:i.fields.SalgsordreVisma||'',nyMaskinSendtAv:i.fields.NyMaskinSendtAv||'',nyMaskinSendtAvEpost:i.fields.NyMaskinSendtAvEpost||'',logg:rmaParseLogg(i.fields.Logg),kommentar:i.fields.Kommentar||'',opprettetDato:i.fields.Created||i.createdDateTime||i.fields.DatoFeilmeldingMottatt||''}));
+  susoftRma=srmaItems.map(i=>({id:`sp${i.id}`,spId:i.id,sakNummer:(i.fields.SakNummer!=null&&i.fields.SakNummer!==''?parseInt(i.fields.SakNummer,10):null),kundeNr:i.fields.KundeNr||'',kundeNavn:i.fields.KundeNavn||'',forhandler:i.fields.Forhandler||'',refHosForhandler:i.fields.RefHosForhandler||'',maskin:i.fields.Maskin||'',serieNr:i.fields.SerieNr||'',problem:i.fields.Problem||'',harBildeVideo:i.fields.HarBildeVideo||'',ansvarligKbd:i.fields.AnsvarligKBD||'',status:rmaNormStatus(i.fields.Status||'Feilmelding mottatt'),datoFeilmeldingMottatt:i.fields.DatoFeilmeldingMottatt||'',datoNyMaskinSendtKunde:i.fields.DatoNyMaskinSendtKunde||'',datoMottattReturKunde:i.fields.DatoMottattReturKunde||'',datoMeldtSusoft:i.fields.DatoMeldtSusoft||'',datoSendtSusoft:i.fields.DatoSendtSusoft||'',datoMottattFraSusoft:i.fields.DatoMottattFraSusoft||'',salgsordreVisma:i.fields.SalgsordreVisma||'',nyMaskinSendtAv:i.fields.NyMaskinSendtAv||'',nyMaskinSendtAvEpost:i.fields.NyMaskinSendtAvEpost||'',logg:rmaParseLogg(i.fields.Logg),kommentar:i.fields.Kommentar||'',opprettetDato:i.fields.Created||i.createdDateTime||i.fields.DatoFeilmeldingMottatt||''}));
   // SusoftRmaInnstillinger (lagt til 07.09.2026) — ÉN rad, samme mønster som
   // SmsPurringInnstillinger over. Feltnavn MÅ stemme med
   // FELT_INNST_VARSLE_SUSOFT_AKTIVERT i susoft_rma_varsling.py — IKKE
@@ -4662,25 +4666,29 @@ function renderKonkurser(){
 // kolonnen heter fortsatt DatoMottattFraSusoft (brukes av backend). Eldre
 // rader med status-teksten «Mottatt fra Susoft» oversettes ved innlasting
 // (rmaNormStatus) og lagres med ny tekst neste gang saken lagres.
-const RMA_STATUSER=['Feilmelding mottatt','Ny maskin sendt til kunde','Mottatt retur fra kunde','Sendt til Susoft','Hos Susoft','Mottatt retur fra Susoft','Ferdig'];
-const RMA_STATUS_ALIAS={'Mottatt fra Susoft':'Mottatt retur fra Susoft'};
+// v1.48.154: «Hos Susoft» fjernet (hadde ingen egen dato og betydde det samme
+// som «Sendt til Susoft»), nytt steg «Meldt til Susoft» før «Sendt til Susoft».
+// Eldre rader med «Hos Susoft» vises som «Sendt til Susoft» (alias).
+const RMA_STATUSER=['Feilmelding mottatt','Ny maskin sendt til kunde','Mottatt retur fra kunde','Meldt til Susoft','Sendt til Susoft','Mottatt retur fra Susoft','Ferdig'];
+const RMA_STATUS_ALIAS={'Mottatt fra Susoft':'Mottatt retur fra Susoft','Hos Susoft':'Sendt til Susoft'};
 function rmaNormStatus(s){return RMA_STATUS_ALIAS[s]||s;}
 const RMA_TERSKEL_DAGER=21; // samme terskel som SUSOFT_RMA_VARSEL_TERSKEL_DAGER i susoft_rma_varsling.py — hold synkronisert manuelt hvis terskelen noensinne endres i Application Settings
 const RMA_KUNDERETUR_DAGER=14; // samme terskel som SUSOFT_RMA_KUNDERETUR_TERSKEL_DAGER i susoft_rma_varsling.py — hold synkronisert manuelt
-const RMA_STATUSER_VENTER_SUSOFT=new Set(['Sendt til Susoft','Hos Susoft']);
+const RMA_MELDT_TERSKEL_DAGER=7; // samme terskel som SUSOFT_RMA_MELDT_TERSKEL_DAGER i susoft_rma_varsling.py — hold synkronisert manuelt
 // Status-indeks fra og med denne krever Serienr. + Salgsordre Visma (avklart med Thomas 29.09.2026).
 const RMA_PAKREVD_FRA_IDX=RMA_STATUSER.indexOf('Ny maskin sendt til kunde');
 // Tidslinje-stegene (klikk-for-neste-steg i modalen), samme idé som SOS_SAK_STEG.
-// Datofeltet fylles med dagens dato når man klikker seg til steget; «Hos Susoft»
-// og «Ferdig» har ingen egen dato.
-const RMA_STEG_KORTNAVN=['Feilmelding','Ny til kunde','Retur kunde','Sendt Susoft','Hos Susoft','Retur Susoft','Ferdig'];
-const RMA_STEG_DATOINPUT=['rma-dato-feilmelding','rma-dato-ny-sendt','rma-dato-retur-kunde','rma-dato-sendt-susoft',null,'rma-dato-mottatt-susoft',null];
+// Datofeltet fylles med dagens dato når man klikker seg til steget; «Ferdig»
+// har ingen egen dato.
+const RMA_STEG_KORTNAVN=['Feilmelding','Ny til kunde','Retur kunde','Meldt Susoft','Sendt Susoft','Retur Susoft','Ferdig'];
+const RMA_STEG_DATOINPUT=['rma-dato-feilmelding','rma-dato-ny-sendt','rma-dato-retur-kunde','rma-dato-meldt-susoft','rma-dato-sendt-susoft','rma-dato-mottatt-susoft',null];
 // Datofeltene som logges automatisk i tidslinjen ved endring.
-const RMA_DATOFELT_ETIKETT={datoFeilmeldingMottatt:'Feilmelding mottatt',datoNyMaskinSendtKunde:'Ny maskin sendt kunde',datoMottattReturKunde:'Mottatt retur fra kunde',datoSendtSusoft:'Sendt Susoft',datoMottattFraSusoft:'Mottatt retur fra Susoft'};
+const RMA_DATOFELT_ETIKETT={datoFeilmeldingMottatt:'Feilmelding mottatt',datoNyMaskinSendtKunde:'Ny maskin sendt kunde',datoMottattReturKunde:'Mottatt retur fra kunde',datoMeldtSusoft:'Meldt til Susoft',datoSendtSusoft:'Sendt Susoft',datoMottattFraSusoft:'Mottatt retur fra Susoft'};
 
+// v1.48.154: styres av datoene, ikke status (samme regel som backend).
 function rmaDagerHosSusoft(rad){
   if(!rad.datoSendtSusoft||rad.datoMottattFraSusoft)return null;
-  if(!RMA_STATUSER_VENTER_SUSOFT.has(rad.status))return null;
+  if(rad.status==='Ferdig')return null;
   const sendt=new Date(rad.datoSendtSusoft);
   if(isNaN(sendt))return null;
   return Math.floor((new Date()-sendt)/86400000);
@@ -4688,6 +4696,19 @@ function rmaDagerHosSusoft(rad){
 function rmaErForsinket(rad){
   const dager=rmaDagerHosSusoft(rad);
   return dager!==null&&dager>=RMA_TERSKEL_DAGER;
+}
+// Meldt til Susoft, men ikke sendt ennå (v1.48.154, samme regel som
+// _sjekk_meldt_ikke_sendt() i susoft_rma_varsling.py).
+function rmaDagerMeldtIkkeSendt(rad){
+  if(!rad.datoMeldtSusoft||rad.datoSendtSusoft||rad.datoMottattFraSusoft)return null;
+  if(rad.status==='Ferdig')return null;
+  const d=new Date(rad.datoMeldtSusoft);
+  if(isNaN(d))return null;
+  return Math.floor((new Date()-d)/86400000);
+}
+function rmaErForsinketMeldt(rad){
+  const dager=rmaDagerMeldtIkkeSendt(rad);
+  return dager!==null&&dager>=RMA_MELDT_TERSKEL_DAGER;
 }
 // Dager siden ny maskin ble sendt kunden, så lenge den defekte maskinen ikke
 // er registrert mottatt i retur. Kun for saker som ennå ikke har kommet forbi
@@ -4717,8 +4738,8 @@ function rmaStatusBadge(status){
     'Feilmelding mottatt':'background:#e5e7eb;color:#374151',
     'Ny maskin sendt til kunde':'background:#dbeafe;color:#1e40af',
     'Mottatt retur fra kunde':'background:#ede9fe;color:#5b21b6',
-    'Sendt til Susoft':'background:#fef3c7;color:#92400e',
-    'Hos Susoft':'background:#fde68a;color:#92400e',
+    'Meldt til Susoft':'background:#fef3c7;color:#92400e',
+    'Sendt til Susoft':'background:#fde68a;color:#92400e',
     'Mottatt retur fra Susoft':'background:#d1fae5;color:#065f46',
     'Ferdig':'background:#e5e7eb;color:#6b7280'
   };
@@ -4947,12 +4968,17 @@ function renderRmaBanner(){
   if(!banner)return;
   const forsinkede=susoftRma.filter(rmaErForsinket);
   const venterKunde=susoftRma.filter(rmaErForsinketKunde);
-  if(forsinkede.length===0&&venterKunde.length===0){banner.innerHTML='';return;}
+  const meldtIkkeSendt=susoftRma.filter(rmaErForsinketMeldt);
+  if(forsinkede.length===0&&venterKunde.length===0&&meldtIkkeSendt.length===0){banner.innerHTML='';return;}
   const sakRef=r=>`${r.sakNummer!=null?'Sak '+r.sakNummer+': ':''}${r.kundeNavn||'(ukjent kunde)'} — ${r.maskin||'(ukjent maskin)'}`;
   let html='';
   if(forsinkede.length>0)html+=`<div class="card" style="background:#fef2f2;border:1px solid #fecaca;margin-bottom:14px">
     <div style="color:#991b1b;font-weight:700;font-size:13px">⚠️ ${forsinkede.length} sak${forsinkede.length===1?'':'er'} har ligget hos Susoft i over ${RMA_TERSKEL_DAGER} dager uten registrert retur</div>
     <div style="margin-top:6px;font-size:12.5px;color:#7f1d1d">${forsinkede.map(r=>`${sakRef(r)} (${rmaDagerHosSusoft(r)} dager)`).join(' · ')}</div>
+  </div>`;
+  if(meldtIkkeSendt.length>0)html+=`<div class="card" style="background:#fffbeb;border:1px solid #fde68a;margin-bottom:14px">
+    <div style="color:#92400e;font-weight:700;font-size:13px">📨 ${meldtIkkeSendt.length} sak${meldtIkkeSendt.length===1?'':'er'} er meldt til Susoft, men ikke sendt etter ${RMA_MELDT_TERSKEL_DAGER} dager</div>
+    <div style="margin-top:6px;font-size:12.5px;color:#78350f">${meldtIkkeSendt.map(r=>`${sakRef(r)} (${rmaDagerMeldtIkkeSendt(r)} dager)`).join(' · ')}</div>
   </div>`;
   if(venterKunde.length>0)html+=`<div class="card" style="background:#fffbeb;border:1px solid #fde68a;margin-bottom:14px">
     <div style="color:#92400e;font-weight:700;font-size:13px">📦 ${venterKunde.length} sak${venterKunde.length===1?'':'er'} der kunden ikke har returnert den defekte maskinen innen ${RMA_KUNDERETUR_DAGER} dager</div>
@@ -4966,7 +4992,7 @@ function renderRmaTabell(){
   if(!target)return;
   let liste=susoftRma.slice();
   if(rmaStatusFilterQ!=='alle')liste=liste.filter(r=>r.status===rmaStatusFilterQ);
-  if(rmaKunForsinkedeQ)liste=liste.filter(r=>rmaErForsinket(r)||rmaErForsinketKunde(r));
+  if(rmaKunForsinkedeQ)liste=liste.filter(r=>rmaErForsinket(r)||rmaErForsinketKunde(r)||rmaErForsinketMeldt(r));
   if(rmaSearchQ)liste=liste.filter(r=>[r.kundeNavn,r.maskin,r.serieNr,r.salgsordreVisma,r.sakNummer!=null?String(r.sakNummer):''].some(v=>(v||'').toLowerCase().includes(rmaSearchQ)));
 
   if(liste.length===0){
@@ -4985,6 +5011,7 @@ function renderRmaTabell(){
       case 'status': return rdir*(RMA_STATUSER.indexOf(a.status)-RMA_STATUSER.indexOf(b.status));
       case 'nysendt': return rdir*(new Date(a.datoNyMaskinSendtKunde||0)-new Date(b.datoNyMaskinSendtKunde||0));
       case 'returkunde': return rdir*(new Date(a.datoMottattReturKunde||0)-new Date(b.datoMottattReturKunde||0));
+      case 'meldt': return rdir*(new Date(a.datoMeldtSusoft||0)-new Date(b.datoMeldtSusoft||0));
       case 'sendt': return rdir*(new Date(a.datoSendtSusoft||0)-new Date(b.datoSendtSusoft||0));
       case 'mottatt': return rdir*(new Date(a.datoMottattFraSusoft||0)-new Date(b.datoMottattFraSusoft||0));
       default: return rdir*(new Date(a.opprettetDato||0)-new Date(b.opprettetDato||0));
@@ -5000,6 +5027,7 @@ function renderRmaTabell(){
     <th style="cursor:pointer" onclick="sortRmaBy('status')">Status <span id="rmash-status"></span></th>
     <th style="cursor:pointer" onclick="sortRmaBy('nysendt')">Ny sendt kunde <span id="rmash-nysendt"></span></th>
     <th style="cursor:pointer" onclick="sortRmaBy('returkunde')">Retur fra kunde <span id="rmash-returkunde"></span></th>
+    <th style="cursor:pointer" onclick="sortRmaBy('meldt')">Meldt Susoft <span id="rmash-meldt"></span></th>
     <th style="cursor:pointer" onclick="sortRmaBy('sendt')">Sendt Susoft <span id="rmash-sendt"></span></th>
     <th style="cursor:pointer" onclick="sortRmaBy('mottatt')">Retur fra Susoft <span id="rmash-mottatt"></span></th>
     <th></th>
@@ -5010,7 +5038,9 @@ function renderRmaTabell(){
     const dagerKunde=rmaDagerHosKunde(r);
     const forsinketKunde=dagerKunde!==null&&dagerKunde>=RMA_KUNDERETUR_DAGER;
     const fmtD=d=>d?new Date(d).toLocaleDateString('nb-NO'):'—';
-    return `<tr${forsinket||forsinketKunde?' style="background:#fffbeb"':''}>
+    const dagerMeldt=rmaDagerMeldtIkkeSendt(r);
+    const forsinketMeldt=dagerMeldt!==null&&dagerMeldt>=RMA_MELDT_TERSKEL_DAGER;
+    return `<tr${forsinket||forsinketKunde||forsinketMeldt?' style="background:#fffbeb"':''}>
       <td>${r.sakNummer??'—'}${r.salgsordreVisma?`<div style="font-size:11px;color:#9ca3af">SO ${r.salgsordreVisma}</div>`:''}</td>
       <td><strong>${r.kundeNavn||'(uten navn)'}</strong>${r.kundeNr?`<div style="font-size:11px;color:#9ca3af">Kundenr ${r.kundeNr}</div>`:''}</td>
       <td>${r.maskin||'—'}${r.serieNr?`<div style="font-size:11px;color:#9ca3af">${r.serieNr}</div>`:''}</td>
@@ -5019,6 +5049,7 @@ function renderRmaTabell(){
       <td>${rmaStatusBadge(r.status)}</td>
       <td>${fmtD(r.datoNyMaskinSendtKunde)}${dagerKunde!==null?`<div style="font-size:11px;${forsinketKunde?'color:#b45309;font-weight:700':'color:#9ca3af'}">${forsinketKunde?'⏰ ':''}${dagerKunde} dager hos kunde</div>`:''}</td>
       <td>${fmtD(r.datoMottattReturKunde)}</td>
+      <td>${fmtD(r.datoMeldtSusoft)}${dagerMeldt!==null?`<div style="font-size:11px;${forsinketMeldt?'color:#b45309;font-weight:700':'color:#9ca3af'}">${forsinketMeldt?'⏰ ':''}${dagerMeldt} dager uten sending</div>`:''}</td>
       <td>${fmtD(r.datoSendtSusoft)}${dager!==null?`<div style="font-size:11px;${forsinket?'color:#b45309;font-weight:700':'color:#9ca3af'}">${forsinket?'⏰ ':''}${dager} dager hos Susoft</div>`:''}</td>
       <td>${fmtD(r.datoMottattFraSusoft)}</td>
       <td><button class="btn-sm" onclick="openRmaModal('${r.id}')">${salgTilgang?'✏️ Rediger':'👁️ Vis'}</button></td>
@@ -5026,7 +5057,7 @@ function renderRmaTabell(){
   }).join('')}
   </tbody></table></div>`;
 
-  ['saknr','kunde','maskin','forhandler','ansvarlig','status','nysendt','returkunde','sendt','mottatt'].forEach(c=>{
+  ['saknr','kunde','maskin','forhandler','ansvarlig','status','nysendt','returkunde','meldt','sendt','mottatt'].forEach(c=>{
     const el=document.getElementById('rmash-'+c);
     if(el)el.innerHTML=rmaSort.col===c?(rmaSort.dir==='asc'?'↑':'↓'):'↕';
   });
@@ -5114,6 +5145,7 @@ function openRmaModal(id){
     document.getElementById('rma-dato-feilmelding').value=(r.datoFeilmeldingMottatt||'').slice(0,10);
     document.getElementById('rma-dato-ny-sendt').value=(r.datoNyMaskinSendtKunde||'').slice(0,10);
     document.getElementById('rma-dato-retur-kunde').value=(r.datoMottattReturKunde||'').slice(0,10);
+    document.getElementById('rma-dato-meldt-susoft').value=(r.datoMeldtSusoft||'').slice(0,10);
     document.getElementById('rma-dato-sendt-susoft').value=(r.datoSendtSusoft||'').slice(0,10);
     document.getElementById('rma-dato-mottatt-susoft').value=(r.datoMottattFraSusoft||'').slice(0,10);
     document.getElementById('rma-ny-sendt-av').value=r.nyMaskinSendtAv||'';
@@ -5139,6 +5171,7 @@ function openRmaModal(id){
     document.getElementById('rma-status').value=RMA_STATUSER[0];
     document.getElementById('rma-dato-feilmelding').value=new Date().toISOString().slice(0,10);
     document.getElementById('rma-dato-ny-sendt').value='';
+    document.getElementById('rma-dato-meldt-susoft').value='';
     document.getElementById('rma-dato-sendt-susoft').value='';
     document.getElementById('rma-dato-mottatt-susoft').value='';
     fyllAnsvarligSelectRma(currentUser?.name||currentUser?.username||'');
@@ -5259,6 +5292,7 @@ function lastNedRmaPdf(){
   const feilmelding=datoFmt(v('rma-dato-feilmelding'));
   const nySendt=datoFmt(v('rma-dato-ny-sendt'));
   const returKunde=datoFmt(v('rma-dato-retur-kunde'));
+  const meldtSusoft=datoFmt(v('rma-dato-meldt-susoft'));
   const sendtSusoft=datoFmt(v('rma-dato-sendt-susoft'));
   const mottattSusoft=datoFmt(v('rma-dato-mottatt-susoft'));
   const kommentar=v('rma-kommentar');
@@ -5305,8 +5339,8 @@ function lastNedRmaPdf(){
   feltPar('Har bilde/video?',bildeVideo,'Ansvarlig hos KBD',ansvarlig);
   feltPar('Status',status,'Salgsordre Visma',salgsordre);
   feltPar('Feilmelding mottatt',feilmelding,'Ny maskin sendt kunde',nySendt);
-  feltPar('Mottatt retur fra kunde',returKunde,'Sendt Susoft',sendtSusoft);
-  felt('Mottatt retur fra Susoft',mottattSusoft);
+  feltPar('Mottatt retur fra kunde',returKunde,'Meldt til Susoft',meldtSusoft);
+  feltPar('Sendt Susoft',sendtSusoft,'Mottatt retur fra Susoft',mottattSusoft);
   if(kommentar)felt('Kommentar',kommentar);
 
   doc.setDrawColor(190);doc.line(mL,y+2,mR,y+2);
@@ -5337,6 +5371,7 @@ function rmaFieldsPayload(r){
     DatoFeilmeldingMottatt:r.datoFeilmeldingMottatt||null,
     DatoNyMaskinSendtKunde:r.datoNyMaskinSendtKunde||null,
     DatoMottattReturKunde:r.datoMottattReturKunde||null,
+    DatoMeldtSusoft:r.datoMeldtSusoft||null,
     DatoSendtSusoft:r.datoSendtSusoft||null,
     DatoMottattFraSusoft:r.datoMottattFraSusoft||null,
     SalgsordreVisma:r.salgsordreVisma||'',
@@ -5387,6 +5422,7 @@ function saveRma(){
     datoFeilmeldingMottatt:document.getElementById('rma-dato-feilmelding').value||null,
     datoNyMaskinSendtKunde:document.getElementById('rma-dato-ny-sendt').value||null,
     datoMottattReturKunde:document.getElementById('rma-dato-retur-kunde').value||null,
+    datoMeldtSusoft:document.getElementById('rma-dato-meldt-susoft').value||null,
     datoSendtSusoft:document.getElementById('rma-dato-sendt-susoft').value||null,
     datoMottattFraSusoft:document.getElementById('rma-dato-mottatt-susoft').value||null,
     kommentar:(document.getElementById('rma-kommentar').value||'').trim()
@@ -9757,6 +9793,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.154',dato:'29.09.2026',punkter:[
+    'Susoft RMA: nytt steg og datofelt «Meldt til Susoft» før «Sendt Susoft». Er saken meldt, men ikke sendt etter 7 dager, går det en avklaringsforespørsel til Susoft og et varsel til Geir.',
+    'Susoft RMA: statusen «Hos Susoft» er fjernet. Saker som stod på den, vises nå som «Sendt til Susoft».',
+    'Susoft RMA: 3-ukers-purringen styres av datoene «Sendt Susoft» og «Mottatt retur fra Susoft», ikke av status. Saker med feil status blir dermed også purret.'
+  ]},
   {versjon:'v1.48.153',dato:'29.09.2026',punkter:[
     'Kundesaker: «Innhold» i en oppføring kan nå formateres med fet, kursiv og understreket skrift, punktliste, nummerert liste og lenke. Tekst du limer inn fra Outlook eller Word beholder enkel formatering, og uønsket stil fjernes.',
     'Venstremenyen: «Oversikt» og «Forhandlerområder» under Nyetableringer vises nå bare når du står i Nyetableringer, og ser ikke lenger valgt ut når du er et annet sted.'
