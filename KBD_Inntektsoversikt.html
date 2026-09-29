@@ -502,7 +502,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.146 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.147 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3312,6 +3312,17 @@ async function spLagreMedMykFallback(lagreFn,felter,mykeFelter){
   }catch(e){
     const relevante=mykeFelter.filter(f=>f in felter);
     if(!relevante.length)throw e;
+    // v1.48.147: prøv FØRST å fjerne bare feltet/feltene Graph nevner i
+    // feilmeldingen (f.eks. «Field 'SistAktivitet' is not recognized»), så en
+    // ny, ennå ikke opprettet kolonne ikke også tar med seg de andre myke
+    // feltene (TilbudSum osv., som finnes) i dragsuget. Hjelper ikke det,
+    // faller vi tilbake til å fjerne alle myke felter som før.
+    const nevnt=relevante.filter(f=>String(e?.message||'').includes(f));
+    if(nevnt.length&&nevnt.length<relevante.length){
+      console.warn(`Lagring feilet på ${nevnt.join(', ')} (kolonnen finnes trolig ikke ennå i SharePoint) — prøver på nytt uten ${nevnt.length>1?'dem':'den'}:`,e);
+      const utenNevnt={...felter};nevnt.forEach(f=>delete utenNevnt[f]);
+      try{return await lagreFn(utenNevnt);}catch(e2){e=e2;}
+    }
     console.warn(`Lagring feilet med ${relevante.join(', ')} inkludert (kolonnen finnes trolig ikke ennå i SharePoint) — prøver på nytt uten dem:`,e);
     const reduserte={...felter};
     relevante.forEach(f=>delete reduserte[f]);
@@ -3432,7 +3443,7 @@ async function loadDataFromSP(){
   // IKKE opprettet i SharePoint ennå (se Liste 25 i sjekklisten) — feltene
   // kommer da rett og slett tilbake som undefined fra Graph, og ||null/!=null
   // -sjekkene under gir da bare null/tom streng, helt ufarlig.
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',tilbudArsak:i.fields.TilbudArsak||'',tilbudArsakDetalj:i.fields.TilbudArsakDetalj||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',tilbudArsak:i.fields.TilbudArsak||'',tilbudArsakDetalj:i.fields.TilbudArsakDetalj||'',sistAktivitet:i.fields.SistAktivitet||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -5975,7 +5986,7 @@ function overforNyeTilKunder(id){
   kundeNotater.push(notat);
 
   setSPStatus('⏳ Lagrer…');
-  spCreate('KundeNotater',notatFieldsPayload(notat)).then(r=>{
+  spLagreMedMykFallback(f=>spCreate('KundeNotater',f),notatFieldsPayload(notat),NOTAT_MYKE_FELTER).then(r=>{
     notat.spId=r.id;notat.id=`sp${r.id}`;
     if(!Array.isArray(n.logg))n.logg=[];
     n.logg.push({dato:now,tekst:`Overført til Kunder av ${bruker}.`,forfatter:bruker});
@@ -6778,11 +6789,14 @@ function kundesakFristStatus(n,naa){
   if(d.toDateString()===naa.toDateString())return 'idag';
   return null;
 }
-// Siste aktivitet = nyeste av opprettet-dato og loggkommentarer. BEVISST ikke
+// Siste aktivitet = nyeste av opprettet-dato, loggkommentarer og SistAktivitet
+// (egen kolonne fra v1.48.147, settes av dashbordet ved hver lagring). BEVISST ikke
 // SharePoint sin lastModifiedDateTime: den endres også når backend-jobben
 // (varsling.py) setter VarselSendt, som ikke er reell salgsaktivitet.
 function kundesakSisteAktivitet(n){
   let siste=n.opprettetDato?new Date(n.opprettetDato):null;
+  // v1.48.147: SistAktivitet (settes ved enhver brukerlagring) teller også.
+  if(n.sistAktivitet){const s=new Date(n.sistAktivitet);if(!isNaN(s)&&(!siste||isNaN(siste)||s>siste))siste=s;}
   (n.logg||[]).forEach(l=>{const d=new Date(l.dato);if(!isNaN(d)&&(!siste||d>siste))siste=d;});
   return siste&&!isNaN(siste)?siste:null;
 }
@@ -6819,7 +6833,7 @@ function renderKundesakerKpi(ansvarlig,grunnlagPerson){
     ${tile({ikon:'💼',lbl:'Åpne tilbud',val:`${apne.length} stk`,sub:`${fS(fullSum)} i full sum`,c:'#7c3aed',bg:'#faf5ff',klikk:"setKundesakerTypeFilter(kundesakerTypeFilter==='Tilbud'?'alle':'Tilbud')",aktiv:kundesakerTypeFilter==='Tilbud',tittel:'Vis kun tilbud'})}
     ${tile({ikon:'✅',lbl:'Vunnet denne måned',val:fS(vunnet),sub:'summert på lukkedato',c:'#15803d',bg:'#ecfdf3'})}
     ${tile({ikon:'⏰',lbl:'Forfalt / i dag',val:`${fristSaker.length} saker`,sub:antForfalt?`${antForfalt} har passert fristen`:'ingen har passert fristen',c:fristSaker.length?'#d03b3b':'#6b7280',bg:fristSaker.length?'#fef2f2':'#f9fafb',klikk:"setKundesakerSpesialFilter('frist')",aktiv:kundesakerSpesialFilter==='frist',tittel:'Vis kun saker med frist i dag eller passert'})}
-    ${tile({ikon:'💤',lbl:`Uten aktivitet ${KS_INAKTIV_DAGER}+ d`,val:`${inaktive.length} tilbud`,sub:'ingen logg og ingen frist fremover',c:inaktive.length?'#b45309':'#6b7280',bg:inaktive.length?'#fffbeb':'#f9fafb',klikk:"setKundesakerSpesialFilter('inaktiv')",aktiv:kundesakerSpesialFilter==='inaktiv',tittel:'Vis kun åpne tilbud uten aktivitet på 30+ dager'})}
+    ${tile({ikon:'💤',lbl:`Uten aktivitet ${KS_INAKTIV_DAGER}+ d`,val:`${inaktive.length} tilbud`,sub:'ingen endring og ingen frist fremover',c:inaktive.length?'#b45309':'#6b7280',bg:inaktive.length?'#fffbeb':'#f9fafb',klikk:"setKundesakerSpesialFilter('inaktiv')",aktiv:kundesakerSpesialFilter==='inaktiv',tittel:'Vis kun åpne tilbud uten aktivitet på 30+ dager'})}
   </div>`;
 }
 // Husker om «📊 Tilbudsanalyse» er åpen (per bruker/nettleser, kun en
@@ -6947,7 +6961,7 @@ function renderKundesaker(){
       const fristKlasse=frist==='forfalt'?'ks-frist-forfalt':(frist==='idag'?'ks-frist-idag':'');
       const opprettetTxt=n.opprettetDato&&!isNaN(new Date(n.opprettetDato))?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—';
       const inaktiv=kundesakInaktivDager(n,naa);
-      const inaktivHtml=inaktiv?`<span class="ks-inaktiv" title="Ingen loggkommentar eller ny frist på ${inaktiv} dager — følg opp eller lukk tilbudet">💤 ${inaktiv} d</span>`:'';
+      const inaktivHtml=inaktiv?`<span class="ks-inaktiv" title="Ingen endring, loggkommentar eller ny frist på ${inaktiv} dager — følg opp eller lukk tilbudet">💤 ${inaktiv} d</span>`:'';
       const medSum=erTilbudMedSum(n);
       const kunde=navnFor(n);
       return `<tr class="rad-klikkbar" onclick="gaTilKundeFraSak('${n.id}')" title="Åpne saken hos ${kunde.replace(/"/g,'&quot;')}">
@@ -7520,7 +7534,7 @@ async function opprettLeadKunde(v){
       if(loggTekst){
         const hist={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:prospektKundenummer(n),kundeNavn:n.tittel,type:'Notat',tittel:'Overført fra Nyetableringer',innhold:`Historikk fra «🏢 Nyetableringer»:\n${loggTekst}`,status:'Åpen',forfallsdato:'',opprettetAv:bruker,opprettetAvEpost:currentUser?.username||'',opprettetDato:now,varsleEpost:false,varsleDashbord:false,varselSendt:false,logg:[]};
         kundeNotater.push(hist);
-        const r=await spCreate('KundeNotater',notatFieldsPayload(hist));
+        const r=await spLagreMedMykFallback(f=>spCreate('KundeNotater',f),notatFieldsPayload(hist),NOTAT_MYKE_FELTER);
         hist.spId=r.id;hist.id=`sp${r.id}`;
       }
       if(!Array.isArray(n.logg))n.logg=[];
@@ -8649,6 +8663,12 @@ function notatFieldsPayload(n){
   // fylles ut på hver lagring av et Tilbud (samme resonnement som
   // GjelderMeny i Idébank) — IKKE en sjelden, bevisst handling som Bilde,
   // der en feilet lagring skal varsle brukeren tydelig.
+  // SistAktivitet (v1.48.147, 29.09.2026) — settes til «nå» av
+  // markerAktivitet() ved ENHVER brukerlagring (redigering, loggkommentar,
+  // status, Vunnet/Tapt), for alle typer. Brukes av 💤-flagget og ukentlig
+  // salgsoppsummering. Alltid «myk» (NOTAT_MYKE_FELTER) — mangler kolonnen i
+  // SharePoint, lagres alt annet som før.
+  if(n.sistAktivitet)felter.SistAktivitet=n.sistAktivitet;
   if(n.type==='Tilbud'){
     felter.TilbudSum=n.tilbudSum!=null?n.tilbudSum:null;
     felter.Sannsynlighet=n.sannsynlighet!=null?n.sannsynlighet:null;
@@ -8664,6 +8684,8 @@ function notatFieldsPayload(n){
   return felter;
 }
 const TILBUD_MYKE_FELTER=['TilbudSum','Sannsynlighet','TilbudUtfall','TilbudLukketDato','TilbudArsak','TilbudArsakDetalj'];
+const NOTAT_MYKE_FELTER=[...TILBUD_MYKE_FELTER,'SistAktivitet']; // v1.48.147 — alle KundeNotater-lagringer bruker denne
+function markerAktivitet(n){n.sistAktivitet=new Date().toISOString();}
 // Faste årsakskategorier ved Tapt (27.09.2026) — bevisst en FAST liste (ikke
 // fritekst) slik at «Tapt pr. årsak»-oversikten faktisk kan telle opp/gruppere
 // i etterkant (Thomas' eksempel: «er det pris, er det løsning osv»). "Annet"
@@ -8734,6 +8756,7 @@ function saveNotat(){
     // en endret/utsatt frist faktisk gir nytt varsel i stedet for å bli
     // stille undertrykt av at et tidligere (nå utdatert) varsel alt er sendt.
     n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;n.varsleEpost=varsleEpost;n.varsleDashbord=varsleDashbord;n.varselSendt=false;n.kundeNavn=kNavn;n.tilbudSum=tilbudSum;n.sannsynlighet=sannsynlighet;
+    markerAktivitet(n);
     // Ansvarlig/selger — lagt til 03.09.2026 (Terjes spørsmål om å kunne endre
     // "selger" på saker overført fra Nyetableringer). Oppdaterer OGSÅ
     // OpprettetAvEpost via oppslag i `brukere`, slik at "Mine saker"-visningen
@@ -8761,7 +8784,7 @@ function saveNotat(){
       // TILBUD_MYKE_FELTER uansett irrelevant (notatFieldsPayload inkluderer
       // dem aldri for andre typer enn Tilbud), så dette er 100% uendret
       // oppførsel for dem.
-      spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),TILBUD_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+      spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),NOTAT_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
     }
   } else {
     const now=new Date().toISOString();
@@ -8772,11 +8795,11 @@ function saveNotat(){
     const ansvarligValgt=ansvarligNavn||currentUser?.name||currentUser?.username||'Ukjent';
     const ansvarligMatch=brukere.find(b=>b.navn===ansvarligValgt);
     const ansvarligEpost=ansvarligMatch?.epost||(ansvarligValgt===(currentUser?.name||currentUser?.username)?(currentUser?.username||''):'');
-    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,tilbudSum,sannsynlighet,tilbudUtfall:'',tilbudLukketDato:'',logg:[]};
+    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,tilbudSum,sannsynlighet,tilbudUtfall:'',tilbudLukketDato:'',sistAktivitet:now,logg:[]};
     kundeNotater.push(nyNotat);
     if(k360Valgt)renderKundeKort(k360Valgt);
     setSPStatus('⏳ Lagrer…');
-    spLagreMedMykFallback(f=>spCreate('KundeNotater',f),notatFieldsPayload(nyNotat),TILBUD_MYKE_FELTER).then(r=>{
+    spLagreMedMykFallback(f=>spCreate('KundeNotater',f),notatFieldsPayload(nyNotat),NOTAT_MYKE_FELTER).then(r=>{
       const midlertidigId=nyNotat.id;
       nyNotat.spId=r.id;nyNotat.id=`sp${r.id}`;
       setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
@@ -8817,6 +8840,7 @@ function saveNotat(){
 function lukkTilbudMedUtfall(id,utfall,arsak,arsakDetalj){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   n.status='Lukket';n.tilbudUtfall=utfall;n.tilbudLukketDato=new Date().toISOString();
+  markerAktivitet(n);
   // Årsak (27.09.2026) er kun relevant ved Tapt — ved Vunnet nullstilles den
   // alltid, selv om en tidligere gjenåpnet/redigert sak skulle ha en fra før.
   n.tilbudArsak=utfall==='Tapt'?(arsak||''):'';
@@ -8825,7 +8849,7 @@ function lukkTilbudMedUtfall(id,utfall,arsak,arsakDetalj){
   renderKundesaker();
   if(n.spId){
     setSPStatus('⏳ Lagrer…');
-    spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),TILBUD_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lukking ble ikke lagret til SharePoint:\n'+e.message);});
+    spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),NOTAT_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lukking ble ikke lagret til SharePoint:\n'+e.message);});
   }
   renderVarselMeny();
 }
@@ -8860,6 +8884,7 @@ function toggleNotatStatus(id){
   // Gjenåpnes et Tilbud, nullstilles utfall/lukkedato/årsak — en gjenåpnet sak
   // er verken vunnet eller tapt lenger, og skal tilbake i pipelinereserven.
   if(n.type==='Tilbud'&&n.status==='Åpen'){n.tilbudUtfall='';n.tilbudLukketDato='';n.tilbudArsak='';n.tilbudArsakDetalj='';}
+  markerAktivitet(n);
   if(k360Valgt)renderKundeKort(k360Valgt);
   // Samme kundeNotater-datagrunnlag vises nå OGSÅ i den samlede "🗂️ Kundesaker"
   // -fanen (lagt til 28.08.2026) og i Tilbudspipeline-oversikten (27.09.2026)
@@ -8874,8 +8899,8 @@ function toggleNotatStatus(id){
     // gjenåpning — for Notat/Oppfølging er dette fortsatt kun et rent
     // Status-kall, helt uendret fra før.
     const lagre=n.type==='Tilbud'
-      ?spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),TILBUD_MYKE_FELTER)
-      :spUpdate('KundeNotater',n.spId,{Status:n.status});
+      ?spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),NOTAT_MYKE_FELTER)
+      :spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),{Status:n.status,SistAktivitet:n.sistAktivitet},NOTAT_MYKE_FELTER);
     lagre.then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Statusendring ble ikke lagret til SharePoint:\n'+e.message);});
   }
   renderVarselMeny();
@@ -8977,7 +9002,8 @@ function leggTilLoggpost(id){
   if(!Array.isArray(n.logg))n.logg=[];
   n.logg.push({dato:new Date().toISOString(),tekst,forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
   input.value='';
-  const felter={Logg:JSON.stringify(n.logg)};
+  markerAktivitet(n);
+  const felter={Logg:JSON.stringify(n.logg),SistAktivitet:n.sistAktivitet};
   if(nyFrist){
     n.forfallsdato=nyFrist.toISOString();n.varselSendt=false;
     felter.Forfallsdato=n.forfallsdato;felter.VarselSendt=false;
@@ -8987,7 +9013,7 @@ function leggTilLoggpost(id){
   renderKundesaker();renderVarselMeny?.();
   if(n.spId){
     setSPStatus('⏳ Lagrer…');
-    spUpdate('KundeNotater',n.spId,felter).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppdateringen ble ikke lagret til SharePoint:\n'+e.message);});
+    spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),felter,NOTAT_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppdateringen ble ikke lagret til SharePoint:\n'+e.message);});
   }
 }
 
@@ -9019,6 +9045,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.147',dato:'29.09.2026',punkter:[
+    '💤-merket («uten aktivitet i 30+ dager») teller nå alle endringer på en sak som aktivitet: redigering (for eksempel ny sannsynlighet eller sum), statusendring, Vunnet/Tapt og loggkommentarer. Før talte bare loggkommentarer og ny frist.'
+  ]},
   {versjon:'v1.48.146',dato:'29.09.2026',punkter:[
     'Når du redigerer og lagrer en sak, oppdateres nå også e-postadressen til ansvarlig fra brukerlisten, ikke bare når du bytter ansvarlig. Saker lagret med en gammel adresse blir dermed rettet når du lagrer dem på nytt.'
   ]},
