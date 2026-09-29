@@ -194,6 +194,14 @@ tr:hover td{background:#fafafa}
 .k360-kpis .kpi{padding:12px 14px}
 .k360-kpis .kpi-lbl{font-size:11px;margin-bottom:4px}
 .k360-kpis .kpi-val{font-size:15px;line-height:1.3}
+/* v1.48.150 — kundekortet: bedre lesbarhet (mørkere/større småtekst) + kompakte tomme seksjoner */
+.k360-kpi-sub{font-size:11.5px;color:#4b5563;margin-top:2px}
+.k360-metalinje{font-size:12.5px;color:#4b5563}
+.k360-tom{font-weight:400;text-transform:none;letter-spacing:0;color:#6b7280;font-size:12px}
+.k360-tom-boks{padding:12px 14px;color:#6b7280;font-size:12.5px}
+#k360-kortinnhold .muted{color:#4b5563;font-size:12.5px}
+#k360-kortinnhold .sec-title{color:#374151;font-size:12.5px}
+#k360-kortinnhold .hint{color:#6b7280}
 .empty{padding:32px;text-align:center;color:#9ca3af;font-size:14px}
 .action-btns{display:flex;gap:4px;justify-content:flex-end}
 .btn-icon{background:none;border:1px solid transparent;border-radius:5px;padding:3px 7px;font-size:13px;cursor:pointer;color:#9ca3af}
@@ -524,7 +532,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.149 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.150 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -6340,6 +6348,10 @@ function seProffKnappHtml(orgNr,navn){
   return`<a class="btn-sm" href="https://www.proff.no/bransjes%C3%B8k?q=${nr}" target="_blank" rel="noopener" style="text-decoration:none;white-space:nowrap;align-self:center" title="Søk «${(navn||'').replace(/"/g,'')}» (org.nr ${nr}) på Proff.no (åpner i ny fane, ingen automatisk henting)">🔍 Se Proff</a>`;
 }
 
+// «📊 Økonomi»-seksjonen på kundekortet: husk åpen/lukket pr. nettleser (v1.48.150).
+function k360OkonomiApen(){try{return localStorage.getItem('kbd-k360-okonomi-apen')==='1';}catch(e){return false;}}
+function lagreK360OkonomiApen(apen){try{localStorage.setItem('kbd-k360-okonomi-apen',apen?'1':'0');}catch(e){}}
+
 function renderKundeKort(k){
   if(k.erProspekt){renderProspektKundeKort(k);return;}
   const kNr=String(k.vismaNummer||'').trim();
@@ -6347,8 +6359,36 @@ function renderKundeKort(k){
   const aktiveKontrakter=kontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';});
   const utleieTreff=rentals.filter(r=>(r.customer||'').trim().toLowerCase()===(k.navn||'').trim().toLowerCase());
 
+  // v1.48.150 (29.09.2026) — kundekortet omorganisert for salgsarbeid (Thomas
+  // godkjente pkt. 1–5): nøkkeltall om SAKENE øverst (åpne saker/vektet,
+  // neste frist, siste aktivitet, aktive avtaler) i stedet for kundeprofil/
+  // saldo (flyttet til en kompakt linje under navnet — rød flis KUN når noe
+  // faktisk er forfalt), «Salg & oppfølging» rett under, deretter kontaktinfo/
+  // Brreg/Pureservice, avtaler (kompakt når tomt), sammenleggbar «📊 Økonomi»
+  // (indikatorer + nøkkeltall, lukket som standard) og utleie (kompakt når tomt).
+  const naa=new Date();
+  const saker=kundeNotater.filter(n=>samKundenr(n.vismaKundeNummer,kNr));
+  const apne=saker.filter(n=>n.status==='Åpen');
+  const apneTilbud=apne.filter(n=>n.type==='Tilbud'&&n.tilbudSum>0);
+  const vektet=apneTilbud.reduce((s,n)=>s+n.tilbudSum*((n.sannsynlighet||0)/100),0);
+  const frister=apne.filter(n=>n.forfallsdato&&!isNaN(new Date(n.forfallsdato))).map(n=>new Date(n.forfallsdato)).sort((a,b)=>a-b);
+  const nesteFrist=frister[0]||null;
+  const fristPassert=nesteFrist&&nesteFrist<naa;
+  const sisteAkt=saker.map(kundesakSisteAktivitet).filter(Boolean).sort((a,b)=>b-a)[0]||null;
+  const dagerSiden=d=>Math.floor((naa-d)/86400000);
+  const kr=v=>v.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr';
+  const flis=(lbl,val,sub,farge)=>`<div class="kpi" style="${farge?`border-left:4px solid ${farge}`:''}"><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div>${sub?`<div class="k360-kpi-sub">${sub}</div>`:''}</div>`;
+  const fliser=[
+    flis('Åpne saker',`${apne.length}`,apneTilbud.length?`${apneTilbud.length} tilbud · ${fS(vektet)} vektet`:(apne.length?'ingen åpne tilbud':'ingen'),apne.length?'#6d28d9':''),
+    flis('Neste frist',nesteFrist?`${fristPassert?'⏰ ':''}${nesteFrist.toLocaleDateString('nb-NO')}`:'—',nesteFrist?`kl. ${nesteFrist.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${fristPassert?' · passert':''}`:'ingen frist satt',fristPassert?'#d03b3b':''),
+    flis('Siste aktivitet',sisteAkt?sisteAkt.toLocaleDateString('nb-NO'):'—',sisteAkt?(dagerSiden(sisteAkt)===0?'i dag':`${dagerSiden(sisteAkt)} dager siden`):'ingen saker ennå',sisteAkt&&dagerSiden(sisteAkt)>=KS_INAKTIV_DAGER?'#b45309':''),
+    flis('Aktive avtaler',`${aktiveKontrakter.length}`,kontrakter.length>aktiveKontrakter.length?`${kontrakter.length} totalt`:'',''),
+  ];
+  if(k.saldoForfalt>0)fliser.push(flis('⚠️ Forfalt saldo',kr(k.saldoForfalt),`av ${kr(k.saldo||0)} utestående`,'#d03b3b'));
+  const tomLinje=(tittel,tekst)=>`<p class="sec-title" style="margin-bottom:6px">${tittel} <span class="k360-tom">· ${tekst}</span></p>`;
+
   const html=`
-    <div class="card">
+    <div class="card" id="k360-kortinnhold">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div>
           <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
@@ -6359,15 +6399,13 @@ function renderKundeKort(k){
               ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
             </div>
           </div>
-          <div class="muted">Org.nr ${k.orgNr||'ukjent'} · Visma-nr ${k.vismaNummer||'—'} · ${k.status||'—'}</div>
+          <div class="k360-metalinje">Org.nr ${k.orgNr||'ukjent'} · Visma-nr ${k.vismaNummer||'—'} · ${k.status||'—'}${k.kundeklasse?` · ${k.kundeklasse}`:''} · Saldo <span style="${k.saldo>0?'color:#b45309;font-weight:600':''}">${k.saldo?kr(k.saldo):'0 kr'}</span>${k.saldoForfalt>0?` · <span style="color:#d03b3b;font-weight:600">forfalt ${kr(k.saldoForfalt)}</span>`:''}</div>
         </div>
       </div>
 
-      <div class="kpis k360-kpis" style="grid-template-columns:repeat(3,1fr)">
-        <div class="kpi accent"><div class="kpi-lbl">Kundeprofil</div><div class="kpi-val">${k.kundeklasse||'—'}</div></div>
-        <div class="kpi" style="${k.saldo>0?'border-left:4px solid #fab219':''}"><div class="kpi-lbl">Saldo (utestående)</div><div class="kpi-val">${k.saldo?k.saldo.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
-        <div class="kpi" style="${k.saldoForfalt>0?'border-left:4px solid #d03b3b':''}"><div class="kpi-lbl">Herav forfalt</div><div class="kpi-val">${k.saldoForfalt?k.saldoForfalt.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr':'0 kr'}</div></div>
-      </div>
+      <div class="kpis k360-kpis" style="grid-template-columns:repeat(${fliser.length},1fr)">${fliser.join('')}</div>
+
+      ${renderKundeNotaterHTML(k)}
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
@@ -6387,25 +6425,23 @@ function renderKundeKort(k){
             <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>
             <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>
           </div>
-          <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>
+          <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:0"><div class="k360-tom-boks">Roller, selskapsform og status hentes live ved klikk (lagres ikke). Henter også regnskapstallene under «📊 Økonomi».</div></div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">
             <p class="sec-title" style="margin-bottom:0">Pureservice-saker</p>
             <button class="btn-sm" onclick="hentPureserviceSaker('${k.orgNr}')">🔎 Hent Pureservice-saker</button>
           </div>
-          <div id="k360-pureservice" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent Pureservice-saker» over for en oversikt over kundens saker hos support (åpne og lukkede). Hentes live ved klikk, lagres ikke.</div></div>
+          <div id="k360-pureservice" class="tbl-wrap" style="margin-bottom:0"><div class="k360-tom-boks">Supportsaker hentes live ved klikk (lagres ikke).</div></div>
         </div>
       </div>
 
-      ${renderKundeNotaterHTML(k)}
-
-      <p class="sec-title">Aktive avtaler (${aktiveKontrakter.length})</p>
+      ${aktiveKontrakter.length===0?tomLinje('Aktive avtaler (0)','ingen aktive avtaler'):`<p class="sec-title">Aktive avtaler (${aktiveKontrakter.length})</p>
       <div class="tbl-wrap" style="margin-bottom:20px">
-        ${aktiveKontrakter.length===0?'<div class="empty">Ingen aktive avtaler funnet.</div>':`<table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
+        <table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
           ${aktiveKontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td><span class="k360-status" style="color:#0ca30c;font-size:12px">● ${c.status}</span></td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td></tr>`).join('')}
-        </tbody></table>`}
-      </div>
+        </tbody></table>
+      </div>`}
 
       ${kontrakter.length>aktiveKontrakter.length?`
       <details style="margin-bottom:20px">
@@ -6417,15 +6453,18 @@ function renderKundeKort(k){
         </div>
       </details>`:''}
 
-      <div id="k360-nokkeltall"></div>
+      <details class="ks-analyse k360-okonomi" id="k360-okonomi" style="margin:14px 0 20px" ontoggle="lagreK360OkonomiApen(this.open)" ${k360OkonomiApen()?'open':''}>
+        <summary><span class="ks-pil">▸</span>📊 Økonomi og regnskap <span class="hint" style="font-weight:400;margin:0">— indikatorer og nøkkeltall fra Regnskapsregisteret (fylles når du trykker «Hent fra Brønnøysundregistrene»)</span></summary>
+        <div id="k360-nokkeltall" style="margin-top:12px"></div>
+      </details>
 
-      <p class="sec-title">Utleiehistorikk (${utleieTreff.length})</p>
+      ${utleieTreff.length===0?tomLinje('Utleiehistorikk (0)','ingen utleieforhold på dette navnet'):`<p class="sec-title">Utleiehistorikk (${utleieTreff.length})</p>
       <div class="hint" style="margin-bottom:8px">Kobles i dag kun via kundenavn i Utleie-modulen — kan avvike hvis navnet er skrevet ulikt der enn i Visma.</div>
       <div class="tbl-wrap">
-        ${utleieTreff.length===0?'<div class="empty">Ingen utleieforhold funnet på dette navnet.</div>':`<table><thead><tr><th>Enhet</th><th>Fra</th><th>Til</th><th>Retur</th></tr></thead><tbody>
+        <table><thead><tr><th>Enhet</th><th>Fra</th><th>Til</th><th>Retur</th></tr></thead><tbody>
           ${utleieTreff.map(r=>{const u=units.find(x=>x.id===r.unitId);return `<tr><td>${u?u.name:r.unitId}</td><td>${r.fromDate||'—'}</td><td>${r.toDate||'—'}</td><td>${r.returnDate||'—'}</td></tr>`;}).join('')}
-        </tbody></table>`}
-      </div>
+        </tbody></table>
+      </div>`}
     </div>
   `;
   document.getElementById('k360-kort').innerHTML=html;
@@ -7180,7 +7219,7 @@ function renderKundeNotaterHTML(k){
       </div>
       ${tilbudInfoHtml}
       ${renderNotatInnholdHTML(n)}
-      <div style="font-size:11px;color:#9ca3af">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · Forfallsdato: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · ${[n.varsleEpost?'✉️':'',n.varsleDashbord?'🔔':''].filter(Boolean).join(' ')}`:''}`:''}</div>
+      <div class="k360-notat-meta" style="font-size:12px;color:#4b5563">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · Forfallsdato: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · ${[n.varsleEpost?'✉️':'',n.varsleDashbord?'🔔':''].filter(Boolean).join(' ')}`:''}`:''}</div>
       ${renderNotatLoggHTML(n)}
     </div>`;
   }).join('');
@@ -9029,16 +9068,20 @@ function loggFristDato(dager){const d=new Date();d.setDate(d.getDate()+dager);d.
 // skrivebordet først, eller bruker «📧 E-post»-knappen. Se prosjektstatus.
 const EPOST_UTDRAG_MAKS=2000;
 const EPOST_MAKS_BYTES=25*1024*1024;
+function epostSmtpEllerTom(a){const s=String(a||'').trim();return /^[^\s@\/]+@[^\s@]+\.[^\s@]+$/.test(s)?s:'';}
 function escHtmlEpost(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 function renderEpostLoggHTML(l,dStr,n){
   const e=l.epost||{};
   const sendt=e.sendt&&!isNaN(new Date(e.sendt))?new Date(e.sendt).toLocaleString('nb-NO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-  const fra=e.fra||e.fraEpost||'Ukjent avsender';
+  // v1.48.150: skjul Exchange-interne X.500-adresser («/O=EXCHANGELABS/OU=…»),
+  // som Outlook legger i egne sendte e-poster — vis kun ekte SMTP-adresser.
+  const fraEpostVis=epostSmtpEllerTom(e.fraEpost);
+  const fra=e.fra||fraEpostVis||'Ukjent avsender';
   const idx=(n.logg||[]).indexOf(l);
   return `<div style="font-size:12px;color:#374151;margin-bottom:6px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px">
     <div><span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> 📧 <strong>${escHtmlEpost(e.emne||'(uten emne)')}</strong></div>
-    <div style="color:#6b7280;margin-top:2px">Fra ${escHtmlEpost(fra)}${e.fraEpost&&e.fra?` &lt;${escHtmlEpost(e.fraEpost)}&gt;`:''}${sendt?` · sendt ${sendt}`:''}${e.til?` · til ${escHtmlEpost(e.til)}`:''}</div>
+    <div style="color:#6b7280;margin-top:2px">Fra ${escHtmlEpost(fra)}${fraEpostVis&&e.fra?` &lt;${escHtmlEpost(fraEpostVis)}&gt;`:''}${sendt?` · sendt ${sendt}`:''}${e.til?` · til ${escHtmlEpost(e.til)}`:''}</div>
     ${e.utdrag?`<details style="margin-top:4px"><summary style="cursor:pointer;color:#1A3A6B">Vis innhold</summary><div style="white-space:pre-wrap;margin-top:4px;max-height:260px;overflow:auto">${escHtmlEpost(e.utdrag)}${e.kappet?'\n\n… (forkortet — se originalen for hele e-posten)':''}</div></details>`:''}
     ${e.fil?`<button class="btn-sm" style="margin-top:4px;padding:3px 9px;font-size:11px" onclick="apneEpostOriginal('${n.id}',${idx})">📎 Last ned original</button>`:(e.filFeil?'<div style="color:#b45309;margin-top:2px">⚠️ Originalfila ble ikke lagret — kun innholdet over.</div>':'')}
   </div>`;
@@ -9243,7 +9286,11 @@ function lesMsg(buf){
   if(!tekst.trim()&&d.preview)tekst=d.preview;
   const til=(d.recipients||[]).filter(r=>r.recipType!=='cc'&&r.recipType!=='bcc').map(r=>r.smtpAddress||r.email||r.name).filter(Boolean).slice(0,5).join(', ');
   const sendt=d.clientSubmitTime||d.messageDeliveryTime||d.creationTime||'';
-  return{emne:d.subject||d.normalizedSubject||'',fra:d.senderName||'',fraEpost:d.senderSmtpAddress||d.sentRepresentingSmtpAddress||d.senderEmail||'',til,sendt:sendt&&!isNaN(new Date(sendt))?new Date(sendt).toISOString():'',utdrag:tekst.trim()};
+  // Egne sendte e-poster har ofte en Exchange X.500-adresse i senderEmail —
+  // bruk første EKTE SMTP-adresse, og innlogget bruker hvis avsender er deg selv.
+  let fraEpost=[d.senderSmtpAddress,d.sentRepresentingSmtpAddress,d.creatorSMTPAddress,d.lastModifierSMTPAddress,d.senderEmail].map(epostSmtpEllerTom).find(Boolean)||'';
+  if(!fraEpost&&d.senderName&&currentUser?.name&&d.senderName.trim().toLowerCase()===currentUser.name.trim().toLowerCase())fraEpost=epostSmtpEllerTom(currentUser.username);
+  return{emne:d.subject||d.normalizedSubject||'',fra:d.senderName||'',fraEpost,til,sendt:sendt&&!isNaN(new Date(sendt))?new Date(sendt).toISOString():'',utdrag:tekst.trim()};
 }
 // Minimal MIME-leser for .eml: headere (med RFC 2047-dekoding), multipart
 // (rekursivt), base64/quoted-printable og tegnsett via TextDecoder. Foretrekker
@@ -9344,6 +9391,13 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.150',dato:'29.09.2026',punkter:[
+    'Kundekortet er ryddet for salgsarbeid. Øverst står åpne saker (med vektet tilbudsverdi), neste frist, siste aktivitet og aktive avtaler. Saldo står i linjen under kundenavnet og vises som egen rød rute bare når noe er forfalt.',
+    '«Salg & oppfølging» står nå rett under nøkkeltallene. Kontaktinfo, Brønnøysund og Pureservice kommer etter.',
+    'Tomme seksjoner (ingen avtaler, ingen utleie) tar bare én linje. Indikatorer og nøkkeltall fra regnskapet ligger i «📊 Økonomi og regnskap», som du kan åpne og lukke.',
+    'E-poster du selv har sendt viser ikke lenger Outlooks lange interne adresse («/O=EXCHANGELABS/…») som avsender.',
+    'Litt større og mørkere småtekst på kundekortet, så det er lettere å lese.'
+  ]},
   {versjon:'v1.48.149',dato:'29.09.2026',punkter:[
     'Du kan nå legge alle typer filer på en sak, ikke bare e-post: bilder, PDF, Excel, Word og andre. Dra filene inn på saken, eller trykk «📎 Fil/e-post». Bilder vises som et lite bilde i loggen og åpnes i full størrelse når du klikker på det.'
   ]},
