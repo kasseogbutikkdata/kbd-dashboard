@@ -413,6 +413,12 @@ tr:hover td{background:#fafafa}
 .knd-dato-footer-btn:hover{background:#eef2f8}
 .knd-dato-footer-btn.knd-tom{border-color:#f3c6c6;color:#b91c1c}
 .knd-dato-footer-btn.knd-tom:hover{background:#fef2f2}
+/* v1.48.143: «✓ OK»-knapp i kalenderens bunnlinje + pilene for månedsbytte
+   holdes inne i måned-raden (var absolutt posisjonert mot hele kalenderen og
+   la seg oppå snarvei-raden øverst). */
+.knd-dato-footer-btn.knd-ok{background:#1A3A6B;border-color:#1A3A6B;color:#fff;font-weight:600;padding:5px 16px}
+.knd-dato-footer-btn.knd-ok:hover{background:#244a85}
+.flatpickr-calendar .flatpickr-months{position:relative}
 
 </style>
 </head>
@@ -473,7 +479,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.142 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.143 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7013,7 +7019,7 @@ function _leggTilVarselSnarveier(instance){
   if(instance.calendarContainer.querySelector('.knd-dato-snarveier'))return; // ikke dupliser (onReady kjører kun én gang, men vær robust)
   const rad=document.createElement('div');
   rad.className='knd-dato-snarveier';
-  rad.style.cssText='display:flex;flex-wrap:wrap;gap:6px;padding:10px 10px 0 10px';
+  rad.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 10px 4px 10px'; // v1.48.143: 2×2 i stedet for flex-wrap (fikk ikke plass på én linje)
   const snarveier=[
     {label:'I dag 12:00',lag:()=>{const d=new Date();d.setHours(12,0,0,0);return d;}},
     {label:'I morgen 09:00',lag:()=>{const d=new Date();d.setDate(d.getDate()+1);d.setHours(9,0,0,0);return d;}},
@@ -7025,7 +7031,8 @@ function _leggTilVarselSnarveier(instance){
     btn.type='button';
     btn.className='knd-dato-snarvei';
     btn.textContent=s.label;
-    btn.onclick=()=>instance.setDate(s.lag(),true);
+    // v1.48.143: lukker kalenderen etter valg — snarveien setter både dato og klokkeslett, ingenting mer å velge.
+    btn.onclick=()=>{instance.setDate(s.lag(),true);instance.close();};
     rad.appendChild(btn);
   });
   instance.calendarContainer.insertBefore(rad,instance.calendarContainer.firstChild);
@@ -7042,11 +7049,22 @@ function _leggTilVarselFooter(instance){
   footer.style.cssText='display:flex;justify-content:space-between;gap:6px;padding:8px 10px;border-top:1px solid #eef1f5';
   const naaBtn=document.createElement('button');
   naaBtn.type='button';naaBtn.className='knd-dato-footer-btn';naaBtn.textContent='🕐 Nå';
-  naaBtn.onclick=()=>instance.setDate(new Date(),true);
+  naaBtn.onclick=()=>{instance.setDate(new Date(),true);instance.close();};
   const tomBtn=document.createElement('button');
   tomBtn.type='button';tomBtn.className='knd-dato-footer-btn knd-tom';tomBtn.textContent='✕ Tøm';
   tomBtn.onclick=()=>{instance.clear();instance.close();};
-  footer.appendChild(naaBtn);footer.appendChild(tomBtn);
+  // «✓ OK» (v1.48.143, Thomas: «forvirrende at det ikke er en OK/bekreftelse-
+  // knapp»). Klikk på en dag holder fortsatt kalenderen åpen så klokkeslett
+  // kan justeres; OK bekrefter og lukker. Er ingen dag valgt, lukker OK
+  // bare kalenderen uten å sette noen dato (bevisst — ingen «overraskende»
+  // frist/varsel satt av seg selv).
+  const okBtn=document.createElement('button');
+  okBtn.type='button';okBtn.className='knd-dato-footer-btn knd-ok';okBtn.textContent='✓ OK';
+  okBtn.onclick=()=>instance.close();
+  const hoyre=document.createElement('div');
+  hoyre.style.cssText='display:flex;gap:6px';
+  hoyre.appendChild(tomBtn);hoyre.appendChild(okBtn);
+  footer.appendChild(naaBtn);footer.appendChild(hoyre);
   instance.calendarContainer.appendChild(footer);
 }
 
@@ -8784,6 +8802,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.143',dato:'29.09.2026',punkter:[
+    'Kalenderen for forfallsdato har fått en «✓ OK»-knapp nederst som bekrefter og lukker. Klikk på en dag holder den fortsatt åpen, så du kan justere klokkeslettet først.',
+    'Hurtigvalgene («I dag 12:00», «I morgen 09:00», «Om 1 uke», «+1 time») og «Nå» lukker nå kalenderen med én gang. Hurtigvalgene står i to pene rader og skjules ikke lenger bak pilene for månedsbytte.'
+  ]},
   {versjon:'v1.48.142',dato:'29.09.2026',punkter:[
     'Kundesaker: ny knapp «➕ Nytt lead» registrerer et lead i ett steg. Søk opp kunden eller firmaet (eksisterende kunder vises først, deretter firma fra Brønnøysundregisteret), fyll inn den første saken og trykk Lagre — kunden opprettes automatisk ved behov. Du trenger ikke lenger opprette kunden i Kunde 360 først.',
     'Finnes firmaet fra før (samme org.nr hos en kunde, et prospekt eller i Nyetableringer), legges saken på det i stedet for å lage en ny kunde. Firma fra Nyetableringer overføres automatisk, med historikken.'
