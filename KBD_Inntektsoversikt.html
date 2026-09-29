@@ -253,6 +253,17 @@ tr:hover td{background:#fafafa}
 .nav-sub-sub-item{display:flex;align-items:center;gap:8px;padding:6px 16px 6px 52px;cursor:pointer;font-size:12.5px;font-weight:500;color:#9ca3af;border-left:3px solid transparent;transition:all .1s}
 .nav-sub-sub-item:hover{background:#f9fafb;color:#6b7280}
 .nav-sub-sub-item.active{color:#1A3A6B;font-weight:600;border-left-color:#93c5fd;background:#f0f4ff}
+.rt-verktoy{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:4px;border:1px solid #d1d5db;border-bottom:none;border-radius:8px 8px 0 0;background:#f8fafc}
+.rt-verktoy button{border:1px solid transparent;background:none;border-radius:5px;padding:3px 8px;font-size:12.5px;cursor:pointer;color:#374151;font-family:inherit}
+.rt-verktoy button:hover{background:#e5e7eb;border-color:#d1d5db}
+.rt-skille{width:1px;height:16px;background:#d1d5db;margin:0 2px}
+.rt-felt{min-height:96px;max-height:320px;overflow:auto;resize:vertical;padding:8px 10px;border:1px solid #d1d5db;border-radius:0 0 8px 8px;font-size:13px;line-height:1.45;background:#fff;outline:none}
+.rt-felt:focus{border-color:#1A3A6B}
+.rt-felt:empty:before{content:attr(data-placeholder);color:#9ca3af}
+.rt-felt ul,.rt-felt ol,.rt-vis ul,.rt-vis ol{margin:4px 0 4px 20px;padding:0}
+.rt-felt p,.rt-vis p{margin:0 0 4px}
+.rt-vis a{color:#2a78d6}
+.nav-sub-sub-item.nye-skjult{display:none!important} /* v1.48.153: Oversikt/Forhandlerområder vises kun når Nyetableringer er åpen */
 .sidebar-divider{height:1px;background:#d1d5db;margin:6px 12px}
 /* Menyseksjons-overskrifter (RAPPORTER/DRIFT/ADMIN), lagt til 12.09.2026 på
    Thomas' ønske om å dele venstremenyen i tydelige grupper i stedet for én
@@ -532,7 +543,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.152 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.153 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -616,8 +627,8 @@ tr:hover td{background:#fafafa}
              den. Utvidet fra admin-only til admin+redaktør 07.09.2026, samme
              dag den ble bygget, etter Thomas' tilbakemelding om at ansatte/
              Geir ikke så menypunktet. -->
-        <div class="nav-sub-sub-item active" id="ksub360-nye-oversikt" onclick="visNyeUndermeny('oversikt')">📋 Oversikt</div>
-        <div class="nav-sub-sub-item editor-only" id="ksub360-nye-forhandleromrader" onclick="visNyeUndermeny('forhandleromrader')">⚙️ Forhandlerområder</div>
+        <div class="nav-sub-sub-item nye-undermeny nye-skjult" id="ksub360-nye-oversikt" onclick="visNyeUndermeny('oversikt')">📋 Oversikt</div>
+        <div class="nav-sub-sub-item editor-only nye-undermeny nye-skjult" id="ksub360-nye-forhandleromrader" onclick="visNyeUndermeny('forhandleromrader')">⚙️ Forhandlerområder</div>
         <div class="nav-sub-item" id="ksub360-konkurser" onclick="showTab('konkurser',document.getElementById('tab-kunder'))">⚠️ Konkurser</div>
       </div>
       <!-- Eget toppnivå-menypunkt, IKKE et undermenypunkt under Kunde 360
@@ -1883,7 +1894,22 @@ tr:hover td{background:#fafafa}
         <div id="n-tilbud-vektet" style="font-size:12px;color:#6d28d9;margin-top:8px;font-weight:600"></div>
       </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Tittel</label><input type="text" id="n-tittel" placeholder="Kort overskrift"/></div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Innhold</label><textarea id="n-innhold" rows="4" placeholder="Notat, tilbudsdetaljer eller hva som skal følges opp…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Innhold</label>
+        <!-- v1.48.153: formatert tekst (fet/kursiv/understrek/lister/lenke).
+             Lagres som renset HTML med merket RT_MARKOR foran i Innhold0 —
+             eldre ren tekst uten merket vises som før. Se rtRens(). -->
+        <div class="rt-verktoy" onmousedown="event.preventDefault()">
+          <button type="button" title="Fet (Ctrl+B)" onclick="rtKommando('bold')"><b>F</b></button>
+          <button type="button" title="Kursiv (Ctrl+I)" onclick="rtKommando('italic')"><i>K</i></button>
+          <button type="button" title="Understrek (Ctrl+U)" onclick="rtKommando('underline')"><u>U</u></button>
+          <span class="rt-skille"></span>
+          <button type="button" title="Punktliste" onclick="rtKommando('insertUnorderedList')">• Liste</button>
+          <button type="button" title="Nummerert liste" onclick="rtKommando('insertOrderedList')">1. Liste</button>
+          <span class="rt-skille"></span>
+          <button type="button" title="Sett inn lenke på markert tekst" onclick="rtLenke()">🔗 Lenke</button>
+          <button type="button" title="Fjern formatering på markert tekst" onclick="rtKommando('removeFormat')">✕ Fjern</button>
+        </div>
+        <div id="n-innhold" class="rt-felt" contenteditable="true" data-placeholder="Notat, tilbudsdetaljer eller hva som skal følges opp…" onpaste="rtLimInn(event)"></div></div>
       <input type="hidden" id="n-edit-id"/>
       <input type="hidden" id="n-kunde-nr"/>
       <input type="hidden" id="n-kunde-navn"/>
@@ -6331,6 +6357,13 @@ function setKunder360SubActive(view){
   // markeres da aktive, siden ingen av dem faktisk viser innholdet man ser.
   const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':view==='konkurser'?'ksub360-konkurser':null;
   if(id){const el=document.getElementById(id);if(el)el.classList.add('active');}
+  // v1.48.153: tredje menynivå under Nyetableringer (Oversikt/Forhandler-
+  // områder) vises KUN når Nyetableringer faktisk er åpen, og markeringen
+  // fjernes ellers. Før sto «Oversikt» hardkodet som aktiv i HTML-en og ble
+  // bare nullstilt av visNyeUndermeny() — derfor så den valgt ut også når man
+  // var på Kunde360/kundekortet eller Kundesaker (Thomas 29.09.2026).
+  const iNye=view==='nyetableringer';
+  document.querySelectorAll('#kunder360-sub-nav .nye-undermeny').forEach(b=>{b.classList.toggle('nye-skjult',!iNye);if(!iNye)b.classList.remove('active');});
 }
 
 // Produktnøkkelord vi teller aktive avtaler for — basert på kontraktBeskrivelse.
@@ -7390,16 +7423,105 @@ function renderNotatLoggHTML(n){
   return `${loggBlokk}${loggInput}`;
 }
 
+// ===== FORMATERT TEKST I «INNHOLD» (v1.48.153, 29.09.2026) =====
+// Thomas: «kan vi få mulighet for å formatere tekst i Innhold-feltet?».
+// Liten, egen editor (contenteditable + verktøylinje med execCommand) — ingen
+// ekstern bibliotek. Lagres som RT_MARKOR + renset HTML i samme Innhold0-felt
+// (ingen ny kolonne). Eldre ren tekst (uten merket) vises som før, men nå
+// escapet. ALL HTML renses både ved lagring og ved visning (rtRens):
+// kun b/strong/i/em/u/br/p/div/ul/ol/li/a, ingen attributter unntatt href på
+// lenker (kun http/https/mailto/tel) — beskytter mot innlimt HTML fra
+// Outlook/Word/nettsider og mot skadelig innhold.
+const RT_MARKOR='<!--kbd-html-->';
+const RT_TILLATT=new Set(['B','STRONG','I','EM','U','BR','P','DIV','UL','OL','LI','A']);
+function rtErRik(s){return typeof s==='string'&&s.startsWith(RT_MARKOR);}
+function rtRens(html){
+  const doc=new DOMParser().parseFromString(`<div>${html||''}</div>`,'text/html');
+  const rot=doc.body.firstChild;
+  const gaa=(node,ut)=>{
+    node.childNodes.forEach(c=>{
+      if(c.nodeType===3){ut.appendChild(doc.createTextNode(c.nodeValue));return;}
+      if(c.nodeType!==1)return;
+      const tag=c.tagName;
+      if(['SCRIPT','STYLE','HEAD','TITLE','META','LINK','IFRAME','OBJECT','EMBED','SVG','MATH'].includes(tag))return;
+      if(RT_TILLATT.has(tag)){
+        const ny=doc.createElement(tag==='STRONG'?'B':tag==='EM'?'I':tag);
+        if(tag==='A'){const href=(c.getAttribute('href')||'').trim();if(/^(https?:|mailto:|tel:)/i.test(href)){ny.setAttribute('href',href);ny.setAttribute('target','_blank');ny.setAttribute('rel','noopener noreferrer');}}
+        gaa(c,ny);ut.appendChild(ny);
+      }else{
+        // Ukjente tagger (span, font, table, o:p osv.) fjernes, innholdet beholdes.
+        // Blokk-elementer får et linjeskift så tekst ikke klistres sammen.
+        gaa(c,ut);
+        if(/^(TR|H[1-6]|BLOCKQUOTE|SECTION|ARTICLE)$/.test(tag))ut.appendChild(doc.createElement('BR'));
+        else if(/^(TD|TH)$/.test(tag))ut.appendChild(doc.createTextNode(' '));
+      }
+    });
+  };
+  const ut=doc.createElement('div');gaa(rot,ut);
+  return ut.innerHTML.replace(/(<br>\s*){3,}/gi,'<br><br>').trim();
+}
+function rtTilTekst(s){
+  if(!rtErRik(s))return String(s||'');
+  const d=document.createElement('div');d.innerHTML=rtRens(s.slice(RT_MARKOR.length).replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|li)>/gi,'\n'));
+  return (d.textContent||'').replace(/\n{3,}/g,'\n\n').trim();
+}
+function rtSettInnhold(verdi){
+  const el=document.getElementById('n-innhold');if(!el)return;
+  if(rtErRik(verdi))el.innerHTML=rtRens(verdi.slice(RT_MARKOR.length));
+  else el.innerHTML=escHtmlEpost(verdi||'').replace(/\n/g,'<br>');
+}
+function rtHentInnhold(){
+  const el=document.getElementById('n-innhold');if(!el)return '';
+  const renset=rtRens(el.innerHTML);
+  const tekst=(()=>{const d=document.createElement('div');d.innerHTML=renset;return (d.textContent||'').trim();})();
+  if(!tekst)return '';
+  // Ingen faktisk formatering (kun tekst og linjeskift)? Lagre som ren tekst,
+  // så eldre visninger/backend får samme format som før.
+  const harFormat=/<(b|i|u|ul|ol|li|a)\b/i.test(renset);
+  if(!harFormat){const d=document.createElement('div');d.innerHTML=renset.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div)>/gi,'\n');return (d.textContent||'').replace(/\n{3,}/g,'\n\n').trim();}
+  return RT_MARKOR+renset;
+}
+function rtKommando(k){
+  const el=document.getElementById('n-innhold');if(!el)return;
+  el.focus();
+  try{document.execCommand(k,false,null);}catch(e){console.warn('Formatering ikke støttet:',k,e);}
+}
+function rtLenke(){
+  const el=document.getElementById('n-innhold');if(!el)return;
+  const sel=window.getSelection();
+  if(!sel||sel.isCollapsed||!el.contains(sel.anchorNode)){alert('Marker teksten som skal bli en lenke først.');return;}
+  const r=sel.getRangeAt(0);
+  let url=prompt('Lenkeadresse (https://…):','https://');
+  if(!url)return;
+  url=url.trim();if(!/^(https?:|mailto:|tel:)/i.test(url))url='https://'+url.replace(/^\/+/,'');
+  sel.removeAllRanges();sel.addRange(r);el.focus();
+  try{document.execCommand('createLink',false,url);}catch(e){}
+}
+function rtLimInn(ev){
+  const cd=ev.clipboardData;if(!cd)return;
+  ev.preventDefault();
+  const html=cd.getData('text/html');
+  const ren=html?rtRens(html):escHtmlEpost(cd.getData('text/plain')||'').replace(/\r?\n/g,'<br>');
+  try{document.execCommand('insertHTML',false,ren);}catch(e){}
+}
+
 const NOTAT_INNHOLD_TERSKEL=280; // tegn før innholdet i et notat/tilbud/oppfølging vises forkortet med "Vis mer"
 function renderNotatInnholdHTML(n){
   if(!n.innhold)return '';
-  const langt=n.innhold.length>NOTAT_INNHOLD_TERSKEL||(n.innhold.match(/\n/g)||[]).length>4;
+  // v1.48.153: formatert innhold (RT_MARKOR) vises som renset HTML; eldre ren
+  // tekst escapes nå (før ble den satt rått inn som HTML) og beholder linjeskift.
+  const erRik=rtErRik(n.innhold);
+  const visHtml=erRik?rtRens(n.innhold.slice(RT_MARKOR.length)):escHtmlEpost(n.innhold);
+  const ren=erRik?rtTilTekst(n.innhold):n.innhold;
+  const ws=erRik?'':'white-space:pre-wrap;';
+  const antLinjer=erRik?(visHtml.match(/<(br|li|p|div)\b/gi)||[]).length:(ren.match(/\n/g)||[]).length;
+  const langt=ren.length>NOTAT_INNHOLD_TERSKEL||antLinjer>4;
   if(!langt){
-    return `<div style="font-size:13px;color:#374151;white-space:pre-wrap;margin-bottom:6px">${n.innhold}</div>`;
+    return `<div class="rt-vis" style="font-size:13px;color:#374151;${ws}margin-bottom:6px">${visHtml}</div>`;
   }
   const boksId='innhold-'+n.id;
   return `<div style="margin-bottom:6px">
-    <div id="${boksId}" class="notat-innhold-kort" style="font-size:13px;color:#374151;white-space:pre-wrap;max-height:4.6em;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 65%,transparent 100%);mask-image:linear-gradient(to bottom,#000 65%,transparent 100%)">${n.innhold}</div>
+    <div id="${boksId}" class="notat-innhold-kort rt-vis" style="font-size:13px;color:#374151;${ws}max-height:4.6em;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 65%,transparent 100%);mask-image:linear-gradient(to bottom,#000 65%,transparent 100%)">${visHtml}</div>
     <button class="btn-sm" style="margin-top:4px;padding:2px 10px;font-size:11px" onclick="toggleNotatInnhold('${boksId}',this)">Vis mer ▾</button>
   </div>`;
 }
@@ -7614,7 +7736,7 @@ function openNyNotatModal(kNr,navn){
   document.getElementById('n-type').value='Notat';
   fyllAnsvarligSelect(currentUser?.name||currentUser?.username||'');
   document.getElementById('n-tittel').value='';
-  document.getElementById('n-innhold').value='';
+  rtSettInnhold('');
   document.getElementById('n-tilbudsum').value='';
   document.getElementById('n-sannsynlighet').value=50;
   document.getElementById('n-sannsynlighet-verdi').textContent='50';
@@ -7642,7 +7764,7 @@ function openRedigerNotat(id){
   fyllAnsvarligSelect(n.opprettetAv||'');
   document.getElementById('n-type').value=n.type;
   document.getElementById('n-tittel').value=n.tittel;
-  document.getElementById('n-innhold').value=n.innhold;
+  rtSettInnhold(n.innhold);
   document.getElementById('n-tilbudsum').value=n.tilbudSum!=null?n.tilbudSum:'';
   const eksSans=n.sannsynlighet!=null?n.sannsynlighet:50;
   document.getElementById('n-sannsynlighet').value=eksSans;
@@ -9003,7 +9125,7 @@ const TILBUD_TAPT_ARSAKER=['Pris','Løsning/produkt','Timing','Valgte konkurrent
 
 function saveNotat(){
   const tittel=document.getElementById('n-tittel').value.trim();
-  const innhold=document.getElementById('n-innhold').value.trim();
+  const innhold=rtHentInnhold();
   const type=document.getElementById('n-type').value;
   const forfallsdatoRaw=document.getElementById('n-forfallsdato').value||'';
   // Flatpickr sitt dateFormat ('Y-m-d\TH:i', se initNotatDatePicker) gir
@@ -9635,6 +9757,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.153',dato:'29.09.2026',punkter:[
+    'Kundesaker: «Innhold» i en oppføring kan nå formateres med fet, kursiv og understreket skrift, punktliste, nummerert liste og lenke. Tekst du limer inn fra Outlook eller Word beholder enkel formatering, og uønsket stil fjernes.',
+    'Venstremenyen: «Oversikt» og «Forhandlerområder» under Nyetableringer vises nå bare når du står i Nyetableringer, og ser ikke lenger valgt ut når du er et annet sted.'
+  ]},
   {versjon:'v1.48.152',dato:'29.09.2026',punkter:[
     'Susoft RMA: status-merket i tabellen deles ikke lenger over to linjer.',
     'Susoft RMA: saker som allerede er sendt til Susoft får ikke lenger varsel om manglende retur fra kunde, selv om status ikke er oppdatert.'
