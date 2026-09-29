@@ -134,6 +134,29 @@ td{padding:9px 14px;border-bottom:1px solid #f9fafb;color:#374151;vertical-align
    til kunden/saken via gaTilKundeFraSak(), samme funksjon som "Åpne"-knappen i
    selve Kundesaker-tabellen bruker. */
 tr.rad-klikkbar{cursor:pointer}
+/* Kundesaker v1.48.144 — nøkkeltall-rad, fristfarger, inaktiv-flagg, sammenleggbar analyse */
+.ks-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.ks-kpi{border-radius:10px;padding:10px 14px;border-left:3px solid var(--ks-c);background:var(--ks-bg);text-align:left;font-family:inherit;border-top:none;border-right:none;border-bottom:none}
+.ks-kpi.klikkbar{cursor:pointer;transition:box-shadow .12s}
+.ks-kpi.klikkbar:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.ks-kpi.aktiv{box-shadow:0 0 0 2px var(--ks-c)}
+.ks-kpi-lbl{font-size:12px;color:var(--ks-c);font-weight:600}
+.ks-kpi-val{font-size:18px;font-weight:700;color:#111;margin-top:2px}
+.ks-kpi-sub{font-size:11px;color:#6b7280;margin-top:1px}
+.ks-filterlinje{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ks-filterlinje .filters{margin-bottom:0}
+.ks-frist-forfalt{color:#d03b3b;font-weight:600}
+.ks-frist-idag{color:#c2410c;font-weight:600}
+.ks-inaktiv{font-size:10.5px;font-weight:600;color:#92400e;background:#fef3c7;border-radius:10px;padding:1px 7px;margin-left:6px;white-space:nowrap}
+.ks-muted{color:#c0c4cc}
+#kundesaker-tabell th{white-space:nowrap}
+#kundesaker-tabell td>div{flex-wrap:nowrap!important}
+#kundesaker-tabell td .btn-sm{padding:4px 8px}
+#kundesaker-dropdown-filters .btn-sm{white-space:nowrap}
+details.ks-analyse>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;color:#111}
+details.ks-analyse>summary::-webkit-details-marker{display:none}
+details.ks-analyse>summary .ks-pil{transition:transform .15s;display:inline-block;color:#6b7280}
+details.ks-analyse[open]>summary .ks-pil{transform:rotate(90deg)}
 tr.rad-klikkbar:hover td{background:#f9fafb}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafafa}
@@ -479,7 +502,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.143 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.144 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -766,35 +789,30 @@ tr:hover td{background:#fafafa}
        kundeNotater-datagrunnlag som kundekortets "Salg & oppfølging"-fane —
        ingen ny SharePoint-liste. -->
   <div id="tp-kundesaker" class="tp">
-    <!-- Tilbudspipeline (27.09.2026) — samme card-public-begrunnelse som
-         kortet under: ren lesevisning (vektet reserve + vunnet pr. selger/
-         måned), skal ikke skjules for Leser-rollen. Fylles av
-         renderTilbudspipeline(), kalt fra renderKundesaker(). -->
+    <!-- v1.48.144 (29.09.2026) — siden snudd rundt på Thomas' ønske («det er jo
+         Kundesaker og tilbud vi er mest opptatt av»): kompakte nøkkeltall øverst
+         (følger «Ansvarlig»-filteret), selve arbeidslisten rett under, og den
+         tidligere store Tilbudspipeline-oversikten (tabellene) flyttet ned i en
+         sammenleggbar «📊 Tilbudsanalyse», lukket som standard. Alle kort er
+         fortsatt card-public (rene lesevisninger, se 03.09.2026-kommentaren om
+         applyRoleUI() lenger ned i filen) — knapper som skriver styres av
+         salgTilgang i JS, ikke av rollen. -->
     <div class="card card-public">
-      <div class="card-title">💰 Tilbudspipeline</div>
-      <div class="hint">Vektet verdi av alle åpne tilbud (sum × sannsynlighet), og vunnet salgssum gruppert på selger og måned.</div>
-      <div id="tilbudspipeline-body" style="margin-top:10px"></div>
-    </div>
-    <!-- card-public lagt til 03.09.2026: SAMME bug som Casper/Nyetableringer/SMS-planlagt
-         (se forklaringer lenger ned i filen) — uten card-public skjuler applyRoleUI()
-         HELE dette kortet (søkefelt, type-filtre, ansvarlig-filter, "vis lukkede") for
-         Leser-rollen, og bare den rå tabellen under (kundesaker-tabell, egen div,
-         UTENFOR kortet) blir stående igjen uten noen måte å filtrere/søke på. Oppdaget
-         av Thomas via Geir Hagen (Leser)'s visning 03.09.2026. Trygt å gjøre offentlig:
-         søk/sortering/filtrering er rene lesehandlinger, og "➕ Ny kunde"-knappen inni
-         kortet styres uavhengig av salgTilgang (renderKundesaker()), ikke av rollen her. -->
-    <div class="card card-public" style="margin-top:16px">
-      <div class="card-title">🗂️ Kundesaker — alle Notat/Tilbud/Oppfølging</div>
-      <div class="frow" style="margin-bottom:4px">
-        <input type="text" id="kundesaker-search" placeholder="Søk på firmanavn eller tittel…" style="flex:1" oninput="setKundesakerSearch(this.value)" onkeydown="if(event.key==='Enter')setKundesakerSearch(this.value)"/>
-        <button class="prim" onclick="setKundesakerSearch(document.getElementById('kundesaker-search').value)">Søk</button>
-        <button class="btn-sm" id="kundesaker-ny-kunde-btn" style="display:none" onclick="openNyttLeadModal()" title="Registrer et nytt lead/en ny sak i ett steg — velg eksisterende kunde eller finn firmaet i Brønnøysundregisteret, kunden opprettes automatisk ved behov">➕ Nytt lead</button>
+      <div id="kundesaker-kpi"></div>
+      <div class="ks-filterlinje">
+        <input type="text" id="kundesaker-search" placeholder="Søk på firmanavn eller tittel…" style="flex:1;min-width:200px" oninput="setKundesakerSearch(this.value)" onkeydown="if(event.key==='Enter')setKundesakerSearch(this.value)"/>
+        <div class="filters" id="kundesaker-filters"></div>
+        <div id="kundesaker-dropdown-filters" style="display:flex;gap:10px;flex-wrap:nowrap;align-items:center"></div>
+        <button class="prim" id="kundesaker-ny-kunde-btn" style="display:none;margin-left:auto;white-space:nowrap" onclick="openNyttLeadModal()" title="Registrer et nytt lead/en ny sak i ett steg — velg eksisterende kunde eller finn firmaet i Brønnøysundregisteret, kunden opprettes automatisk ved behov">➕ Nytt lead</button>
       </div>
-      <div class="hint">Samlet oversikt over alle salgsnotater, tilbud og oppfølginger på tvers av alle kunder — uavhengig av hvem som opprettet dem. Klikk en kolonneoverskrift for å sortere, eller bruk filtrene under for å se kun én type eller én ansvarlig.</div>
-      <div class="filters" id="kundesaker-filters" style="margin-top:10px"></div>
-      <div id="kundesaker-dropdown-filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"></div>
     </div>
     <div id="kundesaker-tabell"></div>
+    <div class="card card-public" style="margin-top:16px">
+      <details class="ks-analyse" id="tilbudsanalyse-details" ontoggle="lagreTilbudsanalyseApen(this.open)">
+        <summary><span class="ks-pil">▸</span>📊 Tilbudsanalyse <span class="hint" style="font-weight:400;margin:0">— vunnet pr. selger, tapt pr. årsak og avsluttede tilbud (hele KBD)</span></summary>
+        <div id="tilbudspipeline-body" style="margin-top:12px"></div>
+      </details>
+    </div>
   </div>
 
   <!-- NYETABLERINGER (leadgenerering fra Brønnøysund, lagt til 25.08.2026) —
@@ -6534,11 +6552,14 @@ const K360_NOTAT_FARGER={Notat:{c:'#6b7280',bg:'#f3f4f6'},Tilbud:{c:'#6d28d9',bg
 // Vises to steder (Thomas' eksplisitte valg): et kompakt kort på Hjem-siden
 // (se renderHjem) og en full oversikt i Kunde360 → Kundesaker (se
 // renderTilbudspipeline() under, kalt fra renderKundesaker()).
-function kundesakerApneTilbud(){
-  return kundeNotater.filter(n=>n.type==='Tilbud'&&n.status==='Åpen'&&n.tilbudSum>0);
+// Valgfritt `ansvarlig` (v1.48.144): begrenser til én selger (n.opprettetAv)
+// — brukes av nøkkeltall-raden i Kundesaker, som følger «Ansvarlig»-filteret.
+// Uten parameter (Hjem-kortet, analysen) = hele KBD, som før.
+function kundesakerApneTilbud(ansvarlig){
+  return kundeNotater.filter(n=>n.type==='Tilbud'&&n.status==='Åpen'&&n.tilbudSum>0&&(!ansvarlig||n.opprettetAv===ansvarlig));
 }
-function kundesakerPipelineReserve(){
-  return kundesakerApneTilbud().reduce((sum,n)=>sum+n.tilbudSum*((n.sannsynlighet||0)/100),0);
+function kundesakerPipelineReserve(ansvarlig){
+  return kundesakerApneTilbud(ansvarlig).reduce((sum,n)=>sum+n.tilbudSum*((n.sannsynlighet||0)/100),0);
 }
 // Vunnet-summen brukes BÅDE til "vunnet denne måned" (Hjem-kortet) og til
 // "vunnet pr. selger pr. måned"-tabellen i Kunde360. Grupperes på
@@ -6558,10 +6579,10 @@ function kundesakerVunnetPrSelgerManed(){
   });
   return Object.values(grupper).sort((a,b)=>b.aar-a.aar||b.maaned-a.maaned||a.selger.localeCompare(b.selger,'nb'));
 }
-function kundesakerVunnetDenneMaaned(){
+function kundesakerVunnetDenneMaaned(ansvarlig){
   const naa=new Date();
   return kundesakerVunnetPrSelgerManed()
-    .filter(g=>g.aar===naa.getFullYear()&&g.maaned===naa.getMonth())
+    .filter(g=>g.aar===naa.getFullYear()&&g.maaned===naa.getMonth()&&(!ansvarlig||g.selger===ansvarlig))
     .reduce((sum,g)=>sum+g.sum,0);
 }
 const KS_MAANEDSNAVN=['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
@@ -6615,11 +6636,11 @@ function renderTilbudspipeline(){
     <div style="font-size:19px;font-weight:700;color:#111">${val}</div>
     <div style="font-size:11.5px;color:#6b7280;margin-top:1px">${sub}</div>
   </div>`;
+  // v1.48.144: de to nøkkeltall-kortene (reserve/vunnet denne måned) er
+  // flyttet opp i nøkkeltall-raden (renderKundesakerKpi()). Her står kun
+  // analysetabellene, i den sammenleggbare «📊 Tilbudsanalyse».
+  void reserve;void fullSum;void card;
   target.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px">
-      ${card('💰','Pipelinereserve',fS(reserve),`${apne.length} åpne tilbud · ${fS(fullSum)} i full sum`,'#6d28d9','#f5f0ff')}
-      ${card('✅','Vunnet denne måned',fS(kundesakerVunnetDenneMaaned()),'summert på lukkedato','#15803d','#ecfdf3')}
-    </div>
     <div class="hint" style="margin-bottom:8px">Vunnet pr. selger pr. måned</div>
     ${grupper.length?`<div class="tbl-wrap"><table><thead><tr><th>Selger</th><th>Måned</th><th>Vunnet sum</th><th>Antall</th></tr></thead><tbody>
       ${grupper.map(g=>`<tr><td>${g.selger}</td><td>${KS_MAANEDSNAVN[g.maaned]} ${g.aar}</td><td>${fS(g.sum)}</td><td>${g.antall}</td></tr>`).join('')}
@@ -6672,50 +6693,109 @@ function setKundesakerBrukerFilter(b){kundesakerBrukerFilter=b;renderKundesaker(
 function setKundesakerVisLukkede(v){kundesakerVisLukkede=v;renderKundesaker();}
 function setKundesakerSearch(v){kundesakerSearch=(v||'').trim().toLowerCase();renderKundesaker();}
 
+// ----- v1.48.144: hjelpere for nøkkeltall, frister og inaktivitet -----
+let kundesakerSpesialFilter=null; // null | 'frist' (forfalt/i dag) | 'inaktiv' (tilbud uten aktivitet 30+ d)
+const KS_INAKTIV_DAGER=30;
+function setKundesakerSpesialFilter(f){kundesakerSpesialFilter=kundesakerSpesialFilter===f?null:f;renderKundesaker();}
+// Fristtilstand for en ÅPEN sak: 'forfalt' (tidspunktet har passert),
+// 'idag' (senere i dag) eller null.
+function kundesakFristStatus(n,naa){
+  if(n.status!=='Åpen'||!n.forfallsdato)return null;
+  const d=new Date(n.forfallsdato);if(isNaN(d))return null;
+  naa=naa||new Date();
+  if(d<naa)return 'forfalt';
+  if(d.toDateString()===naa.toDateString())return 'idag';
+  return null;
+}
+// Siste aktivitet = nyeste av opprettet-dato og loggkommentarer. BEVISST ikke
+// SharePoint sin lastModifiedDateTime: den endres også når backend-jobben
+// (varsling.py) setter VarselSendt, som ikke er reell salgsaktivitet.
+function kundesakSisteAktivitet(n){
+  let siste=n.opprettetDato?new Date(n.opprettetDato):null;
+  (n.logg||[]).forEach(l=>{const d=new Date(l.dato);if(!isNaN(d)&&(!siste||d>siste))siste=d;});
+  return siste&&!isNaN(siste)?siste:null;
+}
+// Et ÅPENT tilbud flagges som inaktivt når det ikke har hatt aktivitet på
+// 30+ dager OG ikke har en planlagt frist frem i tid (et tilbud med avtalt
+// oppfølging neste uke er ikke «dødt», bare planlagt). Returnerer antall
+// dager siden siste aktivitet, eller 0 når det ikke skal flagges.
+function kundesakInaktivDager(n,naa){
+  if(n.type!=='Tilbud'||n.status!=='Åpen')return 0;
+  naa=naa||new Date();
+  if(n.forfallsdato){const f=new Date(n.forfallsdato);if(!isNaN(f)&&f>naa)return 0;}
+  const siste=kundesakSisteAktivitet(n);if(!siste)return 0;
+  const dager=Math.floor((naa-siste)/86400000);
+  return dager>=KS_INAKTIV_DAGER?dager:0;
+}
+function renderKundesakerKpi(ansvarlig,grunnlagPerson){
+  const el=document.getElementById('kundesaker-kpi');if(!el)return;
+  const naa=new Date();
+  const apne=kundesakerApneTilbud(ansvarlig);
+  const reserve=kundesakerPipelineReserve(ansvarlig);
+  const fullSum=apne.reduce((s,n)=>s+n.tilbudSum,0);
+  const vunnet=kundesakerVunnetDenneMaaned(ansvarlig);
+  const fristSaker=grunnlagPerson.filter(n=>kundesakFristStatus(n,naa));
+  const antForfalt=fristSaker.filter(n=>kundesakFristStatus(n,naa)==='forfalt').length;
+  const inaktive=grunnlagPerson.filter(n=>kundesakInaktivDager(n,naa)>0);
+  const hvem=ansvarlig?ansvarlig.split(' ')[0]:'hele KBD';
+  const tile=(o)=>`<${o.klikk?'button type="button"':'div'} class="ks-kpi${o.klikk?' klikkbar':''}${o.aktiv?' aktiv':''}" style="--ks-c:${o.c};--ks-bg:${o.bg}" ${o.klikk?`onclick="${o.klikk}" title="${o.tittel||''}"`:''}>
+      <div class="ks-kpi-lbl">${o.ikon} ${o.lbl}</div>
+      <div class="ks-kpi-val">${o.val}</div>
+      <div class="ks-kpi-sub">${o.sub}</div>
+    </${o.klikk?'button':'div'}>`;
+  el.innerHTML=`<div class="ks-kpi-grid">
+    ${tile({ikon:'💰',lbl:'Pipelinereserve',val:fS(reserve),sub:`vektet · ${hvem}`,c:'#6d28d9',bg:'#f5f0ff'})}
+    ${tile({ikon:'💼',lbl:'Åpne tilbud',val:`${apne.length} stk`,sub:`${fS(fullSum)} i full sum`,c:'#7c3aed',bg:'#faf5ff',klikk:"setKundesakerTypeFilter(kundesakerTypeFilter==='Tilbud'?'alle':'Tilbud')",aktiv:kundesakerTypeFilter==='Tilbud',tittel:'Vis kun tilbud'})}
+    ${tile({ikon:'✅',lbl:'Vunnet denne måned',val:fS(vunnet),sub:'summert på lukkedato',c:'#15803d',bg:'#ecfdf3'})}
+    ${tile({ikon:'⏰',lbl:'Forfalt / i dag',val:`${fristSaker.length} saker`,sub:antForfalt?`${antForfalt} har passert fristen`:'ingen har passert fristen',c:fristSaker.length?'#d03b3b':'#6b7280',bg:fristSaker.length?'#fef2f2':'#f9fafb',klikk:"setKundesakerSpesialFilter('frist')",aktiv:kundesakerSpesialFilter==='frist',tittel:'Vis kun saker med frist i dag eller passert'})}
+    ${tile({ikon:'💤',lbl:`Uten aktivitet ${KS_INAKTIV_DAGER}+ d`,val:`${inaktive.length} tilbud`,sub:'ingen logg og ingen frist fremover',c:inaktive.length?'#b45309':'#6b7280',bg:inaktive.length?'#fffbeb':'#f9fafb',klikk:"setKundesakerSpesialFilter('inaktiv')",aktiv:kundesakerSpesialFilter==='inaktiv',tittel:'Vis kun åpne tilbud uten aktivitet på 30+ dager'})}
+  </div>`;
+}
+// Husker om «📊 Tilbudsanalyse» er åpen (per bruker/nettleser, kun en
+// bekvemmelighet — try/catch fordi localStorage kan være blokkert).
+function lagreTilbudsanalyseApen(apen){try{localStorage.setItem('kbd-tilbudsanalyse-apen',apen?'1':'0');}catch(e){}}
+function gjenopprettTilbudsanalyseApen(){
+  const d=document.getElementById('tilbudsanalyse-details');if(!d||d.dataset.init)return;
+  d.dataset.init='1';
+  try{if(localStorage.getItem('kbd-tilbudsanalyse-apen')==='1')d.open=true;}catch(e){}
+}
+
 function renderKundesaker(){
-  renderTilbudspipeline(); // egen "card-public" over selve søk/filter-kortet, se HTML-en
+  renderTilbudspipeline(); // analysetabellene i «📊 Tilbudsanalyse» (hele KBD)
+  gjenopprettTilbudsanalyseApen();
   const nyKundeBtn=document.getElementById('kundesaker-ny-kunde-btn');
   if(nyKundeBtn)nyKundeBtn.style.display=salgTilgang?'':'none';
 
   const grunnlag=kundesakerVisLukkede?kundeNotater:kundeNotater.filter(n=>n.status==='Åpen');
 
   // Søkbar kunde-pool = ekte Visma-kunder + prospekter overført fra
-  // Nyetableringer, samme mønster som searchKunder360() — slik at "Ansvarlig"
-  // og firmanavnet stemmer uansett om Visma-synken har kjørt for kunden ennå.
-  // Flyttet hit (før type-knappene) i v1.48.127 — navnFor trengs nå av
-  // søkefilteret i personGrunnlag, som igjen brukes av knappetellerne.
+  // Nyetableringer, samme mønster som searchKunder360().
   const alleKunder=[...vismaKunder,...hentProspektKunder()];
   const finnKunde=n=>alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
   const navnFor=n=>n.kundeNavn||finnKunde(n)?.navn||'Ukjent kunde';
 
-  // brukerListe + default for kundesakerBrukerFilter — flyttet hit (før
-  // type-knappene) i v1.48.127. Må være avklart FØR personGrunnlag bygges,
-  // siden knappetellerne (Alle/Notat/Tilbud/Oppfølging) nå skal telle per
-  // valgt ansvarlig+søk, ikke på hele det ufiltrerte grunnlaget.
+  // brukerListe + default for kundesakerBrukerFilter (v1.48.101/127, uendret):
+  // første rendering denne økten → innlogget bruker hvis vedkommende har saker.
   const brukerListe=[...new Set(kundeNotater.map(n=>n.opprettetAv).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nb'));
   if(kundesakerBrukerFilter===null){
-    // Første rendering denne økten — defaulter til innlogget bruker (samme
-    // navnekilde som fyllAnsvarligSelect() bruker: currentUser.name/username)
-    // dersom vedkommende faktisk har egne saker i lista, ellers 'alle' (så
-    // f.eks. en helt ny selger ikke bare ser en tom liste). Lagt til
-    // 10.09.2026 på Thomas' ønske — måtte før velge seg selv manuelt hver
-    // gang han åpnet Kundesaker-fanen. «✕ Nullstill filtre» går fortsatt til
-    // 'alle' (vis alle), ikke tilbake til denne default-logikken.
     const mittNavn=currentUser?.name||currentUser?.username||'';
     kundesakerBrukerFilter=brukerListe.includes(mittNavn)?mittNavn:'alle';
   }
   if(kundesakerBrukerFilter!=='alle'&&!brukerListe.includes(kundesakerBrukerFilter))kundesakerBrukerFilter='alle';
+  const ansvarligValgt=kundesakerBrukerFilter==='alle'?null:kundesakerBrukerFilter;
 
-  // personGrunnlag = grunnlag filtrert på valgt ansvarlig + søk (IKKE type) —
-  // NY v1.48.127 (23.09.2026, Thomas' ønske). Brukes både som grunnlag for
-  // knappetellerne (antall()) og som utgangspunkt for rader, slik at
-  // type-knappenes tall faktisk reflekterer valgt person/søk — før dette
-  // viste knappene alltid totalen for ALLE ansvarlige/uansett søk, selv når
-  // man hadde filtrert på en enkelt selger.
+  // personGrunnlag = filtrert på ansvarlig + søk (IKKE type/spesialfilter) —
+  // grunnlag for knappetellerne og nøkkeltall-raden (v1.48.127-logikken).
   let personGrunnlag=grunnlag;
-  if(kundesakerBrukerFilter!=='alle')personGrunnlag=personGrunnlag.filter(n=>n.opprettetAv===kundesakerBrukerFilter);
+  if(ansvarligValgt)personGrunnlag=personGrunnlag.filter(n=>n.opprettetAv===ansvarligValgt);
   if(kundesakerSearch)personGrunnlag=personGrunnlag.filter(n=>navnFor(n).toLowerCase().includes(kundesakerSearch)||(n.tittel||'').toLowerCase().includes(kundesakerSearch));
 
+  // Nøkkeltall følger «Ansvarlig»-filteret (v1.48.144, Thomas' valg). Frist-/
+  // inaktiv-tellingene bruker kun ÅPNE saker, uavhengig av «Vis lukkede».
+  const apentPerson=kundeNotater.filter(n=>n.status==='Åpen'&&(!ansvarligValgt||n.opprettetAv===ansvarligValgt));
+  renderKundesakerKpi(ansvarligValgt,apentPerson);
+
+  const naa=new Date();
   const filterDiv=document.getElementById('kundesaker-filters');
   if(filterDiv){
     const antall=t=>t==='alle'?personGrunnlag.length:personGrunnlag.filter(n=>n.type===t).length;
@@ -6728,24 +6808,24 @@ function renderKundesaker(){
     const opts=`<option value="alle"${kundesakerBrukerFilter==='alle'?' selected':''}>Alle ansvarlige</option>`+brukerListe.map(b=>`<option value="${b.replace(/"/g,'&quot;')}"${kundesakerBrukerFilter===b?' selected':''}>${b}</option>`).join('');
     const lukketToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap">
       <input type="checkbox" id="kundesaker-lukket-toggle" ${kundesakerVisLukkede?'checked':''} onchange="setKundesakerVisLukkede(this.checked)"/>
-      Vis også lukkede
+      Vis lukkede
     </label>`;
-    const aktivtFilter=kundesakerTypeFilter!=='alle'||kundesakerBrukerFilter!=='alle'||kundesakerVisLukkede||!!kundesakerSearch;
+    const spesialLbl={frist:'⏰ Forfalt / i dag',inaktiv:`💤 Uten aktivitet ${KS_INAKTIV_DAGER}+ d`}[kundesakerSpesialFilter];
+    const aktivtFilter=kundesakerTypeFilter!=='alle'||kundesakerBrukerFilter!=='alle'||kundesakerVisLukkede||!!kundesakerSearch||!!kundesakerSpesialFilter;
     dropdownDiv.innerHTML=
       `<select id="kundesaker-bruker-filter" onchange="setKundesakerBrukerFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts}</select>`+
       lukketToggle+
-      (aktivtFilter?`<button class="btn-sm" onclick="nullstillKundesakerFilter()" style="color:#6b7280">✕ Nullstill filtre</button>`:'');
+      (spesialLbl?`<button class="btn-sm" onclick="setKundesakerSpesialFilter('${kundesakerSpesialFilter}')" title="Fjern dette filteret" style="border-color:#1A3A6B;color:#1A3A6B">${spesialLbl} ✕</button>`:'')+
+      (aktivtFilter?`<button class="btn-sm" onclick="nullstillKundesakerFilter()" style="color:#6b7280">✕ Nullstill</button>`:'');
   }
 
   const target=document.getElementById('kundesaker-tabell');
   if(!target)return;
 
-  // rader tar nå utgangspunkt i personGrunnlag (allerede filtrert på
-  // ansvarlig+søk over) — kun type-filteret gjenstår å anvende her.
-  // De gamle ansvarlig-/søkefiltrene direkte på rader er fjernet i v1.48.127,
-  // siden personGrunnlag nå dekker akkurat det.
   let rader=personGrunnlag.slice();
   if(kundesakerTypeFilter!=='alle')rader=rader.filter(n=>n.type===kundesakerTypeFilter);
+  if(kundesakerSpesialFilter==='frist')rader=rader.filter(n=>kundesakFristStatus(n,naa));
+  if(kundesakerSpesialFilter==='inaktiv')rader=rader.filter(n=>kundesakInaktivDager(n,naa)>0);
 
   if(rader.length===0){
     target.innerHTML=`<div class="empty">Ingen ${kundesakerVisLukkede?'':'åpne '}saker matcher valgte filtre${kundesakerSearch?'/søket':''}.
@@ -6755,50 +6835,66 @@ function renderKundesaker(){
     return;
   }
 
+  const erTilbudMedSum=n=>n.type==='Tilbud'&&n.tilbudSum>0;
+  const vektet=n=>erTilbudMedSum(n)?n.tilbudSum*((n.sannsynlighet||0)/100):-1;
   const dir=kundesakerSort.dir==='asc'?1:-1;
   rader.sort((a,b)=>{
     switch(kundesakerSort.col){
       case 'firma': return dir*navnFor(a).localeCompare(navnFor(b));
       case 'type': return dir*(a.type||'').localeCompare(b.type||'');
       case 'tittel': return dir*(a.tittel||'').localeCompare(b.tittel||'');
+      case 'sum': return dir*((erTilbudMedSum(a)?a.tilbudSum:-1)-(erTilbudMedSum(b)?b.tilbudSum:-1));
+      case 'sjanse': return dir*((erTilbudMedSum(a)?(a.sannsynlighet||0):-1)-(erTilbudMedSum(b)?(b.sannsynlighet||0):-1));
+      case 'vektet': return dir*(vektet(a)-vektet(b));
       case 'ansvarlig': return dir*(a.opprettetAv||'').localeCompare(b.opprettetAv||'');
       case 'opprettet': return dir*(new Date(a.opprettetDato||0)-new Date(b.opprettetDato||0));
       case 'status': return dir*(a.status||'').localeCompare(b.status||'');
-      case 'forfallsdato': default: return dir*(new Date(a.forfallsdato||0)-new Date(b.forfallsdato||0));
+      case 'forfallsdato': default: {
+        // Saker uten frist havner sist (ved stigende sortering), ikke først.
+        const ta=a.forfallsdato?new Date(a.forfallsdato).getTime():Infinity;
+        const tb=b.forfallsdato?new Date(b.forfallsdato).getTime():Infinity;
+        if(ta===tb)return 0;
+        return dir*(ta<tb?-1:1);
+      }
     }
   });
 
-  const idag=new Date();
+  const th=(col,lbl,stil)=>`<th style="cursor:pointer;${stil||''}" onclick="sortKundesakerBy('${col}')">${lbl} <span id="ksh-${col}"></span></th>`;
+  const tom='<span class="ks-muted">—</span>';
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-      <th style="cursor:pointer" onclick="sortKundesakerBy('firma')">Firma <span id="ksh-firma"></span></th>
-      <th style="cursor:pointer" onclick="sortKundesakerBy('type')">Type <span id="ksh-type"></span></th>
-      <th style="cursor:pointer" onclick="sortKundesakerBy('tittel')">Tittel <span id="ksh-tittel"></span></th>
-      <th style="cursor:pointer" onclick="sortKundesakerBy('ansvarlig')">Ansvarlig <span id="ksh-ansvarlig"></span></th>
-      <th style="cursor:pointer" onclick="sortKundesakerBy('opprettet')">Opprettet dato <span id="ksh-opprettet"></span></th>
-      <th style="cursor:pointer" onclick="sortKundesakerBy('forfallsdato')">Neste varsel/oppfølging <span id="ksh-forfallsdato"></span></th>
-      <th style="cursor:pointer" onclick="sortKundesakerBy('status')">Status <span id="ksh-status"></span></th>
-      <th></th>
+      ${th('firma','Firma')}${th('type','Type')}${th('tittel','Tittel')}
+      ${th('sum','Sum','text-align:right')}${th('sjanse','Sjanse','text-align:right')}${th('vektet','Vektet','text-align:right')}
+      ${ansvarligValgt?'':th('ansvarlig','Ansvarlig')}${th('opprettet','Opprettet')}${th('forfallsdato','Neste frist')}${th('status','Status')}
     </tr></thead><tbody>
     ${rader.map(n=>{
       const farge=K360_NOTAT_FARGER[n.type]||K360_NOTAT_FARGER.Notat;
       const gyldigDato=n.forfallsdato&&!isNaN(new Date(n.forfallsdato));
-      const forfalt=gyldigDato&&n.status==='Åpen'&&new Date(n.forfallsdato)<idag;
-      const datoTxt=gyldigDato?new Date(n.forfallsdato).toLocaleDateString('nb-NO')+' kl. '+new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):'—';
+      const frist=kundesakFristStatus(n,naa);
+      const fd=gyldigDato?new Date(n.forfallsdato):null;
+      const kl=fd?fd.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):'';
+      const datoTxt=!fd?tom:(frist==='idag'?`I dag kl. ${kl}`:`${fd.toLocaleDateString('nb-NO')} kl. ${kl}`);
+      const fristKlasse=frist==='forfalt'?'ks-frist-forfalt':(frist==='idag'?'ks-frist-idag':'');
       const opprettetTxt=n.opprettetDato&&!isNaN(new Date(n.opprettetDato))?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—';
-      return `<tr>
-        <td><strong>${navnFor(n)}</strong></td>
+      const inaktiv=kundesakInaktivDager(n,naa);
+      const inaktivHtml=inaktiv?`<span class="ks-inaktiv" title="Ingen loggkommentar eller ny frist på ${inaktiv} dager — følg opp eller lukk tilbudet">💤 ${inaktiv} d</span>`:'';
+      const medSum=erTilbudMedSum(n);
+      const kunde=navnFor(n);
+      return `<tr class="rad-klikkbar" onclick="gaTilKundeFraSak('${n.id}')" title="Åpne saken hos ${kunde.replace(/"/g,'&quot;')}">
+        <td><strong>${kunde}</strong></td>
         <td><span style="font-size:11px;font-weight:700;color:${farge.c};background:${farge.bg};padding:3px 9px;border-radius:20px;white-space:nowrap">${n.type}</span></td>
-        <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.tittel||'(uten tittel)'}</td>
-        <td>${n.opprettetAv||'—'}</td>
+        <td style="max-width:280px"><div style="display:flex;align-items:center;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.tittel||'(uten tittel)'}</span>${inaktivHtml}</div></td>
+        <td style="text-align:right;white-space:nowrap">${medSum?fS(n.tilbudSum):tom}</td>
+        <td style="text-align:right;white-space:nowrap">${medSum?(n.sannsynlighet||0)+' %':tom}</td>
+        <td style="text-align:right;white-space:nowrap;font-weight:${medSum?'600':'400'};color:#6d28d9">${medSum?fS(vektet(n)):tom}</td>
+        ${ansvarligValgt?'':`<td style="white-space:nowrap">${n.opprettetAv||'—'}</td>`}
         <td style="white-space:nowrap">${opprettetTxt}</td>
-        <td style="white-space:nowrap${forfalt?';color:#d03b3b;font-weight:600':''}">${forfalt?'⏰ ':''}${datoTxt}</td>
-        <td style="white-space:nowrap">${renderNotatStatusHTML(n)}</td>
-        <td><button class="btn-sm" onclick="gaTilKundeFraSak('${n.id}')">Åpne</button></td>
+        <td style="white-space:nowrap" class="${fristKlasse}">${frist==='forfalt'?'⏰ ':''}${datoTxt}</td>
+        <td style="white-space:nowrap" onclick="event.stopPropagation()">${renderNotatStatusHTML(n)}</td>
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
 
-  ['firma','type','tittel','ansvarlig','opprettet','forfallsdato','status'].forEach(c=>{
+  ['firma','type','tittel','sum','sjanse','vektet','ansvarlig','opprettet','forfallsdato','status'].forEach(c=>{
     const el=document.getElementById('ksh-'+c);
     if(el)el.innerHTML=kundesakerSort.col===c?(kundesakerSort.dir==='asc'?'↑':'↓'):'↕';
   });
@@ -6852,7 +6948,7 @@ async function sokBrregEtterFirmanavn(navn){
 }
 
 function nullstillKundesakerFilter(){
-  kundesakerTypeFilter='alle';kundesakerBrukerFilter='alle';kundesakerVisLukkede=false;kundesakerSearch='';
+  kundesakerTypeFilter='alle';kundesakerBrukerFilter='alle';kundesakerVisLukkede=false;kundesakerSearch='';kundesakerSpesialFilter=null;
   const inp=document.getElementById('kundesaker-search');if(inp)inp.value='';
   renderKundesaker();
 }
@@ -8802,6 +8898,13 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.144',dato:'29.09.2026',punkter:[
+    'Kundesaker er bygget om: kompakte nøkkeltall øverst (pipelinereserve, åpne tilbud, vunnet denne måned, forfalt/i dag og tilbud uten aktivitet), og listen over saker rett under. Tallene følger «Ansvarlig»-filteret — velg «Alle ansvarlige» for hele KBD.',
+    'Klikk på «Forfalt / i dag», «Åpne tilbud» eller «Uten aktivitet 30+ d» for å filtrere listen. Klikk en gang til for å fjerne filteret.',
+    'Listen viser nå Sum, Sjanse og Vektet verdi for tilbud, frister i dag i oransje og passerte frister i rødt. Hele raden kan klikkes for å åpne saken.',
+    'Åpne tilbud uten loggkommentar eller ny frist på 30 dager får et 💤-merke med antall dager.',
+    'Tabellene «Vunnet pr. selger», «Tapt pr. årsak» og «Avsluttede tilbud» ligger nå i «📊 Tilbudsanalyse» nederst, som kan åpnes og lukkes.'
+  ]},
   {versjon:'v1.48.143',dato:'29.09.2026',punkter:[
     'Kalenderen for forfallsdato har fått en «✓ OK»-knapp nederst som bekrefter og lukker. Klikk på en dag holder den fortsatt åpen, så du kan justere klokkeslettet først.',
     'Hurtigvalgene («I dag 12:00», «I morgen 09:00», «Om 1 uke», «+1 time») og «Nå» lukker nå kalenderen med én gang. Hurtigvalgene står i to pene rader og skjules ikke lenger bak pilene for månedsbytte.'
