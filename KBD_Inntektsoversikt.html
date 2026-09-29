@@ -524,7 +524,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.148 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.149 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7094,14 +7094,15 @@ function renderNotatLoggHTML(n){
     const d=new Date(l.dato);
     const dStr=isNaN(d)?'—':`${d.toLocaleDateString('nb-NO')} ${d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}`;
     if(l.epost)return renderEpostLoggHTML(l,dStr,n);
+    if(l.fil)return renderFilLoggHTML(l,dStr,n);
     return `<div style="font-size:12px;color:#374151;margin-bottom:4px"><span style="color:#9ca3af">${dStr} · ${l.forfatter||'Ukjent'}:</span> ${l.tekst}</div>`;
   }).join('');
   const loggBlokk=loggListe.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e5e7eb">${loggRader}</div>`:'';
   const loggInput=salgTilgang?`<div style="display:flex;gap:6px;margin-top:8px">
     <input type="text" id="logg-input-${n.id}" placeholder="Legg til en datert oppdatering…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilLoggpost('${n.id}');}"/>
     <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilLoggpost('${n.id}')">Legg til</button>
-    <button class="btn-sm" style="padding:5px 10px;font-size:12px;white-space:nowrap" onclick="document.getElementById('epost-fil-${n.id}').click()" title="Legg til en e-post (.msg fra Outlook eller .eml) på saken — du kan også dra e-postfila rett inn på kortet">📧 E-post</button>
-    <input type="file" id="epost-fil-${n.id}" accept=".msg,.eml,message/rfc822,application/vnd.ms-outlook" multiple style="display:none" onchange="epostFraFilvelger(event,'${n.id}')"/>
+    <button class="btn-sm" style="padding:5px 10px;font-size:12px;white-space:nowrap" onclick="document.getElementById('epost-fil-${n.id}').click()" title="Legg til e-post (.msg/.eml), bilder, PDF eller andre filer på saken — du kan også dra filene rett inn på kortet">📎 Fil/e-post</button>
+    <input type="file" id="epost-fil-${n.id}" multiple style="display:none" onchange="epostFraFilvelger(event,'${n.id}')"/>
   </div>${n.status==='Åpen'?renderLoggFristValgHTML(n):''}`:'';
   return `${loggBlokk}${loggInput}`;
 }
@@ -9054,6 +9055,7 @@ function epostDrop(ev,id,el){
   const filer=[...(ev.dataTransfer?.files||[])];
   if(!filer.length){
     // Klassisk Outlook → nettleser gir typisk INGEN fil, bare tekst/metadata.
+    // (Gjelder også dra-og-slipp av tekst/lenker fra andre programmer.)
     if(ev.dataTransfer&&[...(ev.dataTransfer.types||[])].length){ev.preventDefault();alert('Nettleseren fikk ikke selve e-postfila fra Outlook.\n\nDra e-posten til skrivebordet (eller en mappe) først, og dra den fila hit — eller bruk «📧 E-post»-knappen på saken.');}
     return;
   }
@@ -9072,9 +9074,9 @@ async function leggTilEpostPaSak(id,fil){
   if(!salgTilgang)return;
   const navn=fil.name||'epost';
   const ext=(navn.split('.').pop()||'').toLowerCase();
-  if(ext!=='msg'&&ext!=='eml'){alert(`«${navn}» er ikke en e-postfil. Bruk .msg (Outlook) eller .eml.`);return;}
   if(fil.size>EPOST_MAKS_BYTES){alert(`«${navn}» er for stor (${Math.round(fil.size/1048576)} MB, maks 25 MB).`);return;}
   if(!n.spId){alert('Saken er ikke ferdig lagret ennå — vent et øyeblikk og prøv igjen.');return;}
+  if(ext!=='msg'&&ext!=='eml')return leggTilFilPaSak(n,fil); // v1.48.149: alle andre filtyper
   let epost;
   try{epost=await lesEpostFil(fil);}
   catch(e){console.error('Klarte ikke lese e-postfila',e);alert(`Klarte ikke lese «${navn}» som e-post:\n${e.message}`);return;}
@@ -9112,6 +9114,104 @@ async function apneEpostOriginal(id,idx){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download=e.filnavn||'epost.msg';document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+
+// ===== FILER OG BILDER PÅ SAK (v1.48.149, 29.09.2026) =====
+// Thomas: «kan vi da også dra inn andre filer?» — ja, med forhåndsvisning av
+// bilder. Samme dra-og-slipp / «📎 Fil/e-post»-knapp som e-post (v1.48.148):
+// .msg/.eml går til e-postlogikken, ALT annet hit. Originalen lastes opp til
+// «Kundesaker-filer/<spId>/<tidsstempel>-<filnavn>», loggposten blir
+// {dato, tekst:"📎 Fil: <navn>", forfatter, fil:{navn, sti, storrelse, type}}.
+// Til forskjell fra e-post: feiler opplastingen, lagres INGEN loggpost (en
+// filoppføring uten fil er verdiløs) — brukeren får beskjed. Kjørbare filer
+// (.exe/.bat/.ps1 osv.) avvises. Bilder (png/jpg/gif/webp/bmp) vises som et
+// lite miniatyrbilde som hentes via spHentFilBlob() (delegert token) og caches
+// som objekt-URL i sakFilBildeCache — klikk åpner bildet i full størrelse.
+const SAK_FIL_BLOKKERT=['exe','bat','cmd','com','msi','scr','ps1','vbs','js','jse','wsf','lnk','reg','dll','cpl','hta'];
+const SAK_FIL_BILDE=/^image\/(png|jpe?g|gif|webp|bmp)$/i;
+const sakFilBildeCache={}; // sti → objekt-URL
+function sakFilStorrelse(b){return b>=1048576?`${(b/1048576).toFixed(1).replace('.',',')} MB`:b>=1024?`${Math.round(b/1024)} KB`:`${b} B`;}
+function sakFilIkon(navn,type){
+  const ext=(String(navn).split('.').pop()||'').toLowerCase();
+  if(SAK_FIL_BILDE.test(type||''))return '🖼️';
+  if(ext==='pdf')return '📕';
+  if(['xls','xlsx','csv'].includes(ext))return '📊';
+  if(['doc','docx','txt','rtf'].includes(ext))return '📄';
+  if(['zip','7z','rar'].includes(ext))return '🗜️';
+  return '📎';
+}
+function sakFilType(fil){
+  if(fil.type)return fil.type;
+  const ext=(fil.name.split('.').pop()||'').toLowerCase();
+  return({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',pdf:'application/pdf'})[ext]||'application/octet-stream';
+}
+
+async function leggTilFilPaSak(n,fil){
+  const navn=fil.name||'fil';
+  const ext=(navn.split('.').pop()||'').toLowerCase();
+  if(SAK_FIL_BLOKKERT.includes(ext)){alert(`«${navn}» kan ikke legges på en sak (kjørbar filtype).`);return;}
+  setSPStatus('⏳ Laster opp fil…');
+  const naa=new Date();
+  const trygtNavn=navn.replace(/[\\/:*?"<>|#%]+/g,'_').slice(-120);
+  const sti=`Kundesaker-filer/${n.spId}/${naa.toISOString().replace(/[:.]/g,'-')}-${trygtNavn}`;
+  const type=sakFilType(fil);
+  try{await spLastOppFil(sti,fil);}
+  catch(e){setSPStatus('❌ '+e.message,false);alert(`⚠️ Klarte ikke laste opp «${navn}» til SharePoint:\n${e.message}`);return;}
+  if(SAK_FIL_BILDE.test(type)){try{sakFilBildeCache[sti]=URL.createObjectURL(fil);}catch{}}
+  if(!Array.isArray(n.logg))n.logg=[];
+  n.logg.push({dato:naa.toISOString(),tekst:`📎 Fil: ${navn}`,forfatter:currentUser?.name||currentUser?.username||'Ukjent',fil:{navn,sti,storrelse:fil.size,type}});
+  markerAktivitet(n);
+  if(k360Valgt)renderKundeKort(k360Valgt);
+  renderKundesaker();
+  try{
+    await spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),{Logg:JSON.stringify(n.logg),SistAktivitet:n.sistAktivitet},NOTAT_MYKE_FELTER);
+    setSPStatus('✅ Fil lagret');setTimeout(()=>setSPStatus(''),3000);
+  }catch(e){
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Fila ble lastet opp, men kunne ikke kobles til saken i SharePoint:\n'+e.message);
+  }
+}
+
+function renderFilLoggHTML(l,dStr,n){
+  const f=l.fil||{};
+  const idx=(n.logg||[]).indexOf(l);
+  const erBilde=SAK_FIL_BILDE.test(f.type||'');
+  const bildeId=`sakfil-${n.id}-${idx}`;
+  if(erBilde)setTimeout(()=>lastSakFilBilde(bildeId,f),0);
+  return `<div style="font-size:12px;color:#374151;margin-bottom:6px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;display:flex;gap:10px;align-items:center">
+    ${erBilde?`<img id="${bildeId}" alt="${escHtmlEpost(f.navn)}" title="Klikk for full størrelse" onclick="apneSakFil('${n.id}',${idx},true)" style="width:72px;height:72px;object-fit:cover;border-radius:4px;background:#e5e7eb;cursor:pointer;flex-shrink:0"/>`:''}
+    <div style="min-width:0;flex:1">
+      <div><span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> ${sakFilIkon(f.navn,f.type)} <strong style="word-break:break-all">${escHtmlEpost(f.navn||'fil')}</strong> <span style="color:#9ca3af">(${sakFilStorrelse(f.storrelse||0)})</span></div>
+      <button class="btn-sm" style="margin-top:4px;padding:3px 9px;font-size:11px" onclick="apneSakFil('${n.id}',${idx},false)">📎 Last ned</button>
+    </div>
+  </div>`;
+}
+async function lastSakFilBilde(elId,f){
+  const el=document.getElementById(elId);if(!el||el.dataset.lastet)return;
+  el.dataset.lastet='1';
+  let url=sakFilBildeCache[f.sti];
+  if(!url){
+    const blob=await spHentFilBlob(f.sti).catch(()=>null);
+    if(!blob){el.alt='(bildet kunne ikke hentes)';return;}
+    url=URL.createObjectURL(new Blob([blob],{type:f.type||blob.type}));
+    sakFilBildeCache[f.sti]=url;
+  }
+  const el2=document.getElementById(elId);if(el2)el2.src=url;
+}
+async function apneSakFil(id,idx,visBilde){
+  const n=kundeNotater.find(x=>x.id===id);const f=n?.logg?.[idx]?.fil;
+  if(!f?.sti){alert('Fant ikke fila.');return;}
+  let url=sakFilBildeCache[f.sti];
+  if(!url){
+    setSPStatus('⏳ Henter fil…');
+    const blob=await spHentFilBlob(f.sti).catch(()=>null);
+    setSPStatus('');
+    if(!blob){alert('Klarte ikke hente fila fra SharePoint.');return;}
+    url=URL.createObjectURL(new Blob([blob],{type:f.type||blob.type}));
+    if(SAK_FIL_BILDE.test(f.type||''))sakFilBildeCache[f.sti]=url;
+  }
+  if(visBilde){const w=window.open(url,'_blank');if(w)return;}
+  const a=document.createElement('a');a.href=url;a.download=f.navn||'fil';document.body.appendChild(a);a.click();a.remove();
 }
 
 // --- Lesing av e-postfiler (ren nettleserkode, ingen opplasting) ---
@@ -9244,6 +9344,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.149',dato:'29.09.2026',punkter:[
+    'Du kan nå legge alle typer filer på en sak, ikke bare e-post: bilder, PDF, Excel, Word og andre. Dra filene inn på saken, eller trykk «📎 Fil/e-post». Bilder vises som et lite bilde i loggen og åpnes i full størrelse når du klikker på det.'
+  ]},
   {versjon:'v1.48.148',dato:'29.09.2026',punkter:[
     'Du kan nå legge en e-post rett på en sak i «Salg & oppfølging»: dra e-postfila (.msg fra Outlook eller .eml) inn på saken, eller trykk «📧 E-post» og velg fila. Avsender, emne, dato og innhold vises i loggen, og originalen kan lastes ned igjen.',
     'Kommer ikke e-posten med når du drar den rett fra Outlook? Dra den til skrivebordet først, og dra den fila inn på saken.'
