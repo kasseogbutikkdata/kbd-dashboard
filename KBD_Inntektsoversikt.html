@@ -502,7 +502,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.144 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.145 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -809,7 +809,7 @@ tr:hover td{background:#fafafa}
     <div id="kundesaker-tabell"></div>
     <div class="card card-public" style="margin-top:16px">
       <details class="ks-analyse" id="tilbudsanalyse-details" ontoggle="lagreTilbudsanalyseApen(this.open)">
-        <summary><span class="ks-pil">▸</span>📊 Tilbudsanalyse <span class="hint" style="font-weight:400;margin:0">— vunnet pr. selger, tapt pr. årsak og avsluttede tilbud (hele KBD)</span></summary>
+        <summary><span class="ks-pil">▸</span>📊 Tilbudsanalyse <span class="hint" style="font-weight:400;margin:0">— treffprosent, vunnet pr. selger, tapt pr. årsak og avsluttede tilbud (hele KBD)</span></summary>
         <div id="tilbudspipeline-body" style="margin-top:12px"></div>
       </details>
     </div>
@@ -3698,7 +3698,7 @@ function renderVarselMeny(){
   badge.textContent=mine.length>99?'99+':String(mine.length);
 
   dropdown.innerHTML=mine.map(n=>{
-    const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+    const kunde=vismaKunder.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer));
     const kundeNavnVis=n.kundeNavn||kunde?.navn||'Ukjent kunde';
     const ikon=n.type==='Tilbud'?'📄':n.type==='Notat'?'📝':'🔔';
     return `<div onclick="gaTilNotatFraVarsel('${n.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
@@ -3757,7 +3757,7 @@ function gaTilNotatFraVarsel(id){
   // (Kundesaker-fanens "Åpne"-knapp) bruker, som alltid har fungert korrekt for
   // prospekter.
   const alleKunder=[...vismaKunder,...hentProspektKunder()];
-  const kunde=alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+  const kunde=alleKunder.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer));
   closeVarselMeny();
   if(!kunde){console.warn('Fant ikke kunden for varselet i vismaKunder-lista eller blant overførte prospekter:',n.vismaKundeNummer);return;}
   markerVarselSett(n);
@@ -4524,7 +4524,7 @@ function renderKonkurser(){
   }
 
   const finnVarsel=k=>kundeNotater.find(n=>
-    String(n.vismaKundeNummer||'').trim()===String(k.vismaNummer||'').trim()&&
+    samKundenr(n.vismaKundeNummer,k.vismaNummer)&&
     (n.tittel||'').startsWith('Konkursvarsel:')
   );
 
@@ -4626,6 +4626,7 @@ const JOBBER_KONFIG={
   fyll_pureservice_orgnr:{visningsnavn:'Pureservice org.nr-synk',maksMinutter:26*60},
   sjekk_susoft_rma:{visningsnavn:'Susoft RMA-varsling',maksMinutter:26*60},
   sjekk_sos_invitasjoner:{visningsnavn:'Silent Ordering-invitasjoner',maksMinutter:26*60},
+  send_salgsoppsummering:{visningsnavn:'Kunde 360 – ukentlig salgsoppsummering',maksMinutter:8*24*60}, // lagt til 29.09.2026, mandag 06:00 UTC — holdes i sync med JOBBER i jobbstatus.py
   // RETTET 10.09.2026: disse tre sto med 6*60 (6t), men jobbene kjører kun én
   // gang i døgnet — 6t margin garanterte rødt hver kveld uten reell feil.
   // Hevet til 26*60, samme som de andre daglige jobbene over.
@@ -5885,6 +5886,44 @@ function settNyStatus(id,status){
 // som med et ekte Visma-nummer (feltet bryr seg ikke om formatet).
 function prospektKundenummer(n){return 'LEAD-'+(n.orgNr||n.spId||n.id);}
 
+// ===== PROSPEKT → VISMA-KUNDE (lagt til 29.09.2026, v1.48.145, «4A») =====
+// Når et prospekt (Nyetableringer-rad med Status=Overført) senere blir
+// opprettet som ekte kunde i Visma og KundeSync henter det inn, fantes det
+// før ingen kobling: sakene lå igjen på «LEAD-<orgnr>», og kunden fantes to
+// ganger (prospekt med saker + tom Visma-kunde). Nå kobles de i DASHBORDET på
+// org.nr — ingenting skrives om i SharePoint (sakene beholder
+// VismaKundeNummer="LEAD-<orgnr>"), så løsningen er trygg og virker
+// automatisk for både gamle og nye tilfeller:
+//  - prospektAliasMap(): "LEAD-<orgnr>" → Visma-kundenummer, for prospekter
+//    der en Visma-kunde har samme org.nr.
+//  - samKundenr(a,b): sammenligner to kundenøkler etter alias-oppslag — brukes
+//    i STEDET for direkte ===-sammenligning av vismaKundeNummer mot vismaNummer.
+//  - hentProspektKunder() skjuler slike «konverterte» prospekter, så de ikke
+//    dukker opp dobbelt i søk/lister.
+// Begrensning: prospekter UTEN org.nr (manuelt registrert, nøkkel
+// "LEAD-<spId>") kobles ikke automatisk (alternativ B, ikke bygget).
+let _prospektAliasCache={sig:'',map:new Map()};
+function prospektAliasMap(){
+  const overfort=nyetableringer.filter(n=>n.status==='Overført'&&n.orgNr);
+  const sig=`${vismaKunder.length}|${overfort.length}|${overfort.map(n=>n.id).join(',')}`;
+  if(_prospektAliasCache.sig===sig)return _prospektAliasCache.map;
+  const vismaPrOrgnr=new Map();
+  vismaKunder.forEach(k=>{const nr=normOrgNr(k.orgNr);if(nr.length===9&&!vismaPrOrgnr.has(nr))vismaPrOrgnr.set(nr,String(k.vismaNummer||'').trim());});
+  const map=new Map();
+  overfort.forEach(n=>{const v=vismaPrOrgnr.get(normOrgNr(n.orgNr));if(v)map.set(prospektKundenummer(n),v);});
+  _prospektAliasCache={sig,map};
+  return map;
+}
+function effektivKundenr(nr){
+  const s=String(nr||'').trim();
+  if(!s.startsWith('LEAD-'))return s;
+  return prospektAliasMap().get(s)||s;
+}
+function samKundenr(a,b){
+  const x=effektivKundenr(a);
+  return x!==''&&x===effektivKundenr(b);
+}
+
 function hentProspektKunder(){
   // manueltOpprettet: skiller "🆕 Ny etablering" (kom via Nyetableringer/Brreg)
   // fra "📞 Manuelt registrert" (opprettet direkte via lagreNyKunde(), lagt til
@@ -5892,7 +5931,8 @@ function hentProspektKunder(){
   // bruker at RegistreringsDato ALLTID er satt av backend for ekte Brreg-
   // funn (_til_item_felter() i nyetableringer.py), men aldri for en manuelt
   // opprettet rad.
-  return nyetableringer.filter(n=>n.status==='Overført').map(n=>{
+  const alias=prospektAliasMap(); // v1.48.145: skjul prospekter som nå finnes som Visma-kunde (samme org.nr)
+  return nyetableringer.filter(n=>n.status==='Overført'&&!alias.has(prospektKundenummer(n))).map(n=>{
     const manueltOpprettet=!n.registreringsDato;
     return{
       id:'lead-'+n.id,
@@ -6040,7 +6080,7 @@ function renderKunder360Oversikt(){
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;margin-bottom:20px">
       <div style="font-weight:600;color:#b91c1c;font-size:13.5px;margin-bottom:8px">🔔 Du har ${mineVarsler.length} oppføring${mineVarsler.length>1?'er':''} som har forfalt</div>
       ${mineVarsler.map(n=>{
-        const kunde=vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+        const kunde=vismaKunder.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer));
         return `<div style="font-size:13px;color:#374151;padding:4px 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
           <span>[${n.type}] «${n.tittel||'(uten tittel)'}»${kunde?` — ${kunde.navn}`:''}</span>
           <span style="color:#9ca3af;font-size:12px">forfalt ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}</span>
@@ -6234,7 +6274,7 @@ function handleDeepLink(){
   const kundeParam=(params.get('kunde')||'').trim();
   if(!kundeParam)return;
 
-  const kunde=[...vismaKunder,...hentProspektKunder()].find(k=>String(k.vismaNummer||'').trim()===kundeParam);
+  const kunde=[...vismaKunder,...hentProspektKunder()].find(k=>samKundenr(k.vismaNummer,kundeParam)); // samKundenr: e-postlenker til et prospekt som siden er blitt Visma-kunde (v1.48.145)
   if(!kunde){console.warn('Deep link: fant ingen kunde med Visma-nr',kundeParam);return;}
 
   showTab('kunder');
@@ -6613,11 +6653,34 @@ function kundesakerTaptPrArsak(){
 // defineres der (renderTilbudspipeline kalles helt øverst i renderKundesaker).
 function kundesakerAvsluttedeTilbud(){
   const alleKunder=[...vismaKunder,...hentProspektKunder()];
-  const navnFor=n=>n.kundeNavn||alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim())?.navn||'Ukjent kunde';
+  const navnFor=n=>n.kundeNavn||alleKunder.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer))?.navn||'Ukjent kunde';
   return kundeNotater.filter(n=>n.type==='Tilbud'&&n.status==='Lukket'&&n.tilbudUtfall)
     .map(n=>({n,kunde:navnFor(n)}))
     .sort((a,b)=>new Date(b.n.tilbudLukketDato||b.n.opprettetDato||0)-new Date(a.n.tilbudLukketDato||a.n.opprettetDato||0));
 }
+// Treffprosent pr. selger (v1.48.145, «punkt 2») — andel avsluttede tilbud
+// som ble vunnet, både i antall og i kroner, pluss snitt dager fra tilbudet
+// ble opprettet til det ble avgjort (TilbudLukketDato − OpprettetDato).
+// Grunnlag: kun tilbud MED utfall (Vunnet/Tapt). Snitt dager bruker kun
+// tilbud der begge datoene finnes (gamle tilbud lukket før TilbudLukketDato-
+// kolonnen fantes, telles med i treffprosent men ikke i snittet).
+function kundesakerTreffprosentPrSelger(){
+  const grupper={};
+  const leggTil=(nokkel,n)=>{
+    if(!grupper[nokkel])grupper[nokkel]={selger:nokkel,vunnet:0,tapt:0,sumVunnet:0,sumTapt:0,dagerSum:0,dagerAntall:0};
+    const g=grupper[nokkel];
+    if(n.tilbudUtfall==='Vunnet'){g.vunnet++;g.sumVunnet+=n.tilbudSum||0;}else{g.tapt++;g.sumTapt+=n.tilbudSum||0;}
+    const fra=new Date(n.opprettetDato),til=new Date(n.tilbudLukketDato);
+    if(n.opprettetDato&&n.tilbudLukketDato&&!isNaN(fra)&&!isNaN(til)&&til>=fra){g.dagerSum+=(til-fra)/86400000;g.dagerAntall++;}
+  };
+  const avsluttet=kundeNotater.filter(n=>n.type==='Tilbud'&&(n.tilbudUtfall==='Vunnet'||n.tilbudUtfall==='Tapt'));
+  avsluttet.forEach(n=>{leggTil(n.opprettetAv||'Ukjent',n);leggTil('__TOTALT__',n);});
+  const ut=g=>({...g,antall:g.vunnet+g.tapt,treffAntall:(g.vunnet+g.tapt)?g.vunnet/(g.vunnet+g.tapt)*100:null,treffVerdi:(g.sumVunnet+g.sumTapt)?g.sumVunnet/(g.sumVunnet+g.sumTapt)*100:null,snittDager:g.dagerAntall?g.dagerSum/g.dagerAntall:null});
+  const totalt=grupper.__TOTALT__?ut(grupper.__TOTALT__):null;
+  delete grupper.__TOTALT__;
+  return{rader:Object.values(grupper).map(ut).sort((a,b)=>b.antall-a.antall||a.selger.localeCompare(b.selger,'nb')),totalt};
+}
+
 function renderTilbudspipeline(){
   const target=document.getElementById('tilbudspipeline-body');
   if(!target)return; // fanen er ikke synlig/rendret ennå — samme mønster som renderKundesaker() sin egen DOM-sjekk
@@ -6640,7 +6703,15 @@ function renderTilbudspipeline(){
   // flyttet opp i nøkkeltall-raden (renderKundesakerKpi()). Her står kun
   // analysetabellene, i den sammenleggbare «📊 Tilbudsanalyse».
   void reserve;void fullSum;void card;
+  const treff=kundesakerTreffprosentPrSelger();
+  const pst=v=>v==null?'—':`${Math.round(v)} %`;
+  const dg=v=>v==null?'—':`${Math.round(v)} d`;
+  const treffRad=(g,fet)=>`<tr${fet?' style="font-weight:700;background:#f9fafb"':''}><td>${fet?'Totalt (hele KBD)':g.selger}</td><td>${g.vunnet}</td><td>${g.tapt}</td><td>${pst(g.treffAntall)}</td><td>${pst(g.treffVerdi)}</td><td>${dg(g.snittDager)}</td></tr>`;
   target.innerHTML=`
+    <div class="hint" style="margin-bottom:8px">🎯 Treffprosent pr. selger — andel avsluttede tilbud som ble vunnet, og snitt dager fra tilbud til avgjørelse</div>
+    ${treff.totalt?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Selger</th><th>Vunnet</th><th>Tapt</th><th>Treff (antall)</th><th>Treff (kroner)</th><th>Snitt dager</th></tr></thead><tbody>
+      ${treff.rader.map(g=>treffRad(g,false)).join('')}${treff.rader.length>1?treffRad(treff.totalt,true):''}
+    </tbody></table></div>`:'<div class="empty" style="margin-bottom:16px">Ingen avsluttede tilbud med utfall ennå.</div>'}
     <div class="hint" style="margin-bottom:8px">Vunnet pr. selger pr. måned</div>
     ${grupper.length?`<div class="tbl-wrap"><table><thead><tr><th>Selger</th><th>Måned</th><th>Vunnet sum</th><th>Antall</th></tr></thead><tbody>
       ${grupper.map(g=>`<tr><td>${g.selger}</td><td>${KS_MAANEDSNAVN[g.maaned]} ${g.aar}</td><td>${fS(g.sum)}</td><td>${g.antall}</td></tr>`).join('')}
@@ -6771,7 +6842,7 @@ function renderKundesaker(){
   // Søkbar kunde-pool = ekte Visma-kunder + prospekter overført fra
   // Nyetableringer, samme mønster som searchKunder360().
   const alleKunder=[...vismaKunder,...hentProspektKunder()];
-  const finnKunde=n=>alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+  const finnKunde=n=>alleKunder.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer));
   const navnFor=n=>n.kundeNavn||finnKunde(n)?.navn||'Ukjent kunde';
 
   // brukerListe + default for kundesakerBrukerFilter (v1.48.101/127, uendret):
@@ -6962,7 +7033,7 @@ function gaTilKundeFraSak(id){
   const n=kundeNotater.find(x=>x.id===id);
   if(!n)return;
   const alleKunder=[...vismaKunder,...hentProspektKunder()];
-  const kunde=alleKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim());
+  const kunde=alleKunder.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer));
   if(!kunde){alert('Fant ikke kunden i Visma-synken (eller blant overførte prospekter) for denne saken — kan skyldes at kunden ikke er synkronisert ennå.');return;}
   showTab('kunder',document.getElementById('tab-kunder'));
   document.getElementById('k360-search').value=kunde.navn||'';
@@ -6992,7 +7063,7 @@ function renderNotatLoggHTML(n){
   const loggInput=salgTilgang?`<div style="display:flex;gap:6px;margin-top:8px">
     <input type="text" id="logg-input-${n.id}" placeholder="Legg til en datert oppdatering…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilLoggpost('${n.id}');}"/>
     <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilLoggpost('${n.id}')">Legg til</button>
-  </div>`:'';
+  </div>${n.status==='Åpen'?renderLoggFristValgHTML(n):''}`:'';
   return `${loggBlokk}${loggInput}`;
 }
 
@@ -7028,7 +7099,7 @@ function toggleNotatInnhold(boksId,btn){
 
 function renderKundeNotaterHTML(k){
   const kNr=String(k.vismaNummer||'').trim();
-  const notaterAlle=kundeNotater.filter(n=>String(n.vismaKundeNummer||'').trim()===kNr)
+  const notaterAlle=kundeNotater.filter(n=>samKundenr(n.vismaKundeNummer,kNr))
     .sort((a,b)=>new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0));
   const notater=k360NotatFilter==='alle'?notaterAlle:notaterAlle.filter(n=>n.type===k360NotatFilter);
   const idag=new Date();
@@ -7259,7 +7330,7 @@ function openRedigerNotat(id){
   document.getElementById('n-varsle-dashbord').checked=n.varsleDashbord!==false;
   document.getElementById('n-edit-id').value=n.id;
   document.getElementById('n-kunde-nr').value=n.vismaKundeNummer;
-  document.getElementById('n-kunde-navn').value=n.kundeNavn||(vismaKunder.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim())||{}).navn||'';
+  document.getElementById('n-kunde-navn').value=n.kundeNavn||(vismaKunder.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer))||{}).navn||'';
   updateNotatFormFields();
   document.getElementById('notat-modal').classList.add('open');
 }
@@ -8851,6 +8922,34 @@ function setK360NotatFilter(f){
   if(k360Valgt)renderKundeKort(k360Valgt);
 }
 
+// ===== NESTE FRIST MED ETT KLIKK (v1.48.145, «punkt 1») =====
+// Under loggfeltet på en ÅPEN sak: velg «neste frist» (I morgen / 3 dager /
+// 1 uke / 2 uker, alltid kl. 09:00) samtidig som du skriver en loggkommentar.
+// Ved «Legg til» lagres både kommentaren og ny Forfallsdato (VarselSendt
+// nullstilles, så varselet går på nytt — samme regel som i saveNotat()).
+// Kan også brukes uten tekst: da logges «Neste frist satt til …» automatisk.
+// Gir en fast oppfølgingsrytme, og tilbudet faller ut av 💤-lista (en frist
+// frem i tid = planlagt, ikke inaktivt — se kundesakInaktivDager()).
+const LOGG_FRIST_VALG=[{dager:1,lbl:'I morgen'},{dager:3,lbl:'Om 3 dager'},{dager:7,lbl:'Om 1 uke'},{dager:14,lbl:'Om 2 uker'}];
+const loggFristValg={}; // sak-id → antall dager (ikke lagret, kun mens kortet er åpent)
+function renderLoggFristValgHTML(n){
+  const valgt=loggFristValg[n.id];
+  const chips=LOGG_FRIST_VALG.map(v=>`<button type="button" class="knd-dato-snarvei" data-dager="${v.dager}" onclick="velgLoggFrist('${n.id}',${v.dager},this)" style="padding:3px 9px;font-size:11px${valgt===v.dager?';background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}">${v.lbl}</button>`).join('');
+  return `<div id="logg-frist-${n.id}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">
+    <span style="font-size:11px;color:#6b7280">Neste frist:</span>${chips}
+  </div>`;
+}
+function velgLoggFrist(id,dager,btn){
+  loggFristValg[id]=loggFristValg[id]===dager?undefined:dager;
+  const rad=document.getElementById('logg-frist-'+id);if(!rad)return;
+  rad.querySelectorAll('button[data-dager]').forEach(b=>{
+    const pa=Number(b.dataset.dager)===loggFristValg[id];
+    b.style.background=pa?'#1A3A6B':'';b.style.color=pa?'#fff':'';b.style.borderColor=pa?'#1A3A6B':'';
+  });
+  const input=document.getElementById('logg-input-'+id);if(input)input.focus();
+}
+function loggFristDato(dager){const d=new Date();d.setDate(d.getDate()+dager);d.setHours(9,0,0,0);return d;}
+
 // leggTilLoggpost: raskt, dato-stemplet oppdatering PÅ en eksisterende
 // oppføring — f.eks. "ringte kunden, avventer svar" — uten å måtte åpne hele
 // rediger-skjemaet. Lagres i Logg-feltet (JSON-array), nyeste øverst i UI.
@@ -8858,15 +8957,27 @@ function leggTilLoggpost(id){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   const input=document.getElementById('logg-input-'+id);
   if(!input)return;
-  const tekst=input.value.trim();
-  if(!tekst)return;
+  const fristDager=n.status==='Åpen'?loggFristValg[id]:undefined; // v1.48.145
+  const nyFrist=fristDager?loggFristDato(fristDager):null;
+  let tekst=input.value.trim();
+  if(!tekst&&!nyFrist)return;
+  const fristTxt=nyFrist?`${nyFrist.toLocaleDateString('nb-NO')} kl. 09:00`:'';
+  if(!tekst)tekst=`Neste frist satt til ${fristTxt}`;
+  else if(nyFrist)tekst+=` (neste frist: ${fristTxt})`;
   if(!Array.isArray(n.logg))n.logg=[];
   n.logg.push({dato:new Date().toISOString(),tekst,forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
   input.value='';
+  const felter={Logg:JSON.stringify(n.logg)};
+  if(nyFrist){
+    n.forfallsdato=nyFrist.toISOString();n.varselSendt=false;
+    felter.Forfallsdato=n.forfallsdato;felter.VarselSendt=false;
+    delete loggFristValg[id];
+  }
   if(k360Valgt)renderKundeKort(k360Valgt);
+  renderKundesaker();renderVarselMeny?.();
   if(n.spId){
     setSPStatus('⏳ Lagrer…');
-    spUpdate('KundeNotater',n.spId,{Logg:JSON.stringify(n.logg)}).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppdateringen ble ikke lagret til SharePoint:\n'+e.message);});
+    spUpdate('KundeNotater',n.spId,felter).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Oppdateringen ble ikke lagret til SharePoint:\n'+e.message);});
   }
 }
 
@@ -8898,6 +9009,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.145',dato:'29.09.2026',punkter:[
+    'Kundekortet: under feltet for loggkommentar kan du velge «Neste frist» (I morgen, Om 3 dager, Om 1 uke, Om 2 uker, kl. 09:00). Fristen lagres sammen med kommentaren, og du kan også sette en frist uten å skrive noe.',
+    'Tilbudsanalyse: ny tabell «Treffprosent pr. selger» som viser hvor stor andel av tilbudene som er vunnet, i antall og i kroner, og hvor mange dager det i snitt tar fra tilbud til avgjørelse.',
+    'Når et prospekt senere blir opprettet som kunde i Visma (samme org.nr), vises sakene fra prospektet automatisk på Visma-kunden, og prospektet blir ikke lenger vist dobbelt i søk og lister.',
+    'Jobbstatus: ny jobb «Kunde 360 – ukentlig salgsoppsummering» (e-post til hver selger mandag morgen, starter i testmodus).'
+  ]},
   {versjon:'v1.48.144',dato:'29.09.2026',punkter:[
     'Kundesaker er bygget om: kompakte nøkkeltall øverst (pipelinereserve, åpne tilbud, vunnet denne måned, forfalt/i dag og tilbud uten aktivitet), og listen over saker rett under. Tallene følger «Ansvarlig»-filteret — velg «Alle ansvarlige» for hele KBD.',
     'Klikk på «Forfalt / i dag», «Åpne tilbud» eller «Uten aktivitet 30+ d» for å filtrere listen. Klikk en gang til for å fjerne filteret.',
@@ -10435,7 +10552,7 @@ function hentTrengerOppmerksomhet(){
       if(!erMin)return false;
       return n.forfallsdato&&!isNaN(new Date(n.forfallsdato))&&new Date(n.forfallsdato)<naa;
     }).forEach(n=>{
-      const kundeNavn=n.kundeNavn||alleKunderForOpp.find(k=>String(k.vismaNummer||'').trim()===String(n.vismaKundeNummer||'').trim())?.navn||'Ukjent kunde';
+      const kundeNavn=n.kundeNavn||alleKunderForOpp.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer))?.navn||'Ukjent kunde';
       punkter.push({ikon:'📁',tekst:`${n.type} – ${kundeNavn} – ${n.tittel||'(uten tittel)'} – forfalt`,handling:()=>gaTilKundeFraSak(n.id)});
     });
   }
