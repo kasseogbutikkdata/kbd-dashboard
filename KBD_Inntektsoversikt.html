@@ -473,7 +473,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.141 · Oppdatert: 28. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.142 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -782,7 +782,7 @@ tr:hover td{background:#fafafa}
       <div class="frow" style="margin-bottom:4px">
         <input type="text" id="kundesaker-search" placeholder="Søk på firmanavn eller tittel…" style="flex:1" oninput="setKundesakerSearch(this.value)" onkeydown="if(event.key==='Enter')setKundesakerSearch(this.value)"/>
         <button class="prim" onclick="setKundesakerSearch(document.getElementById('kundesaker-search').value)">Søk</button>
-        <button class="btn-sm" id="kundesaker-ny-kunde-btn" style="display:none" onclick="openNyKundeModal()" title="For kunder som tar kontakt selv og ikke finnes i Visma eller Nyetableringer ennå">➕ Ny kunde</button>
+        <button class="btn-sm" id="kundesaker-ny-kunde-btn" style="display:none" onclick="openNyttLeadModal()" title="Registrer et nytt lead/en ny sak i ett steg — velg eksisterende kunde eller finn firmaet i Brønnøysundregisteret, kunden opprettes automatisk ved behov">➕ Nytt lead</button>
       </div>
       <div class="hint">Samlet oversikt over alle salgsnotater, tilbud og oppfølginger på tvers av alle kunder — uavhengig av hvem som opprettet dem. Klikk en kolonneoverskrift for å sortere, eller bruk filtrene under for å se kun én type eller én ansvarlig.</div>
       <div class="filters" id="kundesaker-filters" style="margin-top:10px"></div>
@@ -1760,6 +1760,28 @@ tr:hover td{background:#fafafa}
   <div class="modal-overlay" id="notat-modal" onclick="if(event.target===this)closeNotatModal()">
     <div class="modal" style="max-width:520px">
       <h3 id="notat-modal-title" style="margin-bottom:16px">Ny oppføring</h3>
+      <!-- NYTT LEAD (lagt til 29.09.2026, v1.48.142) — kunde-/firmavelger som
+           KUN vises når modalen åpnes via «➕ Nytt lead» i Kundesaker
+           (openNyttLeadModal()). Lar selgeren registrere et lead i ETT steg:
+           velg eksisterende kunde/prospekt ELLER et firma fra Brreg (eller skriv
+           inn manuelt), fyll inn første sak, Lagre — prospektet opprettes da i
+           bakgrunnen av saveNotat() via opprettLeadKunde(). Skjult (og uten
+           effekt) for vanlig «Ny oppføring»/«Rediger» fra kundekortet. -->
+      <div class="fgrp" id="n-lead-wrap" style="display:none;margin-bottom:12px;background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:10px 12px">
+        <label>Kunde / firma *</label>
+        <div class="vf-kunde-ac" style="min-width:100%">
+          <input type="text" id="n-lead-sok" placeholder="Søk kunde, firmanavn eller org.nr…" oninput="leadKundeSok()" onfocus="leadKundeSok()" onblur="setTimeout(()=&gt;{const d=document.getElementById('n-lead-treff');if(d)d.style.display='none';},200)" autocomplete="off" style="width:100%"/>
+          <div id="n-lead-treff" class="vf-ac-treff"></div>
+        </div>
+        <div id="n-lead-valgt" style="font-size:12px;margin-top:6px;color:#1e40af"></div>
+        <div id="n-lead-kontakt" style="display:none;margin-top:8px">
+          <div class="fg" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div class="fgrp" style="margin-bottom:0"><label>Kontaktperson</label><input type="text" id="n-lead-kontakt-navn" placeholder="Navn"/></div>
+            <div class="fgrp" style="margin-bottom:0"><label>Telefon</label><input type="text" id="n-lead-kontakt-telefon" placeholder="12345678"/></div>
+            <div class="fgrp" style="margin-bottom:0"><label>E-post</label><input type="email" id="n-lead-kontakt-epost" placeholder="navn@firma.no"/></div>
+          </div>
+        </div>
+      </div>
       <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
         <div class="fgrp"><label>Type</label>
           <select id="n-type" onchange="updateNotatFormFields()">
@@ -6803,15 +6825,18 @@ async function sokBrregEtterFirmanavn(navn){
       target.innerHTML=`<div class="empty">Ingen treff i Brønnøysundregisteret på «${q}».</div>`;
       return;
     }
+    // v1.48.142: knappen åpner nå «➕ Nytt lead» (kunde + første sak i ett
+    // steg) med firmaet forhåndsvalgt, i stedet for den gamle «Opprett som ny
+    // kunde»-modalen som krevde en egen runde via Kunde 360 etterpå.
+    kundesakerBrregTreffCache=treff.slice(0,15);
     target.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Firma</th><th>Org.nr</th><th>Sted</th><th></th></tr></thead><tbody>
-      ${treff.slice(0,15).map(e=>{
+      ${kundesakerBrregTreffCache.map((e,i)=>{
         const adr=e.forretningsadresse||e.beliggenhetsadresse||{};
-        const navnArg=(e.navn||'').replace(/'/g,"\\'");
         return `<tr>
           <td>${e.navn||'—'}</td>
           <td>${e.organisasjonsnummer||'—'}</td>
           <td>${adr.poststed||'—'}</td>
-          <td>${salgTilgang?`<button class="btn-sm" onclick="openNyKundeModal('${navnArg}','${e.organisasjonsnummer||''}')">➕ Opprett som ny kunde</button>`:''}</td>
+          <td>${salgTilgang?`<button class="btn-sm" onclick="openNyttLeadModal(leadValgFraBrreg(kundesakerBrregTreffCache[${i}]))">➕ Nytt lead</button>`:''}</td>
         </tr>`;
       }).join('')}
     </tbody></table></div>`;
@@ -7076,6 +7101,7 @@ function fyllAnsvarligSelect(gjeldendeNavn){
 }
 
 function openNyNotatModal(kNr,navn){
+  settLeadModus(false);
   document.getElementById('notat-modal-title').textContent='Ny oppføring';
   document.getElementById('n-type').value='Notat';
   fyllAnsvarligSelect(currentUser?.name||currentUser?.username||'');
@@ -7103,6 +7129,7 @@ function openNyNotatModal(kNr,navn){
 
 function openRedigerNotat(id){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
+  settLeadModus(false);
   document.getElementById('notat-modal-title').textContent='Rediger oppføring';
   fyllAnsvarligSelect(n.opprettetAv||'');
   document.getElementById('n-type').value=n.type;
@@ -7124,6 +7151,219 @@ function openRedigerNotat(id){
 }
 
 function closeNotatModal(){document.getElementById('notat-modal').classList.remove('open');}
+
+// ===== NYTT LEAD I ETT STEG (lagt til 29.09.2026, v1.48.142) =====
+// Thomas' observasjon: for å registrere et nytt lead måtte man først
+// «opprette» kunden fra Kunde 360 (openNyKundeModal/lagreNyKunde), og deretter
+// gå til Kundesaker for å jobbe videre — forvirrende to-trinns flyt. Nå: én
+// «➕ Nytt lead»-knapp i Kundesaker som gjenbruker SAMME notat-modal (samme
+// felter/validering/lagring som «Ny oppføring» på kundekortet), med en
+// kundevelger øverst. Ingen ny datamodell/SharePoint-kolonne:
+//  - Eksisterende Visma-kunde eller prospekt valgt → vanlig sak på den kunden.
+//  - Firma i Nyetableringer-lista (ikke overført ennå) → raden overføres
+//    (Status=Overført, samme som «➡️ Overfør»), historikk tas med som notat.
+//  - Firma fra Brreg / manuelt navn → ny rad i Nyetableringer med
+//    Status=Overført (NØYAKTIG samme mekanisme som lagreNyKunde()).
+// Duplikatsjekk på org.nr: et Brreg-treff med org.nr som allerede finnes
+// blant kunder/prospekter/Nyetableringer vises IKKE som «ny» — det mappes til
+// den eksisterende oppføringen i treff-lista, så man ikke kan lage duplikat.
+// Kunde/prospekt opprettes FØRST etter at resten av skjemaet er validert i
+// saveNotat() — avbrutt/ugyldig skjema etterlater ingen «foreldreløse» prospekter.
+let leadModus=false;
+let leadValg=null;          // {type:'eksisterende'|'nyetablering'|'brreg'|'manuell', ...}
+let leadTreffCache=[];      // treff i nedtrekkslista, referert på indeks (unngår quoting i onmousedown)
+let leadBrregTimer=null;
+let leadBrregSisteSok='';
+let kundesakerBrregTreffCache=[];
+let leadLagrerPagar=false;  // hindrer dobbel opprettelse ved dobbeltklikk på Lagre
+
+function settLeadModus(pa){
+  leadModus=!!pa;leadValg=null;leadLagrerPagar=false;leadTreffCache=[];leadBrregSisteSok='';
+  const wrap=document.getElementById('n-lead-wrap');if(wrap)wrap.style.display=pa?'':'none';
+  const sok=document.getElementById('n-lead-sok');if(sok)sok.value='';
+  const treff=document.getElementById('n-lead-treff');if(treff){treff.style.display='none';treff.innerHTML='';}
+  ['n-lead-kontakt-navn','n-lead-kontakt-telefon','n-lead-kontakt-epost'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  visLeadValg();
+}
+
+function leadValgFraBrreg(e){
+  const adr=e.forretningsadresse||e.beliggenhetsadresse||{};
+  return{type:'brreg',navn:e.navn||'',orgNr:normOrgNr(e.organisasjonsnummer),adresse:(adr.adresse||[]).join(' '),postnr:adr.postnummer||'',poststed:adr.poststed||adr.kommune||''};
+}
+
+function openNyttLeadModal(forhaandsvalg){
+  if(!salgTilgang){alert('Du har ikke tilgang til å registrere salgssaker.');return;}
+  openNyNotatModal('','');
+  settLeadModus(true);
+  document.getElementById('notat-modal-title').textContent='➕ Nytt lead';
+  if(forhaandsvalg)leadVelgObjekt(leadMapTilEksisterende(forhaandsvalg));
+  setTimeout(()=>{const el=document.getElementById(forhaandsvalg?'n-tittel':'n-lead-sok');if(el)el.focus();},50);
+}
+
+// Duplikatsjekk: gjør et Brreg-/manuelt valg om til eksisterende kunde/
+// prospekt/nyetablering dersom org.nummeret allerede finnes hos oss.
+function leadMapTilEksisterende(v){
+  const nr=normOrgNr(v.orgNr);
+  if(v.type!=='brreg'||nr.length!==9)return v;
+  const kunde=[...vismaKunder,...hentProspektKunder()].find(k=>normOrgNr(k.orgNr)===nr);
+  if(kunde)return{type:'eksisterende',kNr:kunde.vismaNummer,navn:kunde.navn,orgNr:nr,erProspekt:!!kunde.erProspekt};
+  const ny=nyetableringer.find(n=>n.status!=='Overført'&&normOrgNr(n.orgNr)===nr);
+  if(ny)return{type:'nyetablering',nyId:ny.id,navn:ny.tittel||v.navn,orgNr:nr};
+  return v;
+}
+
+function leadKundeSok(){
+  const raw=(document.getElementById('n-lead-sok').value||'').trim();
+  const treffDiv=document.getElementById('n-lead-treff');
+  if(leadValg&&raw!==leadValg.navn){leadValg=null;document.getElementById('n-kunde-nr').value='';document.getElementById('n-kunde-navn').value='';visLeadValg();}
+  if(!raw){treffDiv.style.display='none';treffDiv.innerHTML='';return;}
+  const q=raw.toLowerCase();const nr=normOrgNr(raw);
+  const lokalt=[...vismaKunder,...hentProspektKunder()]
+    .filter(k=>(nr.length===9&&normOrgNr(k.orgNr)===nr)||(k.navn||'').toLowerCase().includes(q))
+    .slice(0,8)
+    .map(k=>({type:'eksisterende',kNr:k.vismaNummer,navn:k.navn,orgNr:normOrgNr(k.orgNr),erProspekt:!!k.erProspekt,sted:k.sted||''}));
+  const lokaleNr=new Set(lokalt.map(t=>t.orgNr).filter(Boolean));
+  const nye=nyetableringer
+    .filter(n=>n.status!=='Overført'&&((nr.length===9&&normOrgNr(n.orgNr)===nr)||(n.tittel||'').toLowerCase().includes(q)))
+    .filter(n=>!lokaleNr.has(normOrgNr(n.orgNr)))
+    .slice(0,5)
+    .map(n=>({type:'nyetablering',nyId:n.id,navn:n.tittel,orgNr:normOrgNr(n.orgNr),sted:n.poststed||n.kommune||''}));
+  leadTreffCache=[...lokalt,...nye];
+  tegnLeadTreff(raw,null);
+  // Brreg-oppslag med liten forsinkelse (400 ms) mens man skriver, kun ≥3
+  // tegn — åpent API (data.brreg.no), samme kilde som resten av appen.
+  clearTimeout(leadBrregTimer);
+  if(raw.length>=3){
+    leadBrregTimer=setTimeout(()=>leadSokBrreg(raw),400);
+  }
+}
+
+async function leadSokBrreg(raw){
+  leadBrregSisteSok=raw;
+  const nr=normOrgNr(raw);
+  let treff=[];
+  try{
+    if(nr.length===9){
+      for(const ep of['enheter','underenheter']){
+        const r=await fetch(`https://data.brreg.no/enhetsregisteret/api/${ep}/${nr}`);
+        if(r.ok){treff=[await r.json()];break;}
+      }
+    }else{
+      const[a,b]=await Promise.all([
+        fetch(`https://data.brreg.no/enhetsregisteret/api/enheter?navn=${encodeURIComponent(raw)}&size=6`),
+        fetch(`https://data.brreg.no/enhetsregisteret/api/underenheter?navn=${encodeURIComponent(raw)}&size=4`)
+      ]);
+      const ad=a.ok?await a.json():null;const bd=b.ok?await b.json():null;
+      treff=[...((ad?._embedded?.enheter)||[]),...((bd?._embedded?.underenheter)||[])];
+    }
+  }catch(e){console.warn('Nytt lead: Brreg-søk feilet',e);tegnLeadTreff(raw,'feil');return;}
+  if(leadBrregSisteSok!==raw||(document.getElementById('n-lead-sok').value||'').trim()!==raw)return; // utdatert svar
+  const kjente=new Set(leadTreffCache.map(t=>t.orgNr).filter(Boolean));
+  const brreg=treff.map(leadValgFraBrreg).filter(v=>v.orgNr&&!kjente.has(v.orgNr)).map(leadMapTilEksisterende)
+    .filter(v=>!(v.orgNr&&kjente.has(v.orgNr)));
+  // Behold kun de lokale/nyetablering-treffene + nye Brreg-treff (deduplisert på org.nr).
+  const sett=new Set();
+  leadTreffCache=[...leadTreffCache.filter(t=>t.type!=='brreg'),...brreg].filter(t=>{if(!t.orgNr)return true;if(sett.has(t.orgNr))return false;sett.add(t.orgNr);return true;});
+  tegnLeadTreff(raw,'ferdig');
+}
+
+function tegnLeadTreff(raw,brregStatus){
+  const treffDiv=document.getElementById('n-lead-treff');if(!treffDiv)return;
+  const etikett={eksisterende:t=>t.erProspekt?'Prospekt':'Kunde',nyetablering:()=>'Nyetableringer',brreg:()=>'Brreg — opprettes som ny'};
+  const farge={eksisterende:'#15803d',nyetablering:'#b45309',brreg:'#1d4ed8'};
+  let html=leadTreffCache.map((t,i)=>`
+    <div class="vf-ac-item" onmousedown="leadVelg(${i})">
+      <div class="vf-ac-name">${t.navn||'(uten navn)'} <span style="font-size:10.5px;font-weight:700;color:${farge[t.type]||'#6b7280'}">· ${(etikett[t.type]||(()=>''))(t)}</span></div>
+      <div class="vf-ac-meta">${t.kNr&&!String(t.kNr).startsWith('LEAD-')?'Kundenr '+t.kNr+' · ':''}Org.nr ${t.orgNr||'—'}${t.sted?' · '+t.sted:''}</div>
+    </div>`).join('');
+  if(brregStatus===null&&raw.length>=3)html+='<div class="vf-ac-empty">Søker i Brønnøysundregisteret…</div>';
+  if(brregStatus==='feil')html+='<div class="vf-ac-empty">Klarte ikke søke i Brønnøysundregisteret akkurat nå.</div>';
+  const navnTrygg=raw.replace(/</g,'&lt;');
+  html+=`<div class="vf-ac-item" onmousedown="leadVelgManuell()" style="color:#374151"><div class="vf-ac-name">➕ Registrer «${navnTrygg}» manuelt</div><div class="vf-ac-meta">Uten org.nr / finnes ikke i Brreg</div></div>`;
+  treffDiv.innerHTML=html;treffDiv.style.display='block';
+}
+
+function leadVelg(i){const t=leadTreffCache[i];if(t)leadVelgObjekt(t);}
+function leadVelgManuell(){
+  const navn=(document.getElementById('n-lead-sok').value||'').trim();
+  if(!navn)return;
+  leadVelgObjekt({type:'manuell',navn,orgNr:'',adresse:'',postnr:'',poststed:''});
+}
+function leadVelgObjekt(v){
+  leadValg=v;
+  document.getElementById('n-lead-sok').value=v.navn||'';
+  const treffDiv=document.getElementById('n-lead-treff');if(treffDiv)treffDiv.style.display='none';
+  // Eksisterende kunde/prospekt: vanlig sak på kunden (kunde-nr settes med én gang).
+  document.getElementById('n-kunde-nr').value=v.type==='eksisterende'?v.kNr:'';
+  document.getElementById('n-kunde-navn').value=v.navn||'';
+  visLeadValg();
+}
+function visLeadValg(){
+  const el=document.getElementById('n-lead-valgt');
+  const kontakt=document.getElementById('n-lead-kontakt');
+  if(!el)return;
+  const v=leadValg;
+  if(kontakt)kontakt.style.display=v&&v.type!=='eksisterende'?'':'none';
+  if(!v){el.innerHTML=leadModus?'<span style="color:#6b7280">Velg et treff i lista — eksisterende kunder vises først, deretter firma fra Brønnøysundregisteret.</span>':'';return;}
+  const tekst={
+    eksisterende:`✓ Saken legges på ${v.erProspekt?'prospektet':'kunden'} <strong>${v.navn}</strong> (finnes fra før).`,
+    nyetablering:`✓ <strong>${v.navn}</strong> ligger i Nyetableringer — overføres til kunder automatisk ved lagring.`,
+    brreg:`✓ <strong>${v.navn}</strong> (org.nr ${v.orgNr}) opprettes som ny kunde automatisk ved lagring.`,
+    manuell:`✓ <strong>${v.navn}</strong> opprettes som ny, manuelt registrert kunde ved lagring (uten org.nr).`
+  }[v.type]||'';
+  el.innerHTML=tekst;
+}
+
+// Oppretter/overfører prospektet for et lead-valg og returnerer {kNr,navn}.
+// Kalles fra saveNotat() ETTER at skjemaet er validert.
+async function opprettLeadKunde(v){
+  const bruker=currentUser?.name||currentUser?.username||'Ukjent';
+  const now=new Date().toISOString();
+  const kontakt={
+    KontaktpersonNavn:(document.getElementById('n-lead-kontakt-navn')?.value||'').trim(),
+    KontaktEpost:(document.getElementById('n-lead-kontakt-epost')?.value||'').trim(),
+    KontaktTelefon:(document.getElementById('n-lead-kontakt-telefon')?.value||'').trim()
+  };
+  if(v.type==='nyetablering'){
+    const n=nyetableringer.find(x=>x.id===v.nyId);
+    if(!n)throw new Error('Fant ikke raden i Nyetableringer lenger — last siden på nytt og prøv igjen.');
+    if(n.status!=='Overført'){
+      // Samme som overforNyeTilKunder(): eventuell historikk tas med som et
+      // innledende Notat, så den ikke forsvinner fra syne på kundekortet.
+      const loggTekst=(n.logg||[]).slice().sort((a,b)=>new Date(a.dato)-new Date(b.dato))
+        .map(l=>`${new Date(l.dato).toLocaleDateString('nb-NO')} (${l.forfatter||'Ukjent'}): ${l.tekst}`).join('\n');
+      if(loggTekst){
+        const hist={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:prospektKundenummer(n),kundeNavn:n.tittel,type:'Notat',tittel:'Overført fra Nyetableringer',innhold:`Historikk fra «🏢 Nyetableringer»:\n${loggTekst}`,status:'Åpen',forfallsdato:'',opprettetAv:bruker,opprettetAvEpost:currentUser?.username||'',opprettetDato:now,varsleEpost:false,varsleDashbord:false,varselSendt:false,logg:[]};
+        kundeNotater.push(hist);
+        const r=await spCreate('KundeNotater',notatFieldsPayload(hist));
+        hist.spId=r.id;hist.id=`sp${r.id}`;
+      }
+      if(!Array.isArray(n.logg))n.logg=[];
+      n.logg.push({dato:now,tekst:`Overført til Kunder av ${bruker} (via «Nytt lead»).`,forfatter:bruker});
+      const felter={Status:'Overført',Logg:JSON.stringify(n.logg)};
+      if(kontakt.KontaktpersonNavn&&!n.kontaktNavn){felter.KontaktpersonNavn=kontakt.KontaktpersonNavn;n.kontaktNavn=kontakt.KontaktpersonNavn;}
+      if(kontakt.KontaktEpost&&!n.kontaktEpost){felter.KontaktEpost=kontakt.KontaktEpost;n.kontaktEpost=kontakt.KontaktEpost;}
+      if(kontakt.KontaktTelefon&&!n.kontaktTelefon){felter.KontaktTelefon=kontakt.KontaktTelefon;n.kontaktTelefon=kontakt.KontaktTelefon;}
+      await spUpdate('Nyetableringer',n.spId,felter);
+      n.status='Overført';
+    }
+    return{kNr:prospektKundenummer(n),navn:n.tittel||v.navn};
+  }
+  // brreg / manuell — samme felter og mekanisme som lagreNyKunde().
+  const orgnr=normOrgNr(v.orgNr);
+  // Siste duplikatsjekk rett før skriving (data kan ha endret seg siden søket).
+  if(orgnr){
+    const alt=leadMapTilEksisterende({...v,type:'brreg',orgNr:orgnr});
+    if(alt.type==='eksisterende')return{kNr:alt.kNr,navn:alt.navn};
+    if(alt.type==='nyetablering')return opprettLeadKunde(alt);
+  }
+  const felter={Title:v.navn,OrgNr:orgnr,Adresse:v.adresse||'',Postnummer:v.postnr||'',Poststed:v.poststed||'',Status:'Overført',...kontakt};
+  const r=await spCreate('Nyetableringer',felter);
+  const nyRad={id:`sp${r.id}`,spId:r.id,orgNr:orgnr,tittel:v.navn,naeringskode:'',naeringsBeskrivelse:'',selskapsform:'',selskapsformBeskrivelse:'',kommune:'',adresse:felter.Adresse,postnummer:felter.Postnummer,poststed:felter.Poststed,registreringsDato:'',status:'Overført',kontaktNavn:kontakt.KontaktpersonNavn,kontaktEpost:kontakt.KontaktEpost,kontaktTelefon:kontakt.KontaktTelefon,prioritetScore:null,prioritetBegrunnelse:'',logg:[]};
+  nyetableringer.push(nyRad);
+  return{kNr:prospektKundenummer(nyRad),navn:v.navn};
+}
+
 
 // SEND SMS (Sveve, lagt til 31.08.2026) — se modal-kommentaren i HTML-en over
 // og sveve_client.py for hele bakgrunnen. Malen under er BEVISST bare et
@@ -8276,6 +8516,31 @@ function saveNotat(){
   if(!tittel){alert('Fyll inn en tittel');return;}
   if(type==='Tilbud'&&!editId&&(!tilbudSum||tilbudSum<=0)){alert('Fyll inn en totalsum for tilbudet');return;}
   if((varsleEpost||varsleDashbord)&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato/klokkeslett for å kunne varsle');return;}
+  // «➕ Nytt lead» (v1.48.142): kunden må være valgt, og opprettes/overføres
+  // FØRST NÅ (etter at resten av skjemaet er validert). Deretter kjøres
+  // saveNotat() på nytt med kunde-nr satt — samme lagringsvei som alltid.
+  if(!editId&&leadModus){
+    if(!leadValg){alert('Velg kunde/firma fra lista øverst (eller «Registrer manuelt» nederst i lista).');return;}
+    if(!kNr){
+      if(leadLagrerPagar)return;
+      leadLagrerPagar=true;
+      setSPStatus('⏳ Oppretter kunde…');
+      opprettLeadKunde(leadValg).then(k=>{
+        leadLagrerPagar=false;
+        document.getElementById('n-kunde-nr').value=k.kNr;
+        document.getElementById('n-kunde-navn').value=k.navn;
+        leadModus=false;
+        saveNotat();
+        if(typeof renderNyetableringer==='function')renderNyetableringer();
+      }).catch(e=>{
+        leadLagrerPagar=false;
+        setSPStatus('❌ '+e.message,false);
+        alert('⚠️ Kunne ikke opprette kunden for leadet — saken er IKKE lagret:\n'+e.message);
+      });
+      return;
+    }
+    leadModus=false;
+  }
   closeNotatModal();
 
   if(editId){
@@ -8519,6 +8784,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.142',dato:'29.09.2026',punkter:[
+    'Kundesaker: ny knapp «➕ Nytt lead» registrerer et lead i ett steg. Søk opp kunden eller firmaet (eksisterende kunder vises først, deretter firma fra Brønnøysundregisteret), fyll inn den første saken og trykk Lagre — kunden opprettes automatisk ved behov. Du trenger ikke lenger opprette kunden i Kunde 360 først.',
+    'Finnes firmaet fra før (samme org.nr hos en kunde, et prospekt eller i Nyetableringer), legges saken på det i stedet for å lage en ny kunde. Firma fra Nyetableringer overføres automatisk, med historikken.'
+  ]},
   {versjon:'v1.48.141',dato:'28.09.2026',punkter:[
     'Silent Ordering System: «📋 Brikkebytte-saker» viser nå «Aktive saker» som standardfilter — skjuler både «Avbrutt» og «Kunde fakturert», så listen ikke fyller seg opp med ferdige saker over tid. «Alle statuser» viser nå bokstavelig talt alt (tidligere skjulte den også Avbrutt).'
   ]},
