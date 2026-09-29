@@ -532,7 +532,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.151 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.152 · Oppdatert: 29. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4670,6 +4670,9 @@ function rmaErForsinket(rad){
 // Samme regel som _venter_retur_fra_kunde() i susoft_rma_varsling.py.
 function rmaDagerHosKunde(rad){
   if(!rad.datoNyMaskinSendtKunde||rad.datoMottattReturKunde)return null;
+  // v1.48.152: er maskinen allerede sendt til / mottatt fra Susoft, har vi
+  // åpenbart fått den tilbake fra kunden — selv om status ikke er oppdatert.
+  if(rad.datoSendtSusoft||rad.datoMottattFraSusoft)return null;
   if(RMA_STATUSER.indexOf(rad.status)>RMA_STATUSER.indexOf('Ny maskin sendt til kunde'))return null;
   const sendt=new Date(rad.datoNyMaskinSendtKunde);
   if(isNaN(sendt))return null;
@@ -4694,7 +4697,9 @@ function rmaStatusBadge(status){
     'Ferdig':'background:#e5e7eb;color:#6b7280'
   };
   const stil=stiler[status]||'background:#e5e7eb;color:#374151';
-  return `<span class="badge" style="${stil}">${status||'—'}</span>`;
+  // white-space:nowrap (v1.48.152): lange statuser som «Ny maskin sendt til
+  // kunde» ble ellers delt over to linjer som to løsrevne biter.
+  return `<span class="badge" style="${stil};white-space:nowrap;display:inline-block">${status||'—'}</span>`;
 }
 
 // ---- Varselbjella: «mine» RMA-saker der kunden ikke har returnert den
@@ -9630,6 +9635,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.152',dato:'29.09.2026',punkter:[
+    'Susoft RMA: status-merket i tabellen deles ikke lenger over to linjer.',
+    'Susoft RMA: saker som allerede er sendt til Susoft får ikke lenger varsel om manglende retur fra kunde, selv om status ikke er oppdatert.'
+  ]},
   {versjon:'v1.48.151',dato:'29.09.2026',punkter:[
     'Susoft RMA: nytt steg «Mottatt retur fra kunde» mellom ny maskin til kunden og innsending til Susoft. «Mottatt fra Susoft» heter nå «Mottatt retur fra Susoft».',
     'Susoft RMA: nytt felt «Salgsordre Visma». Salgsordre og serienummer må fylles ut når status er «Ny maskin sendt til kunde» eller senere.',
