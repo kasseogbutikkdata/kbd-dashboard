@@ -558,7 +558,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.158 · Oppdatert: 30. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.159 · Oppdatert: 30. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -865,7 +865,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
     <div id="kundesaker-tabell"></div>
     <div class="card card-public" style="margin-top:16px">
       <details class="ks-analyse" id="tilbudsanalyse-details" ontoggle="lagreTilbudsanalyseApen(this.open)">
-        <summary><span class="ks-pil">▸</span>📊 Tilbudsanalyse <span class="hint" style="font-weight:400;margin:0">— faser, leadkilder, treffprosent, vunnet pr. selger, tapt pr. årsak og avsluttede tilbud (hele KBD)</span></summary>
+        <summary><span class="ks-pil">▸</span>📊 Tilbudsanalyse <span class="hint" style="font-weight:400;margin:0">— faser, leadkilder, treffprosent, vunnet pr. selger, tapt pr. årsak og avsluttede tilbud <span id="tilbudsanalyse-hvem">(hele KBD)</span> · følger «Ansvarlig»-filteret</span></summary>
         <div id="tilbudspipeline-body" style="margin-top:12px"></div>
       </details>
     </div>
@@ -7059,9 +7059,12 @@ function kundesakerPipelineReserve(ansvarlig){
 // TilbudLukketDato — faller tilbake til opprettetDato for et tilbud som ble
 // lukket FØR TilbudLukketDato-kolonnen fantes (uten dette ville gamle vunnede
 // tilbud rett og slett forsvunnet fra oversikten, ikke bare vist feil måned).
-function kundesakerVunnetPrSelgerManed(){
+// v1.48.159: Tilbudsanalyse følger «Ansvarlig»-filteret i Kundesaker.
+// Analysefunksjonene tar valgfri `ansvarlig` (n.opprettetAv); uten = hele KBD.
+function ksAnalyseGrunnlag(ansvarlig){return ansvarlig?kundeNotater.filter(n=>n.opprettetAv===ansvarlig):kundeNotater;}
+function kundesakerVunnetPrSelgerManed(ansvarlig){
   const grupper={};
-  kundeNotater.filter(n=>n.type==='Tilbud'&&n.tilbudUtfall==='Vunnet').forEach(n=>{
+  ksAnalyseGrunnlag(ansvarlig).filter(n=>n.type==='Tilbud'&&n.tilbudUtfall==='Vunnet').forEach(n=>{
     const dato=n.tilbudLukketDato||n.opprettetDato;
     if(!dato)return;
     const d=new Date(dato);if(isNaN(d))return;
@@ -7085,9 +7088,9 @@ const KS_MAANEDSNAVN=['januar','februar','mars','april','mai','juni','juli','aug
 // tapt tilbud uten årsak (lukket før denne funksjonen fantes, eller SharePoint-
 // kolonnen manglet ved lagringstidspunktet) havner i "Ikke oppgitt" i stedet
 // for å bare forsvinne fra oversikten.
-function kundesakerTaptPrArsak(){
+function kundesakerTaptPrArsak(ansvarlig){
   const grupper={};
-  kundeNotater.filter(n=>n.type==='Tilbud'&&n.tilbudUtfall==='Tapt').forEach(n=>{
+  ksAnalyseGrunnlag(ansvarlig).filter(n=>n.type==='Tilbud'&&n.tilbudUtfall==='Tapt').forEach(n=>{
     const arsak=n.tilbudArsak||'Ikke oppgitt';
     if(!grupper[arsak])grupper[arsak]={arsak,antall:0,sum:0};
     grupper[arsak].antall++;
@@ -7104,10 +7107,10 @@ function kundesakerTaptPrArsak(){
 // Kundesaker-tabellen bruker). Samme navn-oppslag som `navnFor()` i
 // renderKundesaker() — dupliseres lokalt siden denne kalles FØR navnFor
 // defineres der (renderTilbudspipeline kalles helt øverst i renderKundesaker).
-function kundesakerAvsluttedeTilbud(){
+function kundesakerAvsluttedeTilbud(ansvarlig){
   const alleKunder=[...vismaKunder,...hentProspektKunder()];
   const navnFor=n=>n.kundeNavn||alleKunder.find(k=>samKundenr(k.vismaNummer,n.vismaKundeNummer))?.navn||'Ukjent kunde';
-  return kundeNotater.filter(n=>n.type==='Tilbud'&&n.status==='Lukket'&&n.tilbudUtfall)
+  return ksAnalyseGrunnlag(ansvarlig).filter(n=>n.type==='Tilbud'&&n.status==='Lukket'&&n.tilbudUtfall)
     .map(n=>({n,kunde:navnFor(n)}))
     .sort((a,b)=>new Date(b.n.tilbudLukketDato||b.n.opprettetDato||0)-new Date(a.n.tilbudLukketDato||a.n.opprettetDato||0));
 }
@@ -7117,7 +7120,7 @@ function kundesakerAvsluttedeTilbud(){
 // Grunnlag: kun tilbud MED utfall (Vunnet/Tapt). Snitt dager bruker kun
 // tilbud der begge datoene finnes (gamle tilbud lukket før TilbudLukketDato-
 // kolonnen fantes, telles med i treffprosent men ikke i snittet).
-function kundesakerTreffprosentPrSelger(){
+function kundesakerTreffprosentPrSelger(ansvarlig){
   const grupper={};
   const leggTil=(nokkel,n)=>{
     if(!grupper[nokkel])grupper[nokkel]={selger:nokkel,vunnet:0,tapt:0,sumVunnet:0,sumTapt:0,dagerSum:0,dagerAntall:0};
@@ -7131,18 +7134,22 @@ function kundesakerTreffprosentPrSelger(){
   const ut=g=>({...g,antall:g.vunnet+g.tapt,treffAntall:(g.vunnet+g.tapt)?g.vunnet/(g.vunnet+g.tapt)*100:null,treffVerdi:(g.sumVunnet+g.sumTapt)?g.sumVunnet/(g.sumVunnet+g.sumTapt)*100:null,snittDager:g.dagerAntall?g.dagerSum/g.dagerAntall:null});
   const totalt=grupper.__TOTALT__?ut(grupper.__TOTALT__):null;
   delete grupper.__TOTALT__;
-  return{rader:Object.values(grupper).map(ut).sort((a,b)=>b.antall-a.antall||a.selger.localeCompare(b.selger,'nb')),totalt};
+  // Med `ansvarlig`: kun den selgerens rad, men totalt er fortsatt hele KBD
+  // (til sammenligning).
+  return{rader:Object.values(grupper).filter(g=>!ansvarlig||g.selger===ansvarlig).map(ut).sort((a,b)=>b.antall-a.antall||a.selger.localeCompare(b.selger,'nb')),totalt};
 }
 
-function renderTilbudspipeline(){
+function renderTilbudspipeline(ansvarlig){
   const target=document.getElementById('tilbudspipeline-body');
+  const hvemEl=document.getElementById('tilbudsanalyse-hvem');
+  if(hvemEl)hvemEl.textContent=ansvarlig?`(${ansvarlig})`:'(hele KBD)';
   if(!target)return; // fanen er ikke synlig/rendret ennå — samme mønster som renderKundesaker() sin egen DOM-sjekk
   const apne=kundesakerApneTilbud();
   const reserve=kundesakerPipelineReserve();
   const fullSum=apne.reduce((sum,n)=>sum+n.tilbudSum,0);
-  const grupper=kundesakerVunnetPrSelgerManed();
-  const taptArsaker=kundesakerTaptPrArsak();
-  const avsluttede=kundesakerAvsluttedeTilbud();
+  const grupper=kundesakerVunnetPrSelgerManed(ansvarlig);
+  const taptArsaker=kundesakerTaptPrArsak(ansvarlig);
+  const avsluttede=kundesakerAvsluttedeTilbud(ansvarlig);
   const VIS_MAX_AVSLUTTEDE=20;
   const card=(icon,label,val,sub,color,bg)=>`<div style="background:${bg};border-radius:10px;padding:14px 16px;border-left:3px solid ${color}">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
@@ -7156,14 +7163,14 @@ function renderTilbudspipeline(){
   // flyttet opp i nøkkeltall-raden (renderKundesakerKpi()). Her står kun
   // analysetabellene, i den sammenleggbare «📊 Tilbudsanalyse».
   void reserve;void fullSum;void card;
-  const treff=kundesakerTreffprosentPrSelger();
+  const treff=kundesakerTreffprosentPrSelger(ansvarlig);
   const pst=v=>v==null?'—':`${Math.round(v)} %`;
   const dg=v=>v==null?'—':`${Math.round(v)} d`;
   const treffRad=(g,fet)=>`<tr${fet?' style="font-weight:700;background:#f9fafb"':''}><td>${fet?'Totalt (hele KBD)':g.selger}</td><td>${g.vunnet}</td><td>${g.tapt}</td><td>${pst(g.treffAntall)}</td><td>${pst(g.treffVerdi)}</td><td>${dg(g.snittDager)}</td></tr>`;
   target.innerHTML=`
     ${(()=>{
-      const pf=kundesakerApenPrFase();
-      const kilder=kundesakerPrLeadkilde();
+      const pf=kundesakerApenPrFase(ansvarlig);
+      const kilder=kundesakerPrLeadkilde(ansvarlig);
       const pst=v=>v==null?'—':`${Math.round(v)} %`;
       return `<div class="hint" style="margin-bottom:8px">🧭 Åpne salgsmuligheter pr. fase</div>
       <div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Fase</th><th>Antall</th><th>Full sum</th><th>Vektet</th></tr></thead><tbody>
@@ -7176,9 +7183,9 @@ function renderTilbudspipeline(){
     })()}
     <div class="hint" style="margin-bottom:8px">🎯 Treffprosent pr. selger — andel avsluttede tilbud som ble vunnet, og snitt dager fra tilbud til avgjørelse</div>
     ${treff.totalt?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Selger</th><th>Vunnet</th><th>Tapt</th><th>Treff (antall)</th><th>Treff (kroner)</th><th>Snitt dager</th></tr></thead><tbody>
-      ${treff.rader.map(g=>treffRad(g,false)).join('')}${treff.rader.length>1?treffRad(treff.totalt,true):''}
+      ${treff.rader.map(g=>treffRad(g,false)).join('')}${treff.rader.length>1||(ansvarlig&&treff.rader.length)?treffRad(treff.totalt,true):''}
     </tbody></table></div>`:'<div class="empty" style="margin-bottom:16px">Ingen avsluttede tilbud med utfall ennå.</div>'}
-    <div class="hint" style="margin-bottom:8px">Vunnet pr. selger pr. måned</div>
+    <div class="hint" style="margin-bottom:8px">Vunnet pr. ${ansvarlig?'måned':'selger pr. måned'}</div>
     ${grupper.length?`<div class="tbl-wrap"><table><thead><tr><th>Selger</th><th>Måned</th><th>Vunnet sum</th><th>Antall</th></tr></thead><tbody>
       ${grupper.map(g=>`<tr><td>${g.selger}</td><td>${KS_MAANEDSNAVN[g.maaned]} ${g.aar}</td><td>${fS(g.sum)}</td><td>${g.antall}</td></tr>`).join('')}
     </tbody></table></div>`:'<div class="empty">Ingen vunnede tilbud registrert ennå.</div>'}
@@ -7303,7 +7310,8 @@ function gjenopprettTilbudsanalyseApen(){
 }
 
 function renderKundesaker(){
-  renderTilbudspipeline(); // analysetabellene i «📊 Tilbudsanalyse» (hele KBD)
+  // v1.48.159: renderTilbudspipeline(ansvarligValgt) kalles lenger ned,
+  // når «Ansvarlig»-filteret er avklart.
   gjenopprettTilbudsanalyseApen();
   const nyKundeBtn=document.getElementById('kundesaker-ny-kunde-btn');
   if(nyKundeBtn)nyKundeBtn.style.display=salgTilgang?'':'none';
@@ -7325,6 +7333,7 @@ function renderKundesaker(){
   }
   if(kundesakerBrukerFilter!=='alle'&&!brukerListe.includes(kundesakerBrukerFilter))kundesakerBrukerFilter='alle';
   const ansvarligValgt=kundesakerBrukerFilter==='alle'?null:kundesakerBrukerFilter;
+  renderTilbudspipeline(ansvarligValgt); // «📊 Tilbudsanalyse» følger «Ansvarlig» (v1.48.159)
 
   // personGrunnlag = filtrert på ansvarlig + søk (IKKE type/spesialfilter) —
   // grunnlag for knappetellerne og nøkkeltall-raden (v1.48.127-logikken).
@@ -9376,9 +9385,9 @@ function renderSalgFaseHTML(n){
 }
 
 // Rapporter (Tilbudsanalyse): pr. leadkilde og åpen pipeline pr. fase.
-function kundesakerPrLeadkilde(){
+function kundesakerPrLeadkilde(ansvarlig){
   const g={};
-  kundeNotater.filter(n=>n.type==='Tilbud').forEach(n=>{
+  ksAnalyseGrunnlag(ansvarlig).filter(n=>n.type==='Tilbud').forEach(n=>{
     const k=n.leadKilde||'Ukjent';
     if(!g[k])g[k]={kilde:k,antall:0,apne:0,vunnet:0,tapt:0,vunnetSum:0,dagerSum:0,dagerAnt:0};
     const r=g[k];r.antall++;
@@ -9391,9 +9400,9 @@ function kundesakerPrLeadkilde(){
   return Object.values(g).map(r=>({...r,treff:(r.vunnet+r.tapt)?r.vunnet/(r.vunnet+r.tapt)*100:null,snittDager:r.dagerAnt?r.dagerSum/r.dagerAnt:null}))
     .sort((a,b)=>(a.kilde==='Ukjent')-(b.kilde==='Ukjent')||b.antall-a.antall||a.kilde.localeCompare(b.kilde,'nb'));
 }
-function kundesakerApenPrFase(){
+function kundesakerApenPrFase(ansvarlig){
   const rader=[...SALG_FASER,{navn:SALG_UTSATT,ikon:'⏸'}].map(f=>{
-    const s=kundeNotater.filter(n=>n.type==='Tilbud'&&n.status==='Åpen'&&salgFase(n)===f.navn);
+    const s=ksAnalyseGrunnlag(ansvarlig).filter(n=>n.type==='Tilbud'&&n.status==='Åpen'&&salgFase(n)===f.navn);
     // Utsatte saker har vektet = 0 (telles ikke i pipelinereserven).
     return{fase:f,antall:s.length,sum:s.reduce((a,n)=>a+(n.tilbudSum||0),0),vektet:f.navn===SALG_UTSATT?0:s.reduce((a,n)=>a+(n.tilbudSum||0)*((n.sannsynlighet||0)/100),0)};
   });
@@ -10175,6 +10184,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.159',dato:'30.09.2026',punkter:[
+    'Kundesaker: «📊 Tilbudsanalyse» følger nå «Ansvarlig»-filteret. Med én selger valgt gjelder faser, leadkilder, vunnet pr. måned, tapt pr. årsak og avsluttede tilbud bare den selgerens saker. Treffprosent viser selgeren med hele KBD som sammenligning. «Alle ansvarlige» gir hele KBD som før.'
+  ]},
   {versjon:'v1.48.158',dato:'30.09.2026',punkter:[
     'Leadkilde er nå obligatorisk på alle åpne salgsmuligheter, også eldre. Mangler den, står det «📍 Velg leadkilde» på saken. Du blir spurt om kilden når du flytter fase, utsetter eller markerer som Vunnet, og i Tapt-vinduet. Lukkede saker fra før blir stående som «Ukjent».',
     'Ny tilstand «⏸ Utsatt» for kunder som vil vente: velg dato saken skal tas opp igjen (hurtigvalg 1/3/6/12 mnd) og eventuelt en grunn. Saken er fortsatt åpen, men telles ikke i pipelinereserven og flagges ikke som 💤. «▶ Gjenoppta» setter den tilbake i fasen den hadde. Når datoen passerer, vises saken som forfalt. Eget valg i fase-filteret i Kundesaker.',
