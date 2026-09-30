@@ -505,6 +505,28 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .knd-dato-footer-btn.knd-ok:hover{background:#244a85}
 .flatpickr-calendar .flatpickr-months{position:relative}
 
+
+/* ===== KBD Kulturplakaten (v1.48.162, 30.09.2026) =====
+   Verdistripe øverst på Hjem + små verdimerker på kortene under.
+   Innholdet er KBDs egen kulturplakat, utviklet i fellesskap. */
+.kultur{background:#1A3A6B;border-radius:12px;padding:16px 16px 14px;color:#fff;margin-bottom:24px}
+.kultur-topp{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:0 4px 12px}
+.kultur-tittel{font-size:24px;font-weight:800;line-height:1.1;color:#fff}
+.kultur-under{font-size:15px;color:rgba(255,255,255,.9);margin-top:2px}
+.kultur-hint{font-size:12px;color:rgba(255,255,255,.6);white-space:nowrap}
+.kultur-verdier{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kultur-verdi{background:#244d82;border:2px solid transparent;border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center;color:#fff;text-align:left;transition:border-color .15s}
+.kultur-verdi:hover,.kultur-verdi.aktiv,.kultur-verdi.lyser{border-color:#f5b700}
+.kultur-nr{background:#f5b700;color:#1A3A6B;font-weight:800;border-radius:50%;width:26px;height:26px;display:grid;place-items:center;flex:none;font-size:14px}
+.kultur-navn{font-weight:700;color:#f5b700;font-size:14px;line-height:1.2}
+.kultur-punkter{display:none;margin-top:10px;background:rgba(255,255,255,.07);border-radius:8px;padding:10px 16px 10px 32px;column-gap:32px;font-size:14px}
+.kultur-punkter.to-kol{columns:2}
+.kultur-punkter.vis{display:block}
+.kultur-punkter li{margin:2px 0}
+.kv-merke{display:inline-flex;gap:5px;align-items:center;font-size:11px;font-weight:600;color:#1A3A6B;background:#fff4cc;border-radius:999px;padding:2px 9px 2px 3px;margin-top:8px;cursor:default;white-space:nowrap}
+.kv-merke i{font-style:normal;background:#f5b700;color:#1A3A6B;border-radius:50%;width:16px;height:16px;display:grid;place-items:center;font-size:10px;font-weight:800}
+.kv-merke.i-overskrift{margin:0 0 0 8px;vertical-align:middle;text-transform:none;letter-spacing:0}
+@media (max-width:900px){.kultur-verdier{grid-template-columns:1fr 1fr}.kultur-punkter.to-kol{columns:1}.kultur-hint{display:none}}
 </style>
 </head>
 <body>
@@ -564,7 +586,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.161 · Oppdatert: 30. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.162 · Oppdatert: 30. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -793,15 +815,35 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <div id="hjem-date" style="font-size:13px;color:#6b7280;margin-top:2px"></div>
     </div>
 
+    <!-- KBD Kulturplakaten (v1.48.162) — verdiene fra plakaten KBD har utviklet
+         sammen. Klikk på en verdi for å se punktene. De gule merkene på kortene
+         under (kv-merke) peker tilbake hit — se kvMerke()/toggleKulturVerdi(). -->
+    <section class="kultur" aria-label="KBD Kulturplakaten">
+      <div class="kultur-topp">
+        <div><div class="kultur-tittel">KBD Kulturplakaten</div><div class="kultur-under">– Slik jobber vi. Slik er vi</div></div>
+        <span class="kultur-hint">Klikk på en verdi</span>
+      </div>
+      <div class="kultur-verdier">
+        <button class="kultur-verdi" data-kv="1" onclick="toggleKulturVerdi(1)"><span class="kultur-nr">1</span><span class="kultur-navn">Kundefokus</span></button>
+        <button class="kultur-verdi" data-kv="2" onclick="toggleKulturVerdi(2)"><span class="kultur-nr">2</span><span class="kultur-navn">Profesjonalitet &amp; Kompetanse</span></button>
+        <button class="kultur-verdi" data-kv="3" onclick="toggleKulturVerdi(3)"><span class="kultur-nr">3</span><span class="kultur-navn">Utvikling &amp; forbedring</span></button>
+        <button class="kultur-verdi" data-kv="4" onclick="toggleKulturVerdi(4)"><span class="kultur-nr">4</span><span class="kultur-navn">Samhold &amp; Lagfølelse</span></button>
+      </div>
+      <ul class="kultur-punkter" id="kultur-p1"><li>Best på support og kundeservice</li><li>Rette løsninger for våre kunder</li><li>Kvalitet i leveranser</li></ul>
+      <ul class="kultur-punkter to-kol" id="kultur-p2"><li>Faglig dyktighet</li><li>Tydelig kommunikasjon og god dialog</li><li>Kompetanse hos KBD og våre kunder</li><li>Kunnskapsdeling</li><li>Gode rutiner, struktur og effektivitet</li><li>Fleksibilitet</li></ul>
+      <ul class="kultur-punkter" id="kultur-p3"><li>Variasjon i hverdagen</li><li>Åpent for forslag</li><li>Teknologisk nysgjerrig</li><li>Utvikling av løsninger</li></ul>
+      <ul class="kultur-punkter to-kol" id="kultur-p4"><li>Trivsel og trygghet</li><li>Kunne være seg selv</li><li>Godt samarbeid</li><li>Sosialt og inkluderende</li><li>Åpenhet for forbedringer</li></ul>
+    </section>
+
     <!-- Bursdag/jubileum — skjult (display:none) når ingen har merkedag i dag,
          se sjekkDagensMarkeringer(). -->
     <div id="hjem-feiring" style="display:none"></div>
 
-    <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">🔔 Trenger oppmerksomhet</div>
+    <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">🔔 Trenger oppmerksomhet<span class="kv-merke i-overskrift" data-kv="1"><i>1</i>Kvalitet i leveranser</span></div>
     <div id="hjem-oppmerksomhet" style="margin-bottom:24px"></div>
 
     <div id="hjem-kunngjoring-seksjon" style="margin-bottom:24px">
-      <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">📣 Siste kunngjøring</div>
+      <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">📣 Siste kunngjøring<span class="kv-merke i-overskrift" data-kv="2"><i>2</i>Kunnskapsdeling</span></div>
       <div id="hjem-kunngjoring"></div>
     </div>
 
@@ -10338,6 +10380,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.162',dato:'30.09.2026',punkter:[
+    'KBD Kulturplakaten ligger nå øverst på Hjem. Klikk på en av de fire verdiene for å se hva den betyr i hverdagen. De gule merkene på kortene under viser hvilken verdi kortet hører til, og holder du musen over et merke, lyser verdien opp i plakaten.'
+  ]},
   {versjon:'v1.48.161',dato:'30.09.2026',punkter:[
     'Loggpostene under en sak kan nå redigeres og slettes. Hold musen over en post og trykk ✎ eller 🗑. Enter lagrer, Esc avbryter, og posten merkes «(redigert)». Du kan endre dine egne poster, og administrator kan endre alle. Faseskifter, e-poster og filer kan ikke redigeres.'
   ]},
@@ -12109,6 +12154,26 @@ function fyrKonfetti(){
   requestAnimationFrame(tegn);
 }
 
+// ===== KBD Kulturplakaten (v1.48.162) =====
+// Én verdi åpen om gangen; klikk igjen for å lukke. kvMerke() lager det gule
+// merket på kortene på Hjem, og hover på et merke lyser opp riktig verdi i stripen.
+function kvMerke(nr,tekst){return `<span class="kv-merke" data-kv="${nr}"><i>${nr}</i>${tekst}</span>`;}
+function toggleKulturVerdi(nr){
+  const p=document.getElementById('kultur-p'+nr);
+  if(!p)return;
+  const varApen=p.classList.contains('vis');
+  document.querySelectorAll('.kultur-punkter').forEach(x=>x.classList.remove('vis'));
+  document.querySelectorAll('.kultur-verdi').forEach(x=>x.classList.remove('aktiv'));
+  if(!varApen){p.classList.add('vis');document.querySelector(`.kultur-verdi[data-kv="${nr}"]`)?.classList.add('aktiv');}
+}
+function kulturLys(e,pa){
+  const m=e.target.closest&&e.target.closest('.kv-merke');
+  if(!m)return;
+  document.querySelector(`.kultur-verdi[data-kv="${m.dataset.kv}"]`)?.classList.toggle('lyser',pa);
+}
+document.addEventListener('mouseover',e=>kulturLys(e,true));
+document.addEventListener('mouseout',e=>kulturLys(e,false));
+
 function renderHjem(){
   const greetEl=document.getElementById('hjem-greeting');
   const dateEl=document.getElementById('hjem-date');
@@ -12151,13 +12216,14 @@ function renderHjem(){
       monsterLbl=avtale?(ARBEIDSTID_LABELS[avtale.monster]||avtale.monster):'Standard';
     }
 
-    const card=(icon,label,val,sub,color,bg)=>`<div style="background:${bg};border-radius:10px;padding:14px 16px;border-left:3px solid ${color}">
+    const card=(icon,label,val,sub,color,bg,kv)=>`<div style="background:${bg};border-radius:10px;padding:14px 16px;border-left:3px solid ${color}">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
         <span style="font-size:14px">${icon}</span>
         <span style="font-size:12.5px;color:${color};font-weight:600">${label}</span>
       </div>
       <div style="font-size:19px;font-weight:700;color:#111">${val}</div>
       <div style="font-size:11.5px;color:#6b7280;margin-top:1px">${sub}</div>
+      ${kv?kvMerke(kv[0],kv[1]):''}
     </div>`;
 
     // Tilbudspipeline (27.09.2026) — kompakt kort her på Hjem, full oversikt
@@ -12168,11 +12234,11 @@ function renderHjem(){
     gridEl.innerHTML=[
       card('📋','Lisenser',licS?fS(licS.sum):'—',licS?`sist registrert (${licS.label})`:'Ingen data','#1A3A6B','#eef2ff'),
       card('💰','Kickback',kickS?fS(kickS.sum):'—',kickS?`sist registrert (${kickS.label})`:'Ingen data','#15803d','#ecfdf3'),
-      card('⏱️','Aldersfordelt',agingSum!=null?fS(agingSum):'—',agingLast?`saldo pr. ${fDateShort(agingLast.date)}`:'Ingen data','#eb6834','#fff2e8'),
-      card('🔄','Utleie',`${aktiveUtleie} aktive`,snartForfaller>0?`${snartForfaller} forfaller snart`:'Ingen forfaller snart','#2a78d6','#eef6ff'),
-      card('🟡','Reservasjoner',`${aktiveRes} aktive`,'venter/pågår','#6d28d9','#f5f0ff'),
-      card('📈','Tilbudspipeline',fS(kundesakerPipelineReserve()),`${apneTilbud.length} åpne tilbud · vunnet denne mnd: ${fS(kundesakerVunnetDenneMaaned())}`,'#6d28d9','#f5f0ff'),
-      card('🏋️',dayNames[todayIdx]+' i dag',monsterLbl,'ditt mønster','#0f766e','#effaf8'),
+      card('⏱️','Aldersfordelt',agingSum!=null?fS(agingSum):'—',agingLast?`saldo pr. ${fDateShort(agingLast.date)}`:'Ingen data','#eb6834','#fff2e8',[2,'Gode rutiner']),
+      card('🔄','Utleie',`${aktiveUtleie} aktive`,snartForfaller>0?`${snartForfaller} forfaller snart`:'Ingen forfaller snart','#2a78d6','#eef6ff',[1,'Kundefokus']),
+      card('🟡','Reservasjoner',`${aktiveRes} aktive`,'venter/pågår','#6d28d9','#f5f0ff',[1,'Kundefokus']),
+      card('📈','Tilbudspipeline',fS(kundesakerPipelineReserve()),`${apneTilbud.length} åpne tilbud · vunnet denne mnd: ${fS(kundesakerVunnetDenneMaaned())}`,'#6d28d9','#f5f0ff',[1,'Rette løsninger']),
+      card('🏋️',dayNames[todayIdx]+' i dag',monsterLbl,'ditt mønster','#0f766e','#effaf8',[4,'Trivsel']),
     ].join('');
   }
 
