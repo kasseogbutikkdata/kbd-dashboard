@@ -253,6 +253,15 @@ tr:hover td{background:#fafafa}
 .nav-sub-sub-item{display:flex;align-items:center;gap:8px;padding:6px 16px 6px 52px;cursor:pointer;font-size:12.5px;font-weight:500;color:#9ca3af;border-left:3px solid transparent;transition:all .1s}
 .nav-sub-sub-item:hover{background:#f9fafb;color:#6b7280}
 .nav-sub-sub-item.active{color:#1A3A6B;font-weight:600;border-left-color:#93c5fd;background:#f0f4ff}
+.salg-faser{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin:0 0 8px}
+.salg-fase{font-size:11px;padding:2px 8px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-family:inherit;cursor:default;white-space:nowrap}
+button.salg-fase{cursor:pointer}
+button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
+.salg-fase.ferdig{background:#f5f0ff;color:#6d28d9;border-color:#e9d5ff}
+.salg-fase.aktiv{background:#6d28d9;color:#fff;border-color:#6d28d9;font-weight:600}
+.salg-pil{color:#c4b5fd;font-size:12px}
+.salg-kilde{margin-left:8px;font-size:11.5px;color:#4b5563}
+.fase-merke{font-size:11px;font-weight:600;color:#6d28d9;background:#f5f0ff;padding:2px 8px;border-radius:12px;white-space:nowrap}
 .rt-verktoy{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:4px;border:1px solid #d1d5db;border-bottom:none;border-radius:8px 8px 0 0;background:#f8fafc}
 .rt-verktoy button{border:1px solid transparent;background:none;border-radius:5px;padding:3px 8px;font-size:12.5px;cursor:pointer;color:#374151;font-family:inherit}
 .rt-verktoy button:hover{background:#e5e7eb;border-color:#d1d5db}
@@ -543,7 +552,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.155 · Oppdatert: 30. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.156 · Oppdatert: 30. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -850,7 +859,7 @@ tr:hover td{background:#fafafa}
     <div id="kundesaker-tabell"></div>
     <div class="card card-public" style="margin-top:16px">
       <details class="ks-analyse" id="tilbudsanalyse-details" ontoggle="lagreTilbudsanalyseApen(this.open)">
-        <summary><span class="ks-pil">▸</span>📊 Tilbudsanalyse <span class="hint" style="font-weight:400;margin:0">— treffprosent, vunnet pr. selger, tapt pr. årsak og avsluttede tilbud (hele KBD)</span></summary>
+        <summary><span class="ks-pil">▸</span>📊 Tilbudsanalyse <span class="hint" style="font-weight:400;margin:0">— faser, leadkilder, treffprosent, vunnet pr. selger, tapt pr. årsak og avsluttede tilbud (hele KBD)</span></summary>
         <div id="tilbudspipeline-body" style="margin-top:12px"></div>
       </details>
     </div>
@@ -1887,6 +1896,12 @@ tr:hover td{background:#fafafa}
            eksisterende sak — bevisst, for ikke å blokkere andre endringer
            (f.eks. en loggkommentar) på gamle tilbud som mangler verdiene. -->
       <div class="fgrp" id="n-tilbud-wrap" style="display:none;margin-bottom:10px;background:#f5f0ff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px">
+        <!-- Salgsfase + leadkilde (v1.48.156, 30.09.2026 — «salgsprosess trinn 1»). Se SALG_FASER/LEAD_KILDER. -->
+        <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:8px">
+          <div class="fgrp"><label>Fase</label><select id="n-fase" onchange="faseEndretISkjema()"></select></div>
+          <div class="fgrp"><label>Leadkilde</label><select id="n-leadkilde" onchange="document.getElementById('n-leadkilde-detalj-wrap').style.display=this.value==='Annet'?'':'none'"></select></div>
+        </div>
+        <div class="fgrp" id="n-leadkilde-detalj-wrap" style="display:none;margin-bottom:8px"><label>Hvilken kilde?</label><input type="text" id="n-leadkilde-detalj" placeholder="F.eks. messe, tips fra kunde …"/></div>
         <div class="fg" style="grid-template-columns:1fr 1fr">
           <div class="fgrp"><label>Totalsum tilbud (kr)</label><input type="number" id="n-tilbudsum" min="0" step="500" placeholder="F.eks. 50000" oninput="oppdaterTilbudVektetVisning()"/></div>
           <div class="fgrp"><label>Sannsynlighet: <span id="n-sannsynlighet-verdi">50</span> %</label><input type="range" id="n-sannsynlighet" min="0" max="100" step="5" value="50" style="width:100%;accent-color:#6d28d9;margin-top:10px" oninput="document.getElementById('n-sannsynlighet-verdi').textContent=this.value;oppdaterTilbudVektetVisning();"/></div>
@@ -3520,7 +3535,7 @@ async function loadDataFromSP(){
   // IKKE opprettet i SharePoint ennå (se Liste 25 i sjekklisten) — feltene
   // kommer da rett og slett tilbake som undefined fra Graph, og ||null/!=null
   // -sjekkene under gir da bare null/tom streng, helt ufarlig.
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',tilbudArsak:i.fields.TilbudArsak||'',tilbudArsakDetalj:i.fields.TilbudArsakDetalj||'',sistAktivitet:i.fields.SistAktivitet||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',tilbudArsak:i.fields.TilbudArsak||'',tilbudArsakDetalj:i.fields.TilbudArsakDetalj||'',fase:i.fields.Fase||'',leadKilde:i.fields.LeadKilde||'',leadKildeDetalj:i.fields.LeadKildeDetalj||'',sistAktivitet:i.fields.SistAktivitet||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -7093,6 +7108,19 @@ function renderTilbudspipeline(){
   const dg=v=>v==null?'—':`${Math.round(v)} d`;
   const treffRad=(g,fet)=>`<tr${fet?' style="font-weight:700;background:#f9fafb"':''}><td>${fet?'Totalt (hele KBD)':g.selger}</td><td>${g.vunnet}</td><td>${g.tapt}</td><td>${pst(g.treffAntall)}</td><td>${pst(g.treffVerdi)}</td><td>${dg(g.snittDager)}</td></tr>`;
   target.innerHTML=`
+    ${(()=>{
+      const pf=kundesakerApenPrFase();
+      const kilder=kundesakerPrLeadkilde();
+      const pst=v=>v==null?'—':`${Math.round(v)} %`;
+      return `<div class="hint" style="margin-bottom:8px">🧭 Åpne salgsmuligheter pr. fase</div>
+      <div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Fase</th><th>Antall</th><th>Full sum</th><th>Vektet</th></tr></thead><tbody>
+        ${pf.map(r=>`<tr class="rad-klikkbar" onclick="setKundesakerFaseFilter('${r.fase.navn}');document.getElementById('kundesaker-tabell')?.scrollIntoView({behavior:'smooth'})" title="Vis disse i lista"><td>${r.fase.ikon} ${r.fase.navn}</td><td>${r.antall}</td><td>${fS(r.sum)}</td><td>${fS(r.vektet)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="hint" style="margin-bottom:8px">📍 Pr. leadkilde — alle salgsmuligheter (tilbud), «Ukjent» = registrert før leadkilde fantes</div>
+      ${kilder.length?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Kilde</th><th>Totalt</th><th>Åpne</th><th>Vunnet</th><th>Tapt</th><th>Treff</th><th>Vunnet sum</th><th>Snitt dager</th></tr></thead><tbody>
+        ${kilder.map(r=>`<tr><td>${escHtmlEpost(r.kilde)}</td><td>${r.antall}</td><td>${r.apne}</td><td>${r.vunnet}</td><td>${r.tapt}</td><td>${pst(r.treff)}</td><td>${fS(r.vunnetSum)}</td><td>${r.snittDager==null?'—':Math.round(r.snittDager)+' d'}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="empty" style="margin-bottom:16px">Ingen salgsmuligheter ennå.</div>'}`;
+    })()}
     <div class="hint" style="margin-bottom:8px">🎯 Treffprosent pr. selger — andel avsluttede tilbud som ble vunnet, og snitt dager fra tilbud til avgjørelse</div>
     ${treff.totalt?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Selger</th><th>Vunnet</th><th>Tapt</th><th>Treff (antall)</th><th>Treff (kroner)</th><th>Snitt dager</th></tr></thead><tbody>
       ${treff.rader.map(g=>treffRad(g,false)).join('')}${treff.rader.length>1?treffRad(treff.totalt,true):''}
@@ -7150,6 +7178,8 @@ function setKundesakerVisLukkede(v){kundesakerVisLukkede=v;renderKundesaker();}
 function setKundesakerSearch(v){kundesakerSearch=(v||'').trim().toLowerCase();renderKundesaker();}
 
 // ----- v1.48.144: hjelpere for nøkkeltall, frister og inaktivitet -----
+let kundesakerFaseFilter='alle'; // v1.48.156: 'alle' | fasenavn | 'Vunnet' | 'Tapt'
+function setKundesakerFaseFilter(f){kundesakerFaseFilter=f||'alle';if(kundesakerFaseFilter==='Vunnet'||kundesakerFaseFilter==='Tapt')kundesakerVisLukkede=true;renderKundesaker();}
 let kundesakerSpesialFilter=null; // null | 'frist' (forfalt/i dag) | 'inaktiv' (tilbud uten aktivitet 30+ d)
 const KS_INAKTIV_DAGER=30;
 function setKundesakerSpesialFilter(f){kundesakerSpesialFilter=kundesakerSpesialFilter===f?null:f;renderKundesaker();}
@@ -7270,9 +7300,13 @@ function renderKundesaker(){
       Vis lukkede
     </label>`;
     const spesialLbl={frist:'⏰ Forfalt / i dag',inaktiv:`💤 Uten aktivitet ${KS_INAKTIV_DAGER}+ d`}[kundesakerSpesialFilter];
-    const aktivtFilter=kundesakerTypeFilter!=='alle'||kundesakerBrukerFilter!=='alle'||kundesakerVisLukkede||!!kundesakerSearch||!!kundesakerSpesialFilter;
+    const aktivtFilter=kundesakerTypeFilter!=='alle'||kundesakerBrukerFilter!=='alle'||kundesakerVisLukkede||!!kundesakerSearch||!!kundesakerSpesialFilter||kundesakerFaseFilter!=='alle';
     dropdownDiv.innerHTML=
       `<select id="kundesaker-bruker-filter" onchange="setKundesakerBrukerFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;max-width:200px">${opts}</select>`+
+      `<select id="kundesaker-fase-filter" onchange="setKundesakerFaseFilter(this.value)" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px" title="Filtrer salgsmuligheter på fase">
+        <option value="alle"${kundesakerFaseFilter==='alle'?' selected':''}>Alle faser</option>
+        ${[...SALG_FASER.map(f=>f.navn),'Vunnet','Tapt'].map(f=>`<option value="${f}"${kundesakerFaseFilter===f?' selected':''}>${f}</option>`).join('')}
+      </select>`+
       lukketToggle+
       (spesialLbl?`<button class="btn-sm" onclick="setKundesakerSpesialFilter('${kundesakerSpesialFilter}')" title="Fjern dette filteret" style="border-color:#1A3A6B;color:#1A3A6B">${spesialLbl} ✕</button>`:'')+
       (aktivtFilter?`<button class="btn-sm" onclick="nullstillKundesakerFilter()" style="color:#6b7280">✕ Nullstill</button>`:'');
@@ -7285,6 +7319,7 @@ function renderKundesaker(){
   if(kundesakerTypeFilter!=='alle')rader=rader.filter(n=>n.type===kundesakerTypeFilter);
   if(kundesakerSpesialFilter==='frist')rader=rader.filter(n=>kundesakFristStatus(n,naa));
   if(kundesakerSpesialFilter==='inaktiv')rader=rader.filter(n=>kundesakInaktivDager(n,naa)>0);
+  if(kundesakerFaseFilter!=='alle')rader=rader.filter(n=>salgFase(n)===kundesakerFaseFilter);
 
   if(rader.length===0){
     target.innerHTML=`<div class="empty">Ingen ${kundesakerVisLukkede?'':'åpne '}saker matcher valgte filtre${kundesakerSearch?'/søket':''}.
@@ -7301,6 +7336,7 @@ function renderKundesaker(){
     switch(kundesakerSort.col){
       case 'firma': return dir*navnFor(a).localeCompare(navnFor(b));
       case 'type': return dir*(a.type||'').localeCompare(b.type||'');
+      case 'fase': return dir*((a.type==='Tilbud'?salgFaseIndeks(salgFase(a)):200)-(b.type==='Tilbud'?salgFaseIndeks(salgFase(b)):200));
       case 'tittel': return dir*(a.tittel||'').localeCompare(b.tittel||'');
       case 'sum': return dir*((erTilbudMedSum(a)?a.tilbudSum:-1)-(erTilbudMedSum(b)?b.tilbudSum:-1));
       case 'sjanse': return dir*((erTilbudMedSum(a)?(a.sannsynlighet||0):-1)-(erTilbudMedSum(b)?(b.sannsynlighet||0):-1));
@@ -7321,7 +7357,7 @@ function renderKundesaker(){
   const th=(col,lbl,stil)=>`<th style="cursor:pointer;${stil||''}" onclick="sortKundesakerBy('${col}')">${lbl} <span id="ksh-${col}"></span></th>`;
   const tom='<span class="ks-muted">—</span>';
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-      ${th('firma','Firma')}${th('type','Type')}${th('tittel','Tittel')}
+      ${th('firma','Firma')}${th('type','Type')}${th('fase','Fase')}${th('tittel','Tittel')}
       ${th('sum','Sum','text-align:right')}${th('sjanse','Sjanse','text-align:right')}${th('vektet','Vektet','text-align:right')}
       ${ansvarligValgt?'':th('ansvarlig','Ansvarlig')}${th('opprettet','Opprettet')}${th('forfallsdato','Neste frist')}${th('status','Status')}
     </tr></thead><tbody>
@@ -7341,7 +7377,8 @@ function renderKundesaker(){
       return `<tr class="rad-klikkbar" onclick="gaTilKundeFraSak('${n.id}')" title="Åpne saken hos ${kunde.replace(/"/g,'&quot;')}">
         <td><strong>${kunde}</strong></td>
         <td><span style="font-size:11px;font-weight:700;color:${farge.c};background:${farge.bg};padding:3px 9px;border-radius:20px;white-space:nowrap">${n.type}</span></td>
-        <td style="max-width:280px"><div style="display:flex;align-items:center;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.tittel||'(uten tittel)'}</span>${inaktivHtml}</div></td>
+        <td style="white-space:nowrap">${n.type==='Tilbud'?`<span class="fase-merke" title="Leadkilde: ${escHtmlEpost(leadKildeVis(n))}">${(SALG_FASER.find(f=>f.navn===salgFase(n))||{}).ikon||(salgFase(n)==='Vunnet'?'✅':salgFase(n)==='Tapt'?'❌':'')} ${salgFase(n)}</span>`:tom}</td>
+        <td style="max-width:220px"><div style="display:flex;align-items:center;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.tittel||'(uten tittel)'}</span>${inaktivHtml}</div></td>
         <td style="text-align:right;white-space:nowrap">${medSum?fS(n.tilbudSum):tom}</td>
         <td style="text-align:right;white-space:nowrap">${medSum?(n.sannsynlighet||0)+' %':tom}</td>
         <td style="text-align:right;white-space:nowrap;font-weight:${medSum?'600':'400'};color:#6d28d9">${medSum?fS(vektet(n)):tom}</td>
@@ -7353,7 +7390,7 @@ function renderKundesaker(){
     }).join('')}
   </tbody></table></div>`;
 
-  ['firma','type','tittel','sum','sjanse','vektet','ansvarlig','opprettet','forfallsdato','status'].forEach(c=>{
+  ['firma','type','fase','tittel','sum','sjanse','vektet','ansvarlig','opprettet','forfallsdato','status'].forEach(c=>{
     const el=document.getElementById('ksh-'+c);
     if(el)el.innerHTML=kundesakerSort.col===c?(kundesakerSort.dir==='asc'?'↑':'↓'):'↕';
   });
@@ -7407,7 +7444,7 @@ async function sokBrregEtterFirmanavn(navn){
 }
 
 function nullstillKundesakerFilter(){
-  kundesakerTypeFilter='alle';kundesakerBrukerFilter='alle';kundesakerVisLukkede=false;kundesakerSearch='';kundesakerSpesialFilter=null;
+  kundesakerTypeFilter='alle';kundesakerBrukerFilter='alle';kundesakerVisLukkede=false;kundesakerSearch='';kundesakerSpesialFilter=null;kundesakerFaseFilter='alle';
   const inp=document.getElementById('kundesaker-search');if(inp)inp.value='';
   renderKundesaker();
 }
@@ -7620,6 +7657,7 @@ function renderKundeNotaterHTML(k){
         </div>`:''}
       </div>
       ${tilbudInfoHtml}
+      ${renderSalgFaseHTML(n)}
       ${renderNotatInnholdHTML(n)}
       <div class="k360-notat-meta" style="font-size:12px;color:#4b5563">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · Forfallsdato: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · ${[n.varsleEpost?'✉️':'',n.varsleDashbord?'🔔':''].filter(Boolean).join(' ')}`:''}`:''}</div>
       ${renderNotatLoggHTML(n)}
@@ -7768,6 +7806,7 @@ function fyllAnsvarligSelect(gjeldendeNavn){
 
 function openNyNotatModal(kNr,navn){
   settLeadModus(false);
+  fyllFaseOgKildeValg('Tilbud sendt','','');
   document.getElementById('notat-modal-title').textContent='Ny oppføring';
   document.getElementById('n-type').value='Notat';
   fyllAnsvarligSelect(currentUser?.name||currentUser?.username||'');
@@ -7805,6 +7844,7 @@ function openRedigerNotat(id){
   const eksSans=n.sannsynlighet!=null?n.sannsynlighet:50;
   document.getElementById('n-sannsynlighet').value=eksSans;
   document.getElementById('n-sannsynlighet-verdi').textContent=eksSans;
+  fyllFaseOgKildeValg(n.type==='Tilbud'&&n.status==='Åpen'?salgFase(n):(n.fase||'Tilbud sendt'),n.leadKilde||'',n.leadKildeDetalj||'');
   if(notatDatePicker)n.forfallsdato?notatDatePicker.setDate(new Date(n.forfallsdato)):notatDatePicker.clear();
   else document.getElementById('n-forfallsdato').value=toLocalDatetimeInputValue(n.forfallsdato);
   document.getElementById('n-varsle-epost').checked=n.varsleEpost!==false;
@@ -7862,6 +7902,11 @@ function openNyttLeadModal(forhaandsvalg){
   openNyNotatModal('','');
   settLeadModus(true);
   document.getElementById('notat-modal-title').textContent='➕ Nytt lead';
+  // v1.48.156: et nytt lead er en salgsmulighet i fase «Lead» (sum ikke påkrevd ennå).
+  document.getElementById('n-type').value='Tilbud';
+  fyllFaseOgKildeValg('Lead','','');
+  faseEndretISkjema();
+  updateNotatFormFields();
   if(forhaandsvalg)leadVelgObjekt(leadMapTilEksisterende(forhaandsvalg));
   setTimeout(()=>{const el=document.getElementById(forhaandsvalg?'n-tittel':'n-lead-sok');if(el)el.focus();},50);
 }
@@ -7962,6 +8007,12 @@ function leadVelgObjekt(v){
   // Eksisterende kunde/prospekt: vanlig sak på kunden (kunde-nr settes med én gang).
   document.getElementById('n-kunde-nr').value=v.type==='eksisterende'?v.kNr:'';
   document.getElementById('n-kunde-navn').value=v.navn||'';
+  // v1.48.156: foreslå leadkilde ut fra valget (kan endres).
+  const ks=document.getElementById('n-leadkilde');
+  if(ks&&!ks.value){
+    if(v.type==='nyetablering')ks.value='Nyetableringer (Brreg)';
+    else if(v.type==='eksisterende'&&!v.erProspekt)ks.value='Eksisterende kunde';
+  }
   visLeadValg();
 }
 function visLeadValg(){
@@ -9147,12 +9198,124 @@ function notatFieldsPayload(n){
     // apneTaptArsakModal()/bekreftTaptMedArsak().
     felter.TilbudArsak=n.tilbudArsak||'';
     felter.TilbudArsakDetalj=n.tilbudArsakDetalj||'';
+    // Salgsfase/leadkilde (v1.48.156). Kun satt når de faktisk har en verdi,
+    // så eldre tilbud uten fase ikke får en «oppdiktet» fase lagret.
+    if(n.fase)felter.Fase=n.fase;
+    if(n.leadKilde)felter.LeadKilde=n.leadKilde;
+    if(n.leadKilde)felter.LeadKildeDetalj=n.leadKilde==='Annet'?(n.leadKildeDetalj||''):'';
   }
   return felter;
 }
-const TILBUD_MYKE_FELTER=['TilbudSum','Sannsynlighet','TilbudUtfall','TilbudLukketDato','TilbudArsak','TilbudArsakDetalj'];
+const TILBUD_MYKE_FELTER=['TilbudSum','Sannsynlighet','TilbudUtfall','TilbudLukketDato','TilbudArsak','TilbudArsakDetalj','Fase','LeadKilde','LeadKildeDetalj'];
 const NOTAT_MYKE_FELTER=[...TILBUD_MYKE_FELTER,'SistAktivitet']; // v1.48.147 — alle KundeNotater-lagringer bruker denne
 function markerAktivitet(n){n.sistAktivitet=new Date().toISOString();}
+// ===== SALGSPROSESS TRINN 1: FASER + LEADKILDE (v1.48.156, 30.09.2026) =====
+// Thomas: vite hvor leads kommer fra (til rapporter på vunnet/tapt over tid)
+// og bedre flyt gjennom salgsprosessen. En Tilbud-sak er nå selve
+// SALGSMULIGHETEN og går gjennom fasene under; Notat/Oppfølging er fortsatt
+// frittstående aktiviteter (Thomas' valg). Salget slutter ved Vunnet/Tapt —
+// levering blir et eget system senere (møte med Casper 30.09.2026).
+// Tre nye tekstkolonner på KundeNotater (Liste 28): Fase, LeadKilde,
+// LeadKildeDetalj — fast liste i koden, IKKE Valg-kolonne (prosjektregel).
+// Alle går via myk fallback (TILBUD_MYKE_FELTER) til kolonnene finnes.
+// Hvert faseskifte logges i Logg ({…, fase:{fra,til}}) → grunnlag for trakt/
+// tid-per-fase senere (trinn 2). Eldre tilbud uten fase: åpne vises som
+// «Tilbud sendt», kilde «Ukjent».
+const SALG_FASER=[
+  {navn:'Lead',sans:10,ikon:'🌱'},
+  {navn:'Kontakt',sans:20,ikon:'📞'},
+  {navn:'Demo',sans:40,ikon:'🖥️'},
+  {navn:'Tilbud sendt',sans:60,ikon:'📄'},
+  {navn:'Closing',sans:80,ikon:'🤝'},
+];
+const LEAD_KILDER=['Hjemmeside','Susoft','NHO IK','KNIF','Systemkjøp','Eksisterende kunde','Frisk Asker','FNA','Nyetableringer (Brreg)','Annet'];
+const FASER_MED_SUM=['Tilbud sendt','Closing'];
+function salgFase(n){
+  if(!n||n.type!=='Tilbud')return '';
+  if(n.status==='Lukket')return n.tilbudUtfall||'Lukket';
+  return SALG_FASER.some(f=>f.navn===n.fase)?n.fase:'Tilbud sendt';
+}
+function salgFaseIndeks(navn){const i=SALG_FASER.findIndex(f=>f.navn===navn);return i<0?(navn==='Vunnet'?90:navn==='Tapt'?91:99):i;}
+function salgFaseSans(navn){return (SALG_FASER.find(f=>f.navn===navn)||{}).sans;}
+function leadKildeVis(n){return n.leadKilde?(n.leadKilde==='Annet'&&n.leadKildeDetalj?`Annet: ${n.leadKildeDetalj}`:n.leadKilde):'Ukjent';}
+function fyllFaseOgKildeValg(fase,kilde,detalj){
+  const fs=document.getElementById('n-fase');
+  if(fs){fs.innerHTML=SALG_FASER.map(f=>`<option value="${f.navn}">${f.ikon} ${f.navn}</option>`).join('');fs.value=fase||'Tilbud sendt';fs.dataset.forrige=fs.value;}
+  const ks=document.getElementById('n-leadkilde');
+  if(ks){ks.innerHTML='<option value="">— velg kilde —</option>'+LEAD_KILDER.map(k=>`<option value="${k}">${k}</option>`).join('');ks.value=kilde||'';}
+  const d=document.getElementById('n-leadkilde-detalj');if(d)d.value=detalj||'';
+  const dw=document.getElementById('n-leadkilde-detalj-wrap');if(dw)dw.style.display=kilde==='Annet'?'':'none';
+}
+// Bytter man fase i skjemaet, foreslås fasens standard-sannsynlighet (kan
+// fortsatt justeres manuelt etterpå med glidebryteren).
+function faseEndretISkjema(){
+  const fs=document.getElementById('n-fase');if(!fs)return;
+  const sans=salgFaseSans(fs.value);
+  if(sans!=null){const r=document.getElementById('n-sannsynlighet');if(r){r.value=sans;document.getElementById('n-sannsynlighet-verdi').textContent=sans;}oppdaterTilbudVektetVisning();}
+  fs.dataset.forrige=fs.value;
+}
+function faseLogg(n,fra,til){
+  if(!Array.isArray(n.logg))n.logg=[];
+  n.logg.push({dato:new Date().toISOString(),tekst:fra?`Fase: ${fra} → ${til}`:`Opprettet i fase: ${til}`,forfatter:currentUser?.name||currentUser?.username||'Ukjent',fase:{fra:fra||'',til}});
+}
+// Faseknappene på notatkortet (kundekortet).
+function settSalgFase(id,nyFase){
+  const n=kundeNotater.find(x=>x.id===id);if(!n||n.type!=='Tilbud'||n.status!=='Åpen')return;
+  const gammel=salgFase(n);if(gammel===nyFase)return;
+  if(FASER_MED_SUM.includes(nyFase)&&!(n.tilbudSum>0)){
+    alert(`Fasen «${nyFase}» krever en totalsum. Legg inn summen i skjemaet som åpnes nå.`);
+    openRedigerNotat(id);
+    const fs=document.getElementById('n-fase');if(fs){fs.value=nyFase;faseEndretISkjema();}
+    setTimeout(()=>document.getElementById('n-tilbudsum')?.focus(),50);
+    return;
+  }
+  n.fase=nyFase;
+  const sans=salgFaseSans(nyFase);if(sans!=null)n.sannsynlighet=sans;
+  faseLogg(n,gammel,nyFase);
+  markerAktivitet(n);
+  if(k360Valgt)renderKundeKort(k360Valgt);
+  renderKundesaker();
+  if(n.spId){
+    setSPStatus('⏳ Lagrer…');
+    spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),notatFieldsPayload(n),NOTAT_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Faseskiftet ble ikke lagret til SharePoint:\n'+e.message);});
+  }
+}
+function renderSalgFaseHTML(n){
+  if(n.type!=='Tilbud')return '';
+  const aktiv=salgFase(n);
+  const kilde=`<span class="salg-kilde" title="Leadkilde">📍 ${escHtmlEpost(leadKildeVis(n))}</span>`;
+  if(n.status!=='Åpen')return `<div class="salg-faser">${kilde}</div>`;
+  const ai=salgFaseIndeks(aktiv);
+  const steg=SALG_FASER.map((f,i)=>{
+    const kl=i<ai?'ferdig':i===ai?'aktiv':'';
+    return salgTilgang?`<button type="button" class="salg-fase ${kl}" onclick="settSalgFase('${n.id}','${f.navn}')" title="${i===ai?'Nåværende fase':'Sett fase til '+f.navn}">${f.ikon} ${f.navn}</button>`:`<span class="salg-fase ${kl}">${f.ikon} ${f.navn}</span>`;
+  }).join('<span class="salg-pil">›</span>');
+  return `<div class="salg-faser">${steg}${kilde}</div>`;
+}
+
+// Rapporter (Tilbudsanalyse): pr. leadkilde og åpen pipeline pr. fase.
+function kundesakerPrLeadkilde(){
+  const g={};
+  kundeNotater.filter(n=>n.type==='Tilbud').forEach(n=>{
+    const k=n.leadKilde||'Ukjent';
+    if(!g[k])g[k]={kilde:k,antall:0,apne:0,vunnet:0,tapt:0,vunnetSum:0,dagerSum:0,dagerAnt:0};
+    const r=g[k];r.antall++;
+    if(n.status==='Åpen')r.apne++;
+    if(n.tilbudUtfall==='Vunnet'){r.vunnet++;r.vunnetSum+=n.tilbudSum||0;}
+    if(n.tilbudUtfall==='Tapt')r.tapt++;
+    const fra=new Date(n.opprettetDato),til=new Date(n.tilbudLukketDato);
+    if(n.tilbudUtfall&&n.opprettetDato&&n.tilbudLukketDato&&!isNaN(fra)&&!isNaN(til)&&til>=fra){r.dagerSum+=(til-fra)/86400000;r.dagerAnt++;}
+  });
+  return Object.values(g).map(r=>({...r,treff:(r.vunnet+r.tapt)?r.vunnet/(r.vunnet+r.tapt)*100:null,snittDager:r.dagerAnt?r.dagerSum/r.dagerAnt:null}))
+    .sort((a,b)=>(a.kilde==='Ukjent')-(b.kilde==='Ukjent')||b.antall-a.antall||a.kilde.localeCompare(b.kilde,'nb'));
+}
+function kundesakerApenPrFase(){
+  return SALG_FASER.map(f=>{
+    const s=kundeNotater.filter(n=>n.type==='Tilbud'&&n.status==='Åpen'&&salgFase(n)===f.navn);
+    return{fase:f,antall:s.length,sum:s.reduce((a,n)=>a+(n.tilbudSum||0),0),vektet:s.reduce((a,n)=>a+(n.tilbudSum||0)*((n.sannsynlighet||0)/100),0)};
+  });
+}
+
 // Faste årsakskategorier ved Tapt (27.09.2026) — bevisst en FAST liste (ikke
 // fritekst) slik at «Tapt pr. årsak»-oversikten faktisk kan telle opp/gruppere
 // i etterkant (Thomas' eksempel: «er det pris, er det løsning osv»). "Annet"
@@ -9188,7 +9351,17 @@ function saveNotat(){
   const tilbudSum=tilbudSumRaw?Number(tilbudSumRaw):null;
   const sannsynlighet=sannsynlighetRaw!==''?Number(sannsynlighetRaw):null;
   if(!tittel){alert('Fyll inn en tittel');return;}
-  if(type==='Tilbud'&&!editId&&(!tilbudSum||tilbudSum<=0)){alert('Fyll inn en totalsum for tilbudet');return;}
+  // v1.48.156: fase + leadkilde. Totalsum påkrevd først fra «Tilbud sendt»
+  // (et lead/en demo har ofte ingen sum ennå). Leadkilde påkrevd på NYE
+  // salgsmuligheter; eldre saker uten kilde blokkeres ikke ved redigering.
+  const faseValgt=document.getElementById('n-fase')?.value||'Tilbud sendt';
+  const leadKildeValgt=document.getElementById('n-leadkilde')?.value||'';
+  const leadKildeDetaljValgt=(document.getElementById('n-leadkilde-detalj')?.value||'').trim();
+  if(type==='Tilbud'&&!editId&&!leadKildeValgt){alert('Velg hvor leadet kommer fra (Leadkilde).');return;}
+  if(type==='Tilbud'&&leadKildeValgt==='Annet'&&!leadKildeDetaljValgt){alert('Skriv hvilken kilde det er når du velger «Annet».');return;}
+  const redigertSak=editId?kundeNotater.find(x=>x.id===editId):null;
+  const erApenSak=!redigertSak||redigertSak.status==='Åpen';
+  if(type==='Tilbud'&&erApenSak&&FASER_MED_SUM.includes(faseValgt)&&(!tilbudSum||tilbudSum<=0)){alert(`Fyll inn en totalsum — fasen «${faseValgt}» krever det.`);return;}
   if((varsleEpost||varsleDashbord)&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato/klokkeslett for å kunne varsle');return;}
   // «➕ Nytt lead» (v1.48.142): kunden må være valgt, og opprettes/overføres
   // FØRST NÅ (etter at resten av skjemaet er validert). Deretter kjøres
@@ -9223,6 +9396,12 @@ function saveNotat(){
     // en endret/utsatt frist faktisk gir nytt varsel i stedet for å bli
     // stille undertrykt av at et tidligere (nå utdatert) varsel alt er sendt.
     n.type=type;n.tittel=tittel;n.innhold=innhold;n.forfallsdato=forfallsdato;n.varsleEpost=varsleEpost;n.varsleDashbord=varsleDashbord;n.varselSendt=false;n.kundeNavn=kNavn;n.tilbudSum=tilbudSum;n.sannsynlighet=sannsynlighet;
+    if(type==='Tilbud'){
+      const gammelFase=salgFase(n);
+      if(n.status==='Åpen'&&gammelFase!==faseValgt){n.fase=faseValgt;faseLogg(n,gammelFase,faseValgt);}
+      else if(!n.fase&&n.status==='Åpen')n.fase=faseValgt;
+      n.leadKilde=leadKildeValgt;n.leadKildeDetalj=leadKildeValgt==='Annet'?leadKildeDetaljValgt:'';
+    }
     markerAktivitet(n);
     // Ansvarlig/selger — lagt til 03.09.2026 (Terjes spørsmål om å kunne endre
     // "selger" på saker overført fra Nyetableringer). Oppdaterer OGSÅ
@@ -9262,7 +9441,8 @@ function saveNotat(){
     const ansvarligValgt=ansvarligNavn||currentUser?.name||currentUser?.username||'Ukjent';
     const ansvarligMatch=brukere.find(b=>b.navn===ansvarligValgt);
     const ansvarligEpost=ansvarligMatch?.epost||(ansvarligValgt===(currentUser?.name||currentUser?.username)?(currentUser?.username||''):'');
-    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,tilbudSum,sannsynlighet,tilbudUtfall:'',tilbudLukketDato:'',sistAktivitet:now,logg:[]};
+    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,tilbudSum,sannsynlighet,tilbudUtfall:'',tilbudLukketDato:'',sistAktivitet:now,logg:[],fase:type==='Tilbud'?faseValgt:'',leadKilde:type==='Tilbud'?leadKildeValgt:'',leadKildeDetalj:type==='Tilbud'&&leadKildeValgt==='Annet'?leadKildeDetaljValgt:''};
+    if(type==='Tilbud')faseLogg(nyNotat,'',faseValgt);
     kundeNotater.push(nyNotat);
     if(k360Valgt)renderKundeKort(k360Valgt);
     setSPStatus('⏳ Lagrer…');
@@ -9306,7 +9486,9 @@ function saveNotat(){
 // der), og uendret for Notat/Oppfølging i alle tilfeller.
 function lukkTilbudMedUtfall(id,utfall,arsak,arsakDetalj){
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
+  const faseFor=salgFase(n);
   n.status='Lukket';n.tilbudUtfall=utfall;n.tilbudLukketDato=new Date().toISOString();
+  faseLogg(n,faseFor,utfall); // v1.48.156
   markerAktivitet(n);
   // Årsak (27.09.2026) er kun relevant ved Tapt — ved Vunnet nullstilles den
   // alltid, selv om en tidligere gjenåpnet/redigert sak skulle ha en fra før.
@@ -9793,6 +9975,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.156',dato:'30.09.2026',punkter:[
+    'Salgsprosess: et tilbud er nå en salgsmulighet med faser — Lead → Kontakt → Demo → Tilbud sendt → Closing → Vunnet/Tapt. Trykk på fasen i saken for å flytte den. Sannsynligheten foreslås ut fra fasen (10–80 %) og kan justeres.',
+    'Leadkilde: hvor leadet kom fra (Hjemmeside, Susoft, NHO IK, KNIF, Systemkjøp, Eksisterende kunde, Frisk Asker, FNA, Nyetableringer (Brreg), Annet). Må velges på nye salgsmuligheter. «Nytt lead» starter i fase Lead, og totalsum kreves først fra «Tilbud sendt».',
+    'Kundesaker: ny kolonne og filter for fase. Tilbudsanalyse: ny oversikt over åpne salgsmuligheter pr. fase og resultater pr. leadkilde (vunnet, tapt, treffprosent, vunnet sum).'
+  ]},
   {versjon:'v1.48.155',dato:'30.09.2026',punkter:[
     'Transaksjonsavgift (Verifone og Nets): salgsordrene sendes nå til Visma 15 om gangen, og knappen viser fremdriften («30 av 78»). Store fakturaer ble tidligere avbrutt etter 230 sekunder, slik at kjøringen ikke kom med i historikken og rapporten.',
     'Transaksjonsavgift: stopper en kjøring underveis, vises det tydelig hvilke BAX-numre som må sjekkes i Visma. Et nytt trykk sender bare de som gjenstår, så ingen ordre blir laget to ganger.',
