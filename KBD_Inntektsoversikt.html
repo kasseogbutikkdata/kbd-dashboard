@@ -543,7 +543,7 @@ tr:hover td{background:#fafafa}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.154 · Oppdatert: 29. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.155 · Oppdatert: 30. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -9793,6 +9793,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.155',dato:'30.09.2026',punkter:[
+    'Transaksjonsavgift (Verifone og Nets): salgsordrene sendes nå til Visma 15 om gangen, og knappen viser fremdriften («30 av 78»). Store fakturaer ble tidligere avbrutt etter 230 sekunder, slik at kjøringen ikke kom med i historikken og rapporten.',
+    'Transaksjonsavgift: stopper en kjøring underveis, vises det tydelig hvilke BAX-numre som må sjekkes i Visma. Et nytt trykk sender bare de som gjenstår, så ingen ordre blir laget to ganger.',
+    'Transaksjonsavgift: får ikke dashbordet lagret kjøringen i historikken, vises det nå en tydelig advarsel i stedet for at feilen skjer i det stille.'
+  ]},
   {versjon:'v1.48.154',dato:'29.09.2026',punkter:[
     'Susoft RMA: nytt steg og datofelt «Meldt til Susoft» før «Sendt Susoft». Er saken meldt, men ikke sendt etter 7 dager, går det en avklaringsforespørsel til Susoft og et varsel til Geir.',
     'Susoft RMA: statusen «Hos Susoft» er fjernet. Saker som stod på den, vises nå som «Sendt til Susoft».',
@@ -15098,6 +15103,7 @@ const VF_CONFIG = {
 let vfData = { matched: [], unmatched: [], conflicts: [] };
 let vfHistorikk = []; // fylt av loadDataFromSP() (lista VerifoneHistorikk) — se vfRenderHistorikk()/vfLoggHistorikk()
 let vfSisteFakturaReferanse = "";
+let vfSendtNokler = new Set(); // v1.48.155: salgsordre allerede sendt for gjeldende faktura (tømmes ved ny opplasting) — hindrer duplikater ved nytt trykk
 const vfLinkedState = {};
 const vfNf = new Intl.NumberFormat('nb-NO', {minimumFractionDigits:2, maximumFractionDigits:2});
 const vfNfi = new Intl.NumberFormat('nb-NO');
@@ -15165,6 +15171,7 @@ async function vfLastOppFaktura(file){
       return;
     }
     vfData = data;
+    vfSendtNokler = new Set();
     vfSisteFakturaReferanse = file.name.replace(/\.pdf$/i, '');
     document.getElementById('vf-upload-meta').textContent =
       `${data.antallLinjerLest} transaksjonslinjer lest · matchet mot Visma.net`;
@@ -15382,63 +15389,26 @@ function vfUpdateApproveBar(){
   pendingEl.textContent = pendingCount > 0 ? `${pendingCount} BAX-numre venter fortsatt på kobling` : '';
 }
 
-function vfShowToast(msg){
+function vfShowToast(msg, varighetMs){
   const t = document.getElementById('vf-toast');
   document.getElementById('vf-toast-txt').textContent = msg;
   t.classList.add('show');
   clearTimeout(window._vfToastTimer);
-  window._vfToastTimer = setTimeout(()=>t.classList.remove('show'), 3200);
+  window._vfToastTimer = setTimeout(()=>t.classList.remove('show'), varighetMs || 3200);
 }
 
+// v1.48.155 (30.09.2026): delegerer til taApprove() — porsjonsvis sending,
+// se kommentaren over taOpprettPorsjonsvis() for bakgrunnen (Azure 230 s-grensen).
 async function vfApprove(){
-  if (!VF_CONFIG.baseUrl){
-    vfShowToast('Ikke koblet til Azure Function ennå.');
-    return;
-  }
-  const godkjente = vfBuildGodkjenteListe();
-  if (!godkjente.length){
-    vfShowToast('Ingenting å opprette — last opp en faktura først.');
-    return;
-  }
-  const btn = document.getElementById('vf-approve-btn');
-  btn.disabled = true;
-  btn.textContent = 'Oppretter utkast…';
-
-  const payload = {
-    // erForhandler (lagt til 07.09.2026) sendes med per salgsordre — se
-    // vfErForhandler()/visma_client.opprett_salgsordre_utkast().
-    godkjente: godkjente.map(k => ({ kundenr: k.kundenr, kundenavn: k.kundenavn, erForhandler: !!k.erForhandler, periods: k.periods })),
-    fakturareferanse: vfSisteFakturaReferanse || 'Verifone transaksjonsavgift',
-  };
-
-  try {
-    const vfToken = await vfGetApiToken();
-    const resp = await fetch(vfApiUrl('/api/create_sales_orders'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${vfToken}` },
-      body: JSON.stringify(payload),
-    });
-    const data = await resp.json();
-    if (!resp.ok) {
-      vfShowToast(data.error || `Feil fra server (${resp.status})`);
-      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
-      return;
-    }
-    const ok = data.resultater.filter(r => r.status === 'ok').length;
-    const feilet = data.resultater.filter(r => r.status === 'feil');
-    await vfLoggHistorikk(godkjente, data.resultater, payload.fakturareferanse);
-    if (feilet.length === 0) {
-      btn.textContent = '✓ Opprettet — se Visma.net for gjennomgang';
-      vfShowToast(`${ok} salgsordre-utkast opprettet i Visma.net`);
-    } else {
-      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
-      vfShowToast(`${ok} opprettet, ${feilet.length} feilet — se konsoll`);
-      console.warn('Kunder som feilet:', feilet);
-    }
-  } catch (err) {
-    btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
-    vfShowToast(`Kunne ikke nå Azure Function: ${err.message}`);
-  }
+  return taApprove({
+    buildListe: vfBuildGodkjenteListe,
+    sti: '/api/create_sales_orders',
+    btnId: 'vf-approve-btn',
+    pendingId: 'vf-approve-pending',
+    referanse: vfSisteFakturaReferanse || 'Verifone transaksjonsavgift',
+    sendt: vfSendtNokler,
+    logg: vfLoggHistorikk,
+  });
 }
 
 function renderVerifone(){
@@ -15474,9 +15444,13 @@ function vfRenderHistorikk(){
 // Feiler denne SharePoint-skrivingen (f.eks. fordi lista ikke er opprettet
 // ennå), skal IKKE selve salgsordre-flyten stoppes eller vises som feilet —
 // salgsordrene er uansett allerede opprettet i Visma.net på dette tidspunktet.
+// v1.48.155: `godkjente` er nå radene som FAKTISK ble sendt i denne kjøringen
+// (samme rekkefølge som `resultater`, én til én). TotaltBelop summerer kun
+// rader med status «ok». Returnerer true/false, så taApprove() kan vise en
+// tydelig advarsel når lagringen feiler (tidligere kun console.warn).
 async function vfLoggHistorikk(godkjente, resultater, referanse){
   try {
-    const totaltBelop = godkjente.reduce((s,k) => s + k.periods.reduce((s2,p) => s2 + p.belop, 0), 0);
+    const totaltBelop = godkjente.reduce((s,k,i) => resultater[i] && resultater[i].status === 'ok' ? s + k.periods.reduce((s2,p) => s2 + p.belop, 0) : s, 0);
     const fields = {
       Title: referanse,
       Dato: new Date().toISOString(),
@@ -15502,8 +15476,11 @@ async function vfLoggHistorikk(godkjente, resultater, referanse){
       antallFeilet: fields.AntallFeilet, antallManueltAvklart: fields.AntallManueltAvklart,
       opprettetAv: fields.OpprettetAv,
     });
+    if (typeof vfRenderHistorikk === 'function') vfRenderHistorikk();
+    return true;
   } catch (err) {
     console.warn('Kunne ikke logge til VerifoneHistorikk (salgsordrene er uansett opprettet i Visma.net):', err);
+    return false;
   }
 }
 
@@ -15533,6 +15510,7 @@ async function vfLoggHistorikk(godkjente, resultater, referanse){
 let ntData = { matched: [], unmatched: [], conflicts: [] };
 let ntHistorikk = []; // fylt av loadDataFromSP() (lista NetsHistorikk) — se ntRenderHistorikk()/ntLoggHistorikk()
 let ntSisteFakturaReferanse = "";
+let ntSendtNokler = new Set(); // v1.48.155: se vfSendtNokler
 const ntLinkedState = {};
 
 function ntSwitchTab(name){
@@ -15577,6 +15555,7 @@ async function ntLastOppFaktura(file){
       return;
     }
     ntData = data;
+    ntSendtNokler = new Set();
     ntSisteFakturaReferanse = file.name.replace(/\.pdf$/i, '');
     document.getElementById('nt-upload-meta').textContent =
       `${data.antallLinjerLest} transaksjonslinjer lest · matchet mot Visma.net`;
@@ -15784,53 +15763,17 @@ function ntUpdateApproveBar(){
   pendingEl.textContent = pendingCount > 0 ? `${pendingCount} BAX-numre venter fortsatt på kobling` : '';
 }
 
+// v1.48.155 (30.09.2026): delegerer til taApprove() — se vfApprove().
 async function ntApprove(){
-  if (!VF_CONFIG.baseUrl){
-    vfShowToast('Ikke koblet til Azure Function ennå.');
-    return;
-  }
-  const godkjente = ntBuildGodkjenteListe();
-  if (!godkjente.length){
-    vfShowToast('Ingenting å opprette — last opp en faktura først.');
-    return;
-  }
-  const btn = document.getElementById('nt-approve-btn');
-  btn.disabled = true;
-  btn.textContent = 'Oppretter utkast…';
-
-  const payload = {
-    godkjente: godkjente.map(k => ({ kundenr: k.kundenr, kundenavn: k.kundenavn, erForhandler: !!k.erForhandler, periods: k.periods })),
-    fakturareferanse: ntSisteFakturaReferanse || 'Nets transaksjonsavgift',
-  };
-
-  try {
-    const token = await vfGetApiToken();
-    const resp = await fetch(vfApiUrl('/api/create_sales_orders_nets'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(payload),
-    });
-    const data = await resp.json();
-    if (!resp.ok) {
-      vfShowToast(data.error || `Feil fra server (${resp.status})`);
-      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
-      return;
-    }
-    const ok = data.resultater.filter(r => r.status === 'ok').length;
-    const feilet = data.resultater.filter(r => r.status === 'feil');
-    await ntLoggHistorikk(godkjente, data.resultater, payload.fakturareferanse);
-    if (feilet.length === 0) {
-      btn.textContent = '✓ Opprettet — se Visma.net for gjennomgang';
-      vfShowToast(`${ok} salgsordre-utkast opprettet i Visma.net`);
-    } else {
-      btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
-      vfShowToast(`${ok} opprettet, ${feilet.length} feilet — se konsoll`);
-      console.warn('Kunder som feilet:', feilet);
-    }
-  } catch (err) {
-    btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →';
-    vfShowToast(`Kunne ikke nå Azure Function: ${err.message}`);
-  }
+  return taApprove({
+    buildListe: ntBuildGodkjenteListe,
+    sti: '/api/create_sales_orders_nets',
+    btnId: 'nt-approve-btn',
+    pendingId: 'nt-approve-pending',
+    referanse: ntSisteFakturaReferanse || 'Nets transaksjonsavgift',
+    sendt: ntSendtNokler,
+    logg: ntLoggHistorikk,
+  });
 }
 
 function renderNets(){
@@ -15867,9 +15810,13 @@ function ntRenderHistorikk(){
 // er opprettet ennå i SharePoint), skal IKKE selve salgsordre-flyten stoppes
 // eller vises som feilet — salgsordrene er uansett allerede opprettet i
 // Visma.net på dette tidspunktet.
+// v1.48.155: `godkjente` er nå radene som FAKTISK ble sendt i denne kjøringen
+// (samme rekkefølge som `resultater`, én til én). TotaltBelop summerer kun
+// rader med status «ok». Returnerer true/false, så taApprove() kan vise en
+// tydelig advarsel når lagringen feiler (tidligere kun console.warn).
 async function ntLoggHistorikk(godkjente, resultater, referanse){
   try {
-    const totaltBelop = godkjente.reduce((s,k) => s + k.periods.reduce((s2,p) => s2 + p.belop, 0), 0);
+    const totaltBelop = godkjente.reduce((s,k,i) => resultater[i] && resultater[i].status === 'ok' ? s + k.periods.reduce((s2,p) => s2 + p.belop, 0) : s, 0);
     const fields = {
       Title: referanse,
       Dato: new Date().toISOString(),
@@ -15888,8 +15835,117 @@ async function ntLoggHistorikk(godkjente, resultater, referanse){
       antallFeilet: fields.AntallFeilet, antallManueltAvklart: fields.AntallManueltAvklart,
       opprettetAv: fields.OpprettetAv,
     });
+    if (typeof ntRenderHistorikk === 'function') ntRenderHistorikk();
+    return true;
   } catch (err) {
     console.warn('Kunne ikke logge til NetsHistorikk (salgsordrene er uansett opprettet i Visma.net) — sjekk om lista er opprettet i SharePoint ennå:', err);
+    return false;
+  }
+}
+
+/* ===== Felles salgsordre-sending for Transaksjonsavgift (v1.48.155, 30.09.2026) =====
+   Bakgrunn: 29.09.2026 tok create_sales_orders 255 575 ms for én stor
+   Verifone-faktura (98 342,64 kr). Azure sin frontend kutter HTTP-kall etter
+   ~230 s, så nettleseren fikk aldri svar — backend fullførte ALLE ordrene,
+   men vfLoggHistorikk() ble aldri kjørt, og kjøringen manglet i Historikk og
+   Trans.avgift-rapporten. Løsning (kun frontend, backend uendret): send
+   salgsordrene i porsjoner à TA_PORSJON_STR. Hver porsjon tar ~45-60 s.
+   - Backend returnerer `resultater` i samme rekkefølge som `godkjente`
+     (én per rad), så resultat i hører til rad i i porsjonen.
+   - Stopper en porsjon (tidsavbrudd/nettverk/serverfeil), vet vi IKKE om
+     ordrene i den ble laget. De merkes som sendt (sendes ikke igjen
+     automatisk) og listes synlig, så de kan sjekkes i Visma — dette hindrer
+     duplikate salgsordre. Et nytt trykk sender bare resten.
+   - Rader med status «feil» fra backend merkes IKKE som sendt, og kan
+     prøves igjen med et nytt trykk (samme oppførsel som før).
+   - Historikk logges én gang per trykk, for radene som faktisk ble sendt. */
+const TA_PORSJON_STR = 15;
+
+function taRadNokkel(k){
+  return k.kundenr + '|' + (k.periods || []).map(p => `${p.bax||''}/${p.periode||''}/${p.korttype||''}`).join(',');
+}
+function taRadBax(k){
+  return [...new Set((k.periods || []).map(p => p.bax).filter(Boolean))].join('/') || k.kundenr;
+}
+
+async function taOpprettPorsjonsvis(sti, rader, referanse, onFremdrift){
+  const resultater = [], sendt = [];
+  for (let i = 0; i < rader.length; i += TA_PORSJON_STR){
+    const porsjon = rader.slice(i, i + TA_PORSJON_STR);
+    onFremdrift(i, rader.length);
+    let data = null, feilmelding = null;
+    try {
+      const token = await vfGetApiToken();
+      const resp = await fetch(vfApiUrl(sti), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          godkjente: porsjon.map(k => ({ kundenr: k.kundenr, kundenavn: k.kundenavn, erForhandler: !!k.erForhandler, periods: k.periods })),
+          fakturareferanse: referanse,
+        }),
+      });
+      const tekst = await resp.text();
+      try { data = JSON.parse(tekst); } catch (_) { data = null; }
+      if (!resp.ok || !data || !Array.isArray(data.resultater) || data.resultater.length !== porsjon.length){
+        feilmelding = (data && data.error) || `Feil fra server (${resp.status})`;
+      }
+    } catch (err) {
+      feilmelding = `Kunne ikke nå Azure Function: ${err.message}`;
+    }
+    if (feilmelding){
+      return { resultater, sendt, stoppet: { porsjon, melding: feilmelding, gjenstaar: rader.slice(i + porsjon.length) } };
+    }
+    resultater.push(...data.resultater);
+    sendt.push(...porsjon);
+  }
+  onFremdrift(rader.length, rader.length);
+  return { resultater, sendt, stoppet: null };
+}
+
+async function taApprove(k){
+  if (!VF_CONFIG.baseUrl){ vfShowToast('Ikke koblet til Azure Function ennå.'); return; }
+  const alle = k.buildListe();
+  if (!alle.length){ vfShowToast('Ingenting å opprette — last opp en faktura først.'); return; }
+  const rader = alle.filter(r => !k.sendt.has(taRadNokkel(r)));
+  if (!rader.length){ vfShowToast('Alle salgsordrene for denne fakturaen er allerede sendt til Visma.net.', 6000); return; }
+
+  const btn = document.getElementById(k.btnId);
+  const pendingEl = document.getElementById(k.pendingId);
+  const tilbakestillKnapp = () => { btn.disabled = false; btn.textContent = 'Opprett salgsordre-utkast i Visma.net →'; };
+  btn.disabled = true;
+  if (pendingEl) pendingEl.textContent = '';
+
+  const res = await taOpprettPorsjonsvis(k.sti, rader, k.referanse,
+    (n, tot) => { btn.textContent = `Oppretter utkast… ${n} av ${tot}`; });
+
+  res.sendt.forEach((r, i) => { if (res.resultater[i] && res.resultater[i].status === 'ok') k.sendt.add(taRadNokkel(r)); });
+  if (res.stoppet) res.stoppet.porsjon.forEach(r => k.sendt.add(taRadNokkel(r)));
+
+  let logget = true;
+  if (res.sendt.length) logget = await k.logg(res.sendt, res.resultater, k.referanse);
+
+  const ok = res.resultater.filter(r => r.status === 'ok').length;
+  const feilet = res.resultater.filter(r => r.status === 'feil');
+  if (feilet.length) console.warn('Salgsordre som feilet:', feilet);
+  const loggTekst = logget ? '' : ' ⚠ Kjøringen ble IKKE lagret i Historikk — si fra til Thomas.';
+
+  if (res.stoppet){
+    const usikreBax = res.stoppet.porsjon.map(taRadBax).join(', ');
+    console.warn('Porsjon stoppet — usikre salgsordre:', res.stoppet.porsjon, res.stoppet.melding);
+    if (pendingEl) pendingEl.textContent =
+      `Stoppet: ${res.stoppet.melding}. ${res.stoppet.porsjon.length} salgsordre kan være laget eller ikke — sjekk BAX ${usikreBax} i Visma.net. ` +
+      (res.stoppet.gjenstaar.length ? `Trykk knappen igjen for å sende de ${res.stoppet.gjenstaar.length} som gjenstår.` : '');
+    tilbakestillKnapp();
+    vfShowToast(`${ok} opprettet før stopp — se melding over knappen.${loggTekst}`, 10000);
+    return;
+  }
+  if (feilet.length === 0){
+    btn.textContent = '✓ Opprettet — se Visma.net for gjennomgang';
+    vfShowToast(`${ok} salgsordre-utkast opprettet i Visma.net.${loggTekst}`, logget ? 3200 : 10000);
+  } else {
+    tilbakestillKnapp();
+    if (pendingEl) pendingEl.textContent = `${feilet.length} salgsordre feilet (kundenr ${feilet.map(f => f.kundenr).join(', ')}). Trykk knappen igjen for å prøve bare disse på nytt.`;
+    vfShowToast(`${ok} opprettet, ${feilet.length} feilet — se melding over knappen.${loggTekst}`, 10000);
   }
 }
 
