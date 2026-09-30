@@ -261,6 +261,11 @@ button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
 .salg-fase.aktiv{background:#6d28d9;color:#fff;border-color:#6d28d9;font-weight:600}
 .salg-pil{color:#c4b5fd;font-size:12px}
 .salg-kilde{margin-left:8px;font-size:11.5px;color:#4b5563}
+.logg-verktoy{display:inline-flex;gap:2px;margin-left:6px;opacity:0;transition:opacity .15s}
+.logg-rad:hover .logg-verktoy,.logg-verktoy:focus-within{opacity:1}
+.logg-verktoy button{border:none;background:none;cursor:pointer;font-size:12px;color:#6b7280;padding:0 3px;border-radius:4px}
+.logg-verktoy button:hover{background:#eef2ff;color:#1A3A6B}
+@media (hover:none){.logg-verktoy{opacity:1}}
 button.salg-kilde-mangler{margin-left:8px;font-size:11.5px;color:#b45309;background:#fffbeb;border:1px dashed #f59e0b;border-radius:12px;padding:2px 8px;cursor:pointer;font-family:inherit}
 button.salg-kilde-mangler:hover{background:#fef3c7}
 .salg-fase.utsett{border-style:dashed;margin-left:8px}
@@ -559,7 +564,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.160 · Oppdatert: 30. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.161 · Oppdatert: 30. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7639,13 +7644,17 @@ function gaTilKundeFraSak(id){
 // "ringte kunden"/"sendte tilbud"-innlegg på samme Tilbud over tid), i stedet
 // for å måtte opprette en helt ny oppføring for hver kommentar.
 function renderNotatLoggHTML(n){
-  const loggListe=(n.logg||[]).slice().sort((a,b)=>new Date(b.dato)-new Date(a.dato));
-  const loggRader=loggListe.map(l=>{
+  // v1.48.161: indeksen i n.logg (i) følger med, slik at en loggpost kan
+  // redigeres/slettes selv om visningen er sortert nyeste først.
+  const loggListe=(n.logg||[]).map((l,i)=>({l,i})).sort((a,b)=>new Date(b.l.dato)-new Date(a.l.dato));
+  const loggRader=loggListe.map(({l,i})=>{
     const d=new Date(l.dato);
     const dStr=isNaN(d)?'—':`${d.toLocaleDateString('nb-NO')} ${d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}`;
     if(l.epost)return renderEpostLoggHTML(l,dStr,n);
     if(l.fil)return renderFilLoggHTML(l,dStr,n);
-    return `<div style="font-size:12px;color:#374151;margin-bottom:4px"><span style="color:#9ca3af">${dStr} · ${l.forfatter||'Ukjent'}:</span> ${l.tekst}</div>`;
+    const kan=kanRedigereLoggpost(l);
+    const redigertTxt=l.redigert?` <span style="color:#9ca3af;font-style:italic" title="Redigert ${new Date(l.redigert).toLocaleString('nb-NO')}${l.redigertAv?' av '+escHtmlEpost(l.redigertAv):''}">(redigert)</span>`:'';
+    return `<div class="logg-rad" id="logg-${n.id}-${i}" style="font-size:12px;color:#374151;margin-bottom:4px"><span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> <span class="logg-tekst">${escHtmlEpost(l.tekst||'')}</span>${redigertTxt}${kan?`<span class="logg-verktoy"><button type="button" onclick="redigerLoggpost('${n.id}',${i})" title="Rediger">✎</button><button type="button" onclick="slettLoggpost('${n.id}',${i})" title="Slett loggposten">🗑</button></span>`:''}</div>`;
   }).join('');
   const loggBlokk=loggListe.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e5e7eb">${loggRader}</div>`:'';
   const loggInput=salgTilgang?`<div style="display:flex;gap:6px;margin-top:8px">
@@ -10224,6 +10233,51 @@ function lesEml(bytes){
   return{emne:ord(hode['subject']||''),fra:m?m[1].trim():'',fraEpost:m?m[2].trim():fraRaw.trim(),til:ord(hode['to']||'').slice(0,300),sendt,utdrag:(plain||epostHtmlTilTekst(html)).trim()};
 }
 
+// ===== REDIGER/SLETT LOGGPOST (v1.48.161) =====
+// Thomas: «kunne vi laget en mulighet for å redigere notater» (loggpostene
+// under en sak). Gjelder vanlige tekstposter — IKKE faseskifter (grunnlag for
+// salgsanalysen), e-poster eller filer. Egen post kan alltid redigeres;
+// administrator kan redigere alle. Dato/forfatter beholdes, posten merkes
+// «(redigert)» med tidspunkt og hvem. Endringen teller ikke som ny aktivitet
+// (SistAktivitet røres ikke) — det er en rettelse, ikke ny kontakt.
+function kanRedigereLoggpost(l){
+  if(!salgTilgang||!l||l.fase||l.epost||l.fil)return false;
+  const meg=currentUser?.name||currentUser?.username||'';
+  return userRole==='admin'||(!!meg&&l.forfatter===meg);
+}
+function redigerLoggpost(id,i){
+  const n=kundeNotater.find(x=>x.id===id);const l=n?.logg?.[i];if(!l||!kanRedigereLoggpost(l))return;
+  const rad=document.getElementById(`logg-${id}-${i}`);if(!rad)return;
+  const tekstEl=rad.querySelector('.logg-tekst');const verktoy=rad.querySelector('.logg-verktoy');
+  if(verktoy)verktoy.style.display='none';
+  tekstEl.innerHTML=`<span style="display:flex;gap:6px;margin-top:3px"><textarea id="logg-red-${id}-${i}" rows="2" style="flex:1;padding:5px 8px;border:1px solid #93c5fd;border-radius:6px;font-size:12px;font-family:inherit;resize:vertical" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lagreLoggpost('${id}',${i});}else if(event.key==='Escape'){avbrytLoggpost();}"></textarea><span style="display:flex;flex-direction:column;gap:4px"><button type="button" class="btn-sm" style="padding:3px 10px;font-size:12px;color:#fff;background:#1A3A6B;border-color:#1A3A6B" onclick="lagreLoggpost('${id}',${i})">Lagre</button><button type="button" class="btn-sm" style="padding:3px 10px;font-size:12px" onclick="avbrytLoggpost()">Avbryt</button></span></span>`;
+  const ta=document.getElementById(`logg-red-${id}-${i}`);ta.value=l.tekst||'';ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
+}
+function avbrytLoggpost(){if(k360Valgt)renderKundeKort(k360Valgt);}
+function lagreLoggLista(n,hva){
+  if(k360Valgt)renderKundeKort(k360Valgt);
+  renderKundesaker();
+  if(!n.spId)return;
+  setSPStatus('⏳ Lagrer…');
+  spLagreMedMykFallback(f=>spUpdate('KundeNotater',n.spId,f),{Logg:JSON.stringify(n.logg)},NOTAT_MYKE_FELTER).then(()=>{setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);}).catch(e=>{setSPStatus('❌ '+e.message,false);alert(`⚠️ ${hva} ble ikke lagret til SharePoint:\n`+e.message);});
+}
+function lagreLoggpost(id,i){
+  const n=kundeNotater.find(x=>x.id===id);const l=n?.logg?.[i];if(!l||!kanRedigereLoggpost(l))return;
+  const ta=document.getElementById(`logg-red-${id}-${i}`);if(!ta)return;
+  const ny=ta.value.trim();
+  if(!ny){alert('Loggposten kan ikke være tom. Bruk 🗑 for å slette den.');return;}
+  if(ny===(l.tekst||'')){avbrytLoggpost();return;}
+  l.tekst=ny;l.redigert=new Date().toISOString();l.redigertAv=currentUser?.name||currentUser?.username||'Ukjent';
+  lagreLoggLista(n,'Endringen');
+}
+function slettLoggpost(id,i){
+  const n=kundeNotater.find(x=>x.id===id);const l=n?.logg?.[i];if(!l||!kanRedigereLoggpost(l))return;
+  const utdrag=(l.tekst||'').length>80?(l.tekst||'').slice(0,80)+'…':(l.tekst||'');
+  if(!confirm(`Slette loggposten?\n\n«${utdrag}»`))return;
+  n.logg.splice(i,1);
+  lagreLoggLista(n,'Slettingen');
+}
+
 // leggTilLoggpost: raskt, dato-stemplet oppdatering PÅ en eksisterende
 // oppføring — f.eks. "ringte kunden, avventer svar" — uten å måtte åpne hele
 // rediger-skjemaet. Lagres i Logg-feltet (JSON-array), nyeste øverst i UI.
@@ -10284,6 +10338,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.161',dato:'30.09.2026',punkter:[
+    'Loggpostene under en sak kan nå redigeres og slettes. Hold musen over en post og trykk ✎ eller 🗑. Enter lagrer, Esc avbryter, og posten merkes «(redigert)». Du kan endre dine egne poster, og administrator kan endre alle. Faseskifter, e-poster og filer kan ikke redigeres.'
+  ]},
   {versjon:'v1.48.160',dato:'30.09.2026',punkter:[
     'Kunde 360-søket foreslår treff mens du skriver, på samme måte som «➕ Nytt lead». Kunder og prospekter vises først, deretter Nyetableringer og Brønnøysundregisteret. Klikk på en kunde åpner kundekortet. Klikk på et firma fra Nyetableringer eller Brreg åpner «➕ Nytt lead» med firmaet valgt. Piltastene og Enter fungerer, og Enter uten valgt treff søker som før.'
   ]},
