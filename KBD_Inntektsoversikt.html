@@ -438,7 +438,8 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .vf-kunde-ac input:disabled{background:#f3f4f6;color:#6b7280}
 .vf-ac-treff{display:none;position:absolute;z-index:20;top:100%;left:0;margin-top:2px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;max-height:220px;overflow-y:auto;width:100%;min-width:260px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
 .vf-ac-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6}
-.vf-ac-item:hover{background:#f8f9fb}
+.vf-ac-item:hover,.vf-ac-item.markert{background:#f8f9fb}
+.vf-ac-item.markert{box-shadow:inset 3px 0 0 #1A3A6B}
 .vf-ac-item:last-child{border-bottom:none}
 .vf-ac-name{font-weight:600}
 .vf-ac-meta{color:#9ca3af;font-size:11px}
@@ -558,7 +559,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.159 · Oppdatert: 30. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.160 · Oppdatert: 30. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -821,7 +822,10 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
     <div class="card card-public">
       <div class="card-title">Kunde 360 — søk</div>
       <div class="frow" style="margin-bottom:4px">
-        <input type="text" id="k360-search" placeholder="Søk på org.nr (9 siffer) eller firmanavn…" style="flex:1" onkeydown="if(event.key==='Enter')searchKunder360()"/>
+        <div style="flex:1;position:relative;min-width:0">
+          <input type="text" id="k360-search" placeholder="Søk kunde, firmanavn eller org.nr…" style="width:100%" autocomplete="off" oninput="k360AutoSok()" onfocus="k360AutoSok()" onkeydown="k360SokTast(event)" onblur="setTimeout(k360SkjulTreff,200)"/>
+          <div id="k360-treff" class="vf-ac-treff" style="max-height:360px"></div>
+        </div>
         <button class="prim" onclick="searchKunder360()">Søk</button>
         <button class="btn-sm" id="k360-ny-kunde-btn" style="display:none" onclick="openNyKundeModal()" title="For kunder som tar kontakt selv og ikke finnes i Visma eller Nyetableringer ennå">➕ Ny kunde</button>
       </div>
@@ -6671,6 +6675,102 @@ function searchKunder360(){
   </tbody></table></div>`;
 }
 
+// ===== AUTOUTFYLLING I KUNDE 360-SØKET (v1.48.160) =====
+// Samme treffliste som «➕ Nytt lead» (leadKundeSok): kunder/prospekter først,
+// deretter Nyetableringer og Brønnøysundregisteret (400 ms forsinkelse, ≥3
+// tegn). Kunde/prospekt → åpner kundekortet. Nyetablering/Brreg-firma →
+// «➕ Nytt lead» med firmaet ferdig valgt (kun med salgstilgang). Enter uten
+// markert treff = det vanlige søket (searchKunder360) som før.
+let k360TreffCache=[],k360BrregTimer=null,k360BrregSiste='',k360Markert=-1;
+function k360SkjulTreff(){const d=document.getElementById('k360-treff');if(d){d.style.display='none';}k360Markert=-1;}
+function k360AutoSok(){
+  const raw=(document.getElementById('k360-search').value||'').trim();
+  const d=document.getElementById('k360-treff');if(!d)return;
+  clearTimeout(k360BrregTimer);
+  if(!raw){k360TreffCache=[];k360SkjulTreff();d.innerHTML='';return;}
+  const q=raw.toLowerCase();const nr=normOrgNr(raw);
+  const lokalt=[...vismaKunder,...hentProspektKunder()]
+    .filter(k=>(nr.length===9&&normOrgNr(k.orgNr)===nr)||(k.navn||'').toLowerCase().includes(q)||(nr.length>=4&&normOrgNr(k.orgNr).startsWith(nr)))
+    .sort((a,b)=>((a.navn||'').toLowerCase().startsWith(q)?0:1)-((b.navn||'').toLowerCase().startsWith(q)?0:1)||(a.navn||'').localeCompare(b.navn||'','nb'))
+    .slice(0,8)
+    .map(k=>({type:'eksisterende',id:k.id,kNr:k.vismaNummer,navn:k.navn,orgNr:normOrgNr(k.orgNr),erProspekt:!!k.erProspekt,sted:k.sted||''}));
+  let nye=[];
+  if(salgTilgang){
+    const kjente=new Set(lokalt.map(t=>t.orgNr).filter(Boolean));
+    nye=nyetableringer
+      .filter(n=>n.status!=='Overført'&&((nr.length===9&&normOrgNr(n.orgNr)===nr)||(n.tittel||'').toLowerCase().includes(q)))
+      .filter(n=>!kjente.has(normOrgNr(n.orgNr)))
+      .slice(0,5)
+      .map(n=>({type:'nyetablering',nyId:n.id,navn:n.tittel,orgNr:normOrgNr(n.orgNr),sted:n.poststed||n.kommune||''}));
+  }
+  k360TreffCache=[...lokalt,...nye];k360Markert=-1;
+  k360TegnTreff(raw,salgTilgang&&raw.length>=3?null:'av');
+  if(salgTilgang&&raw.length>=3)k360BrregTimer=setTimeout(()=>k360SokBrreg(raw),400);
+}
+async function k360SokBrreg(raw){
+  k360BrregSiste=raw;
+  const nr=normOrgNr(raw);
+  let treff=[];
+  try{
+    if(nr.length===9){
+      for(const ep of['enheter','underenheter']){
+        const r=await fetch(`https://data.brreg.no/enhetsregisteret/api/${ep}/${nr}`);
+        if(r.ok){treff=[await r.json()];break;}
+      }
+    }else{
+      const[a,b]=await Promise.all([
+        fetch(`https://data.brreg.no/enhetsregisteret/api/enheter?navn=${encodeURIComponent(raw)}&size=6`),
+        fetch(`https://data.brreg.no/enhetsregisteret/api/underenheter?navn=${encodeURIComponent(raw)}&size=4`)
+      ]);
+      const ad=a.ok?await a.json():null;const bd=b.ok?await b.json():null;
+      treff=[...((ad?._embedded?.enheter)||[]),...((bd?._embedded?.underenheter)||[])];
+    }
+  }catch(e){console.warn('Kunde 360: Brreg-søk feilet',e);k360TegnTreff(raw,'feil');return;}
+  if(k360BrregSiste!==raw||(document.getElementById('k360-search').value||'').trim()!==raw)return; // utdatert svar
+  const kjente=new Set(k360TreffCache.map(t=>t.orgNr).filter(Boolean));
+  const brreg=treff.map(leadValgFraBrreg).filter(v=>v.orgNr&&!kjente.has(v.orgNr)).map(leadMapTilEksisterende)
+    .filter(v=>!(v.orgNr&&kjente.has(v.orgNr)))
+    .map(v=>v.type==='eksisterende'?{...v,id:([...vismaKunder,...hentProspektKunder()].find(k=>normOrgNr(k.orgNr)===v.orgNr)||{}).id}:v);
+  const sett=new Set();
+  k360TreffCache=[...k360TreffCache,...brreg].filter(t=>{if(!t.orgNr)return true;if(sett.has(t.orgNr))return false;sett.add(t.orgNr);return true;});
+  k360TegnTreff(raw,'ferdig');
+}
+function k360TegnTreff(raw,brregStatus){
+  const d=document.getElementById('k360-treff');if(!d)return;
+  if(document.activeElement!==document.getElementById('k360-search')&&brregStatus!=='av'&&brregStatus!==null)return; // feltet er forlatt
+  const etikett={eksisterende:t=>t.erProspekt?'Prospekt':'Kunde',nyetablering:()=>'Nyetableringer — nytt lead',brreg:()=>'Brreg — nytt lead'};
+  const farge={eksisterende:'#15803d',nyetablering:'#b45309',brreg:'#1d4ed8'};
+  let html=k360TreffCache.map((t,i)=>`
+    <div class="vf-ac-item${i===k360Markert?' markert':''}" onmousedown="k360Velg(${i})" title="${t.type==='eksisterende'?'Åpne kundekortet':'Åpne «➕ Nytt lead» med dette firmaet valgt'}">
+      <div class="vf-ac-name">${escHtmlEpost(t.navn||'(uten navn)')} <span style="font-size:10.5px;font-weight:700;color:${farge[t.type]||'#6b7280'}">· ${(etikett[t.type]||(()=>''))(t)}</span></div>
+      <div class="vf-ac-meta">${t.kNr&&!String(t.kNr).startsWith('LEAD-')?'Kundenr '+escHtmlEpost(t.kNr)+' · ':''}Org.nr ${t.orgNr||'—'}${(t.sted||t.poststed)?' · '+escHtmlEpost(t.sted||t.poststed):''}</div>
+    </div>`).join('');
+  if(brregStatus===null)html+='<div class="vf-ac-empty">Søker i Brønnøysundregisteret…</div>';
+  if(brregStatus==='feil')html+='<div class="vf-ac-empty">Klarte ikke søke i Brønnøysundregisteret akkurat nå.</div>';
+  if(!k360TreffCache.length&&brregStatus!==null)html+=`<div class="vf-ac-empty">Ingen treff på «${escHtmlEpost(raw)}».</div>`;
+  html+=`<div class="vf-ac-item" onmousedown="k360SkjulTreff();searchKunder360()" style="color:#374151"><div class="vf-ac-name">🔎 Vis alle treff på «${escHtmlEpost(raw)}»</div><div class="vf-ac-meta">Samme som å trykke Søk / Enter</div></div>`;
+  d.innerHTML=html;d.style.display='block';
+}
+function k360Velg(i){
+  const t=k360TreffCache[i];if(!t)return;
+  k360SkjulTreff();
+  if(t.type==='eksisterende'){
+    const k=vismaKunder.find(x=>x.id===t.id)||hentProspektKunder().find(x=>x.id===t.id)
+      ||[...vismaKunder,...hentProspektKunder()].find(x=>samKundenr(x.vismaNummer,t.kNr));
+    if(k){document.getElementById('k360-search').value=k.navn||'';velgKunde360(k);}
+    return;
+  }
+  openNyttLeadModal(t); // nyetablering / brreg → nytt lead med firmaet valgt
+}
+function k360SokTast(e){
+  const d=document.getElementById('k360-treff');
+  const apen=d&&d.style.display==='block'&&k360TreffCache.length;
+  if(e.key==='ArrowDown'&&apen){e.preventDefault();k360Markert=Math.min(k360Markert+1,k360TreffCache.length-1);k360TegnTreff((e.target.value||'').trim(),'av');}
+  else if(e.key==='ArrowUp'&&apen){e.preventDefault();k360Markert=Math.max(k360Markert-1,-1);k360TegnTreff((e.target.value||'').trim(),'av');}
+  else if(e.key==='Escape'){k360SkjulTreff();}
+  else if(e.key==='Enter'){e.preventDefault();if(apen&&k360Markert>=0){k360Velg(k360Markert);}else{k360SkjulTreff();clearTimeout(k360BrregTimer);searchKunder360();}}
+}
+
 function velgKunde360FraId(id){
   const k=vismaKunder.find(x=>x.id===id)||hentProspektKunder().find(x=>x.id===id);
   if(k)velgKunde360(k);
@@ -10184,6 +10284,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.160',dato:'30.09.2026',punkter:[
+    'Kunde 360-søket foreslår treff mens du skriver, på samme måte som «➕ Nytt lead». Kunder og prospekter vises først, deretter Nyetableringer og Brønnøysundregisteret. Klikk på en kunde åpner kundekortet. Klikk på et firma fra Nyetableringer eller Brreg åpner «➕ Nytt lead» med firmaet valgt. Piltastene og Enter fungerer, og Enter uten valgt treff søker som før.'
+  ]},
   {versjon:'v1.48.159',dato:'30.09.2026',punkter:[
     'Kundesaker: «📊 Tilbudsanalyse» følger nå «Ansvarlig»-filteret. Med én selger valgt gjelder faser, leadkilder, vunnet pr. måned, tapt pr. årsak og avsluttede tilbud bare den selgerens saker. Treffprosent viser selgeren med hele KBD som sammenligning. «Alle ansvarlige» gir hele KBD som før.'
   ]},
