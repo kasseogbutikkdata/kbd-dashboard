@@ -552,7 +552,7 @@ button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.156 · Oppdatert: 30. sep 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.157 · Oppdatert: 30. sep 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1861,7 +1861,7 @@ button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
         <div class="fgrp"><label>Type</label>
           <select id="n-type" onchange="updateNotatFormFields()">
             <option value="Notat">📝 Notat</option>
-            <option value="Tilbud">💼 Tilbud</option>
+            <option value="Tilbud">💼 Salgsmulighet</option>
             <option value="Oppfølging">⏰ Oppfølging</option>
           </select>
         </div>
@@ -6707,7 +6707,7 @@ function renderKundeKort(k){
   const kr=v=>v.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr';
   const flis=(lbl,val,sub,farge)=>`<div class="kpi" style="${farge?`border-left:4px solid ${farge}`:''}"><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div>${sub?`<div class="k360-kpi-sub">${sub}</div>`:''}</div>`;
   const fliser=[
-    flis('Åpne saker',`${apne.length}`,apneTilbud.length?`${apneTilbud.length} tilbud · ${fS(vektet)} vektet`:(apne.length?'ingen åpne tilbud':'ingen'),apne.length?'#6d28d9':''),
+    flis('Åpne saker',`${apne.length}`,apneTilbud.length?`${apneTilbud.length} salg · ${fS(vektet)} vektet`:(apne.length?'ingen åpne salg':'ingen'),apne.length?'#6d28d9':''),
     flis('Neste frist',nesteFrist?`${fristPassert?'⏰ ':''}${nesteFrist.toLocaleDateString('nb-NO')}`:'—',nesteFrist?`kl. ${nesteFrist.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${fristPassert?' · passert':''}`:'ingen frist satt',fristPassert?'#d03b3b':''),
     flis('Siste aktivitet',sisteAkt?sisteAkt.toLocaleDateString('nb-NO'):'—',sisteAkt?(dagerSiden(sisteAkt)===0?'i dag':`${dagerSiden(sisteAkt)} dager siden`):'ingen saker ennå',sisteAkt&&dagerSiden(sisteAkt)>=KS_INAKTIV_DAGER?'#b45309':''),
     flis('Aktive avtaler',`${aktiveKontrakter.length}`,kontrakter.length>aktiveKontrakter.length?`${kontrakter.length} totalt`:'',''),
@@ -7234,7 +7234,7 @@ function renderKundesakerKpi(ansvarlig,grunnlagPerson){
     </${o.klikk?'button':'div'}>`;
   el.innerHTML=`<div class="ks-kpi-grid">
     ${tile({ikon:'💰',lbl:'Pipelinereserve',val:fS(reserve),sub:`vektet · ${hvem}`,c:'#6d28d9',bg:'#f5f0ff'})}
-    ${tile({ikon:'💼',lbl:'Åpne tilbud',val:`${apne.length} stk`,sub:`${fS(fullSum)} i full sum`,c:'#7c3aed',bg:'#faf5ff',klikk:"setKundesakerTypeFilter(kundesakerTypeFilter==='Tilbud'?'alle':'Tilbud')",aktiv:kundesakerTypeFilter==='Tilbud',tittel:'Vis kun tilbud'})}
+    ${tile({ikon:'💼',lbl:'Åpne salgsmuligheter',val:`${apne.length} stk`,sub:`${fS(fullSum)} i full sum`,c:'#7c3aed',bg:'#faf5ff',klikk:"setKundesakerTypeFilter(kundesakerTypeFilter==='Tilbud'?'alle':'Tilbud')",aktiv:kundesakerTypeFilter==='Tilbud',tittel:'Vis kun salgsmuligheter'})}
     ${tile({ikon:'✅',lbl:'Vunnet denne måned',val:fS(vunnet),sub:'summert på lukkedato',c:'#15803d',bg:'#ecfdf3'})}
     ${tile({ikon:'⏰',lbl:'Forfalt / i dag',val:`${fristSaker.length} saker`,sub:antForfalt?`${antForfalt} har passert fristen`:'ingen har passert fristen',c:fristSaker.length?'#d03b3b':'#6b7280',bg:fristSaker.length?'#fef2f2':'#f9fafb',klikk:"setKundesakerSpesialFilter('frist')",aktiv:kundesakerSpesialFilter==='frist',tittel:'Vis kun saker med frist i dag eller passert'})}
     ${tile({ikon:'💤',lbl:`Uten aktivitet ${KS_INAKTIV_DAGER}+ d`,val:`${inaktive.length} tilbud`,sub:'ingen endring og ingen frist fremover',c:inaktive.length?'#b45309':'#6b7280',bg:inaktive.length?'#fffbeb':'#f9fafb',klikk:"setKundesakerSpesialFilter('inaktiv')",aktiv:kundesakerSpesialFilter==='inaktiv',tittel:'Vis kun åpne tilbud uten aktivitet på 30+ dager'})}
@@ -7289,7 +7289,7 @@ function renderKundesaker(){
   if(filterDiv){
     const antall=t=>t==='alle'?personGrunnlag.length:personGrunnlag.filter(n=>n.type===t).length;
     const pill=(val,lbl,farge)=>`<button class="fpill${kundesakerTypeFilter===val?' f-on':''}" style="${kundesakerTypeFilter===val?`border-color:${farge}`:''}" onclick="setKundesakerTypeFilter('${val}')"><span class="fpill-dot" style="background:${farge}"></span><span style="${kundesakerTypeFilter===val?`font-weight:600;color:${farge}`:''}">${lbl} (${antall(val)})</span></button>`;
-    filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Notat','Notat',K360_NOTAT_FARGER.Notat.c)+pill('Tilbud','Tilbud',K360_NOTAT_FARGER.Tilbud.c)+pill('Oppfølging','Oppfølging',K360_NOTAT_FARGER.Oppfølging.c);
+    filterDiv.innerHTML=pill('alle','Alle','#6b7280')+pill('Notat','Notat',K360_NOTAT_FARGER.Notat.c)+pill('Tilbud','Salg',K360_NOTAT_FARGER.Tilbud.c)+pill('Oppfølging','Oppfølging',K360_NOTAT_FARGER.Oppfølging.c);
   }
 
   const dropdownDiv=document.getElementById('kundesaker-dropdown-filters');
@@ -7336,7 +7336,7 @@ function renderKundesaker(){
     switch(kundesakerSort.col){
       case 'firma': return dir*navnFor(a).localeCompare(navnFor(b));
       case 'type': return dir*(a.type||'').localeCompare(b.type||'');
-      case 'fase': return dir*((a.type==='Tilbud'?salgFaseIndeks(salgFase(a)):200)-(b.type==='Tilbud'?salgFaseIndeks(salgFase(b)):200));
+      case 'fase': return dir*((a.type==='Tilbud'?salgFaseIndeks(salgFase(a)):(a.type==='Oppfølging'?200:201))-(b.type==='Tilbud'?salgFaseIndeks(salgFase(b)):(b.type==='Oppfølging'?200:201)));
       case 'tittel': return dir*(a.tittel||'').localeCompare(b.tittel||'');
       case 'sum': return dir*((erTilbudMedSum(a)?a.tilbudSum:-1)-(erTilbudMedSum(b)?b.tilbudSum:-1));
       case 'sjanse': return dir*((erTilbudMedSum(a)?(a.sannsynlighet||0):-1)-(erTilbudMedSum(b)?(b.sannsynlighet||0):-1));
@@ -7357,7 +7357,7 @@ function renderKundesaker(){
   const th=(col,lbl,stil)=>`<th style="cursor:pointer;${stil||''}" onclick="sortKundesakerBy('${col}')">${lbl} <span id="ksh-${col}"></span></th>`;
   const tom='<span class="ks-muted">—</span>';
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-      ${th('firma','Firma')}${th('type','Type')}${th('fase','Fase')}${th('tittel','Tittel')}
+      ${th('firma','Firma')}${th('fase','Type / fase')}${th('tittel','Tittel')}
       ${th('sum','Sum','text-align:right')}${th('sjanse','Sjanse','text-align:right')}${th('vektet','Vektet','text-align:right')}
       ${ansvarligValgt?'':th('ansvarlig','Ansvarlig')}${th('opprettet','Opprettet')}${th('forfallsdato','Neste frist')}${th('status','Status')}
     </tr></thead><tbody>
@@ -7376,8 +7376,7 @@ function renderKundesaker(){
       const kunde=navnFor(n);
       return `<tr class="rad-klikkbar" onclick="gaTilKundeFraSak('${n.id}')" title="Åpne saken hos ${kunde.replace(/"/g,'&quot;')}">
         <td><strong>${kunde}</strong></td>
-        <td><span style="font-size:11px;font-weight:700;color:${farge.c};background:${farge.bg};padding:3px 9px;border-radius:20px;white-space:nowrap">${n.type}</span></td>
-        <td style="white-space:nowrap">${n.type==='Tilbud'?`<span class="fase-merke" title="Leadkilde: ${escHtmlEpost(leadKildeVis(n))}">${(SALG_FASER.find(f=>f.navn===salgFase(n))||{}).ikon||(salgFase(n)==='Vunnet'?'✅':salgFase(n)==='Tapt'?'❌':'')} ${salgFase(n)}</span>`:tom}</td>
+        <td style="white-space:nowrap">${n.type==='Tilbud'?`<span class="fase-merke" title="Salgsmulighet · leadkilde: ${escHtmlEpost(leadKildeVis(n))}">${(SALG_FASER.find(f=>f.navn===salgFase(n))||{}).ikon||(salgFase(n)==='Vunnet'?'✅':salgFase(n)==='Tapt'?'❌':'')} ${salgFase(n)}</span>`:`<span style="font-size:11px;font-weight:700;color:${farge.c};background:${farge.bg};padding:3px 9px;border-radius:20px">${n.type==='Oppfølging'?'⏰':'📝'} ${n.type}</span>`}</td>
         <td style="max-width:220px"><div style="display:flex;align-items:center;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.tittel||'(uten tittel)'}</span>${inaktivHtml}</div></td>
         <td style="text-align:right;white-space:nowrap">${medSum?fS(n.tilbudSum):tom}</td>
         <td style="text-align:right;white-space:nowrap">${medSum?(n.sannsynlighet||0)+' %':tom}</td>
@@ -7390,7 +7389,7 @@ function renderKundesaker(){
     }).join('')}
   </tbody></table></div>`;
 
-  ['firma','type','fase','tittel','sum','sjanse','vektet','ansvarlig','opprettet','forfallsdato','status'].forEach(c=>{
+  ['firma','fase','tittel','sum','sjanse','vektet','ansvarlig','opprettet','forfallsdato','status'].forEach(c=>{
     const el=document.getElementById('ksh-'+c);
     if(el)el.innerHTML=kundesakerSort.col===c?(kundesakerSort.dir==='asc'?'↑':'↓'):'↕';
   });
@@ -7629,7 +7628,7 @@ function renderKundeNotaterHTML(k){
   const filterHtml=`<div style="display:flex;gap:6px;flex-wrap:wrap">
     ${filterPill('alle','Alle','#1A3A6B')}
     ${filterPill('Notat','Notat',K360_NOTAT_FARGER.Notat.c)}
-    ${filterPill('Tilbud','Tilbud',K360_NOTAT_FARGER.Tilbud.c)}
+    ${filterPill('Tilbud','Salg',K360_NOTAT_FARGER.Tilbud.c)}
     ${filterPill('Oppfølging','Oppfølging',K360_NOTAT_FARGER.Oppfølging.c)}
   </div>`;
 
@@ -7643,7 +7642,7 @@ function renderKundeNotaterHTML(k){
     return `<div id="notat-${n.spId}" ${salgTilgang?`ondragover="epostDragOver(event,this)" ondragleave="epostDragLeave(this)" ondrop="epostDrop(event,'${n.id}',this)"`:''} style="background:#fff;border:1px solid #e5e7eb;${forfalt?'border-left:3px solid #d03b3b;':''}border-radius:8px;padding:12px 14px;margin-bottom:8px;${lukket?'opacity:.6':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:600;color:${tf.c};background:${tf.bg};padding:2px 8px;border-radius:20px">${n.type}</span>
+          <span style="font-size:11px;font-weight:600;color:${tf.c};background:${tf.bg};padding:2px 8px;border-radius:20px">${n.type==='Tilbud'?'Salg':n.type}</span>
           ${lukket?`<span style="font-size:11px;color:#9ca3af">${n.type==='Tilbud'&&n.tilbudUtfall?(n.tilbudUtfall==='Vunnet'?'✅ Vunnet':'❌ Tapt'):'✓ Lukket'}</span>`:''}
           ${forfalt?'<span style="font-size:11px;color:#d03b3b;font-weight:600">⚠️ Forfalt</span>':''}
           <span style="font-weight:600;font-size:13px;color:#111">${n.tittel||'(uten tittel)'}</span>
@@ -9975,6 +9974,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.157',dato:'30.09.2026',punkter:[
+    'Kundesaker: «Type» og «Fase» er slått sammen til én kolonne, «Type / fase». Salgsmuligheter viser fasen (Lead, Kontakt, Demo, Tilbud sendt, Closing, Vunnet/Tapt), og notater og oppfølginger viser typen.',
+    '«Tilbud» heter nå «Salg» eller «Salgsmulighet» i dashbordet, siden et lead ikke er et tilbud ennå. Filteret «Salg» viser alle salgsmuligheter uansett fase. Bruk fase-filteret for å velge én fase.'
+  ]},
   {versjon:'v1.48.156',dato:'30.09.2026',punkter:[
     'Salgsprosess: et tilbud er nå en salgsmulighet med faser — Lead → Kontakt → Demo → Tilbud sendt → Closing → Vunnet/Tapt. Trykk på fasen i saken for å flytte den. Sannsynligheten foreslås ut fra fasen (10–80 %) og kan justeres.',
     'Leadkilde: hvor leadet kom fra (Hjemmeside, Susoft, NHO IK, KNIF, Systemkjøp, Eksisterende kunde, Frisk Asker, FNA, Nyetableringer (Brreg), Annet). Må velges på nye salgsmuligheter. «Nytt lead» starter i fase Lead, og totalsum kreves først fra «Tilbud sendt».',
