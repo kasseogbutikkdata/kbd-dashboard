@@ -583,7 +583,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.164 · Oppdatert: 1. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.165 · Oppdatert: 1. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10377,6 +10377,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.165',dato:'01.10.2026',punkter:[
+    'Menypunkter med undermeny, for eksempel Kunde360, lukkes nå når du klikker på dem en gang til. Står du på en underside, tar første klikk deg til hovedsiden og neste klikk lukker menyen.',
+    'Utleie åpner nå rett på Kalender i stedet for en tom side.'
+  ]},
   {versjon:'v1.48.164',dato:'01.10.2026',punkter:[
     'De siste gule verdimerkene ved «Trenger oppmerksomhet» og «Siste kunngjøring» er fjernet. Kulturplakaten øverst på Hjem er som før.'
   ]},
@@ -12865,6 +12869,39 @@ async function handleAgingFile(event){
   event.target.value='';
 }
 
+// ===== v1.48.165: klikk på et åpent hovedmenypunkt lukker undermenyen =====
+// Gjelder menypunktene med undermeny (Lisenser, Kickback, Kunde360, SMS
+// utsendelse, Utleie, Transaksjonsavgift, SOS, Fakturaoppfølging, Gymtimen,
+// Innstillinger). Regel: står du allerede på hovedpunktets egen side og
+// undermenyen er åpen, lukkes den (siden blir stående). Ellers kjøres det
+// vanlige onclick-et (navigerer + åpner). Fra f.eks. Kundesaker går et klikk på
+// «Kunde360» dermed fortsatt til søkesiden, og neste klikk lukker menyen.
+// Lytteren ligger i capture-fasen på document, så den rekker å stoppe det
+// inline onclick-et før det kjøres.
+const NAV_UNDERMENY={
+  'tab-lisenser':['lisenser-sub-nav','lisenser'],
+  'tab-kickback':['kickback-sub-nav','kickback'],
+  'tab-kunder':['kunder360-sub-nav','kunder'],
+  'tab-smsutsendelse':['smsutsendelse-sub-nav','smsutsendelse'],
+  'tab-utleie':['utleie-sub-nav','utleie'],
+  'tab-transaksjonsavgift':['transaksjonsavgift-sub-nav','verifone'],
+  'tab-silentordering':['silentordering-sub-nav','silentordering'],
+  'tab-fakturaoppfolging':['fakturaoppfolging-sub-nav','fakturaoppfolging'],
+  'tab-arbeidstid':['arbeidstid-sub-nav','arbeidstid'],
+  'tab-innstillinger':['innstillinger-sub-nav','innstillinger'],
+};
+document.addEventListener('click',e=>{
+  const item=e.target.closest&&e.target.closest('.nav-item');
+  if(!item||!NAV_UNDERMENY[item.id])return;
+  const [subId,side]=NAV_UNDERMENY[item.id];
+  const sub=document.getElementById(subId);
+  const tp=document.getElementById('tp-'+side);
+  if(sub&&sub.classList.contains('open')&&tp&&tp.classList.contains('active')){
+    sub.classList.remove('open');
+    e.stopPropagation();e.preventDefault();
+  }
+},true);
+
 function showTab(name,btn){
   document.querySelectorAll('.tp').forEach(t=>{t.classList.remove('active');t.style.display='none';});
   const tp=document.getElementById('tp-'+name);
@@ -12895,6 +12932,10 @@ function showTab(name,btn){
   if(name==='innstillinger'){renderSettings();showInnstillingerView(userRole==='admin'?'brukertilgang':'produkter');}
   if(name==='arbeidstid')showArbeidstidView('oversikt',document.getElementById('asub-oversikt'));
   if(name==='hjem')renderHjem();
+  // v1.48.165: Utleie åpner alltid på Kalender (før: blank side fordi
+  // kalenderen ikke ble tegnet før man klikket et underpunkt). jumpToUtleieRow()
+  // kaller showUtleieView('liste') etterpå, så den virker som før.
+  if(name==='utleie')showUtleieView('kalender',document.getElementById('usub-kalender'));
   if(name==='kunder'){renderKunder360();setKunder360SubActive('kunder');}
   if(name==='kundesaker'){renderKundesaker();setKunder360SubActive('kundesaker');}
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
