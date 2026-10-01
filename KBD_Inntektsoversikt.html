@@ -261,6 +261,10 @@ button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
 .salg-fase.aktiv{background:#6d28d9;color:#fff;border-color:#6d28d9;font-weight:600}
 .salg-pil{color:#c4b5fd;font-size:12px}
 .salg-kilde{margin-left:8px;font-size:11.5px;color:#4b5563}
+th.th-hjelp{cursor:help}
+th.th-hjelp::after{content:' ⓘ';font-size:10px;color:#c0c4cc;font-weight:400}
+tr.ks-sumrad td{font-weight:700;background:#f3f4f6;border-top:2px solid #e5e7eb}
+tr.ks-sumrad-lett td{color:#6b7280;font-style:italic;background:#fafafa}
 .notat-bakgrunn{background:#f8f7fc;border-left:3px solid var(--bg-c,#6d28d9);border-radius:0 6px 6px 0;padding:8px 12px;margin:6px 0 10px}
 .notat-bakgrunn-lbl{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#6b7280;margin-bottom:3px}
 .notat-bakgrunn-tekst{font-size:14px;line-height:1.5;color:#1f2937}
@@ -599,7 +603,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.170 · Oppdatert: 1. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.171 · Oppdatert: 1. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7326,35 +7330,51 @@ function renderTilbudspipeline(ansvarlig){
   const treff=kundesakerTreffprosentPrSelger(ansvarlig);
   const pst=v=>v==null?'—':`${Math.round(v)} %`;
   const dg=v=>v==null?'—':`${Math.round(v)} d`;
-  const treffRad=(g,fet)=>`<tr${fet?' style="font-weight:700;background:#f9fafb"':''}><td>${fet?'Totalt (hele KBD)':g.selger}</td><td>${g.vunnet}</td><td>${g.tapt}</td><td>${pst(g.treffAntall)}</td><td>${pst(g.treffVerdi)}</td><td>${dg(g.snittDager)}</td></tr>`;
+  // v1.48.171: forklaring ved hover på kolonneoverskriftene (th-hjelp).
+  const thT=(lbl,tip)=>`<th class="th-hjelp" title="${tip.replace(/"/g,'&quot;')}">${lbl}</th>`;
+  const SUMRAD=' class="ks-sumrad"';
+  const treffRad=(g,fet)=>`<tr${fet?SUMRAD:''}><td>${fet?'Totalt (hele KBD)':g.selger}</td><td>${g.vunnet}</td><td>${g.tapt}</td><td>${pst(g.treffAntall)}</td><td>${pst(g.treffVerdi)}</td><td>${dg(g.snittDager)}</td></tr>`;
   target.innerHTML=`
     ${(()=>{
       const pf=kundesakerApenPrFase(ansvarlig);
       const kilder=kundesakerPrLeadkilde(ansvarlig);
       const pst=v=>v==null?'—':`${Math.round(v)} %`;
+      const faseRad=r=>`<tr class="rad-klikkbar" onclick="setKundesakerFaseFilter('${r.fase.navn}');document.getElementById('kundesaker-tabell')?.scrollIntoView({behavior:'smooth'})" title="Vis disse i lista"><td>${r.fase.ikon} ${r.fase.navn}</td><td>${r.antall}</td><td>${fS(r.sum)}</td><td>${fS(r.vektet)}</td></tr>`;
+      const aktive=pf.filter(r=>r.fase.navn!==SALG_UTSATT);
+      const utsatt=pf.find(r=>r.fase.navn===SALG_UTSATT);
+      const sumAv=(rr,f)=>rr.reduce((a,r)=>a+r[f],0);
+      const aktivSum={antall:sumAv(aktive,'antall'),sum:sumAv(aktive,'sum'),vektet:sumAv(aktive,'vektet')};
+      const kSum={antall:sumAv(kilder,'antall'),apne:sumAv(kilder,'apne'),apenSum:sumAv(kilder,'apenSum'),vunnet:sumAv(kilder,'vunnet'),tapt:sumAv(kilder,'tapt'),vunnetSum:sumAv(kilder,'vunnetSum'),dagerSum:sumAv(kilder,'dagerSum'),dagerAnt:sumAv(kilder,'dagerAnt')};
+      kSum.treff=(kSum.vunnet+kSum.tapt)?kSum.vunnet/(kSum.vunnet+kSum.tapt)*100:null;
+      kSum.snittDager=kSum.dagerAnt?kSum.dagerSum/kSum.dagerAnt:null;
       return `<div class="hint" style="margin-bottom:8px">🧭 Åpne salgsmuligheter pr. fase</div>
-      <div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Fase</th><th>Antall</th><th>Full sum</th><th>Vektet</th></tr></thead><tbody>
-        ${pf.map(r=>`<tr class="rad-klikkbar" onclick="setKundesakerFaseFilter('${r.fase.navn}');document.getElementById('kundesaker-tabell')?.scrollIntoView({behavior:'smooth'})" title="Vis disse i lista"><td>${r.fase.ikon} ${r.fase.navn}</td><td>${r.antall}</td><td>${fS(r.sum)}</td><td>${fS(r.vektet)}</td></tr>`).join('')}
+      <div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr>${thT('Fase','Hvor langt salgsmuligheten har kommet. Klikk en rad for å vise sakene i lista over.')}${thT('Antall','Antall åpne salgsmuligheter i fasen.')}${thT('Full sum','Summen av totalsummene på sakene — det kunden betaler hvis alt blir vunnet.')}${thT('Vektet','Full sum × sannsynlighet for hver sak (f.eks. 50 000 kr × 50 % = 25 000 kr). Summen av dette er pipelinereserven.')}</tr></thead><tbody>
+        ${aktive.map(faseRad).join('')}
+        <tr${SUMRAD} title="Alle aktive faser (Lead–Closing). Vektet = Pipelinereserve øverst."><td>Sum aktiv pipeline</td><td>${aktivSum.antall}</td><td>${fS(aktivSum.sum)}</td><td>${fS(aktivSum.vektet)}</td></tr>
+        ${utsatt?faseRad(utsatt)+`<tr class="ks-sumrad-lett" title="Aktiv pipeline + utsatte saker. Utsatte teller ikke i vektet."><td>Totalt inkl. utsatt</td><td>${aktivSum.antall+utsatt.antall}</td><td>${fS(aktivSum.sum+utsatt.sum)}</td><td>${fS(aktivSum.vektet)}</td></tr>`:''}
       </tbody></table></div>
       <div class="hint" style="margin-bottom:8px">📍 Pr. leadkilde — alle salgsmuligheter (tilbud), «Ukjent» = registrert før leadkilde fantes</div>
-      ${kilder.length?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Kilde</th><th>Totalt</th><th>Åpne</th><th>Vunnet</th><th>Tapt</th><th>Treff</th><th>Vunnet sum</th><th>Snitt dager</th></tr></thead><tbody>
-        ${kilder.map(r=>`<tr><td>${escHtmlEpost(r.kilde)}</td><td>${r.antall}</td><td>${r.apne}</td><td>${r.vunnet}</td><td>${r.tapt}</td><td>${pst(r.treff)}</td><td>${fS(r.vunnetSum)}</td><td>${r.snittDager==null?'—':Math.round(r.snittDager)+' d'}</td></tr>`).join('')}
+      ${kilder.length?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr>${thT('Kilde','Hvor leadet kom fra. «Ukjent» = registrert før leadkilde ble obligatorisk.')}${thT('Totalt','Alle salgsmuligheter fra kilden — åpne, utsatte, vunnede og tapte.')}${thT('Åpne','Aktive åpne salgsmuligheter (utsatte er ikke med).')}${thT('Åpen sum','Hva de åpne sakene fra kilden er verdt (full sum, ikke vektet). Utsatte er ikke med.')}${thT('Vunnet','Antall vunnede salg.')}${thT('Tapt','Antall tapte salg.')}${thT('Treff','Andel av de avgjorte sakene som ble vunnet: vunnet ÷ (vunnet + tapt).')}${thT('Vunnet sum','Samlet totalsum på vunnede salg.')}${thT('Snitt dager','Gjennomsnittlig antall dager fra saken ble opprettet til den ble vunnet eller tapt.')}</tr></thead><tbody>
+        ${kilder.map(r=>`<tr><td>${escHtmlEpost(r.kilde)}</td><td>${r.antall}</td><td>${r.apne}</td><td>${fS(r.apenSum)}</td><td>${r.vunnet}</td><td>${r.tapt}</td><td>${pst(r.treff)}</td><td>${fS(r.vunnetSum)}</td><td>${r.snittDager==null?'—':Math.round(r.snittDager)+' d'}</td></tr>`).join('')}
+        ${kilder.length>1?`<tr${SUMRAD} title="Treff og snitt dager er regnet på alle sakene samlet, ikke som gjennomsnitt av radene."><td>Totalt</td><td>${kSum.antall}</td><td>${kSum.apne}</td><td>${fS(kSum.apenSum)}</td><td>${kSum.vunnet}</td><td>${kSum.tapt}</td><td>${pst(kSum.treff)}</td><td>${fS(kSum.vunnetSum)}</td><td>${kSum.snittDager==null?'—':Math.round(kSum.snittDager)+' d'}</td></tr>`:''}
       </tbody></table></div>`:'<div class="empty" style="margin-bottom:16px">Ingen salgsmuligheter ennå.</div>'}`;
     })()}
     <div class="hint" style="margin-bottom:8px">🎯 Treffprosent pr. selger — andel avsluttede tilbud som ble vunnet, og snitt dager fra tilbud til avgjørelse</div>
-    ${treff.totalt?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr><th>Selger</th><th>Vunnet</th><th>Tapt</th><th>Treff (antall)</th><th>Treff (kroner)</th><th>Snitt dager</th></tr></thead><tbody>
+    ${treff.totalt?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr>${thT('Selger','Ansvarlig på saken.')}${thT('Vunnet','Antall vunnede salg.')}${thT('Tapt','Antall tapte salg.')}${thT('Treff (antall)','Andel av de avgjorte sakene som ble vunnet: vunnet ÷ (vunnet + tapt).')}${thT('Treff (kroner)','Andel av kronene i avgjorte saker som ble vunnet: vunnet sum ÷ (vunnet sum + tapt sum).')}${thT('Snitt dager','Gjennomsnittlig antall dager fra saken ble opprettet til den ble vunnet eller tapt.')}</tr></thead><tbody>
       ${treff.rader.map(g=>treffRad(g,false)).join('')}${treff.rader.length>1||(ansvarlig&&treff.rader.length)?treffRad(treff.totalt,true):''}
     </tbody></table></div>`:'<div class="empty" style="margin-bottom:16px">Ingen avsluttede tilbud med utfall ennå.</div>'}
     <div class="hint" style="margin-bottom:8px">Vunnet pr. ${ansvarlig?'måned':'selger pr. måned'}</div>
-    ${grupper.length?`<div class="tbl-wrap"><table><thead><tr><th>Selger</th><th>Måned</th><th>Vunnet sum</th><th>Antall</th></tr></thead><tbody>
+    ${grupper.length?`<div class="tbl-wrap"><table><thead><tr>${thT('Selger','Ansvarlig på saken.')}${thT('Måned','Måneden saken ble markert som vunnet.')}${thT('Vunnet sum','Samlet totalsum på salg vunnet i måneden.')}${thT('Antall','Antall vunnede salg i måneden.')}</tr></thead><tbody>
       ${grupper.map(g=>`<tr><td>${g.selger}</td><td>${KS_MAANEDSNAVN[g.maaned]} ${g.aar}</td><td>${fS(g.sum)}</td><td>${g.antall}</td></tr>`).join('')}
+      ${grupper.length>1?`<tr${SUMRAD}><td>Totalt</td><td></td><td>${fS(grupper.reduce((a,g)=>a+g.sum,0))}</td><td>${grupper.reduce((a,g)=>a+g.antall,0)}</td></tr>`:''}
     </tbody></table></div>`:'<div class="empty">Ingen vunnede tilbud registrert ennå.</div>'}
     <div class="hint" style="margin:16px 0 8px">❌ Tapt pr. årsak</div>
-    ${taptArsaker.length?`<div class="tbl-wrap"><table><thead><tr><th>Årsak</th><th>Antall</th><th>Tapt sum</th></tr></thead><tbody>
+    ${taptArsaker.length?`<div class="tbl-wrap"><table><thead><tr>${thT('Årsak','Hovedårsaken som ble valgt da saken ble markert som tapt.')}${thT('Antall','Antall tapte salg med denne årsaken.')}${thT('Tapt sum','Samlet totalsum på salgene som ble tapt.')}</tr></thead><tbody>
       ${taptArsaker.map(a=>`<tr><td>${a.arsak}</td><td>${a.antall}</td><td>${fS(a.sum)}</td></tr>`).join('')}
+      ${taptArsaker.length>1?`<tr${SUMRAD}><td>Totalt</td><td>${taptArsaker.reduce((a,x)=>a+x.antall,0)}</td><td>${fS(taptArsaker.reduce((a,x)=>a+x.sum,0))}</td></tr>`:''}
     </tbody></table></div>`:'<div class="empty">Ingen tapte tilbud registrert ennå.</div>'}
     <div class="hint" style="margin:16px 0 8px">Avsluttede tilbud (klikk en rad for å åpne saken)</div>
-    ${avsluttede.length?`<div class="tbl-wrap"><table><thead><tr><th>Kunde</th><th>Utfall</th><th>Sum</th><th>Årsak</th><th>Lukket</th></tr></thead><tbody>
+    ${avsluttede.length?`<div class="tbl-wrap"><table><thead><tr>${thT('Kunde','Klikk en rad for å åpne saken.')}${thT('Utfall','Vunnet eller tapt.')}${thT('Sum','Totalsummen på saken.')}${thT('Årsak','Hovedårsak ved tapt (vunnede har ingen årsak).')}${thT('Lukket','Datoen saken ble markert som vunnet eller tapt.')}</tr></thead><tbody>
       ${avsluttede.slice(0,VIS_MAX_AVSLUTTEDE).map(({n,kunde})=>{
         const erVunnet=n.tilbudUtfall==='Vunnet';
         const utfallHtml=erVunnet?'<span style="color:#15803d;font-weight:600">✅ Vunnet</span>':'<span style="color:#d03b3b;font-weight:600">❌ Tapt</span>';
@@ -9587,9 +9607,10 @@ function kundesakerPrLeadkilde(ansvarlig){
   const g={};
   ksAnalyseGrunnlag(ansvarlig).filter(n=>n.type==='Tilbud').forEach(n=>{
     const k=n.leadKilde||'Ukjent';
-    if(!g[k])g[k]={kilde:k,antall:0,apne:0,vunnet:0,tapt:0,vunnetSum:0,dagerSum:0,dagerAnt:0};
+    if(!g[k])g[k]={kilde:k,antall:0,apne:0,apenSum:0,vunnet:0,tapt:0,vunnetSum:0,dagerSum:0,dagerAnt:0};
     const r=g[k];r.antall++;
-    if(n.status==='Åpen')r.apne++;
+    // v1.48.171: «Åpne»/«Åpen sum» = aktive åpne saker (utsatte holdes utenfor, som pipelinen).
+    if(n.status==='Åpen'&&!erUtsatt(n)){r.apne++;r.apenSum+=n.tilbudSum||0;}
     if(n.tilbudUtfall==='Vunnet'){r.vunnet++;r.vunnetSum+=n.tilbudSum||0;}
     if(n.tilbudUtfall==='Tapt')r.tapt++;
     const fra=new Date(n.opprettetDato),til=new Date(n.tilbudLukketDato);
@@ -10427,6 +10448,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.171',dato:'01.10.2026',punkter:[
+    'Tilbudsanalyse har fått summeringslinjer. Pr. fase: «Sum aktiv pipeline» (Lead–Closing, vektet = pipelinereserven), med Utsatt og «Totalt inkl. utsatt» under. Pr. leadkilde, vunnet pr. måned og tapt pr. årsak har fått «Totalt». Treff og snitt dager regnes på alle sakene samlet.',
+    'Pr. leadkilde har fått kolonnen «Åpen sum», som viser hva de åpne sakene fra hver kilde er verdt. «Åpne» og «Åpen sum» tar ikke med utsatte saker.',
+    'Alle kolonneoverskrifter i Tilbudsanalyse har en forklaring når du holder musen over dem (merket ⓘ).'
+  ]},
   {versjon:'v1.48.170',dato:'01.10.2026',punkter:[
     'Kundekortet: «Innhold» vises øverst som en egen «📋 Bakgrunn»-boks med farget kant og større tekst, rett under tittelen. Lange tekster viser rundt fire linjer før «Vis mer».',
     'Loggen har fått overskriften «Logg (N)» og er en tidslinje med dato og navn i en fast kolonne til venstre og større tekst. E-poster og filer ligger i samme tidslinje. Faseskifter vises i grått og kursiv, så de skiller seg fra det du har skrevet. Har en sak over 6 poster, vises de 5 nyeste og «Vis alle».',
