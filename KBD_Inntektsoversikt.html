@@ -261,6 +261,21 @@ button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
 .salg-fase.aktiv{background:#6d28d9;color:#fff;border-color:#6d28d9;font-weight:600}
 .salg-pil{color:#c4b5fd;font-size:12px}
 .salg-kilde{margin-left:8px;font-size:11.5px;color:#4b5563}
+.notat-bakgrunn{background:#f8f7fc;border-left:3px solid var(--bg-c,#6d28d9);border-radius:0 6px 6px 0;padding:8px 12px;margin:6px 0 10px}
+.notat-bakgrunn-lbl{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#6b7280;margin-bottom:3px}
+.notat-bakgrunn-tekst{font-size:14px;line-height:1.5;color:#1f2937}
+.logg-blokk{margin-top:10px;padding-top:8px;border-top:1px dashed #e5e7eb}
+.logg-tittel{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#6b7280;margin-bottom:6px}
+.logg-rad{display:grid;grid-template-columns:112px 1fr;gap:10px;font-size:13.5px;line-height:1.45;color:#1f2937;padding:4px 0}
+.logg-rad+.logg-rad{border-top:1px solid #f3f4f6}
+.logg-hode{font-size:11.5px;color:#9ca3af;line-height:1.35;padding-top:2px}
+.logg-hvem{color:#6b7280}
+.logg-system .logg-innhold{color:#9ca3af;font-style:italic;font-size:12.5px}
+.logg-vedlegg>div:last-child>div{margin-bottom:0}
+.logg-skjult{display:none}
+.logg-vis-alle{border:none;background:none;color:#1A3A6B;font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;font-family:inherit}
+.logg-vis-alle:hover{text-decoration:underline}
+@media (max-width:640px){.logg-rad{grid-template-columns:1fr;gap:2px}.logg-hode{display:flex;gap:6px}}
 td.ks-nylig{color:#15803d;font-weight:600}
 .logg-verktoy{display:inline-flex;gap:2px;margin-left:6px;opacity:0;transition:opacity .15s}
 .logg-rad:hover .logg-verktoy,.logg-verktoy:focus-within{opacity:1}
@@ -584,7 +599,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.169 · Oppdatert: 1. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.170 · Oppdatert: 1. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7704,28 +7719,39 @@ function gaTilKundeFraSak(id){
 // Liten tidslinje av daterte oppdateringer PÅ én oppføring (f.eks. flere
 // "ringte kunden"/"sendte tilbud"-innlegg på samme Tilbud over tid), i stedet
 // for å måtte opprette en helt ny oppføring for hver kommentar.
-function renderNotatLoggHTML(n){
+function renderNotatLoggHTML(n,metaHtml){
   // v1.48.161: indeksen i n.logg (i) følger med, slik at en loggpost kan
   // redigeres/slettes selv om visningen er sortert nyeste først.
   const loggListe=(n.logg||[]).map((l,i)=>({l,i})).sort((a,b)=>new Date(b.l.dato)-new Date(a.l.dato));
   const loggRader=loggListe.map(({l,i})=>{
     const d=new Date(l.dato);
     const dStr=isNaN(d)?'—':`${d.toLocaleDateString('nb-NO')} ${d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}`;
-    if(l.epost)return renderEpostLoggHTML(l,dStr,n);
-    if(l.fil)return renderFilLoggHTML(l,dStr,n);
+    // v1.48.170: tidslinje — dato/forfatter i fast venstrekolonne, teksten
+    // starter likt for alle poster. Systemposter (faseskifter) i grått/kursiv.
+    const hode=`<div class="logg-hode"><div>${dStr}</div><div class="logg-hvem">${escHtmlEpost(l.forfatter||'Ukjent')}</div></div>`;
+    const skjult=loggListe.length>LOGG_VIS_MAKS+1&&!loggUtvidet.has(n.id)&&loggListe.findIndex(x=>x.i===i)>=LOGG_VIS_MAKS?' logg-skjult':'';
+    if(l.epost)return `<div class="logg-rad logg-vedlegg${skjult}">${hode}<div>${renderEpostLoggHTML(l,'',n)}</div></div>`;
+    if(l.fil)return `<div class="logg-rad logg-vedlegg${skjult}">${hode}<div>${renderFilLoggHTML(l,'',n)}</div></div>`;
     const kan=kanRedigereLoggpost(l);
+    const system=!!l.fase;
     const redigertTxt=l.redigert?` <span style="color:#9ca3af;font-style:italic" title="Redigert ${new Date(l.redigert).toLocaleString('nb-NO')}${l.redigertAv?' av '+escHtmlEpost(l.redigertAv):''}">(redigert)</span>`:'';
-    return `<div class="logg-rad" id="logg-${n.id}-${i}" style="font-size:12px;color:#374151;margin-bottom:4px"><span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> <span class="logg-tekst">${escHtmlEpost(l.tekst||'')}</span>${redigertTxt}${kan?`<span class="logg-verktoy"><button type="button" onclick="redigerLoggpost('${n.id}',${i})" title="Rediger">✎</button><button type="button" onclick="slettLoggpost('${n.id}',${i})" title="Slett loggposten">🗑</button></span>`:''}</div>`;
+    return `<div class="logg-rad${system?' logg-system':''}${skjult}" id="logg-${n.id}-${i}">${hode}<div class="logg-innhold"><span class="logg-tekst">${escHtmlEpost(l.tekst||'')}</span>${redigertTxt}${kan?`<span class="logg-verktoy"><button type="button" onclick="redigerLoggpost('${n.id}',${i})" title="Rediger">✎</button><button type="button" onclick="slettLoggpost('${n.id}',${i})" title="Slett loggposten">🗑</button></span>`:''}</div></div>`;
   }).join('');
-  const loggBlokk=loggListe.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e5e7eb">${loggRader}</div>`:'';
+  const antSkjult=loggListe.length>LOGG_VIS_MAKS+1?loggListe.length-LOGG_VIS_MAKS:0;
+  const visAlle=antSkjult?`<button type="button" class="logg-vis-alle" onclick="toggleLoggUtvidet('${n.id}')">${loggUtvidet.has(n.id)?'Vis færre ▴':`Vis alle (${loggListe.length}) ▾`}</button>`:'';
+  const loggBlokk=loggListe.length?`<div class="logg-blokk"><div class="logg-tittel">Logg (${loggListe.length})</div>${loggRader}${visAlle}</div>`:'';
   const loggInput=salgTilgang?`<div style="display:flex;gap:6px;margin-top:8px">
     <input type="text" id="logg-input-${n.id}" placeholder="Legg til en datert oppdatering…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilLoggpost('${n.id}');}"/>
     <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilLoggpost('${n.id}')">Legg til</button>
     <button class="btn-sm" style="padding:5px 10px;font-size:12px;white-space:nowrap" onclick="document.getElementById('epost-fil-${n.id}').click()" title="Legg til e-post (.msg/.eml), bilder, PDF eller andre filer på saken — du kan også dra filene rett inn på kortet">📎 Fil/e-post</button>
     <input type="file" id="epost-fil-${n.id}" multiple style="display:none" onchange="epostFraFilvelger(event,'${n.id}')"/>
   </div>${n.status==='Åpen'?renderLoggFristValgHTML(n):''}`:'';
-  return `${loggBlokk}${loggInput}`;
+  return `${loggBlokk}${metaHtml||''}${loggInput}`;
 }
+// v1.48.170: lange logger viser de 5 nyeste (+ «Vis alle»). Husket per økt.
+const LOGG_VIS_MAKS=5;
+const loggUtvidet=new Set();
+function toggleLoggUtvidet(id){loggUtvidet.has(id)?loggUtvidet.delete(id):loggUtvidet.add(id);if(k360Valgt)renderKundeKort(k360Valgt);}
 
 // ===== FORMATERT TEKST I «INNHOLD» (v1.48.153, 29.09.2026) =====
 // Thomas: «kan vi få mulighet for å formatere tekst i Innhold-feltet?».
@@ -7820,21 +7846,24 @@ function renderNotatInnholdHTML(n){
   const ws=erRik?'':'white-space:pre-wrap;';
   const antLinjer=erRik?(visHtml.match(/<(br|li|p|div)\b/gi)||[]).length:(ren.match(/\n/g)||[]).length;
   const langt=ren.length>NOTAT_INNHOLD_TERSKEL||antLinjer>4;
+  // v1.48.170: innholdet er sakens innledning → egen «Bakgrunn»-boks med
+  // typefarge til venstre, større/mørkere tekst, rett under tittelen.
+  const tf=K360_NOTAT_FARGER[n.type]||K360_NOTAT_FARGER.Notat;
+  const ramme=(inner)=>`<div class="notat-bakgrunn" style="--bg-c:${tf.c}"><div class="notat-bakgrunn-lbl">📋 Bakgrunn</div>${inner}</div>`;
   if(!langt){
-    return `<div class="rt-vis" style="font-size:13px;color:#374151;${ws}margin-bottom:6px">${visHtml}</div>`;
+    return ramme(`<div class="rt-vis notat-bakgrunn-tekst" style="${ws}">${visHtml}</div>`);
   }
   const boksId='innhold-'+n.id;
-  return `<div style="margin-bottom:6px">
-    <div id="${boksId}" class="notat-innhold-kort rt-vis" style="font-size:13px;color:#374151;${ws}max-height:4.6em;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 65%,transparent 100%);mask-image:linear-gradient(to bottom,#000 65%,transparent 100%)">${visHtml}</div>
-    <button class="btn-sm" style="margin-top:4px;padding:2px 10px;font-size:11px" onclick="toggleNotatInnhold('${boksId}',this)">Vis mer ▾</button>
-  </div>`;
+  return ramme(`<div id="${boksId}" class="notat-innhold-kort rt-vis notat-bakgrunn-tekst" style="${ws}max-height:${NOTAT_INNHOLD_KORT_H};overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 65%,transparent 100%);mask-image:linear-gradient(to bottom,#000 65%,transparent 100%)">${visHtml}</div>
+    <button class="btn-sm" style="margin-top:4px;padding:2px 10px;font-size:11px;background:#fff" onclick="toggleNotatInnhold('${boksId}',this)">Vis mer ▾</button>`);
 }
+const NOTAT_INNHOLD_KORT_H='6.3em'; // ca. 4 linjer à 14px før «Vis mer»
 function toggleNotatInnhold(boksId,btn){
   const el=document.getElementById(boksId);
   if(!el)return;
   const erUtvidet=el.style.maxHeight==='none';
   if(erUtvidet){
-    el.style.maxHeight='4.6em';
+    el.style.maxHeight=NOTAT_INNHOLD_KORT_H;
     el.style.webkitMaskImage='linear-gradient(to bottom,#000 65%,transparent 100%)';
     el.style.maskImage='linear-gradient(to bottom,#000 65%,transparent 100%)';
     if(btn)btn.textContent='Vis mer ▾';
@@ -7887,10 +7916,9 @@ function renderKundeNotaterHTML(k){
         </div>`:''}
       </div>
       ${tilbudInfoHtml}
-      ${renderSalgFaseHTML(n)}
       ${renderNotatInnholdHTML(n)}
-      <div class="k360-notat-meta" style="font-size:12px;color:#4b5563">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · ${erUtsatt(n)?'Tas opp igjen':'Forfallsdato'}: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · <span class="varsel-tekst" title="Du får påminnelse på fristen via ${[n.varsleEpost?'e-post':'',n.varsleDashbord?'varselmenyen i dashbordet':''].filter(Boolean).join(' og ')}">Varsel: ${[n.varsleEpost?'✉️ e-post':'',n.varsleDashbord?'🔔 dashbord':''].filter(Boolean).join(' + ')}</span>`:''}`:''}</div>
-      ${renderNotatLoggHTML(n)}
+      ${renderSalgFaseHTML(n)}
+      ${renderNotatLoggHTML(n,`<div class="k360-notat-meta" style="font-size:12px;color:#6b7280;margin-top:8px">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · ${erUtsatt(n)?'Tas opp igjen':'Forfallsdato'}: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · <span class="varsel-tekst" title="Du får påminnelse på fristen via ${[n.varsleEpost?'e-post':'',n.varsleDashbord?'varselmenyen i dashbordet':''].filter(Boolean).join(' og ')}">Varsel: ${[n.varsleEpost?'✉️ e-post':'',n.varsleDashbord?'🔔 dashbord':''].filter(Boolean).join(' + ')}</span>`:''}`:''}</div>`)}
     </div>`;
   }).join('');
 
@@ -10042,8 +10070,8 @@ function renderEpostLoggHTML(l,dStr,n){
   const fraEpostVis=epostSmtpEllerTom(e.fraEpost);
   const fra=e.fra||fraEpostVis||'Ukjent avsender';
   const idx=(n.logg||[]).indexOf(l);
-  return `<div style="font-size:12px;color:#374151;margin-bottom:6px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px">
-    <div><span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> 📧 <strong>${escHtmlEpost(e.emne||'(uten emne)')}</strong></div>
+  return `<div style="font-size:13px;color:#374151;margin-bottom:6px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px">
+    <div>${dStr?`<span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> `:''}📧 <strong>${escHtmlEpost(e.emne||'(uten emne)')}</strong></div>
     <div style="color:#6b7280;margin-top:2px">Fra ${escHtmlEpost(fra)}${fraEpostVis&&e.fra?` &lt;${escHtmlEpost(fraEpostVis)}&gt;`:''}${sendt?` · sendt ${sendt}`:''}${e.til?` · til ${escHtmlEpost(e.til)}`:''}</div>
     ${e.utdrag?`<details style="margin-top:4px"><summary style="cursor:pointer;color:#1A3A6B">Vis innhold</summary><div style="white-space:pre-wrap;margin-top:4px;max-height:260px;overflow:auto">${escHtmlEpost(e.utdrag)}${e.kappet?'\n\n… (forkortet — se originalen for hele e-posten)':''}</div></details>`:''}
     ${e.fil?`<button class="btn-sm" style="margin-top:4px;padding:3px 9px;font-size:11px" onclick="apneEpostOriginal('${n.id}',${idx})">📎 Last ned original</button>`:(e.filFeil?'<div style="color:#b45309;margin-top:2px">⚠️ Originalfila ble ikke lagret — kun innholdet over.</div>':'')}
@@ -10184,10 +10212,10 @@ function renderFilLoggHTML(l,dStr,n){
   const erBilde=SAK_FIL_BILDE.test(f.type||'');
   const bildeId=`sakfil-${n.id}-${idx}`;
   if(erBilde)setTimeout(()=>lastSakFilBilde(bildeId,f),0);
-  return `<div style="font-size:12px;color:#374151;margin-bottom:6px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;display:flex;gap:10px;align-items:center">
+  return `<div style="font-size:13px;color:#374151;margin-bottom:6px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;display:flex;gap:10px;align-items:center">
     ${erBilde?`<img id="${bildeId}" alt="${escHtmlEpost(f.navn)}" title="Klikk for full størrelse" onclick="apneSakFil('${n.id}',${idx},true)" style="width:72px;height:72px;object-fit:cover;border-radius:4px;background:#e5e7eb;cursor:pointer;flex-shrink:0"/>`:''}
     <div style="min-width:0;flex:1">
-      <div><span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> ${sakFilIkon(f.navn,f.type)} <strong style="word-break:break-all">${escHtmlEpost(f.navn||'fil')}</strong> <span style="color:#9ca3af">(${sakFilStorrelse(f.storrelse||0)})</span></div>
+      <div>${dStr?`<span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> `:''}${sakFilIkon(f.navn,f.type)} <strong style="word-break:break-all">${escHtmlEpost(f.navn||'fil')}</strong> <span style="color:#9ca3af">(${sakFilStorrelse(f.storrelse||0)})</span></div>
       <button class="btn-sm" style="margin-top:4px;padding:3px 9px;font-size:11px" onclick="apneSakFil('${n.id}',${idx},false)">📎 Last ned</button>
     </div>
   </div>`;
@@ -10399,6 +10427,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.170',dato:'01.10.2026',punkter:[
+    'Kundekortet: «Innhold» vises øverst som en egen «📋 Bakgrunn»-boks med farget kant og større tekst, rett under tittelen. Lange tekster viser rundt fire linjer før «Vis mer».',
+    'Loggen har fått overskriften «Logg (N)» og er en tidslinje med dato og navn i en fast kolonne til venstre og større tekst. E-poster og filer ligger i samme tidslinje. Faseskifter vises i grått og kursiv, så de skiller seg fra det du har skrevet. Har en sak over 6 poster, vises de 5 nyeste og «Vis alle».',
+    'Linjen med ansvarlig, frist og varsel er flyttet ned over feltet for ny oppdatering.'
+  ]},
   {versjon:'v1.48.169',dato:'01.10.2026',punkter:[
     'Kickback → Årssammenligning: Nordea Finans er skjult som standard her også, som på Kickback-fanen. «Alle» viser den igjen. Årene følger kildene du har valgt, så 2021 (bare Nordea Finans) forsvinner når Nordea er skjult.'
   ]},
