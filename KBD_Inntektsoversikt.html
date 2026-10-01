@@ -261,6 +261,7 @@ button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
 .salg-fase.aktiv{background:#6d28d9;color:#fff;border-color:#6d28d9;font-weight:600}
 .salg-pil{color:#c4b5fd;font-size:12px}
 .salg-kilde{margin-left:8px;font-size:11.5px;color:#4b5563}
+td.ks-nylig{color:#15803d;font-weight:600}
 .logg-verktoy{display:inline-flex;gap:2px;margin-left:6px;opacity:0;transition:opacity .15s}
 .logg-rad:hover .logg-verktoy,.logg-verktoy:focus-within{opacity:1}
 .logg-verktoy button{border:none;background:none;cursor:pointer;font-size:12px;color:#6b7280;padding:0 3px;border-radius:4px}
@@ -583,7 +584,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.166 · Oppdatert: 1. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.169 · Oppdatert: 1. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7367,13 +7368,19 @@ function renderTilbudspipeline(ansvarlig){
 // tildelings-/eierskapsfelt i datamodellen ennå, kun "hvem skrev dette".
 // Sortering: samme mønster som Utleie-fanens sortUtleieBy()/sh-*-spennene.
 let kundesakerSort={col:'forfallsdato',dir:'asc'};
+// v1.48.168: valgt sortering huskes (per bruker/nettleser, kun bekvemmelighet).
+const KS_SORT_NOKKEL='kbd-kundesaker-sort';
+const KS_SORT_KOLONNER=['firma','fase','tittel','sum','sjanse','vektet','ansvarlig','sistoppdatert','forfallsdato','status'];
+try{const lagret=JSON.parse(localStorage.getItem(KS_SORT_NOKKEL)||'null');if(lagret&&KS_SORT_KOLONNER.includes(lagret.col)&&(lagret.dir==='asc'||lagret.dir==='desc'))kundesakerSort=lagret;}catch(e){}
 let kundesakerTypeFilter='alle'; // 'alle'/'Notat'/'Tilbud'/'Oppfølging'
 let kundesakerBrukerFilter=null; // null = ikke satt ennå (kun ved aller første rendering denne økten) — se default-logikken i renderKundesaker(), som setter den til innlogget bruker. 'alle' viser ALLE kollegers saker og er et eksplisitt valg (dropdown/nullstill), ikke standardverdien lenger.
 let kundesakerVisLukkede=false;
 let kundesakerSearch=''; // fritekstsøk på firmanavn/tittel, samme "likt søkefelt"-ønske som Kunde 360-forsiden, 28.08.2026
 
 function sortKundesakerBy(col){
-  if(kundesakerSort.col===col){kundesakerSort.dir=kundesakerSort.dir==='asc'?'desc':'asc';}else{kundesakerSort.col=col;kundesakerSort.dir='asc';}
+  // «Sist oppdatert» starter med nyeste øverst (det man oftest vil se).
+  if(kundesakerSort.col===col){kundesakerSort.dir=kundesakerSort.dir==='asc'?'desc':'asc';}else{kundesakerSort.col=col;kundesakerSort.dir=col==='sistoppdatert'?'desc':'asc';}
+  try{localStorage.setItem(KS_SORT_NOKKEL,JSON.stringify(kundesakerSort));}catch(e){}
   renderKundesaker();
 }
 function setKundesakerTypeFilter(t){kundesakerTypeFilter=t;renderKundesaker();}
@@ -7401,6 +7408,16 @@ function kundesakFristStatus(n,naa){
 // (egen kolonne fra v1.48.147, settes av dashbordet ved hver lagring). BEVISST ikke
 // SharePoint sin lastModifiedDateTime: den endres også når backend-jobben
 // (varsling.py) setter VarselSendt, som ikke er reell salgsaktivitet.
+// «I dag kl. 14:35» / «I går» / «4 d siden» / dato (≥ 7 dager).
+function ksRelativDato(d,naa){
+  naa=naa||new Date();
+  const dagStart=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate());
+  const dager=Math.round((dagStart(naa)-dagStart(d))/86400000);
+  if(dager<=0)return `I dag kl. ${d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}`;
+  if(dager===1)return 'I går';
+  if(dager<7)return `${dager} d siden`;
+  return d.toLocaleDateString('nb-NO');
+}
 function kundesakSisteAktivitet(n){
   let siste=n.opprettetDato?new Date(n.opprettetDato):null;
   // v1.48.147: SistAktivitet (settes ved enhver brukerlagring) teller også.
@@ -7548,7 +7565,7 @@ function renderKundesaker(){
       case 'sjanse': return dir*((erTilbudMedSum(a)?(a.sannsynlighet||0):-1)-(erTilbudMedSum(b)?(b.sannsynlighet||0):-1));
       case 'vektet': return dir*(vektet(a)-vektet(b));
       case 'ansvarlig': return dir*(a.opprettetAv||'').localeCompare(b.opprettetAv||'');
-      case 'opprettet': return dir*(new Date(a.opprettetDato||0)-new Date(b.opprettetDato||0));
+      case 'sistoppdatert': return dir*(((kundesakSisteAktivitet(a)||0)-0)-((kundesakSisteAktivitet(b)||0)-0));
       case 'status': return dir*(a.status||'').localeCompare(b.status||'');
       case 'forfallsdato': default: {
         // Saker uten frist havner sist (ved stigende sortering), ikke først.
@@ -7565,7 +7582,7 @@ function renderKundesaker(){
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
       ${th('firma','Firma')}${th('fase','Type / fase')}${th('tittel','Tittel')}
       ${th('sum','Sum','text-align:right')}${th('sjanse','Sjanse','text-align:right')}${th('vektet','Vektet','text-align:right')}
-      ${ansvarligValgt?'':th('ansvarlig','Ansvarlig')}${th('opprettet','Opprettet')}${th('forfallsdato','Neste frist')}${th('status','Status')}
+      ${ansvarligValgt?'':th('ansvarlig','Ansvarlig')}${th('sistoppdatert','Sist oppdatert')}${th('forfallsdato','Neste frist')}${th('status','Status')}
     </tr></thead><tbody>
     ${rader.map(n=>{
       const farge=K360_NOTAT_FARGER[n.type]||K360_NOTAT_FARGER.Notat;
@@ -7575,7 +7592,12 @@ function renderKundesaker(){
       const kl=fd?fd.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):'';
       const datoTxt=!fd?tom:(frist==='idag'?`I dag kl. ${kl}`:`${fd.toLocaleDateString('nb-NO')} kl. ${kl}`);
       const fristKlasse=frist==='forfalt'?'ks-frist-forfalt':(frist==='idag'?'ks-frist-idag':'');
+      // v1.48.168: «Sist oppdatert» erstatter «Opprettet» (som nå står i hover).
+      // Samme kilde som 💤-flagget: kundesakSisteAktivitet().
       const opprettetTxt=n.opprettetDato&&!isNaN(new Date(n.opprettetDato))?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—';
+      const sist=kundesakSisteAktivitet(n);
+      const sistTxt=sist?ksRelativDato(sist,naa):'—';
+      const sistTittel=`${sist?'Sist oppdatert '+sist.toLocaleDateString('nb-NO')+' kl. '+sist.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})+' · ':''}Opprettet ${opprettetTxt}${n.opprettetAv?' av '+escHtmlEpost(n.opprettetAv):''}`;
       const inaktiv=kundesakInaktivDager(n,naa);
       const inaktivHtml=inaktiv?`<span class="ks-inaktiv" title="Ingen endring, loggkommentar eller ny frist på ${inaktiv} dager — følg opp eller lukk tilbudet">💤 ${inaktiv} d</span>`:'';
       const medSum=erTilbudMedSum(n);
@@ -7588,14 +7610,14 @@ function renderKundesaker(){
         <td style="text-align:right;white-space:nowrap">${medSum?(n.sannsynlighet||0)+' %':tom}</td>
         <td style="text-align:right;white-space:nowrap;font-weight:${medSum?'600':'400'};color:#6d28d9">${medSum?(erUtsatt(n)?'<span title="Utsatt — telles ikke i pipelinereserven" style="color:#92400e;font-weight:400">⏸ utsatt</span>':fS(vektet(n))):tom}</td>
         ${ansvarligValgt?'':`<td style="white-space:nowrap">${n.opprettetAv||'—'}</td>`}
-        <td style="white-space:nowrap">${opprettetTxt}</td>
+        <td style="white-space:nowrap" class="${sist&&(naa-sist)<86400000*2?'ks-nylig':''}" title="${sistTittel}">${sistTxt}</td>
         <td style="white-space:nowrap" class="${fristKlasse}">${frist==='forfalt'?'⏰ ':''}${datoTxt}</td>
         <td style="white-space:nowrap" onclick="event.stopPropagation()">${renderNotatStatusHTML(n)}</td>
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
 
-  ['firma','fase','tittel','sum','sjanse','vektet','ansvarlig','opprettet','forfallsdato','status'].forEach(c=>{
+  KS_SORT_KOLONNER.forEach(c=>{
     const el=document.getElementById('ksh-'+c);
     if(el)el.innerHTML=kundesakerSort.col===c?(kundesakerSort.dir==='asc'?'↑':'↓'):'↕';
   });
@@ -10377,6 +10399,14 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.169',dato:'01.10.2026',punkter:[
+    'Kickback → Årssammenligning: Nordea Finans er skjult som standard her også, som på Kickback-fanen. «Alle» viser den igjen. Årene følger kildene du har valgt, så 2021 (bare Nordea Finans) forsvinner når Nordea er skjult.'
+  ]},
+  {versjon:'v1.48.168',dato:'01.10.2026',punkter:[
+    'Kundesaker: «Opprettet» er byttet ut med «Sist oppdatert» («I dag kl. 14:35», «I går», «4 d siden» eller dato). Det som er oppdatert de siste to dagene vises i grønt. Klikk på overskriften for nyeste øverst, og klikk igjen for de som har ligget lengst urørt. Opprettet-dato og hvem som opprettet saken står når du holder musen over.',
+    'Teller som oppdatering: lagring, loggpost, faseskifte, utsettelse, e-post eller fil. Retting eller sletting av en loggpost og automatiske varsler teller ikke.',
+    'Sorteringen du velger i Kundesaker huskes til neste gang.'
+  ]},
   {versjon:'v1.48.166',dato:'01.10.2026',punkter:[
     'Kickback viser nå alle kilder unntatt Nordea Finans når siden åpnes. Nordea Finans tas med ved å klikke på den eller på «Alle».'
   ]},
@@ -11787,6 +11817,7 @@ function addSource(){
   const newSrc={name,freq,color:palette[sources.length%palette.length],spId:null};
   sources.push(newSrc);
   if(kickFilters.size>0)kickFilters.add(name); // v1.48.166: ny kilde synlig også når standardfilteret er aktivt
+  if(skickFilters.size>0)skickFilters.add(name); // v1.48.169: samme for Årssammenligning
   inp.value='';
   refreshSrcDropdowns();renderSettings();renderAll();
   spCreate('Kilder',{Title:name,SourceName:name,Frequency:freq,Color:newSrc.color}).then(r=>{newSrc.spId=r.id;}).catch(e=>console.error(e));
@@ -11809,6 +11840,7 @@ function saveSource(oldName){
   if(VISMA_SYNK_KILDER.includes(oldName)&&!vismaSynkAdvarsel(oldName,'navnet'))return;
   s.name=newName;
   if(kickFilters.has(oldName)){kickFilters.delete(oldName);kickFilters.add(newName);} // v1.48.166
+  if(skickFilters.has(oldName)){skickFilters.delete(oldName);skickFilters.add(newName);} // v1.48.169
   const berorte=kick.filter(k=>k.source===oldName);
   berorte.forEach(k=>{k.source=newName;});
   refreshSrcDropdowns();renderSettings();renderAll();
@@ -11862,12 +11894,24 @@ function isKickActive(s){return kickFilters.size===0||kickFilters.has(s);}
 // lastet; «Alle»-knappen (tomt sett) viser fortsatt også Nordea Finans.
 const KICK_SKJULT_SOM_STANDARD=['Nordea Finans'];
 let kickFiltersInit=false;
+// v1.48.169 (= v1.48.167 fra annen chat, lagt inn på nytt): felles standard
+// for Kickback-fanen og Kickback → Årssammenligning. Returnerer null når det
+// ikke er noe å skjule (da står filteret på «Alle», tomt sett).
+function kickStandardFilter(){
+  const navn=sources.map(s=>s.name);
+  if(!navn.some(n=>KICK_SKJULT_SOM_STANDARD.includes(n))) return null;
+  return new Set(navn.filter(n=>!KICK_SKJULT_SOM_STANDARD.includes(n)));
+}
 function initKickDefaultFilters(){
   if(kickFiltersInit||!sources||!sources.length) return;
   kickFiltersInit=true;
-  const navn=sources.map(s=>s.name);
-  if(!navn.some(n=>KICK_SKJULT_SOM_STANDARD.includes(n))) return;
-  kickFilters=new Set(navn.filter(n=>!KICK_SKJULT_SOM_STANDARD.includes(n)));
+  const f=kickStandardFilter();if(f)kickFilters=f;
+}
+let skickFiltersInit=false;
+function initSkickDefaultFilters(){
+  if(skickFiltersInit||!sources||!sources.length) return;
+  skickFiltersInit=true;
+  const f=kickStandardFilter();if(f)skickFilters=f;
 }
 function isTrendActive(t){return trendFilters.size===0||trendFilters.has(t);}
 
@@ -14840,8 +14884,13 @@ function renderLicSammenligning(){
 }
 
 function renderKickSammenligning(){
-  const years=[...new Set([...lic.map(x=>x.year),...kick.map(x=>x.year)])].sort();
+  initSkickDefaultFilters(); // v1.48.169: Nordea Finans skjult som standard også her
   const activeSrc=sources.map(s=>s.name).filter(s=>skickFilters.size===0||skickFilters.has(s));
+  // v1.48.169: årene beregnes fra kickback-radene i de valgte kildene (f.eks.
+  // forsvinner 2021, som kun har Nordea Finans, når Nordea er skjult).
+  // Fallback til gammel beregning hvis ingen rader treffer.
+  const aarValgte=[...new Set(kick.filter(k=>activeSrc.includes(k.source)).map(k=>k.year))].sort();
+  const years=aarValgte.length?aarValgte:[...new Set([...lic.map(x=>x.year),...kick.map(x=>x.year)])].sort();
 
   dC('sk');
   const skCtx=document.getElementById('chart-skick');
