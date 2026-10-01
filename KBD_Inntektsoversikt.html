@@ -516,16 +516,13 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .kultur-hint{font-size:12px;color:rgba(255,255,255,.6);white-space:nowrap}
 .kultur-verdier{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .kultur-verdi{background:#244d82;border:2px solid transparent;border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center;color:#fff;text-align:left;transition:border-color .15s}
-.kultur-verdi:hover,.kultur-verdi.aktiv,.kultur-verdi.lyser{border-color:#f5b700}
+.kultur-verdi:hover,.kultur-verdi.aktiv{border-color:#f5b700}
 .kultur-nr{background:#f5b700;color:#1A3A6B;font-weight:800;border-radius:50%;width:26px;height:26px;display:grid;place-items:center;flex:none;font-size:14px}
 .kultur-navn{font-weight:700;color:#f5b700;font-size:14px;line-height:1.2}
 .kultur-punkter{display:none;margin-top:10px;background:rgba(255,255,255,.07);border-radius:8px;padding:10px 16px 10px 32px;column-gap:32px;font-size:14px}
 .kultur-punkter.to-kol{columns:2}
 .kultur-punkter.vis{display:block}
 .kultur-punkter li{margin:2px 0}
-.kv-merke{display:inline-flex;gap:5px;align-items:center;font-size:11px;font-weight:600;color:#1A3A6B;background:#fff4cc;border-radius:999px;padding:2px 9px 2px 3px;margin-top:8px;cursor:default;white-space:nowrap}
-.kv-merke i{font-style:normal;background:#f5b700;color:#1A3A6B;border-radius:50%;width:16px;height:16px;display:grid;place-items:center;font-size:10px;font-weight:800}
-.kv-merke.i-overskrift{margin:0 0 0 8px;vertical-align:middle;text-transform:none;letter-spacing:0}
 @media (max-width:900px){.kultur-verdier{grid-template-columns:1fr 1fr}.kultur-punkter.to-kol{columns:1}.kultur-hint{display:none}}
 </style>
 </head>
@@ -586,7 +583,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.163 · Oppdatert: 1. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.164 · Oppdatert: 1. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -816,8 +813,8 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
     </div>
 
     <!-- KBD Kulturplakaten (v1.48.162) — verdiene fra plakaten KBD har utviklet
-         sammen. Klikk på en verdi for å se punktene. De gule merkene ved
-         overskriftene under (kv-merke) peker tilbake hit — se toggleKulturVerdi(). -->
+         sammen. Klikk på en verdi for å se punktene — se toggleKulturVerdi().
+         (Gule verdimerker på Hjem ble prøvd og fjernet igjen i v1.48.163/.164.) -->
     <section class="kultur" aria-label="KBD Kulturplakaten">
       <div class="kultur-topp">
         <div><div class="kultur-tittel">KBD Kulturplakaten</div><div class="kultur-under">– Slik jobber vi. Slik er vi</div></div>
@@ -839,11 +836,11 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
          se sjekkDagensMarkeringer(). -->
     <div id="hjem-feiring" style="display:none"></div>
 
-    <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">🔔 Trenger oppmerksomhet<span class="kv-merke i-overskrift" data-kv="1"><i>1</i>Kvalitet i leveranser</span></div>
+    <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">🔔 Trenger oppmerksomhet</div>
     <div id="hjem-oppmerksomhet" style="margin-bottom:24px"></div>
 
     <div id="hjem-kunngjoring-seksjon" style="margin-bottom:24px">
-      <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">📣 Siste kunngjøring<span class="kv-merke i-overskrift" data-kv="2"><i>2</i>Kunnskapsdeling</span></div>
+      <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">📣 Siste kunngjøring</div>
       <div id="hjem-kunngjoring"></div>
     </div>
 
@@ -10380,6 +10377,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.164',dato:'01.10.2026',punkter:[
+    'De siste gule verdimerkene ved «Trenger oppmerksomhet» og «Siste kunngjøring» er fjernet. Kulturplakaten øverst på Hjem er som før.'
+  ]},
   {versjon:'v1.48.163',dato:'01.10.2026',punkter:[
     'De gule verdimerkene er fjernet fra nøkkeltallkortene på Hjem, slik at kortene blir ryddigere. Merkene ved «Trenger oppmerksomhet» og «Siste kunngjøring» er beholdt.'
   ]},
@@ -12158,8 +12158,7 @@ function fyrKonfetti(){
 }
 
 // ===== KBD Kulturplakaten (v1.48.162) =====
-// Én verdi åpen om gangen; klikk igjen for å lukke. De gule merkene (.kv-merke)
-// står ved seksjonsoverskriftene på Hjem (fjernet fra nøkkeltallkortene i v1.48.163), og hover på et merke lyser opp riktig verdi i stripen.
+// Én verdi åpen om gangen; klikk igjen for å lukke.
 function toggleKulturVerdi(nr){
   const p=document.getElementById('kultur-p'+nr);
   if(!p)return;
@@ -12168,13 +12167,6 @@ function toggleKulturVerdi(nr){
   document.querySelectorAll('.kultur-verdi').forEach(x=>x.classList.remove('aktiv'));
   if(!varApen){p.classList.add('vis');document.querySelector(`.kultur-verdi[data-kv="${nr}"]`)?.classList.add('aktiv');}
 }
-function kulturLys(e,pa){
-  const m=e.target.closest&&e.target.closest('.kv-merke');
-  if(!m)return;
-  document.querySelector(`.kultur-verdi[data-kv="${m.dataset.kv}"]`)?.classList.toggle('lyser',pa);
-}
-document.addEventListener('mouseover',e=>kulturLys(e,true));
-document.addEventListener('mouseout',e=>kulturLys(e,false));
 
 function renderHjem(){
   const greetEl=document.getElementById('hjem-greeting');
