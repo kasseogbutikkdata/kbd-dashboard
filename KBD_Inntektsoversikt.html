@@ -583,7 +583,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.165 · Oppdatert: 1. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.166 · Oppdatert: 1. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10377,6 +10377,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.166',dato:'01.10.2026',punkter:[
+    'Kickback viser nå alle kilder unntatt Nordea Finans når siden åpnes. Nordea Finans tas med ved å klikke på den eller på «Alle».'
+  ]},
   {versjon:'v1.48.165',dato:'01.10.2026',punkter:[
     'Menypunkter med undermeny, for eksempel Kunde360, lukkes nå når du klikker på dem en gang til. Står du på en underside, tar første klikk deg til hovedsiden og neste klikk lukker menyen.',
     'Utleie åpner nå rett på Kalender i stedet for en tom side.'
@@ -11783,6 +11786,7 @@ function addSource(){
   const palette=["#1A3A6B","#2E86C1","#1baf7a","#eda100","#4a3aa7","#eb6834","#e34948","#888780"];
   const newSrc={name,freq,color:palette[sources.length%palette.length],spId:null};
   sources.push(newSrc);
+  if(kickFilters.size>0)kickFilters.add(name); // v1.48.166: ny kilde synlig også når standardfilteret er aktivt
   inp.value='';
   refreshSrcDropdowns();renderSettings();renderAll();
   spCreate('Kilder',{Title:name,SourceName:name,Frequency:freq,Color:newSrc.color}).then(r=>{newSrc.spId=r.id;}).catch(e=>console.error(e));
@@ -11804,6 +11808,7 @@ function saveSource(oldName){
   if(sources.find(x=>x.name===newName)){alert('Kilden finnes allerede.');return;}
   if(VISMA_SYNK_KILDER.includes(oldName)&&!vismaSynkAdvarsel(oldName,'navnet'))return;
   s.name=newName;
+  if(kickFilters.has(oldName)){kickFilters.delete(oldName);kickFilters.add(newName);} // v1.48.166
   const berorte=kick.filter(k=>k.source===oldName);
   berorte.forEach(k=>{k.source=newName;});
   refreshSrcDropdowns();renderSettings();renderAll();
@@ -11852,6 +11857,18 @@ let trendYearFilter='alle';
 
 function isLicActive(p){return licFilters.size===0||licFilters.has(p);}
 function isKickActive(s){return kickFilters.size===0||kickFilters.has(s);}
+// v1.48.166: Kickback-fanen starter med alle kilder unntatt Nordea Finans
+// (årlig engangsbeløp som dominerer grafen). Settes én gang når kildene er
+// lastet; «Alle»-knappen (tomt sett) viser fortsatt også Nordea Finans.
+const KICK_SKJULT_SOM_STANDARD=['Nordea Finans'];
+let kickFiltersInit=false;
+function initKickDefaultFilters(){
+  if(kickFiltersInit||!sources||!sources.length) return;
+  kickFiltersInit=true;
+  const navn=sources.map(s=>s.name);
+  if(!navn.some(n=>KICK_SKJULT_SOM_STANDARD.includes(n))) return;
+  kickFilters=new Set(navn.filter(n=>!KICK_SKJULT_SOM_STANDARD.includes(n)));
+}
 function isTrendActive(t){return trendFilters.size===0||trendFilters.has(t);}
 
 function toggleLicFilter(p){
@@ -12312,6 +12329,7 @@ function renderLicChart(){
 }
 
 function renderKickChart(){
+  initKickDefaultFilters();
   dC('k');
   const d=getKickChart();
   const ctx=document.getElementById('chart-kick');
@@ -12385,6 +12403,7 @@ function renderLicTable(){
 }
 
 function renderKickTable(){
+  initKickDefaultFilters();
   const activeSrc=kickFilters.size>0?[...kickFilters]:null;
   let rows=[...kick];
   if(activeSrc) rows=rows.filter(k=>activeSrc.includes(k.source));
