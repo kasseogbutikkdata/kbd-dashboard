@@ -269,6 +269,8 @@ tr.ks-sumrad-lett td{color:#6b7280;font-style:italic;background:#fafafa}
 .notat-bakgrunn-lbl{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#6b7280;margin-bottom:3px}
 .notat-bakgrunn-tekst{font-size:14px;line-height:1.5;color:#1f2937}
 .logg-blokk{margin-top:10px;padding-top:8px;border-top:1px dashed #e5e7eb}
+.logg-ny-wrap{margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f3f4f6}
+.logg-ny-wrap .logg-ny+*{margin-top:6px}
 .logg-tittel{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#6b7280;margin-bottom:6px}
 .logg-rad{display:grid;grid-template-columns:112px 1fr;gap:10px;font-size:13.5px;line-height:1.45;color:#1f2937;padding:4px 0}
 .logg-rad+.logg-rad{border-top:1px solid #f3f4f6}
@@ -603,7 +605,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.172 · Oppdatert: 2. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.173 · Oppdatert: 2. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7759,14 +7761,16 @@ function renderNotatLoggHTML(n,metaHtml){
   }).join('');
   const antSkjult=loggListe.length>LOGG_VIS_MAKS+1?loggListe.length-LOGG_VIS_MAKS:0;
   const visAlle=antSkjult?`<button type="button" class="logg-vis-alle" onclick="toggleLoggUtvidet('${n.id}')">${loggUtvidet.has(n.id)?'Vis færre ▴':`Vis alle (${loggListe.length}) ▾`}</button>`:'';
-  const loggBlokk=loggListe.length?`<div class="logg-blokk"><div class="logg-tittel">Logg (${loggListe.length})</div>${loggRader}${visAlle}</div>`:'';
-  const loggInput=salgTilgang?`<div style="display:flex;gap:6px;margin-top:8px">
-    <input type="text" id="logg-input-${n.id}" placeholder="Legg til en datert oppdatering…" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilLoggpost('${n.id}');}"/>
+  // v1.48.173: feltet for ny oppdatering står ØVERST i loggen (rett over
+  // nyeste post), og metalinjen (ansvarlig/frist/varsel) over loggen.
+  const loggInput=salgTilgang?`<div class="logg-ny" style="display:flex;gap:6px">
+    <input type="text" id="logg-input-${n.id}" placeholder="Legg til en datert oppdatering…" style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilLoggpost('${n.id}');}"/>
     <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilLoggpost('${n.id}')">Legg til</button>
     <button class="btn-sm" style="padding:5px 10px;font-size:12px;white-space:nowrap" onclick="document.getElementById('epost-fil-${n.id}').click()" title="Legg til e-post (.msg/.eml), bilder, PDF eller andre filer på saken — du kan også dra filene rett inn på kortet">📎 Fil/e-post</button>
     <input type="file" id="epost-fil-${n.id}" multiple style="display:none" onchange="epostFraFilvelger(event,'${n.id}')"/>
   </div>${n.status==='Åpen'?renderLoggFristValgHTML(n):''}`:'';
-  return `${loggBlokk}${metaHtml||''}${loggInput}`;
+  const loggBlokk=(loggListe.length||loggInput)?`<div class="logg-blokk"><div class="logg-tittel">Logg${loggListe.length?` (${loggListe.length})`:''}</div>${loggInput?`<div class="logg-ny-wrap">${loggInput}</div>`:''}${loggRader}${visAlle}</div>`:'';
+  return `${metaHtml||''}${loggBlokk}`;
 }
 // v1.48.170: lange logger viser de 5 nyeste (+ «Vis alle»). Husket per økt.
 const LOGG_VIS_MAKS=5;
@@ -7938,7 +7942,7 @@ function renderKundeNotaterHTML(k){
       ${tilbudInfoHtml}
       ${renderNotatInnholdHTML(n)}
       ${renderSalgFaseHTML(n)}
-      ${renderNotatLoggHTML(n,`<div class="k360-notat-meta" style="font-size:12px;color:#6b7280;margin-top:8px">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · ${erUtsatt(n)?'Tas opp igjen':'Forfallsdato'}: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · <span class="varsel-tekst" title="Du får påminnelse på fristen via ${[n.varsleEpost?'e-post':'',n.varsleDashbord?'varselmenyen i dashbordet':''].filter(Boolean).join(' og ')}">Varsel: ${[n.varsleEpost?'✉️ e-post':'',n.varsleDashbord?'🔔 dashbord':''].filter(Boolean).join(' + ')}</span>`:''}`:''}</div>`)}
+      ${renderNotatLoggHTML(n,`<div class="k360-notat-meta" style="font-size:12px;color:#6b7280;margin-top:2px">${n.opprettetAv||'Ukjent'} · ${n.opprettetDato?new Date(n.opprettetDato).toLocaleDateString('nb-NO'):'—'}${n.forfallsdato?` · ${erUtsatt(n)?'Tas opp igjen':'Forfallsdato'}: ${new Date(n.forfallsdato).toLocaleDateString('nb-NO')} kl. ${new Date(n.forfallsdato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}${n.varsleEpost||n.varsleDashbord?` · <span class="varsel-tekst" title="Du får påminnelse på fristen via ${[n.varsleEpost?'e-post':'',n.varsleDashbord?'varselmenyen i dashbordet':''].filter(Boolean).join(' og ')}">Varsel: ${[n.varsleEpost?'✉️ e-post':'',n.varsleDashbord?'🔔 dashbord':''].filter(Boolean).join(' + ')}</span>`:''}`:''}</div>`)}
     </div>`;
   }).join('');
 
@@ -10234,10 +10238,10 @@ function renderFilLoggHTML(l,dStr,n){
   const bildeId=`sakfil-${n.id}-${idx}`;
   if(erBilde)setTimeout(()=>lastSakFilBilde(bildeId,f),0);
   return `<div style="font-size:13px;color:#374151;margin-bottom:6px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;display:flex;gap:10px;align-items:center">
-    ${erBilde?`<img id="${bildeId}" alt="${escHtmlEpost(f.navn)}" title="Klikk for full størrelse" onclick="apneSakFil('${n.id}',${idx},true)" style="width:72px;height:72px;object-fit:cover;border-radius:4px;background:#e5e7eb;cursor:pointer;flex-shrink:0"/>`:''}
-    <div style="min-width:0;flex:1">
-      <div>${dStr?`<span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> `:''}${sakFilIkon(f.navn,f.type)} <strong style="word-break:break-all">${escHtmlEpost(f.navn||'fil')}</strong> <span style="color:#9ca3af">(${sakFilStorrelse(f.storrelse||0)})</span></div>
-      <button class="btn-sm" style="margin-top:4px;padding:3px 9px;font-size:11px" onclick="apneSakFil('${n.id}',${idx},false)">📎 Last ned</button>
+    ${erBilde?`<img id="${bildeId}" alt="${escHtmlEpost(f.navn)}" title="Klikk for full størrelse" onclick="apneSakFil('${n.id}',${idx},true)" style="width:48px;height:48px;object-fit:cover;border-radius:4px;background:#e5e7eb;cursor:pointer;flex-shrink:0"/>`:''}
+    <div style="min-width:0;flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="min-width:0;flex:1">${dStr?`<span style="color:#9ca3af">${dStr} · ${escHtmlEpost(l.forfatter||'Ukjent')}:</span> `:''}${sakFilIkon(f.navn,f.type)} <strong style="word-break:break-all">${escHtmlEpost(f.navn||'fil')}</strong> <span style="color:#9ca3af">(${sakFilStorrelse(f.storrelse||0)})</span></div>
+      <button class="btn-sm" style="padding:3px 9px;font-size:11px;white-space:nowrap" onclick="apneSakFil('${n.id}',${idx},false)">📎 Last ned</button>
     </div>
   </div>`;
 }
@@ -10448,6 +10452,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.173',dato:'02.10.2026',punkter:[
+    'Kundekortet: feltet «Legg til en datert oppdatering» står nå øverst i loggen, rett over nyeste post, sammen med «📎 Fil/e-post» og «Neste frist». Du slipper å scrolle forbi loggen for å skrive.',
+    'Linjen med ansvarlig, frist og varsel er flyttet opp, rett under fase-knappene.',
+    'Filer og bilder i loggen tar mindre plass: mindre bilde (klikk for full størrelse), og «Last ned» står på samme linje som filnavnet.'
+  ]},
   {versjon:'v1.48.172',dato:'02.10.2026',punkter:[
     'Transaksjonsavgift: «📋 Historikk» under Verifone og Nets åpner nå historikken med ett trykk. Før måtte du først trykke på leverandøren.'
   ]},
