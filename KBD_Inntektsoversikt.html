@@ -605,7 +605,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.175 · Oppdatert: 2. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.176 · Oppdatert: 2. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10493,6 +10493,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.176',dato:'02.10.2026',punkter:[
+    'Fakturaoppfølging: sendte purring-SMS vises nå i oppfølgingsloggen på fakturaen (📱, kilde «Automatisk»), med tidspunkt, mobilnummer og terskel. Gjelder også SMS sendt tidligere.',
+    'Fakturaer med sendt purring-SMS får 💬 i oversikten og «📱 SMS sendt» med dato under statusen.'
+  ]},
   {versjon:'v1.48.175',dato:'02.10.2026',punkter:[
     'Silent Ordering System: «Salgsordre Visma» er nå obligatorisk fra status «Sak opprettet» og videre. Klikker du neste steg i tidslinjen uten salgsordre, åpnes saken så du kan fylle den inn.'
   ]},
@@ -12684,6 +12688,30 @@ function foDagerForfalt(f){
 // prioriteringsrekkefølge: store, gamle, ubetalte krav øverst. Kan
 // forfines senere (f.eks. vekte inn kredittklasse fra VismaKunder).
 function foScore(f){return foDagerForfalt(f)*(f.utestaende||0);}
+// v1.48.176 (02.10.2026): sendte purring-SMS vises i Fakturaoppfølging.
+// Thomas meldte at en purring-SMS (f.eks. 051983 Caoz A/S, 02.10.2026) ikke
+// syntes på fakturaen i Fakturaoppfølging. Purring-SMS-backenden
+// (purring_sms.py) skriver én bekreftet rad per faktura i SmsPurringSendt,
+// men aldri i FakturaoppfolgingLogg. I stedet for å la backenden skrive en
+// kopi (krever deploy av kbd-verifone-func, og to kilder til samme hendelse)
+// slås SmsPurringSendt sammen med loggen her ved visning. Fordeler: virker
+// også for alle SMS sendt før denne endringen, ingen ny skriving, ingen
+// kundekonsekvens. Radene er skrivebeskyttet (Kilde «Automatisk»).
+function foNormFakturanr(n){return String(n||'').trim().replace(/^0+/,'');}
+function foSmsForFaktura(fakturanr){
+  const k=foNormFakturanr(fakturanr);
+  if(!k||typeof smsPurringSendt==='undefined')return[];
+  return smsPurringSendt.filter(x=>foNormFakturanr(x.fakturanummer)===k).map(x=>({
+    id:x.id,fakturanr,auto:true,type:'SMS',kilde:'Automatisk',skrevetAv:'Purring-SMS',
+    dato:x.sendtDato||'',
+    kommentar:`Purring-SMS sendt til ${x.telefon||'—'}${x.terskel?` (terskel ${x.terskel} dager etter forfall)`:''}${x.belop?`, beløp ${x.belop.toLocaleString('nb-NO')} kr`:''}.`
+  }));
+}
+function foSisteSms(fakturanr){
+  const l=foSmsForFaktura(fakturanr).sort((a,b)=>new Date(b.dato||0)-new Date(a.dato||0));
+  return l[0]||null;
+}
+
 function foStatusBadge(s){
   const farger={'Ikke kontaktet':'#6b7280','Kontaktet':'#2563eb','Lovet betaling':'#d97706','Sendt til inkasso':'#dc2626','Bestridt':'#7c3aed'};
   const c=farger[s]||'#6b7280';
@@ -12775,6 +12803,8 @@ function renderFakturaoppfolging(){
   // er importert fra Visma sitt merknadsfelt — forhåndsberegnet én gang per
   // render, ikke inni .map(), for å unngå gjentatt .some()-søk per rad.
   const foLoggFakturaSet=new Set(fakturaoppfolgingLogg.map(l=>l.fakturanr));
+  // v1.48.176: fakturaer med sendt purring-SMS får også 💬 (se foSmsForFaktura()).
+  const foSmsFakturaSet=new Set((typeof smsPurringSendt!=='undefined'?smsPurringSendt:[]).map(x=>foNormFakturanr(x.fakturanummer)));
 
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
       <th style="cursor:pointer" onclick="sortFoBy('faktura')">Faktura <span id="fosh-faktura"></span></th>
@@ -12793,7 +12823,7 @@ function renderFakturaoppfolging(){
       const apen=foApenRad===f.fakturanr;
       // Felles 💬-ikon uansett kilde (egen logg i KBD CC ELLER importert
       // Visma-notat) — ønsket av Thomas 11.09.2026, se foLoggFakturaSet over.
-      const harKommentar=(f.notatImportert&&f.notatImportert.trim())||foLoggFakturaSet.has(f.fakturanr);
+      const harKommentar=(f.notatImportert&&f.notatImportert.trim())||foLoggFakturaSet.has(f.fakturanr)||foSmsFakturaSet.has(foNormFakturanr(f.fakturanr));
       // Når raden er åpen, gis den en synlig "ramme" (lys blå bakgrunn + en
       // fargeaksent til venstre) slik at det er tydelig hvilken faktura
       // loggpanelet under tilhører — ønsket av Thomas 11.09.2026.
@@ -12807,7 +12837,7 @@ function renderFakturaoppfolging(){
         <td class="tr">${fF(f.utestaende)}</td>
         <td>${fDateShort(f.forfallsdato)}${dager>0?`<div style="color:#dc2626;font-size:11px">${dager} dager forfalt</div>`:''}${f.betaltDato?`<div style="color:#1baf7a;font-size:11px">✓ Betalt ${fDateShort(f.betaltDato)}</div>`:''}</td>
         <td class="tr">${score>0?Math.round(score).toLocaleString('nb-NO'):'—'}</td>
-        <td>${foStatusBadge(f.status)}</td>
+        <td>${foStatusBadge(f.status)}${foSmsFakturaSet.has(foNormFakturanr(f.fakturanr))?(()=>{const sm=foSisteSms(f.fakturanr);return `<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Automatisk purring-SMS (fra Purring-SMS-loggen)">📱 SMS sendt ${sm&&sm.dato?fDateShort(sm.dato):''}</div>`;})():''}</td>
         <td>${f.nesteOppfolging?fDateShort(f.nesteOppfolging):'—'}</td>
         <td><button class="btn-sm" onclick="toggleFoDetalj('${f.fakturanr}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
       </tr>`];
@@ -12824,10 +12854,10 @@ function renderFakturaoppfolging(){
 }
 
 function renderFoDetaljPanel(f){
-  const historikk=fakturaoppfolgingLogg.filter(l=>l.fakturanr===f.fakturanr).sort((a,b)=>new Date(b.dato)-new Date(a.dato));
+  const historikk=[...fakturaoppfolgingLogg.filter(l=>l.fakturanr===f.fakturanr),...foSmsForFaktura(f.fakturanr)].sort((a,b)=>new Date(b.dato||0)-new Date(a.dato||0));
   const historikkHtml=historikk.length?historikk.map(l=>`
     <div style="padding:8px 0;border-bottom:1px solid #e5e7eb">
-      <div style="font-size:12px;color:#6b7280">${fDateShort(l.dato)} · ${l.type||'—'} · ${l.kilde||'—'} · ${l.skrevetAv||'—'}</div>
+      <div style="font-size:12px;color:#6b7280">${l.auto?'📱 ':''}${fDateShort(l.dato)}${l.auto&&l.dato?' kl. '+new Date(l.dato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}):''} · ${l.type||'—'} · ${l.kilde||'—'} · ${l.skrevetAv||'—'}</div>
       <div style="font-size:13px;white-space:pre-wrap">${(l.kommentar||'').replace(/</g,'&lt;')}</div>
     </div>`).join(''):'<div class="empty" style="padding:10px 0">Ingen loggførte henvendelser ennå.</div>';
 
