@@ -605,7 +605,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.174 · Oppdatert: 2. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.175 · Oppdatert: 2. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2346,8 +2346,9 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            felt som på Susoft RMA (SalgsordreVisma, tekst). Se Liste 16. -->
       <div class="fg" style="grid-template-columns:1fr 1fr">
         <div class="fgrp"><label>Faktureringsdato</label><input type="date" id="sos-sak-dato-fakturering"/></div>
-        <div class="fgrp"><label>Salgsordre Visma</label><input type="text" id="sos-sak-salgsordre" placeholder="f.eks. 12345"/></div>
+        <div class="fgrp"><label>Salgsordre Visma <span style="color:#b91c1c">*</span></label><input type="text" id="sos-sak-salgsordre" placeholder="f.eks. 12345"/></div>
       </div>
+      <div class="hint" style="margin:-4px 0 10px">* Salgsordre må fylles ut når status er «Sak opprettet» eller senere (ikke ved «Invitasjon sendt»/«Avbrutt»).</div>
       <div class="fgrp" style="margin-bottom:10px"><label>Faktureringsnotat</label><textarea id="sos-sak-fakturering-notat" rows="2" placeholder="Hva ble fakturert (manglende brikker, batteribytte)…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <input type="hidden" id="sos-sak-edit-id"/>
       <div id="sos-sak-logg-blokk" style="display:none;margin-bottom:10px;padding-top:10px;border-top:1px dashed #e5e7eb">
@@ -5636,6 +5637,14 @@ function saveRma(){
 // alle innloggede, IKKE lagt til MODULER-arrayet, samme mønster som
 // Susoft RMA.
 const SOS_SAK_STATUSER=['Invitasjon sendt','Sak opprettet','Brikker sendt','Brikker mottatt i retur','Brikker talt opp','Kunde fakturert','Avbrutt'];
+// v1.48.175: Salgsordre Visma er obligatorisk fra «Sak opprettet» og videre
+// (= når Visma-ordren er opprettet manuelt), avklart med Thomas 02.10.2026.
+// Ikke påkrevd ved «Invitasjon sendt» (backend oppretter saken uten ordre)
+// eller «Avbrutt». Sjekkes både i Rediger-modalen og i tidslinje-snarveien.
+function sosSakKreverSalgsordre(status){
+  const idx=SOS_SAK_STATUSER.indexOf(status);
+  return idx>=1&&status!=='Avbrutt';
+}
 function sosSakStatusBadge(status){
   const stiler={
     'Invitasjon sendt':'background:#e5e7eb;color:#374151',
@@ -5710,6 +5719,16 @@ function sosSakAvanserTilNeste(id){
   if(naIdx<0||naIdx>=SOS_SAK_STEG.length-1)return; // ukjent status, Avbrutt, eller allerede på siste steg
   const nesteIdx=naIdx+1;
   const nesteStatus=SOS_SAK_STEG[nesteIdx];
+  if(sosSakKreverSalgsordre(nesteStatus)&&!(r.salgsordreVisma||'').trim()){
+    // Mangler salgsordre: åpne Rediger-modalen med neste status forhåndsvalgt
+    // i stedet for å avansere stille uten ordre.
+    openSosSakModal(r.id);
+    document.getElementById('sos-sak-status').value=nesteStatus;
+    const so=document.getElementById('sos-sak-salgsordre');
+    so.style.borderColor='#b91c1c';setTimeout(()=>so.focus(),50);
+    vfShowToast('🧾 Fyll inn Salgsordre Visma før saken settes til «'+nesteStatus+'»');
+    return;
+  }
   const datofelt=SOS_SAK_STEG_DATOFELT[nesteIdx];
   const naDatoIso=new Date().toISOString();
   r.status=nesteStatus;
@@ -6140,6 +6159,7 @@ function openSosSakModal(id){
     document.getElementById('sos-sak-dato-fakturering').value=(r.faktureringDato||'').slice(0,10);
     document.getElementById('sos-sak-fakturering-notat').value=r.faktureringsNotat||'';
     document.getElementById('sos-sak-salgsordre').value=r.salgsordreVisma||'';
+    document.getElementById('sos-sak-salgsordre').style.borderColor='';
     loggBlokk.style.display=r.spId?'':'none';
     renderSosSakLoggListe(r);
     document.getElementById('sos-sak-logg-input').value='';
@@ -6153,6 +6173,7 @@ function openSosSakModal(id){
     ['sos-sak-dato-sendt','sos-sak-dato-mottatt','sos-sak-dato-talt-opp','sos-sak-dato-fakturering'].forEach(id2=>document.getElementById(id2).value='');
     document.getElementById('sos-sak-fakturering-notat').value='';
     document.getElementById('sos-sak-salgsordre').value='';
+    document.getElementById('sos-sak-salgsordre').style.borderColor='';
     loggBlokk.style.display='none';
   }
   document.getElementById('sos-sak-modal').classList.add('open');
@@ -6208,6 +6229,13 @@ function saveSosSak(){
     faktureringsNotat:(document.getElementById('sos-sak-fakturering-notat').value||'').trim(),
     salgsordreVisma:(document.getElementById('sos-sak-salgsordre').value||'').trim()
   };
+  const soInput=document.getElementById('sos-sak-salgsordre');
+  if(sosSakKreverSalgsordre(felter.status)&&!felter.salgsordreVisma){
+    soInput.style.borderColor='#b91c1c';soInput.focus();
+    alert('Fyll inn «Salgsordre Visma» — påkrevd når status er «'+felter.status+'».');
+    return;
+  }
+  soInput.style.borderColor='';
   closeSosSakModal();
 
   if(editId){
@@ -10465,6 +10493,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.175',dato:'02.10.2026',punkter:[
+    'Silent Ordering System: «Salgsordre Visma» er nå obligatorisk fra status «Sak opprettet» og videre. Klikker du neste steg i tidslinjen uten salgsordre, åpnes saken så du kan fylle den inn.'
+  ]},
   {versjon:'v1.48.174',dato:'02.10.2026',punkter:[
     'Silent Ordering System: nytt felt «Salgsordre Visma» på brikkebytte-saker, ved siden av Faktureringsdato. Salgsordren vises også på kortet for hver sak, og du kan søke på den.'
   ]},
