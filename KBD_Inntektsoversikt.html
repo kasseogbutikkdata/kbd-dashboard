@@ -605,7 +605,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.173 · Oppdatert: 2. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.174 · Oppdatert: 2. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1268,7 +1268,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <div class="card-title">📋 Brikkebytte-saker</div>
         <div class="hint">Én sak pr. brikkebytte-runde — fra automatisk invitasjon til ferdig fakturert. Viser kun aktive saker som standard — avbrutte og ferdig fakturerte skjules; velg «Alle statuser» eller en annen status i filteret for å se dem.</div>
         <div class="frow" style="margin-top:10px">
-          <input type="text" id="sos-sak-search" placeholder="Søk på kunde…" style="flex:1" oninput="sosSakSetSearch(this.value)"/>
+          <input type="text" id="sos-sak-search" placeholder="Søk på kunde eller salgsordre…" style="flex:1" oninput="sosSakSetSearch(this.value)"/>
           <select id="sos-sak-status-filter" onchange="sosSakSetStatusFilter(this.value)" style="max-width:220px">
             <option value="aktive">Aktive saker</option>
             <option value="alle">Alle statuser</option>
@@ -2342,7 +2342,12 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <div class="fgrp"><label>Antall defekt</label><input type="number" id="sos-sak-antall-defekt" min="0" step="1"/></div>
         <div class="fgrp"><label>Brikker talt opp (dato)</label><input type="date" id="sos-sak-dato-talt-opp"/></div>
       </div>
-      <div class="fgrp"><label>Faktureringsdato</label><input type="date" id="sos-sak-dato-fakturering"/></div>
+      <!-- v1.48.174: Salgsordre Visma ved siden av Faktureringsdato, samme
+           felt som på Susoft RMA (SalgsordreVisma, tekst). Se Liste 16. -->
+      <div class="fg" style="grid-template-columns:1fr 1fr">
+        <div class="fgrp"><label>Faktureringsdato</label><input type="date" id="sos-sak-dato-fakturering"/></div>
+        <div class="fgrp"><label>Salgsordre Visma</label><input type="text" id="sos-sak-salgsordre" placeholder="f.eks. 12345"/></div>
+      </div>
       <div class="fgrp" style="margin-bottom:10px"><label>Faktureringsnotat</label><textarea id="sos-sak-fakturering-notat" rows="2" placeholder="Hva ble fakturert (manglende brikker, batteribytte)…" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea></div>
       <input type="hidden" id="sos-sak-edit-id"/>
       <div id="sos-sak-logg-blokk" style="display:none;margin-bottom:10px;padding-top:10px;border-top:1px dashed #e5e7eb">
@@ -3731,7 +3736,7 @@ async function loadDataFromSP(){
   // samme dag som SOSKunder-lista) er tomt for saker opprettet FØR
   // avdelings-støtten — behandles som "ingen avdelingsinndeling", ikke som
   // en feil.
-  sosSaker=sosSakItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',avdeling:i.fields.Avdeling||'',kundeNavn:i.fields.KundeNavn||'',status:i.fields.Status||'Invitasjon sendt',invitasjonSendtDato:i.fields.InvitasjonSendtDato||'',sakOpprettetDato:i.fields.SakOpprettetDato||'',antallSendt:(i.fields.AntallSendt??null),brikkerSendtDato:i.fields.BrikkerSendtDato||'',antallMottattRetur:(i.fields.AntallMottattRetur??null),brikkerMottattDato:i.fields.BrikkerMottattDato||'',antallDefekt:(i.fields.AntallDefekt??null),brikkerTaltOppDato:i.fields.BrikkerTaltOppDato||'',faktureringDato:i.fields.FaktureringDato||'',faktureringsNotat:i.fields.FaktureringsNotat||'',opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  sosSaker=sosSakItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',avdeling:i.fields.Avdeling||'',kundeNavn:i.fields.KundeNavn||'',status:i.fields.Status||'Invitasjon sendt',invitasjonSendtDato:i.fields.InvitasjonSendtDato||'',sakOpprettetDato:i.fields.SakOpprettetDato||'',antallSendt:(i.fields.AntallSendt??null),brikkerSendtDato:i.fields.BrikkerSendtDato||'',antallMottattRetur:(i.fields.AntallMottattRetur??null),brikkerMottattDato:i.fields.BrikkerMottattDato||'',antallDefekt:(i.fields.AntallDefekt??null),brikkerTaltOppDato:i.fields.BrikkerTaltOppDato||'',faktureringDato:i.fields.FaktureringDato||'',faktureringsNotat:i.fields.FaktureringsNotat||'',salgsordreVisma:i.fields.SalgsordreVisma||'',salgsordreVismaLastet:!!i.fields.SalgsordreVisma,opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // sosKunder (Liste 18, lagt til 08.09.2026) — én rad PR. AVDELING, se
   // avdelings-avklaringen i silent_ordering.py sin docstring. vismaKundeNummer
   // er IKKE unik i denne lista (flere avdelinger kan dele samme kundenummer).
@@ -6034,7 +6039,7 @@ function renderSosSakTabell(){
   // den ikke lenger, bruk "aktive" for det). Se sosSakSetStatusFilter().
   if(sosSakStatusFilterQ==='aktive')liste=liste.filter(r=>r.status!=='Kunde fakturert'&&r.status!=='Avbrutt');
   else if(sosSakStatusFilterQ!=='alle')liste=liste.filter(r=>r.status===sosSakStatusFilterQ);
-  if(sosSakSearchQ)liste=liste.filter(r=>((r.kundeNavn||'')+' '+(r.avdeling||'')).toLowerCase().includes(sosSakSearchQ));
+  if(sosSakSearchQ)liste=liste.filter(r=>((r.kundeNavn||'')+' '+(r.avdeling||'')+' '+(r.salgsordreVisma||'')).toLowerCase().includes(sosSakSearchQ));
   liste.sort((a,b)=>new Date(b.opprettetDato||b.invitasjonSendtDato||0)-new Date(a.opprettetDato||a.invitasjonSendtDato||0));
 
   if(liste.length===0){
@@ -6060,6 +6065,7 @@ function renderSosSakTabell(){
         <span>↩️ I retur: <strong>${r.antallMottattRetur??'—'}</strong></span>
         <span>⚠️ Defekt: <strong>${r.antallDefekt??'—'}</strong></span>
         <span>💳 Fakturert: <strong>${r.faktureringDato?new Date(r.faktureringDato).toLocaleDateString('nb-NO'):'—'}</strong></span>
+        <span>🧾 Salgsordre: <strong>${r.salgsordreVisma||'—'}</strong></span>
       </div>
     </div>`).join('');
 }
@@ -6133,6 +6139,7 @@ function openSosSakModal(id){
     document.getElementById('sos-sak-dato-talt-opp').value=(r.brikkerTaltOppDato||'').slice(0,10);
     document.getElementById('sos-sak-dato-fakturering').value=(r.faktureringDato||'').slice(0,10);
     document.getElementById('sos-sak-fakturering-notat').value=r.faktureringsNotat||'';
+    document.getElementById('sos-sak-salgsordre').value=r.salgsordreVisma||'';
     loggBlokk.style.display=r.spId?'':'none';
     renderSosSakLoggListe(r);
     document.getElementById('sos-sak-logg-input').value='';
@@ -6145,6 +6152,7 @@ function openSosSakModal(id){
     ['sos-sak-antall-sendt','sos-sak-antall-mottatt','sos-sak-antall-defekt'].forEach(id2=>document.getElementById(id2).value='');
     ['sos-sak-dato-sendt','sos-sak-dato-mottatt','sos-sak-dato-talt-opp','sos-sak-dato-fakturering'].forEach(id2=>document.getElementById(id2).value='');
     document.getElementById('sos-sak-fakturering-notat').value='';
+    document.getElementById('sos-sak-salgsordre').value='';
     loggBlokk.style.display='none';
   }
   document.getElementById('sos-sak-modal').classList.add('open');
@@ -6172,6 +6180,10 @@ function sosSakFieldsPayload(r){
     BrikkerTaltOppDato:r.brikkerTaltOppDato||null,
     FaktureringDato:r.faktureringDato||null,
     FaktureringsNotat:r.faktureringsNotat||'',
+    // SalgsordreVisma sendes kun når den har/hadde en verdi — slik at
+    // lagring av saker ikke feiler hvis kolonnen ennå ikke er opprettet i
+    // SOSSaker (Graph avviser ukjente felt for hele oppdateringen).
+    ...((r.salgsordreVisma||r.salgsordreVismaLastet)?{SalgsordreVisma:r.salgsordreVisma||''}:{}),
     OpprettetAv:r.opprettetAv||(currentUser?.name||currentUser?.username||''),
     OpprettetDato:r.opprettetDato||new Date().toISOString()
   };
@@ -6193,7 +6205,8 @@ function saveSosSak(){
     antallDefekt:document.getElementById('sos-sak-antall-defekt').value===''?null:parseFloat(document.getElementById('sos-sak-antall-defekt').value),
     brikkerTaltOppDato:document.getElementById('sos-sak-dato-talt-opp').value||null,
     faktureringDato:document.getElementById('sos-sak-dato-fakturering').value||null,
-    faktureringsNotat:(document.getElementById('sos-sak-fakturering-notat').value||'').trim()
+    faktureringsNotat:(document.getElementById('sos-sak-fakturering-notat').value||'').trim(),
+    salgsordreVisma:(document.getElementById('sos-sak-salgsordre').value||'').trim()
   };
   closeSosSakModal();
 
@@ -10452,6 +10465,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.174',dato:'02.10.2026',punkter:[
+    'Silent Ordering System: nytt felt «Salgsordre Visma» på brikkebytte-saker, ved siden av Faktureringsdato. Salgsordren vises også på kortet for hver sak, og du kan søke på den.'
+  ]},
   {versjon:'v1.48.173',dato:'02.10.2026',punkter:[
     'Kundekortet: feltet «Legg til en datert oppdatering» står nå øverst i loggen, rett over nyeste post, sammen med «📎 Fil/e-post» og «Neste frist». Du slipper å scrolle forbi loggen for å skrive.',
     'Linjen med ansvarlig, frist og varsel er flyttet opp, rett under fase-knappene.',
