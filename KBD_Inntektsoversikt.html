@@ -603,7 +603,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.171 · Oppdatert: 1. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.172 · Oppdatert: 2. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -739,9 +739,9 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
              showVerifoneView('ny');...}"). "Historikk" er nå eneste
              underpunkt, siden det er det ENESTE som faktisk skiller seg fra
              leverandør-radens standardvisning. -->
-        <div class="nav-sub-sub-item" id="vsub-historikk" onclick="showVerifoneView('historikk',this)">📋 Historikk</div>
+        <div class="nav-sub-sub-item" id="vsub-historikk" onclick="visTransaksjonsavgiftHistorikk('verifone')">📋 Historikk</div>
         <div class="nav-sub-item" id="tasub-nets" onclick="showTab('nets',document.getElementById('tab-transaksjonsavgift'))">🧾 Nets trans.avgift</div>
-        <div class="nav-sub-sub-item" id="ntsub-historikk" onclick="showNetsView('historikk',this)">📋 Historikk</div>
+        <div class="nav-sub-sub-item" id="ntsub-historikk" onclick="visTransaksjonsavgiftHistorikk('nets')">📋 Historikk</div>
       </div>
       <div class="nav-item" id="tab-susoftrma" onclick="showTab('susoftrma',this)">
         <span class="nav-item-icon">🔧</span>Susoft RMA
@@ -10448,6 +10448,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.172',dato:'02.10.2026',punkter:[
+    'Transaksjonsavgift: «📋 Historikk» under Verifone og Nets åpner nå historikken med ett trykk. Før måtte du først trykke på leverandøren.'
+  ]},
   {versjon:'v1.48.171',dato:'01.10.2026',punkter:[
     'Tilbudsanalyse har fått summeringslinjer. Pr. fase: «Sum aktiv pipeline» (Lead–Closing, vektet = pipelinereserven), med Utsatt og «Totalt inkl. utsatt» under. Pr. leadkilde, vunnet pr. måned og tapt pr. årsak har fått «Totalt». Treff og snitt dager regnes på alle sakene samlet.',
     'Pr. leadkilde har fått kolonnen «Åpen sum», som viser hva de åpne sakene fra hver kilde er verdt. «Åpne» og «Åpen sum» tar ikke med utsatte saker.',
@@ -13120,6 +13123,18 @@ function showNetsView(view,btn){
   document.getElementById('ntsub-historikk')?.classList.remove('active');
   if(view==='historikk')document.getElementById('ntsub-historikk')?.classList.add('active');
   if(view==='historikk')ntRenderHistorikk();
+}
+
+// v1.48.172 (02.10.2026): Historikk-underpunktene kalte tidligere bare
+// showVerifoneView/showNetsView('historikk'), som bytter visning INNE I
+// tp-verifone/tp-nets — men byttet ikke selve fanen. Sto man på en annen
+// fane (eller på den andre leverandøren), skjedde ingenting synlig før man
+// først trykket på leverandørraden. Nå åpnes riktig fane først (showTab
+// setter visningen til 'ny'), deretter byttes det til historikk.
+function visTransaksjonsavgiftHistorikk(leverandor){
+  showTab(leverandor, document.getElementById('tab-transaksjonsavgift'));
+  if(leverandor==='verifone')showVerifoneView('historikk');
+  else showNetsView('historikk');
 }
 
 function toggleUtleieSub(open){
