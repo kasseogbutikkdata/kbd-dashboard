@@ -425,6 +425,45 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .sos-step-label{font-size:10px;color:#6b7280;margin-top:4px;text-align:center;white-space:nowrap}
 .sos-step-line-full{flex:1 1 auto;height:2px;background:#e5e7eb;margin-top:13px;min-width:8px}
 .sos-step-line-full.done{background:#1baf7a}
+/* Onboarding (v1.48.177) — gjenbruker .sos-stepper-full/.sos-sak-card fra SOS. */
+.onb-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin-top:16px;align-items:start}
+@media(max-width:1100px){.onb-grid{grid-template-columns:1fr}}
+.onb-oppg{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f3f4f6;font-size:13.5px;color:#111}
+.onb-oppg:last-child{border-bottom:none}
+.onb-oppg-info{background:#f8fafc;border-radius:8px;padding:9px 12px;border-bottom:none;margin:4px 0}
+.onb-ikke-akt{opacity:.5}.onb-ikke-akt>div>div:first-child{text-decoration:line-through}
+.onb-hjelp{font-size:12px;color:#6b7280;margin-top:3px;line-height:1.45}
+.onb-meta{font-size:11px;color:#9ca3af;margin-left:4px}
+.onb-utstyr{font-size:10.5px;font-weight:600;color:#1d4ed8;background:#eff6ff;padding:1px 7px;border-radius:20px;margin-left:6px;white-space:nowrap}
+.onb-lenkeknapp{background:none;border:none;color:#2a78d6;font-size:12px;cursor:pointer;padding:0 2px;white-space:nowrap}
+.onb-advarsel{font-size:12.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:7px 10px;margin-top:6px}
+.onb-info-boks{font-size:12.5px;color:#374151;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.onb-skjema{border:2px dashed #d0d5dd;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff;transition:.15s}
+.onb-skjema.mangler{border-color:#fca5a5;background:#fff7f7}
+.onb-skjema.ok{border-style:solid;border-color:#86efac;background:#f0fdf4}
+.onb-skjema.drag{border-color:#2a78d6;background:#eff6ff}
+.onb-so{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.onb-so-type{font-size:10.5px;font-weight:700;color:#374151;background:#f3f4f6;padding:1px 8px;border-radius:20px}
+.onb-so-type.ikano{color:#7c3aed;background:#f3e8ff}
+.onb-linjer{width:100%;border-collapse:collapse;font-size:12.5px}
+.onb-linjer td,.onb-linjer th{padding:4px 6px;border-bottom:1px solid #f3f4f6;text-align:left}
+.onb-so-treff{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:13px}
+.onb-so-treff.valgt{border-color:#1A3A6B;background:#f5f8ff}
+.onb-chip{font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid #d0d5dd;background:#fff;cursor:pointer;color:#6b7280}
+.onb-chip.på{background:#ecfdf5;border-color:#6ee7b7;color:#065f46;font-weight:600}
+.onb-logg{font-size:12.5px;padding:6px 0;border-bottom:1px solid #f3f4f6}
+.onbm-fase{border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:10px;background:#fafbfc}
+.onbm-oppg{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px 0;border-bottom:1px dashed #e5e7eb}
+.onbm-fase input,.onbm-fase select,.onbm-fase button{width:auto!important}
+.onbm-oppg>input:first-child{flex:1 1 280px}
+.onbm-oppg>select{flex:0 0 auto;max-width:190px}
+.onbm-oppg>input:last-child{flex:1 1 100%;color:#6b7280}
+#onbm-innhold table input,#onbm-innhold table select{width:auto!important}
+.onbm-fase input,.onbm-fase select,#onbm-innhold table input,#onbm-innhold table select{padding:4px 6px;border:1px solid #d0d5dd;border-radius:5px;font-size:12.5px}
+#onb-start-modal input:not([type=checkbox]):not([type=file]),#onb-so-modal input,#tp-onboarding .card input[type=text]{padding:7px 10px;border:1px solid #d0d5dd;border-radius:8px;font-size:13px;font-family:inherit}
+.onbs-boks{border:2px dashed #d0d5dd;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.onbs-boks.ok{border-style:solid;border-color:#86efac;background:#f0fdf4}
+.onbs-boks.drag{border-color:#2a78d6;background:#eff6ff}
 .sos-sak-card-stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:#4b5563}
 .kpi.vf-warn{border-left:4px solid #d97706}
 .kpi-val.vf-green{color:#1baf7a}
@@ -605,7 +644,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.176 · Oppdatert: 2. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.177 · Oppdatert: 3. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -701,6 +740,11 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            kunde om gangen slik Kundesaker/Nyetableringer/Konkurser er. Gir
            også rom for videre utvidelse (flere maler, flere grupperinger)
            uten å tynge ned Kunde 360-undermenyen. -->
+      <!-- Onboarding av nye kunder (v1.48.177, 03.10.2026). Ikke i MODULER —
+           synlig for alle; skriving styres av tilgang.onboarding / salgTilgang. -->
+      <div class="nav-item" id="tab-onboarding" onclick="showTab('onboarding',this)">
+        <span class="nav-item-icon">🚀</span>Onboarding<span id="onb-nav-badge" style="display:none;margin-left:auto;font-size:11px;font-weight:700;background:#f59e0b;color:#fff;border-radius:20px;padding:1px 7px"></span>
+      </div>
       <div class="nav-item" id="tab-smsutsendelse" onclick="showTab('smsutsendelse',this);toggleSmsUtsendelseSub(true)">
         <span class="nav-item-icon">📱</span>SMS utsendelse
       </div>
@@ -947,6 +991,23 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
        fersk lead per definisjon ikke har noe VismaKundeNummer ennå — se
        renderNyetableringer(). Fylles av den daglige backend-jobben
        hent_nyetableringer i kbd-verifone-func (se nyetableringer.py). -->
+  <!-- ONBOARDING (v1.48.177) — se renderOnboarding() og prosjektstatus seksjon 24. -->
+  <div id="tp-onboarding" class="tp">
+    <div class="card card-public">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="card-title" style="margin:0">🚀 Onboarding av nye kunder</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" placeholder="Søk kunde eller SO-nr…" oninput="onbSok=this.value.trim();onbValgtId=null;renderOnboarding()" style="min-width:200px"/>
+          <button class="btn-sm" id="onb-mal-btn" style="display:none" onclick="apneOnbMal()">⚙️ Mal og varer</button>
+          <button class="prim" id="onb-start-btn" style="display:none" onclick="apneOnbStart({})">🚀 Start onboarding</button>
+        </div>
+      </div>
+      <div class="hint" style="margin:6px 0 0">Selger sender kunden hit fra salgssaken eller kundekortet. Håvard, Casper eller Thomas tar saken og følger tidslinjen: klargjøring → levering → installasjon → oppfølging → etablert kunde.</div>
+      <div class="filters" id="onb-filter" style="margin-top:12px"></div>
+    </div>
+    <div id="onb-innhold" style="margin-top:16px"></div>
+  </div>
+
   <div id="tp-nyetableringer" class="tp">
     <!-- Splittet i to «undervisninger» 07.09.2026 (Thomas' ønske) — se
          visNyeUndermeny() og de to nye undermenypunktene (ksub360-nye-
@@ -2016,6 +2077,71 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
        årsak når et Tilbud markeres som Tapt, for senere rapportering
        (pris/løsning/timing osv). Fast liste + "Annet" med fritekst, se
        TILBUD_TAPT_ARSAKER. Vunnet krever IKKE årsak, kun Tapt. -->
+  <!-- ONBOARDING: startskjema (v1.48.177) -->
+  <div class="modal-overlay" id="onb-start-modal" onclick="if(event.target===this)lukkOnbStart()">
+    <div class="modal" style="width:760px;max-height:92vh;overflow:auto">
+      <h3 style="margin-bottom:6px">🚀 Send til onboarding</h3>
+      <div class="muted" style="margin-bottom:14px">Kunden havner i «📥 Nye» i Onboarding, og Håvard, Casper og Thomas får varsel.</div>
+      <div class="fgrp" style="margin-bottom:12px"><label>Kunde</label>
+        <input id="onbs-kunde" list="onbs-kunde-liste" onchange="onbStartVelgKunde(this.value)" placeholder="Kundenavn"/>
+        <datalist id="onbs-kunde-liste"></datalist>
+        <div class="muted" id="onbs-kunde-info"></div></div>
+
+      <div style="font-weight:700;margin:16px 0 6px">🧾 Salgsordrer</div>
+      <div class="muted" style="margin-bottom:6px">Søk på kundenavnet. Søket finner kundens egne ordrer og Ikano-ordrer med navnet i beskrivelsen (kun status Åpen og På vent). Kryss av for alle som hører til.</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px"><input id="onbs-sok" style="flex:1" placeholder="F.eks. Tukkebøl" onkeydown="if(event.key==='Enter')onbSokSalgsordre()"/><button class="btn-sm" onclick="onbSokSalgsordre()">🔍 Søk</button></div>
+      <div id="onbs-treff" style="max-height:260px;overflow:auto"></div>
+      <div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="muted">Finner du den ikke?</span><input id="onbs-sonr" style="width:120px" placeholder="SO-nr." onkeydown="if(event.key==='Enter')onbHentSoManuelt()"/><button class="btn-sm" onclick="onbHentSoManuelt()">Hent</button></div>
+
+      <div style="font-weight:700;margin:18px 0 6px">📎 Skjemaer fra kunden</div>
+      <div class="onbs-boks" id="onbs-boks-varer" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="event.preventDefault();this.classList.remove('drag');onbStartFil('varer',event.dataTransfer.files[0])">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><strong>📦 Vare- og kasseoppsett</strong> <span class="muted">– brukes av Casper/Håvard til klargjøringen</span></div>
+          <div style="display:flex;gap:6px"><button class="onb-lenkeknapp" onclick="onbLastNedMal('varer')">Blank mal</button><label class="btn-sm" style="cursor:pointer">Velg fil<input type="file" id="onbs-fil-varer" accept=".xlsx,.xls,.csv" style="display:none" onchange="onbStartFil('varer',this.files[0])"/></label></div></div>
+        <div id="onbs-filstatus-varer" style="margin-top:6px;font-size:13px"></div>
+        <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:6px;cursor:pointer"><input type="checkbox" id="onbs-ettersendes" onchange="if(onbStart){onbStart.vareEttersendes=this.checked;renderOnbStartFiler();}"/>Ettersendes (kunden har ikke levert ennå)</label>
+      </div>
+      <div class="onbs-boks" id="onbs-boks-regnskap" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="event.preventDefault();this.classList.remove('drag');onbStartFil('regnskap',event.dataTransfer.files[0])">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><strong>📊 Regnskapsintegrasjon</strong> <span class="muted">– valgfritt, sendes automatisk til kundeservice@kbd.as</span></div>
+          <div style="display:flex;gap:6px"><button class="onb-lenkeknapp" onclick="onbLastNedMal('regnskap')">Blank mal</button><label class="btn-sm" style="cursor:pointer">Velg fil<input type="file" id="onbs-fil-regnskap" accept=".xlsx,.xls,.csv" style="display:none" onchange="onbStartFil('regnskap',this.files[0])"/></label></div></div>
+        <div id="onbs-filstatus-regnskap" style="margin-top:6px;font-size:13px"></div>
+      </div>
+
+      <div style="font-weight:700;margin:18px 0 6px">👤 Kontakt og ønsker</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="fgrp"><label>Kontaktperson</label><input id="onbs-kontakt"/></div>
+        <div class="fgrp"><label>Telefon</label><input id="onbs-telefon"/></div>
+        <div class="fgrp"><label>Ønsket levering/installasjon</label><input type="date" id="onbs-dato"/></div>
+      </div>
+      <div class="fgrp" style="margin-top:10px"><label>Notat til teknikerne</label><textarea id="onbs-notat" rows="3" style="width:100%;padding:8px;border:1px solid #d0d5dd;border-radius:8px;font-family:inherit;font-size:13px"></textarea></div>
+      <label id="onbs-ta-selv-wrap" style="display:flex;gap:6px;align-items:center;font-size:13px;margin-top:10px;cursor:pointer"><input type="checkbox" id="onbs-ta-selv"/>Jeg tar saken selv (blir ansvarlig med en gang)</label>
+      <div id="onbs-feil" class="onb-advarsel" style="display:none"></div>
+      <div class="modal-footer">
+        <button class="btn-sm" onclick="lukkOnbStart()">Avbryt</button>
+        <button class="prim" id="onbs-send-btn" onclick="sendTilOnboarding()">🚀 Send til onboarding</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING: legg til/oppdater salgsordre på eksisterende onboarding -->
+  <div class="modal-overlay" id="onb-so-modal" onclick="if(event.target===this)lukkOnbSoModal()">
+    <div class="modal" style="width:640px;max-height:90vh;overflow:auto">
+      <h3>🧾 Legg til salgsordre</h3>
+      <div style="display:flex;gap:6px;margin-bottom:8px"><input id="onbso-sok" style="flex:1" onkeydown="if(event.key==='Enter')onbSoModalSok()"/><button class="btn-sm" onclick="onbSoModalSok()">🔍 Søk</button></div>
+      <div id="onbso-treff" style="max-height:340px;overflow:auto"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center"><span class="muted">Eller SO-nr.:</span><input id="onbso-nr" style="width:120px"/><button class="btn-sm" onclick="onbLeggTilSoNr('')">Hent</button></div>
+      <div class="modal-footer"><button class="btn-sm" onclick="lukkOnbSoModal()">Lukk</button></div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING: mal og varer -->
+  <div class="modal-overlay" id="onb-mal-modal" onclick="if(event.target===this)lukkOnbMal()">
+    <div class="modal" style="width:900px;max-height:92vh;overflow:auto">
+      <h3>⚙️ Onboarding – mal og varer</h3>
+      <div id="onbm-innhold"></div>
+      <div class="modal-footer"><button class="btn-sm" onclick="lukkOnbMal()">Avbryt</button><button class="prim" onclick="lagreOnbMal()">Lagre</button></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="tapt-arsak-modal" onclick="if(event.target===this)lukkTaptArsakModal()">
     <div class="modal" style="max-width:420px">
       <h3 style="margin-bottom:16px">❌ Marker tilbud som tapt</h3>
@@ -3813,6 +3939,8 @@ async function loadDataFromSP(){
   await loadReservasjoner();
   await loadBrukere();
   await loadArbeidstid();
+  await loadOnboarding(); // v1.48.177
+  onbOppdaterTilgang();
   // Last logg fra SharePoint
   try{
     const loggItems=await spGetItems('Logg');
@@ -3919,7 +4047,9 @@ function renderVarselMeny(){
   // v1.48.151: RMA-saker der kunden ikke har returnert den defekte maskinen
   // innen 14 dager, for den som registrerte «Ny maskin sendt kunde».
   const mineRma=hentMineRmaVarsler();
-  const antall=mine.length+mineRma.length;
+  const mineOnb=hentMineOnboardingVarsler(); // v1.48.177
+  onbOppdaterNavBadge();
+  const antall=mine.length+mineRma.length+mineOnb.length;
   if(antall===0){
     btn.style.display='none';
     badge.style.display='none';
@@ -3932,7 +4062,10 @@ function renderVarselMeny(){
   badge.style.display='inline-block';
   badge.textContent=antall>99?'99+':String(antall);
 
-  dropdown.innerHTML=mineRma.map(r=>`<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';jumpToRmaSak('${r.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
+  dropdown.innerHTML=mineOnb.map(v=>`<div onclick="gaTilOnboardingFraVarsel('${v.nokkel}','${v.o.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
+      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🚀 [Onboarding] ${onbEsc(v.o.tittel)}</div>
+      <div style="font-size:12px;color:#b45309">${onbEsc(v.tekst)}</div>
+    </div>`).join('')+mineRma.map(r=>`<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';jumpToRmaSak('${r.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
       <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">📦 [RMA${r.sakNummer!=null?' sak '+r.sakNummer:''}] ${r.kundeNavn||'Ukjent kunde'}</div>
       <div style="font-size:12px;color:#4b5563;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Defekt ${r.maskin||'maskin'} ikke mottatt i retur fra kunden</div>
       <div style="font-size:11px;color:#b45309">${rmaDagerHosKunde(r)} dager siden ny maskin ble sendt ${new Date(r.datoNyMaskinSendtKunde).toLocaleDateString('nb-NO')}</div>
@@ -6899,6 +7032,9 @@ function velgKunde360(kunde){
 // hvis Kunde360-synken ikke har rukket å hente den kunden).
 function handleDeepLink(){
   const params=new URLSearchParams(location.search);
+  // v1.48.177: ?onboarding=<spId> (lenken i e-posten til kundeservice)
+  const onbParam=(params.get('onboarding')||'').trim();
+  if(onbParam){const o=onboardinger.find(x=>String(x.spId)===onbParam);if(o){apneOnboarding(o.id);return;}}
   const kundeParam=(params.get('kunde')||'').trim();
   if(!kundeParam)return;
 
@@ -6984,6 +7120,7 @@ function renderKundeKort(k){
               ${seProffKnappHtml(k.orgNr,k.navn)}
               <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
               ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
+              ${onbKundekortKnappHtml(k)}
             </div>
           </div>
           <div class="k360-metalinje">Org.nr ${k.orgNr||'ukjent'} · Visma-nr ${k.vismaNummer||'—'} · ${k.status||'—'}${k.kundeklasse?` · ${k.kundeklasse}`:''} · Saldo <span style="${k.saldo>0?'color:#b45309;font-weight:600':''}">${k.saldo?kr(k.saldo):'0 kr'}</span>${k.saldoForfalt>0?` · <span style="color:#d03b3b;font-weight:600">forfalt ${kr(k.saldoForfalt)}</span>`:''}</div>
@@ -7073,6 +7210,7 @@ function renderProspektKundeKort(k){
               ${seProffKnappHtml(k.orgNr,k.navn)}
               <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
               ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
+              ${onbKundekortKnappHtml(k)}
             </div>
           </div>
           <div class="muted">Org.nr ${k.orgNr||'ukjent'} · ${k.manueltOpprettet?'📞 Manuelt registrert':'🆕 Ny etablering'} — ikke registrert som kunde i Visma ennå</div>
@@ -7978,6 +8116,7 @@ function renderKundeNotaterHTML(k){
           <button class="btn-sm" style="color:#d03b3b;white-space:nowrap" onclick="apneTaptArsakModal('${n.id}')" title="Marker som tapt">❌ Tapt</button>`
           :`<button class="btn-sm" onclick="toggleNotatStatus('${n.id}')" title="${lukket?'Gjenåpne saken':'Merk saken som lukket'}" style="white-space:nowrap">${lukket?'↺ Gjenåpne':'✓ Lukk'}</button>`}
           <button class="btn-sm" style="color:#2a78d6;white-space:nowrap" onclick="openRedigerNotat('${n.id}')" title="Rediger">✎ Rediger</button>
+          ${onbSakKnappHtml(n)}
         </div>`:''}
       </div>
       ${tilbudInfoHtml}
@@ -10493,6 +10632,13 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.177',dato:'03.10.2026',punkter:[
+    'Ny meny «🚀 Onboarding»: nye kunder følges fra klargjøring til etablert kunde på en tidslinje (grønn strek med punkter), med oppgaver under hvert punkt, basert på Caspers onboarding-dokument.',
+    'Selgeren sender kunden til onboarding med «🚀 Til onboarding» på salgssaken eller «🚀 Send til onboarding» på kundekortet. Startskjemaet søker opp salgsordrene i Visma på kundenavn (også Ikano-ordrer), og har egne felt for vare- og kasseskjemaet og regnskapsskjemaet.',
+    'Regnskapsskjemaet sendes automatisk til kundeservice@kbd.as med emnet «Kundenavn - integrasjon til regnskap».',
+    'Håvard, Casper og Thomas trykker «Ta saken» og blir ansvarlig. Oppgavene tilpasses utstyret på salgsordrene, kassene får egen tabell med POS-nr., og «Avslutt onboarding» lager en PDF.',
+    'Malen (punkter og oppgaver) og koblingen mellom varenummer og utstyr kan endres under «⚙️ Mal og varer».'
+  ]},
   {versjon:'v1.48.176',dato:'02.10.2026',punkter:[
     'Fakturaoppfølging: sendte purring-SMS vises nå i oppfølgingsloggen på fakturaen (📱, kilde «Automatisk»), med tidspunkt, mobilnummer og terskel. Gjelder også SMS sendt tidligere.',
     'Fakturaer med sendt purring-SMS får 💬 i oversikten og «📱 SMS sendt» med dato under statusen.'
@@ -13159,6 +13305,7 @@ function showTab(name,btn){
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');setTransaksjonsavgiftSubActive('verifone');}
   if(name==='nets'){renderNets();showNetsView('ny');setTransaksjonsavgiftSubActive('nets');}
   if(name==='susoftrma'){renderSusoftRma();}
+  if(name==='onboarding'){renderOnboarding();}
   if(name==='silentordering'){renderSilentOrdering();showSilentOrderingView('oversikt');}
   if(name==='jobbstatus'){renderJobbstatus();}
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
@@ -15417,7 +15564,7 @@ function renderBrukere(){
       <th></th>
     </tr></thead>
     <tbody>${brukere.map(b=>`<tr style="border-bottom:1px solid #f9fafb">
-      <td style="padding:10px 12px;font-weight:500">${b.navn}</td>
+      <td style="padding:10px 12px;font-weight:500">${b.navn}${b.tilgang.onboarding?' <span title="Onboarding-team">🚀</span>':''}</td>
       <td style="padding:10px 12px;color:#6b7280;font-size:12px">${b.epost}</td>
       ${MODULER.map(m=>`<td style="text-align:center;padding:10px 4px">
         <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${b.tilgang[m.id]?'#dcfce7':'#f3f4f6'}">
@@ -15459,6 +15606,9 @@ function openNyBruker(){
   </label>`+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fdf2f8;border-radius:8px;border:1.5px solid #f9a8d4;cursor:pointer;font-size:13px;font-weight:600">
     <input type="checkbox" id="bfm-salg" style="width:16px;height:16px;cursor:pointer"/>
     <span>📋 Kan skrive salgsnotater (Kunde 360)</span>
+  </label>`+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff7ed;border-radius:8px;border:1.5px solid #fdba74;cursor:pointer;font-size:13px;font-weight:600">
+    <input type="checkbox" id="bfm-onboarding" style="width:16px;height:16px;cursor:pointer"/>
+    <span>🚀 Onboarding-team (tar saker, redigerer mal)</span>
   </label>`;
   document.getElementById('bruker-form').style.display='';
   document.getElementById('bf-navn').focus();
@@ -15482,6 +15632,9 @@ function editBruker(id){
   </label>`+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fdf2f8;border-radius:8px;border:1.5px solid #f9a8d4;cursor:pointer;font-size:13px;font-weight:600">
     <input type="checkbox" id="bfm-salg" style="width:16px;height:16px;cursor:pointer" ${b.tilgang.salg?'checked':''}/>
     <span>📋 Kan skrive salgsnotater (Kunde 360)</span>
+  </label>`+`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff7ed;border-radius:8px;border:1.5px solid #fdba74;cursor:pointer;font-size:13px;font-weight:600">
+    <input type="checkbox" id="bfm-onboarding" style="width:16px;height:16px;cursor:pointer" ${b.tilgang.onboarding?'checked':''}/>
+    <span>🚀 Onboarding-team (tar saker, redigerer mal)</span>
   </label>`;
   document.getElementById('bruker-form').style.display='';
 }
@@ -15498,6 +15651,7 @@ async function saveBruker(){
   MODULER.forEach(m=>{tilgang[m.id]=document.getElementById('bfm-'+m.id)?.checked===true;});
   tilgang.redaktor=document.getElementById('bfm-redaktor')?.checked===true;
   tilgang.salg=document.getElementById('bfm-salg')?.checked===true;
+  tilgang.onboarding=document.getElementById('bfm-onboarding')?.checked===true; // v1.48.177
   // fodselsdato/startetIKBD — se kommentaren ved bf-fodt/bf-startet i HTML-en
   // for hvorfor disse ligger i Tilgang-JSON-en og ikke som egne SP-kolonner.
   tilgang.fodselsdato=document.getElementById('bf-fodt')?.value||'';
@@ -15978,6 +16132,1119 @@ async function refreshData(){
 function startAutoRefresh(){
   if(autoRefreshInterval)clearInterval(autoRefreshInterval);
   autoRefreshInterval=setInterval(refreshData,5*60*1000); // hvert 5. minutt
+}
+
+
+// ===== ONBOARDING AV NYE KUNDER (v1.48.177, 03.10.2026) =====
+// Fase 1 av kunde-onboarding, se KBD-Command-Center-prosjektstatus.md seksjon
+// 24 og prosjektdokumentet kunde-onboarding-plan.md. Grunnlag: Caspers
+// dokument «KUNDE ONBOARDING» (5 kapitler).
+//
+// Flyt: selger trykker «🚀 Send til onboarding» (salgssak eller kundekort) →
+// startskjema (salgsordre-søk mot Visma, kontakt, dato, notat, to Excel-
+// skjemaer) → saken havner i «📥 Nye» → Håvard/Casper/Thomas (tilgang.onboarding)
+// trykker «Ta saken» og blir ansvarlig → tidslinje med oppgaver pr. fase.
+//
+// Data: SharePoint-listene «Onboarding» (én rad pr. kunde, nesten alt i
+// JSON-feltet Data) og «OnboardingMal» (én rad, Data = {faser, varer}).
+// Begge med kun tekstkolonner, se Kunde360-oppsett-sjekkliste.md Liste 29/30.
+// Filer: dokumentbiblioteket, «Onboarding-vedlegg/<spId>/» og «Onboarding-maler/».
+//
+// Backend (kbd-verifone-func, onboarding.py): søk/henting av salgsordre (kun
+// lesing mot Visma) og e-post med regnskapsskjemaet til kundeservice@kbd.as
+// (ONBOARDING_REGNSKAP_EPOST_DRY_RUN, default på → går til Thomas).
+
+let onboardinger=[];
+let onbMal=null,onbMalSpId=null;
+let onbTilgang=false;
+let onbFilter='aktive',onbSok='',onbBareMine=false;
+let onbValgtId=null,onbValgtFase=null;
+let onbStart=null; // tilstand for startskjemaet
+let onbMalUtkast=null;
+
+const ONB_STATUS_FARGE={Ny:{c:'#b45309',bg:'#fef3c7'},'Pågår':{c:'#1d4ed8',bg:'#dbeafe'},Ferdig:{c:'#15803d',bg:'#dcfce7'},Avbrutt:{c:'#6b7280',bg:'#f3f4f6'}};
+const ONB_INAKTIV_DAGER=14;
+const ONB_UTSTYR=[
+  {id:'kasse',navn:'Kasse (POS)'},{id:'mpos',navn:'mPOS / håndholdt'},{id:'bongskriver',navn:'Bongskriver'},
+  {id:'kasseskuff',navn:'Kasseskuff'},{id:'terminal',navn:'Betalingsterminal'},{id:'softpay',navn:'SoftPay'},
+  {id:'zebra',navn:'Zebra etikettskriver'},{id:'skanner',navn:'Skanner'},{id:'vekt',navn:'Vekt'},
+  {id:'rfid',navn:'RFID'},{id:'lokalserver',navn:'Lokalserver'},{id:'regnskap',navn:'Regnskapsintegrasjon'},
+  {id:'fakturering',navn:'Fakturering'},{id:'ikano',navn:'Ikano-finansiering'}
+];
+const ONB_OPPGAVE_TYPER=[{id:'sjekk',navn:'Avkrysning'},{id:'janei',navn:'Ja/Nei'},{id:'verdi',navn:'Verdi/tekst'},{id:'info',navn:'Info/tips'}];
+
+// Standardmal fra Caspers dokument. Brukes til OnboardingMal-lista har en rad
+// (første lagring i «⚙️ Mal og varer» oppretter den).
+function onbStandardMal(){
+  let n=0;const o=(tekst,ekstra={})=>({id:'o'+(++n),tekst,type:'sjekk',utstyr:'',hjelp:'',...ekstra});
+  return {faser:[
+    {id:'f1',navn:'Klargjøring',ikon:'🛠️',oppgaver:[
+      o('Programmering – varelister',{type:'info',hjelp:'Ved konvertering fra andre systemer: bekreft at ting samsvarer og ikke ligger duplikat. Er det mye rart, kan kunden bes om å redigere.'}),
+      o('Vareliste importert fra vare- og kasseskjemaet',{krevVareskjema:true}),
+      o('Ønsker kunden kvittering?',{type:'janei'}),
+      o('APOS – Q.L.M satt opp manuelt (ikke autogenerert)',{hjelp:'En av våre sjanser til å gi et godt førsteinntrykk. Susoft-farger: oransje #FF9944, blå #115588, oransje submeny #EA9C51 (kan endres).'}),
+      o('Klistremerker med logo'),
+      o('SuSoft-appen installert – lisens og butikknr. lagt inn',{hjelp:'Har kunden flere kasser: sjekk at ingen POS-nr. er like (se kassetabellen).'}),
+      o('POS Printer: testprint, logo og riktig bredde',{hjelp:'Spesielt viktig på M10. Trenger ikke settes opp her hvis kunden endrer oppsett under installasjon.'}),
+      o('QuickSupport og TeamViewer Universal Add-On installert – tilkobling testet'),
+      o('TeamViewer host installert',{utstyr:'kasse',hjelp:'Trengs ikke på M1-enheter (ustabilt og bruker lisenser).'}),
+      o('998.chain: auto-oppdatering satt til 5 min'),
+      o('Terminal satt opp med S/N eller falsk IP',{utstyr:'terminal',hjelp:'Gir kunden beskjed om at terminalen ikke er tilkoblet, og sparer korrigeringer under veiledning.'}),
+      o('Logo på kundeskjerm (C9, 11", M10, M8)',{hjelp:'Lokal fil på kassen (enklest for KBD) eller Web Host URL i BackOffice. Har kunden ikke logo: legg inn KBD-logoen.'}),
+      o('Tid og språk riktig på kassen',{hjelp:'Viktig på eldre 15"-kasser.'}),
+      o('Kasseskuff åpner via APOS',{utstyr:'kasseskuff'}),
+      o('Kontantbeholdning lagt inn i BackOffice (kr)',{type:'verdi',utstyr:'kasseskuff'}),
+      o('RFID satt opp med prefiks',{utstyr:'rfid'}),
+      o('Bongskriver Metapace T40: partial cut og DHCP aktiv',{utstyr:'bongskriver'}),
+      o('Zebra: auto calibrate og passord-reset (EU-reglement)',{utstyr:'zebra'}),
+      o('Skanner: Code 93 aktivert',{utstyr:'skanner'}),
+      o('Vekt: slått på i 998.chain og Spec\'s konfigurert',{utstyr:'vekt'}),
+      o('Lokalserver satt opp i samarbeid med Susoft',{utstyr:'lokalserver'}),
+      o('Regnskapsintegrasjon satt opp (skjema fra kunden)',{utstyr:'regnskap'})
+    ]},
+    {id:'f2',navn:'Levering og fakturering',ikon:'📦',oppgaver:[
+      o('Pakking',{type:'info',hjelp:'Full emballasje, rens rett før nedpakking, så få kolli som mulig, som fabrikkny. Kvitteringsrull sendes separat (sjekk med selger). Legg ved flyer.'}),
+      o('Utstyr pakket'),
+      o('Leveringsadresse bekreftet',{krevAdresse:true}),
+      o('Profrakt: vekt, adresse, telefon, antall kolli, lapp og SO-nr. som referanse'),
+      o('Visma: frakt ført (enhetskostnad, total rundet til nærmeste 100)'),
+      o('Ikano-sak fakturert ved nedpakking',{utstyr:'ikano'}),
+      o('Pureservice: info-e-post med BackOffice-lenke sendt, sak avsluttet')
+    ]},
+    {id:'f3',navn:'Installasjon og introkurs',ikon:'🎓',oppgaver:[
+      o('Terminal: internett på kabel bekreftet hvis WiFi/Bluetooth er ustabilt',{utstyr:'terminal'}),
+      o('Printeroppsett bekreftet etter kundens behov'),
+      o('Kasseskuff reagerer og er koblet mot printer',{utstyr:'kasseskuff'}),
+      o('Opplæring: salg/linjesalg, vareoppslag, navigering, ordrehistorikk, kopi av kvittering, avstemming, Z-rapport'),
+      o('Kunden har gjort de vanligste oppgavene selv'),
+      o('Har kunden fått info-e-posten?',{type:'janei'})
+    ]},
+    {id:'f4',navn:'Oppfølging',ikon:'📞',oppgaver:[
+      o('Samtaleguide',{type:'info',hjelp:'Hvordan fungerer løsningen i daglig drift? Funksjoner kunden trenger mer opplæring i? Problemer eller spørsmål? Behov for mer hardware eller moduler (nettbutikk, lager)? Noe i oppsettet som bør justeres? Avslutt med å avklare veien videre.'}),
+      o('Oppfølgingssamtale gjennomført',{oppfolging:true}),
+      o('Kundens tilbakemelding',{type:'verdi'}),
+      o('Hardware kontrollert (etikettskriver, skanner, Metapace, lokalserver, vekt)'),
+      o('Behov for flere moduler eller mer hardware?',{type:'janei',nySalgVedJa:true})
+    ]},
+    {id:'f5',navn:'Etablert kunde',ikon:'🏁',oppgaver:[
+      o('Avtalt hardware installert og testet'),
+      o('Programvare og oppsett ferdigstilt'),
+      o('Kunden har fått opplæring i de viktigste funksjonene'),
+      o('Åpne punkter dokumentert eller fulgt opp'),
+      o('Kunden vet hvordan de kontakter support')
+    ]}
+  ],varer:[
+    {varenr:'6841',utstyr:'kasse',kasse:true,modell:'C9D 15,6"'},
+    {varenr:'6815',utstyr:'mpos',kasse:true,modell:'Telpo M1'},
+    {varenr:'2411',utstyr:'bongskriver',kasse:false,modell:''},
+    {varenr:'1183',utstyr:'kasseskuff',kasse:false,modell:''},
+    {varenr:'9921',utstyr:'terminal',kasse:false,modell:''},
+    {varenr:'11195',utstyr:'softpay',kasse:false,modell:''},
+    {varenr:'6807',utstyr:'regnskap',kasse:false,modell:''},
+    {varenr:'6953',utstyr:'fakturering',kasse:false,modell:''}
+  ]};
+}
+function onbMalAktiv(){return onbMal||onbStandardMal();}
+
+// ---------- Lasting og lagring ----------
+async function loadOnboarding(){
+  const [items,malItems]=await Promise.all([
+    spGetItems('Onboarding').catch(e=>{console.warn('Onboarding-lista finnes trolig ikke ennå:',e);return[];}),
+    spGetItems('OnboardingMal').catch(()=>[])
+  ]);
+  onboardinger=items.map(i=>{
+    let data={};try{data=JSON.parse(i.fields.Data||'{}')||{};}catch{data={};}
+    return {id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'Ny',
+      ansvarlig:i.fields.Ansvarlig||'',ansvarligEpost:i.fields.AnsvarligEpost||'',selger:i.fields.Selger||'',selgerEpost:i.fields.SelgerEpost||'',
+      soNr:i.fields.SoNr||'',sistAktivitet:i.fields.SistAktivitet||'',data:onbNormData(data)};
+  });
+  if(malItems.length){
+    onbMalSpId=malItems[0].id;
+    try{const m=JSON.parse(malItems[0].fields.Data||'null');if(m&&Array.isArray(m.faser))onbMal={faser:m.faser,varer:Array.isArray(m.varer)?m.varer:[]};}catch{}
+  }
+}
+function onbNormData(d){
+  d.salgsordrer=Array.isArray(d.salgsordrer)?d.salgsordrer:[];
+  d.faser=Array.isArray(d.faser)?d.faser:[];
+  d.kasser=Array.isArray(d.kasser)?d.kasser:[];
+  d.utstyr=Array.isArray(d.utstyr)?d.utstyr:[];
+  d.logg=Array.isArray(d.logg)?d.logg:[];
+  d.datoer=d.datoer||{};
+  d.skjemaer=d.skjemaer||{};
+  d.skjemaer.varer=d.skjemaer.varer||{status:'mangler'};
+  d.skjemaer.regnskap=d.skjemaer.regnskap||{status:'mangler'};
+  d.leveringsadresse=d.leveringsadresse||{tekst:'',kilde:''};
+  return d;
+}
+function onbFelter(o){
+  return {Title:o.tittel||'(uten navn)',VismaKundeNummer:o.vismaKundeNummer||'',Status:o.status||'Ny',Ansvarlig:o.ansvarlig||'',AnsvarligEpost:o.ansvarligEpost||'',
+    Selger:o.selger||'',SelgerEpost:o.selgerEpost||'',SoNr:o.data.salgsordrer.map(s=>s.nr).join(', '),SistAktivitet:o.sistAktivitet||null,Data:JSON.stringify(o.data)};
+}
+function onbMeg(){return currentUser?.name||currentUser?.username||'Ukjent';}
+function onbMinEpost(){return (currentUser?.username||'').toLowerCase();}
+function onbLogg(o,tekst){o.data.logg.push({dato:new Date().toISOString(),tekst,forfatter:onbMeg()});o.sistAktivitet=new Date().toISOString();}
+async function onbLagre(o,stille){
+  if(!o.spId)return;
+  if(!stille)setSPStatus('⏳ Lagrer…');
+  try{
+    await spLagreMedMykFallback(f=>spUpdate('Onboarding',o.spId,f),onbFelter(o),['SistAktivitet']);
+    if(!stille){setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),2500);}
+  }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Onboardingen ble ikke lagret i SharePoint:\n'+e.message);}
+}
+function onbOppdaterTilgang(){
+  if(userRole==='admin'){onbTilgang=true;return;}
+  const me=brukere.find(b=>b.epost.toLowerCase()===onbMinEpost()||b.azureId===currentUser?.localAccountId);
+  onbTilgang=me?.tilgang?.onboarding===true;
+}
+function onbKanStarte(){return onbTilgang||salgTilgang;}
+function onbTeam(){return brukere.filter(b=>b.tilgang?.onboarding===true).map(b=>b.navn).filter(Boolean).sort((a,b)=>a.localeCompare(b,'nb'));}
+
+// ---------- Utstyr, oppgaver og fremdrift ----------
+function onbUtstyrSett(o){
+  const s=new Set(o.data.utstyr||[]);
+  const varer=onbMalAktiv().varer||[];
+  o.data.salgsordrer.forEach(so=>{
+    if(so.type==='Ikano')s.add('ikano');
+    (so.linjer||[]).forEach(l=>{const v=varer.find(x=>String(x.varenr).trim()===String(l.varenr||'').trim());if(v&&v.utstyr)s.add(v.utstyr);});
+  });
+  return s;
+}
+function onbOppgaveAktiv(o,opg,sett){return !opg.utstyr||(sett||onbUtstyrSett(o)).has(opg.utstyr);}
+function onbOppgaveFerdig(opg){
+  if(opg.ikkeAktuelt)return true;
+  if(opg.type==='info')return true;
+  if(opg.type==='janei')return opg.verdi==='Ja'||opg.verdi==='Nei';
+  if(opg.type==='verdi')return !!String(opg.verdi||'').trim()||!!opg.ferdig;
+  return !!opg.ferdig;
+}
+function onbFaseStatus(o,f,sett){
+  const akt=f.oppgaver.filter(x=>onbOppgaveAktiv(o,x,sett)&&x.type!=='info');
+  const ferdige=akt.filter(onbOppgaveFerdig).length;
+  return {antall:akt.length,ferdige,ferdig:akt.length>0?ferdige===akt.length:true};
+}
+function onbAktivFaseIndeks(o){
+  const sett=onbUtstyrSett(o);
+  const i=o.data.faser.findIndex(f=>!onbFaseStatus(o,f,sett).ferdig);
+  return i<0?o.data.faser.length:i;
+}
+function onbUmappedeLinjer(o){
+  const varer=onbMalAktiv().varer||[];
+  const ut=[];
+  o.data.salgsordrer.forEach(so=>(so.linjer||[]).forEach(l=>{
+    if(!l.varenr)return;
+    if(!varer.some(v=>String(v.varenr).trim()===String(l.varenr).trim()))ut.push({...l,so:so.nr});
+  }));
+  return ut;
+}
+function onbSistAktivitet(o){
+  let t=new Date(o.data.opprettet||0).getTime();
+  if(o.sistAktivitet)t=Math.max(t,new Date(o.sistAktivitet).getTime()||0);
+  o.data.logg.forEach(l=>{const d=new Date(l.dato).getTime();if(d>t)t=d;});
+  return t;
+}
+function onbInaktivDager(o){
+  if(o.status!=='Ny'&&o.status!=='Pågår')return 0;
+  const d=Math.floor((Date.now()-onbSistAktivitet(o))/86400000);
+  return d>=ONB_INAKTIV_DAGER?d:0;
+}
+function onbVareskjemaMangler(o){return o.data.skjemaer.varer.status!=='lastetOpp'&&!o.data.skjemaer.varer.overstyrt;}
+function onbErMin(o){
+  const e=onbMinEpost();
+  return (o.ansvarligEpost&&o.ansvarligEpost.toLowerCase()===e)||(!o.ansvarligEpost&&o.ansvarlig===onbMeg());
+}
+function onbFind(id){return onboardinger.find(x=>x.id===id);}
+function onbAktivForKunde(kNr){return onboardinger.find(o=>(o.status==='Ny'||o.status==='Pågår')&&kNr&&samKundenr(o.vismaKundeNummer,kNr));}
+function onbDato(s){if(!s)return '';const d=new Date(s);return isNaN(d)?'':d.toLocaleDateString('nb-NO');}
+function onbEsc(s){return escHtmlEpost(s);}
+
+// Varsler til bjella: nye saker (hele onboarding-teamet) og passerte datoer
+// (kun ansvarlig). «Sett» huskes per nettleser, som resten av bjella.
+function hentMineOnboardingVarsler(){
+  const ut=[];const naa=Date.now();
+  onboardinger.forEach(o=>{
+    if(o.status==='Ny'&&onbTilgang)ut.push({o,tekst:'Ny onboarding venter på å bli tatt',nokkel:`onb-ny|${o.spId}`});
+    if(o.status==='Pågår'&&onbErMin(o)){
+      const sett=onbUtstyrSett(o);const fi=onbAktivFaseIndeks(o);
+      [['levering','Planlagt levering',1],['installasjon','Installasjon',2]].forEach(([k,navn,faseIdx])=>{
+        const d=o.data.datoer[k];
+        if(d&&new Date(d).getTime()<naa&&fi<=faseIdx)ut.push({o,tekst:`${navn} ${onbDato(d)} har passert`,nokkel:`onb-${k}|${o.spId}|${d}`});
+      });
+    }
+  });
+  return ut.filter(v=>!varselSettSet.has(v.nokkel));
+}
+// Teller ved menypunktet: nye saker (for teamet) + mine pågående.
+function onbOppdaterNavBadge(){
+  const el=document.getElementById('onb-nav-badge');if(!el)return;
+  const nye=onbTilgang?onboardinger.filter(o=>o.status==='Ny').length:0;
+  el.textContent=nye;el.style.display=nye?'':'none';el.title=nye?`${nye} ny${nye>1?'e':''} onboarding${nye>1?'er':''} venter`:'';
+}
+function gaTilOnboardingFraVarsel(nokkel,id){
+  varselSettSet.add(nokkel);
+  try{localStorage.setItem('kbdVarselSett',JSON.stringify([...varselSettSet].slice(-300)));}catch{}
+  closeVarselMeny();
+  apneOnboarding(id);
+  renderVarselMeny();
+}
+
+// ---------- Hovedvisning ----------
+function renderOnboarding(){
+  onbOppdaterTilgang();
+  const wrap=document.getElementById('onb-innhold');if(!wrap)return;
+  const malBtn=document.getElementById('onb-mal-btn');if(malBtn)malBtn.style.display=onbTilgang?'':'none';
+  const startBtn=document.getElementById('onb-start-btn');if(startBtn)startBtn.style.display=onbKanStarte()?'':'none';
+  if(onbValgtId&&onbFind(onbValgtId)){renderOnboardingDetalj(onbFind(onbValgtId));return;}
+  onbValgtId=null;
+  const filterDiv=document.getElementById('onb-filter');
+  const teller=f=>onboardinger.filter(o=>f==='aktive'?(o.status==='Ny'||o.status==='Pågår'):f==='alle'?true:o.status===f).length;
+  const pill=(val,lbl,farge)=>`<button class="fpill${onbFilter===val?' f-on':''}" style="${onbFilter===val?`border-color:${farge}`:''}" onclick="onbFilter='${val}';renderOnboarding()"><span class="fpill-dot" style="background:${farge}"></span>${lbl} <span style="color:#9ca3af;font-weight:400">${teller(val)}</span></button>`;
+  if(filterDiv)filterDiv.innerHTML=pill('aktive','Aktive','#1A3A6B')+pill('Ny','📥 Nye','#b45309')+pill('Pågår','Pågår','#1d4ed8')+pill('Ferdig','Ferdige','#15803d')+pill('Avbrutt','Avbrutt','#6b7280')+pill('alle','Alle','#9ca3af')
+    +`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:6px"><input type="checkbox" ${onbBareMine?'checked':''} onchange="onbBareMine=this.checked;renderOnboarding()"/>Bare mine</label>`;
+  let liste=onboardinger.filter(o=>onbFilter==='aktive'?(o.status==='Ny'||o.status==='Pågår'):onbFilter==='alle'?true:o.status===onbFilter);
+  if(onbBareMine)liste=liste.filter(o=>onbErMin(o)||(o.selgerEpost&&o.selgerEpost.toLowerCase()===onbMinEpost()));
+  if(onbSok){const q=onbSok.toLowerCase();liste=liste.filter(o=>(o.tittel||'').toLowerCase().includes(q)||(o.soNr||'').includes(q)||(o.vismaKundeNummer||'').includes(q));}
+  liste.sort((a,b)=>(a.status==='Ny'?0:1)-(b.status==='Ny'?0:1)||onbSistAktivitet(b)-onbSistAktivitet(a));
+  if(!liste.length){
+    wrap.innerHTML=`<div class="card card-public"><div class="muted" style="padding:10px 0">${onboardinger.length?'Ingen onboardinger i dette utvalget.':'Ingen onboardinger ennå. Start en fra en salgssak, kundekortet eller «🚀 Start onboarding» over.'}</div></div>`;
+    return;
+  }
+  wrap.innerHTML=liste.map(o=>{
+    const sf=ONB_STATUS_FARGE[o.status]||ONB_STATUS_FARGE.Ny;
+    const inaktiv=onbInaktivDager(o);
+    const datoer=[o.data.datoer.levering?`📦 ${onbDato(o.data.datoer.levering)}`:'',o.data.datoer.installasjon?`🎓 ${onbDato(o.data.datoer.installasjon)}`:''].filter(Boolean).join(' · ');
+    return `<div class="sos-sak-card rad-klikkbar" onclick="apneOnboarding('${o.id}')" style="cursor:pointer">
+      <div class="sos-sak-card-top">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <strong style="font-size:15px">${onbEsc(o.tittel)}</strong>
+          <span style="font-size:11px;font-weight:700;color:${sf.c};background:${sf.bg};padding:2px 9px;border-radius:20px">${o.status==='Ny'?'📥 Ny':o.status}</span>
+          ${o.data.salgsordrer.some(s=>s.type==='Ikano')?'<span style="font-size:11px;color:#7c3aed;background:#f3e8ff;padding:2px 8px;border-radius:20px">Ikano</span>':''}
+          ${onbVareskjemaMangler(o)&&(o.status==='Ny'||o.status==='Pågår')?'<span style="font-size:11px;color:#b91c1c;background:#fee2e2;padding:2px 8px;border-radius:20px">📦 Vareskjema mangler</span>':''}
+          ${inaktiv?`<span class="ks-inaktiv" title="Ingen fremdrift på ${inaktiv} dager">💤 ${inaktiv} d</span>`:''}
+        </div>
+        <div class="sos-sak-card-stats">
+          <span>👤 ${o.ansvarlig?onbEsc(o.ansvarlig):'<em>ikke tatt</em>'}</span>
+          <span>💼 ${onbEsc(o.selger||'—')}</span>
+          ${o.soNr?`<span>🧾 ${onbEsc(o.soNr)}</span>`:''}
+          ${datoer?`<span>${datoer}</span>`:''}
+        </div>
+      </div>
+      ${onbStepperHtml(o,false)}
+    </div>`;
+  }).join('');
+}
+
+function onbStepperHtml(o,klikkbar){
+  const sett=onbUtstyrSett(o);
+  const aktiv=onbAktivFaseIndeks(o);
+  const valgt=klikkbar?(onbValgtFase??Math.min(aktiv,o.data.faser.length-1)):-1;
+  return '<div class="sos-stepper-full">'+o.data.faser.map((f,i)=>{
+    const st=onbFaseStatus(o,f,sett);
+    const ferdig=st.ferdig;
+    const kl=ferdig?'done':(i===aktiv?'next':'');
+    const ring=i===valgt?'box-shadow:0 0 0 3px #f5a62366;':'';
+    const linje=i>0?`<div class="sos-step-line-full${ferdig&&onbFaseStatus(o,o.data.faser[i-1],sett).ferdig?' done':''}"></div>`:'';
+    return `${linje}<div class="sos-step-col" ${klikkbar?`onclick="event.stopPropagation();onbValgtFase=${i};renderOnboarding()" style="cursor:pointer"`:''}>
+      <div class="sos-step-circle ${kl}" style="${ring}${klikkbar?'cursor:pointer':''}">${ferdig?'✓':(f.ikon||i+1)}</div>
+      <div class="sos-step-label" style="${i===valgt?'color:#111;font-weight:700':''}">${onbEsc(f.navn)}<br><span style="color:#9ca3af">${st.ferdige}/${st.antall}</span></div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+function apneOnboarding(id){
+  onbValgtId=id;onbValgtFase=null;
+  const btn=document.getElementById('tab-onboarding');
+  if(!document.getElementById('tp-onboarding')?.classList.contains('active'))showTab('onboarding',btn);
+  else renderOnboarding();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function lukkOnboardingDetalj(){onbValgtId=null;onbValgtFase=null;renderOnboarding();}
+
+// ---------- Detaljvisning ----------
+function renderOnboardingDetalj(o){
+  const wrap=document.getElementById('onb-innhold');
+  const filterDiv=document.getElementById('onb-filter');if(filterDiv)filterDiv.innerHTML='';
+  const kan=onbTilgang;
+  const sett=onbUtstyrSett(o);
+  const sf=ONB_STATUS_FARGE[o.status]||ONB_STATUS_FARGE.Ny;
+  const faseIdx=Math.min(onbValgtFase??onbAktivFaseIndeks(o),o.data.faser.length-1);
+  const fase=o.data.faser[faseIdx];
+  const team=onbTeam();
+  if(o.ansvarlig&&!team.includes(o.ansvarlig))team.unshift(o.ansvarlig);
+  const ansvarligHtml=kan&&o.status!=='Ny'
+    ?`<select onchange="onbSettAnsvarlig('${o.id}',this.value)" style="padding:4px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px">${team.map(n=>`<option${n===o.ansvarlig?' selected':''}>${onbEsc(n)}</option>`).join('')}</select>`
+    :`<strong>${o.ansvarlig?onbEsc(o.ansvarlig):'<em>ikke tatt</em>'}</strong>`;
+  const kunde=[...vismaKunder,...hentProspektKunder()].find(k=>samKundenr(k.vismaNummer,o.vismaKundeNummer));
+
+  const oppgaverHtml=fase?fase.oppgaver.map((opg,j)=>onbOppgaveHtml(o,faseIdx,j,opg,sett,kan)).join(''):'';
+  const skjulte=fase?fase.oppgaver.filter(x=>!onbOppgaveAktiv(o,x,sett)).length:0;
+
+  wrap.innerHTML=`
+  <div class="card card-public">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+      <div>
+        <button class="btn-sm" onclick="lukkOnboardingDetalj()" style="margin-bottom:10px">← Alle onboardinger</button>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="font-size:26px;font-weight:700;color:#111">${onbEsc(o.tittel)}</div>
+          <span style="font-size:12px;font-weight:700;color:${sf.c};background:${sf.bg};padding:3px 10px;border-radius:20px">${o.status==='Ny'?'📥 Ny':o.status}</span>
+          ${kunde?`<button class="btn-sm" onclick="onbTilKundekort('${o.id}')">🧑‍💼 Kundekort</button>`:''}
+        </div>
+        <div class="muted" style="margin-top:4px;font-size:12.5px;color:#4b5563">
+          Visma-nr ${onbEsc(o.vismaKundeNummer||'—')}${kunde?.orgNr?` · Org.nr ${onbEsc(kunde.orgNr)}`:''} · Selger ${onbEsc(o.selger||'—')} · Startet ${onbDato(o.data.opprettet)}${o.data.ikanoAvtalenr?` · Ikano avtalenr. ${onbEsc(o.data.ikanoAvtalenr)}`:''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <div style="font-size:13px;color:#374151">Ansvarlig: ${ansvarligHtml}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          ${kan&&o.status==='Ny'?`<button class="prim" onclick="onbTaSaken('${o.id}')">🙋 Ta saken</button>`:''}
+          ${kan&&o.status==='Pågår'?`<button class="prim" style="background:#15803d" onclick="onbAvslutt('${o.id}')">✅ Avslutt onboarding</button>`:''}
+          ${o.status==='Ferdig'?`<button class="btn-sm" onclick="onbLagPdf('${o.id}')">📄 Last ned PDF</button>`:''}
+          ${kan&&(o.status==='Ny'||o.status==='Pågår')?`<button class="btn-sm" style="color:#6b7280" onclick="onbAvbryt('${o.id}')">Avbryt</button>`:''}
+          ${kan&&(o.status==='Ferdig'||o.status==='Avbrutt')?`<button class="btn-sm" onclick="onbGjenapne('${o.id}')">↺ Gjenåpne</button>`:''}
+        </div>
+      </div>
+    </div>
+    ${onbStepperHtml(o,true)}
+  </div>
+
+  <div class="onb-grid">
+    <div>
+      <div class="card card-public">
+        <div class="card-title" style="margin-bottom:6px">${fase?`${fase.ikon||''} ${onbEsc(fase.navn)}`:''}</div>
+        ${o.status==='Ny'?'<div class="onb-info-boks">Saken er ikke tatt ennå. Oppgavene kan krysses av når noen har trykket «🙋 Ta saken».</div>':''}
+        <div>${oppgaverHtml}</div>
+        ${skjulte?`<div class="muted" style="margin-top:8px">${skjulte} oppgave${skjulte>1?'r':''} skjult fordi utstyret ikke står på salgsordrene eller under «Utstyr».</div>`:''}
+        ${kan&&o.status==='Pågår'?`<button class="btn-sm" style="margin-top:10px" onclick="onbLeggTilOppgave('${o.id}',${faseIdx})">+ Legg til oppgave</button>`:''}
+      </div>
+      ${onbSalgsordreKort(o,kan)}
+      ${onbKasseKort(o,kan)}
+    </div>
+    <div>
+      ${onbSkjemaKort(o)}
+      ${onbAdresseKort(o,kan,kunde)}
+      ${onbDatoKort(o,kan)}
+      ${onbUtstyrKort(o,kan,sett)}
+      ${onbLoggKort(o)}
+    </div>
+  </div>`;
+}
+
+function onbOppgaveHtml(o,fi,j,opg,sett,kan){
+  const aktiv=onbOppgaveAktiv(o,opg,sett);
+  if(!aktiv)return '';
+  const kanKrysse=kan&&o.status==='Pågår';
+  const ref=`'${o.id}',${fi},${j}`;
+  const sperret=opg.krevVareskjema&&onbVareskjemaMangler(o)&&!opg.ferdig;
+  const hjelp=opg.hjelp?`<div class="onb-hjelp">${onbEsc(opg.hjelp)}</div>`:'';
+  const meta=(opg.ferdig||opg.verdi)&&opg.ferdigAv?`<span class="onb-meta">${onbEsc(opg.ferdigAv)} · ${onbDato(opg.ferdigDato)}</span>`:'';
+  const utstyrMerke=opg.utstyr?`<span class="onb-utstyr">${onbEsc((ONB_UTSTYR.find(u=>u.id===opg.utstyr)||{}).navn||opg.utstyr)}</span>`:'';
+  const ikkeAkt=opg.ikkeAktuelt?' onb-ikke-akt':'';
+  const ikkeAktBtn=kanKrysse&&opg.type!=='info'?`<button class="onb-lenkeknapp" onclick="onbIkkeAktuelt(${ref})">${opg.ikkeAktuelt?'Aktuell igjen':'Ikke aktuelt'}</button>`:'';
+  if(opg.type==='info')return `<div class="onb-oppg onb-oppg-info"><div>💡 <strong>${onbEsc(opg.tekst)}</strong>${utstyrMerke}${hjelp}</div></div>`;
+  let kontroll='';
+  if(opg.type==='sjekk'){
+    kontroll=`<input type="checkbox" ${opg.ferdig?'checked':''} ${!kanKrysse||sperret||opg.ikkeAktuelt?'disabled':''} onchange="onbKryss(${ref},this.checked)" style="width:18px;height:18px;margin-top:1px;cursor:pointer"/>`;
+  }else if(opg.type==='janei'){
+    const b=(v)=>`<button class="btn-sm" style="padding:2px 10px;${opg.verdi===v?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}" ${!kanKrysse||opg.ikkeAktuelt?'disabled':''} onclick="onbSettVerdi(${ref},'${v}')">${v}</button>`;
+    kontroll=`<div style="display:flex;gap:4px">${b('Ja')}${b('Nei')}</div>`;
+  }else if(opg.type==='verdi'){
+    kontroll=`<input type="checkbox" disabled ${onbOppgaveFerdig(opg)?'checked':''} style="width:18px;height:18px;margin-top:1px"/>`;
+  }
+  const verdiFelt=opg.type==='verdi'?`<input type="text" value="${onbEsc(opg.verdi||'')}" ${!kanKrysse||opg.ikkeAktuelt?'disabled':''} placeholder="Skriv her…" onchange="onbSettVerdi(${ref},this.value)" style="margin-top:6px;width:100%;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px"/>`:'';
+  let ekstra='';
+  if(sperret)ekstra+=`<div class="onb-advarsel">🔒 Vare- og kasseskjemaet må lastes opp først.${kanKrysse?` <button class="onb-lenkeknapp" onclick="onbOverstyrVareskjema('${o.id}')">Overstyr med begrunnelse</button>`:''}</div>`;
+  if(opg.krevAdresse&&!opg.ferdig)ekstra+=`<div class="onb-hjelp">Adresse: ${o.data.leveringsadresse.tekst?onbEsc(o.data.leveringsadresse.tekst).replace(/\n/g,', '):'<em>ikke satt</em>'}${o.data.leveringsadresse.kilde?` (${onbEsc(o.data.leveringsadresse.kilde)})`:''}</div>`;
+  if(opg.oppfolging&&kanKrysse)ekstra+=`<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap"><span class="muted">Lag oppfølging i Kundesaker:</span>${[['1 uke',7],['2 uker',14],['3 uker',21],['1 mnd',30]].map(([l,d])=>`<button class="btn-sm" style="padding:2px 8px;font-size:12px" onclick="onbLagOppfolging('${o.id}',${d})">${l}</button>`).join('')}${o.data.oppfolgingDato?`<span class="onb-meta">Oppfølging satt til ${onbDato(o.data.oppfolgingDato)}</span>`:''}</div>`;
+  if(opg.nySalgVedJa&&opg.verdi==='Ja')ekstra+=`<div style="margin-top:6px">${o.data.nySalgSpId?'<span class="onb-meta">✓ Salgsmulighet opprettet</span>':(salgTilgang||kan?`<button class="btn-sm" onclick="onbLagSalgsmulighet('${o.id}')">💼 Opprett salgsmulighet</button>`:'')}</div>`;
+  return `<div class="onb-oppg${ikkeAkt}">${kontroll}<div style="flex:1;min-width:0"><div>${onbEsc(opg.tekst)}${utstyrMerke} ${meta}</div>${hjelp}${verdiFelt}${ekstra}</div>${ikkeAktBtn}${kanKrysse&&opg.egen?`<button class="onb-lenkeknapp" style="color:#d03b3b" onclick="onbFjernOppgave(${ref})">Fjern</button>`:''}</div>`;
+}
+
+function onbKryss(id,fi,j,på){
+  const o=onbFind(id);if(!o)return;const opg=o.data.faser[fi].oppgaver[j];
+  opg.ferdig=på;opg.ferdigAv=på?onbMeg():'';opg.ferdigDato=på?new Date().toISOString():'';
+  onbLogg(o,`${på?'☑':'☐'} ${opg.tekst}`);
+  onbEtterEndring(o);
+}
+function onbSettVerdi(id,fi,j,v){
+  const o=onbFind(id);if(!o)return;const opg=o.data.faser[fi].oppgaver[j];
+  opg.verdi=v;opg.ferdigAv=onbMeg();opg.ferdigDato=new Date().toISOString();
+  onbLogg(o,`${opg.tekst}: ${v||'(tømt)'}`);
+  onbEtterEndring(o);
+}
+function onbIkkeAktuelt(id,fi,j){
+  const o=onbFind(id);if(!o)return;const opg=o.data.faser[fi].oppgaver[j];
+  opg.ikkeAktuelt=!opg.ikkeAktuelt;
+  onbLogg(o,`${opg.ikkeAktuelt?'Satt til ikke aktuelt':'Aktuell igjen'}: ${opg.tekst}`);
+  onbEtterEndring(o);
+}
+function onbLeggTilOppgave(id,fi){
+  const o=onbFind(id);if(!o)return;
+  const tekst=prompt('Ny oppgave i «'+o.data.faser[fi].navn+'»:');if(!tekst||!tekst.trim())return;
+  o.data.faser[fi].oppgaver.push({id:'e'+Date.now(),tekst:tekst.trim(),type:'sjekk',utstyr:'',hjelp:'',egen:true});
+  onbLogg(o,`Oppgave lagt til: ${tekst.trim()}`);
+  onbEtterEndring(o);
+}
+function onbFjernOppgave(id,fi,j){
+  const o=onbFind(id);if(!o)return;const opg=o.data.faser[fi].oppgaver[j];
+  if(!confirm(`Fjerne «${opg.tekst}»?`))return;
+  o.data.faser[fi].oppgaver.splice(j,1);
+  onbLogg(o,`Oppgave fjernet: ${opg.tekst}`);
+  onbEtterEndring(o);
+}
+function onbOverstyrVareskjema(id){
+  const o=onbFind(id);if(!o)return;
+  const grunn=prompt('Hvorfor kan klargjøringen gå videre uten vare- og kasseskjema?');if(!grunn||!grunn.trim())return;
+  o.data.skjemaer.varer.overstyrt={grunn:grunn.trim(),av:onbMeg(),dato:new Date().toISOString()};
+  onbLogg(o,`🔓 Vareskjema overstyrt: ${grunn.trim()}`);
+  onbEtterEndring(o);
+}
+function onbEtterEndring(o){renderOnboarding();renderVarselMeny();onbLagre(o);}
+
+function onbTaSaken(id){
+  const o=onbFind(id);if(!o)return;
+  o.status='Pågår';o.ansvarlig=onbMeg();o.ansvarligEpost=onbMinEpost();
+  onbLogg(o,`🙋 ${onbMeg()} tok saken`);
+  onbEtterEndring(o);
+}
+function onbSettAnsvarlig(id,navn){
+  const o=onbFind(id);if(!o||navn===o.ansvarlig)return;
+  const b=brukere.find(x=>x.navn===navn);
+  onbLogg(o,`Ansvarlig endret fra ${o.ansvarlig||'—'} til ${navn}`);
+  o.ansvarlig=navn;o.ansvarligEpost=(b?.epost||'').toLowerCase();
+  onbEtterEndring(o);
+}
+function onbAvbryt(id){
+  const o=onbFind(id);if(!o)return;
+  const grunn=prompt('Hvorfor avbrytes onboardingen?');if(grunn===null)return;
+  o.status='Avbrutt';onbLogg(o,`Onboarding avbrutt${grunn.trim()?': '+grunn.trim():''}`);
+  onbEtterEndring(o);
+}
+function onbGjenapne(id){
+  const o=onbFind(id);if(!o)return;
+  o.status=o.ansvarlig?'Pågår':'Ny';onbLogg(o,'↺ Onboarding gjenåpnet');
+  onbEtterEndring(o);
+}
+function onbAvslutt(id){
+  const o=onbFind(id);if(!o)return;
+  const sett=onbUtstyrSett(o);
+  const uferdige=o.data.faser.reduce((s,f)=>s+(onbFaseStatus(o,f,sett).antall-onbFaseStatus(o,f,sett).ferdige),0);
+  if(uferdige&&!confirm(`${uferdige} oppgave${uferdige>1?'r':''} er ikke krysset av eller satt til «ikke aktuelt». Avslutte likevel?`))return;
+  o.status='Ferdig';o.data.avsluttet=new Date().toISOString();o.data.avsluttetAv=onbMeg();
+  onbLogg(o,'✅ Onboarding avsluttet – etablert kunde');
+  onbEtterEndring(o);
+  onbLagPdf(id);
+}
+function onbTilKundekort(id){
+  const o=onbFind(id);if(!o)return;
+  const kunde=[...vismaKunder,...hentProspektKunder()].find(k=>samKundenr(k.vismaNummer,o.vismaKundeNummer));
+  if(!kunde)return;
+  showTab('kunder',document.getElementById('tab-kunder'));
+  document.getElementById('k360-search').value=kunde.navn||'';
+  velgKunde360(kunde);
+}
+
+// ---------- Kort i detaljvisningen ----------
+function onbSalgsordreKort(o,kan){
+  const so=o.data.salgsordrer;
+  const umappede=onbUmappedeLinjer(o);
+  return `<div class="card card-public" style="margin-top:16px">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">🧾 Salgsordrer
+      ${kan&&o.status!=='Ferdig'?`<button class="btn-sm" onclick="onbApneLeggTilSo('${o.id}')">+ Legg til / oppdater</button>`:''}</div>
+    ${so.length?so.map((s,i)=>`<div class="onb-so">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div><strong>SO ${onbEsc(s.nr)}</strong> <span class="onb-so-type ${s.type==='Ikano'?'ikano':''}">${s.type}</span> <span class="muted">${onbEsc(s.kundeNavn||'')} · ${onbEsc(s.status||'')} · ${onbDato(s.dato)}</span></div>
+        <div style="font-weight:600">${s.belop!=null?fF(s.belop):''}</div>
+      </div>
+      ${s.beskrivelse?`<div class="muted" style="margin:2px 0 6px">${onbEsc(s.beskrivelse)}</div>`:''}
+      ${(s.linjer||[]).length?`<table class="onb-linjer"><tbody>${s.linjer.map(l=>{const v=(onbMalAktiv().varer||[]).find(x=>String(x.varenr).trim()===String(l.varenr||'').trim());
+        return `<tr><td style="width:70px;color:#6b7280">${onbEsc(l.varenr||'')}</td><td>${onbEsc(l.beskrivelse||'')}</td><td style="text-align:right;white-space:nowrap">${l.antall!=null?onbEsc(String(l.antall).replace('.',',')):''} ${onbEsc(l.enhet||'')}</td><td style="white-space:nowrap">${v?`<span class="onb-utstyr">${onbEsc((ONB_UTSTYR.find(u=>u.id===v.utstyr)||{}).navn||v.utstyr)}</span>`:(l.varenr?'<span class="onb-utstyr" style="background:#fef3c7;color:#92400e">vurder</span>':'')}</td></tr>`;}).join('')}</tbody></table>`:'<div class="muted">Ingen linjer hentet.</div>'}
+      ${kan&&o.status!=='Ferdig'?`<button class="onb-lenkeknapp" style="color:#d03b3b" onclick="onbFjernSo('${o.id}',${i})">Fjern fra onboardingen</button> <button class="onb-lenkeknapp" onclick="onbByttSoType('${o.id}',${i})">Merk som ${s.type==='Ikano'?'Kunde':'Ikano'}</button>`:''}
+    </div>`).join(''):'<div class="muted">Ingen salgsordrer koblet til ennå.</div>'}
+    ${umappede.length?`<div class="onb-advarsel" style="margin-top:8px">⚠️ ${umappede.length} varelinje${umappede.length>1?'r':''} uten kobling i «⚙️ Mal og varer» (varenr. ${[...new Set(umappede.map(l=>l.varenr))].join(', ')}). Vurder om de trenger egne oppgaver.</div>`:''}
+  </div>`;
+}
+function onbFjernSo(id,i){
+  const o=onbFind(id);if(!o)return;const s=o.data.salgsordrer[i];
+  if(!confirm(`Fjerne SO ${s.nr} fra onboardingen? (Ordren i Visma påvirkes ikke.)`))return;
+  o.data.salgsordrer.splice(i,1);onbLogg(o,`SO ${s.nr} fjernet`);onbOppdaterAdresseFraSo(o);onbEtterEndring(o);
+}
+function onbByttSoType(id,i){
+  const o=onbFind(id);if(!o)return;const s=o.data.salgsordrer[i];
+  s.type=s.type==='Ikano'?'Kunde':'Ikano';onbLogg(o,`SO ${s.nr} merket som ${s.type}`);onbOppdaterAdresseFraSo(o);onbEtterEndring(o);
+}
+
+function onbKasseKort(o,kan){
+  const k=o.data.kasser;
+  const pos=k.map(x=>String(x.posNr||'').trim()).filter(Boolean);
+  const like=pos.filter((p,i)=>pos.indexOf(p)!==i);
+  const red=kan&&o.status!=='Ferdig'&&o.status!=='Avbrutt';
+  const felt=(i,navn,v,ph)=>red?`<input value="${onbEsc(v||'')}" placeholder="${ph}" onchange="onbSettKasse('${o.id}',${i},'${navn}',this.value)" style="width:100%;padding:4px 6px;border:1px solid ${navn==='posNr'&&like.includes(String(v||'').trim())?'#d03b3b':'#e5e7eb'};border-radius:5px;font-size:12.5px"/>`:onbEsc(v||'—');
+  return `<div class="card card-public" style="margin-top:16px">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">🖥️ Kasser (${k.length})
+      ${red?`<span><button class="btn-sm" onclick="onbKasserFraSo('${o.id}')" title="Legg til kasserader for kasser på salgsordrene som mangler i tabellen">↻ Fra salgsordrene</button> <button class="btn-sm" onclick="onbNyKasse('${o.id}')">+ Kasse</button></span>`:''}</div>
+    ${like.length?`<div class="onb-advarsel">⚠️ Like POS-nr.: ${[...new Set(like)].join(', ')}. Hver kasse må ha eget POS-nr.</div>`:''}
+    ${k.length?`<div class="tbl-wrap"><table><thead><tr><th>Modell</th><th>POS-nr.</th><th>Lisens</th><th>Butikknr.</th><th>TeamViewer-ID</th>${red?'<th></th>':''}</tr></thead><tbody>
+      ${k.map((x,i)=>`<tr><td>${felt(i,'modell',x.modell,'Modell')}</td><td>${felt(i,'posNr',x.posNr,'POS-nr.')}</td><td>${felt(i,'lisens',x.lisens,'Lisens')}</td><td>${felt(i,'butikkNr',x.butikkNr,'Butikknr.')}</td><td>${felt(i,'teamviewer',x.teamviewer,'TeamViewer')}</td>${red?`<td><button class="btn-icon del" onclick="onbFjernKasse('${o.id}',${i})" title="Fjern">✕</button></td>`:''}</tr>`).join('')}
+    </tbody></table></div>`:'<div class="muted">Ingen kasser registrert. Kasser på salgsordrene legges inn automatisk når varenummeret er koblet til «Kasse» i «⚙️ Mal og varer».</div>'}
+  </div>`;
+}
+function onbSettKasse(id,i,felt,v){const o=onbFind(id);if(!o)return;o.data.kasser[i][felt]=v.trim();o.sistAktivitet=new Date().toISOString();renderOnboarding();onbLagre(o,true);}
+function onbNyKasse(id){const o=onbFind(id);if(!o)return;o.data.kasser.push({modell:'',posNr:'',lisens:'',butikkNr:'',teamviewer:''});onbEtterEndring(o);}
+function onbFjernKasse(id,i){const o=onbFind(id);if(!o)return;if(!confirm('Fjerne kasseraden?'))return;o.data.kasser.splice(i,1);onbLogg(o,'Kasserad fjernet');onbEtterEndring(o);}
+function onbKasserFraSo(id,stille){
+  const o=onbFind(id);if(!o)return 0;
+  const varer=onbMalAktiv().varer||[];
+  const behov={};
+  o.data.salgsordrer.forEach(s=>(s.linjer||[]).forEach(l=>{
+    const v=varer.find(x=>String(x.varenr).trim()===String(l.varenr||'').trim());
+    if(v&&v.kasse){const modell=v.modell||l.beskrivelse||'Kasse';behov[modell]=(behov[modell]||0)+Math.max(0,Math.round(Number(l.antall)||0));}
+  }));
+  let lagtTil=0;
+  Object.entries(behov).forEach(([modell,antall])=>{
+    const har=o.data.kasser.filter(k=>k.modell===modell).length;
+    for(let i=har;i<antall;i++){o.data.kasser.push({modell,posNr:'',lisens:'',butikkNr:'',teamviewer:''});lagtTil++;}
+  });
+  if(!stille){
+    if(lagtTil){onbLogg(o,`${lagtTil} kasserad${lagtTil>1?'er':''} lagt til fra salgsordrene`);onbEtterEndring(o);}
+    else alert('Kassetabellen har allerede alle kassene fra salgsordrene.');
+  }
+  return lagtTil;
+}
+
+function onbSkjemaKort(o){
+  const sk=o.data.skjemaer;
+  const kanLaste=(onbTilgang||salgTilgang)&&o.status!=='Avbrutt';
+  const boks=(type,tittel,undertekst,valgfri)=>{
+    const s=sk[type]||{};
+    const lastet=s.status==='lastetOpp';
+    const statusTekst=lastet?`✅ ${onbEsc(s.filnavn||'fil')} <span class="onb-meta">${onbEsc(s.av||'')} · ${onbDato(s.dato)}</span>`
+      :(type==='varer'&&s.status==='ettersendes'?'<span style="color:#b91c1c;font-weight:600">⏳ Ettersendes – mangler</span>':(valgfri?'<span class="muted">Ikke lastet opp (valgfritt)</span>':'<span style="color:#b91c1c;font-weight:600">Mangler</span>'));
+    const sendt=type==='regnskap'&&s.sendtDato?`<div class="onb-meta" style="margin-top:4px">📧 ${s.dryRun?'TEST: sendt til '+onbEsc(s.sendtTil||'test-mottaker'):'Sendt til '+onbEsc(s.sendtTil||'kundeservice@kbd.as')} ${onbDato(s.sendtDato)} kl. ${new Date(s.sendtDato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}</div>`:'';
+    const sendFeil=type==='regnskap'&&s.sendFeil?`<div class="onb-advarsel">⚠️ E-posten til kundeservice feilet: ${onbEsc(s.sendFeil)} <button class="onb-lenkeknapp" onclick="onbSendRegnskap('${o.id}')">Prøv igjen</button></div>`:'';
+    const overstyrt=type==='varer'&&s.overstyrt&&!lastet?`<div class="onb-meta">🔓 Overstyrt: ${onbEsc(s.overstyrt.grunn)} (${onbEsc(s.overstyrt.av)})</div>`:'';
+    return `<div class="onb-skjema ${lastet?'ok':(valgfri?'':'mangler')}" ${kanLaste?`ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="event.preventDefault();this.classList.remove('drag');onbLastOppSkjema('${o.id}','${type}',event.dataTransfer.files[0])"`:''}>
+      <div style="font-weight:700">${tittel}</div>
+      <div class="muted" style="margin-bottom:6px">${undertekst}</div>
+      <div style="font-size:13px">${statusTekst}</div>${sendt}${sendFeil}${overstyrt}
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        ${lastet?`<button class="btn-sm" onclick="onbLastNedSkjema('${o.id}','${type}')">⬇️ Last ned</button>`:''}
+        ${kanLaste?`<label class="btn-sm" style="cursor:pointer">${lastet?'↻ Erstatt':'⬆️ Last opp'}<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="onbLastOppSkjema('${o.id}','${type}',this.files[0])"/></label>`:''}
+        <button class="onb-lenkeknapp" onclick="onbLastNedMal('${type}')">Blank mal</button>
+      </div>
+    </div>`;
+  };
+  return `<div class="card card-public"><div class="card-title">📎 Skjemaer fra kunden</div>
+    ${boks('varer','📦 Vare- og kasseoppsett','Brukes av Casper/Håvard til klargjøringen.',false)}
+    ${boks('regnskap','📊 Regnskapsintegrasjon (valgfritt)','Sendes automatisk til kundeservice@kbd.as ved opplasting.',true)}
+  </div>`;
+}
+
+function onbAdresseKort(o,kan,kunde){
+  const a=o.data.leveringsadresse;
+  const red=kan&&o.status!=='Ferdig'&&o.status!=='Avbrutt';
+  return `<div class="card card-public" style="margin-top:16px"><div class="card-title">🚚 Leveringsadresse</div>
+    ${red?`<textarea rows="3" onchange="onbSettAdresse('${o.id}',this.value)" style="width:100%;padding:8px;border:1px solid #d0d5dd;border-radius:8px;font-family:inherit;font-size:13px">${onbEsc(a.tekst||'')}</textarea>`:`<div style="white-space:pre-line">${onbEsc(a.tekst||'—')}</div>`}
+    <div class="muted" style="margin-top:4px">${a.kilde==='kundekort'?'<span style="color:#b45309;font-weight:600">⚠️ Fra kundekortet – kontroller</span>':a.kilde?'Kilde: '+onbEsc(a.kilde):''}</div>
+    <div class="muted" style="margin-top:2px">Hentes fra kundens egen salgsordre, aldri fra Ikano-ordren.</div>
+    ${o.data.kontaktNavn||o.data.kontaktTelefon?`<div style="margin-top:10px;font-size:13px">👤 ${onbEsc(o.data.kontaktNavn||'')} ${o.data.kontaktTelefon?'· 📞 '+onbEsc(o.data.kontaktTelefon):''}</div>`:''}
+    ${o.data.notat?`<div class="onb-info-boks" style="margin-top:10px">📝 ${onbEsc(o.data.notat)}</div>`:''}
+  </div>`;
+}
+function onbSettAdresse(id,v){const o=onbFind(id);if(!o)return;o.data.leveringsadresse={tekst:v.trim(),kilde:'manuelt'};onbLogg(o,'Leveringsadresse endret manuelt');onbEtterEndring(o);}
+function onbAdresseFraKunde(k){
+  if(!k)return '';
+  return [k.adresse,[k.postnr,k.sted].filter(Boolean).join(' ')].filter(Boolean).join('\n');
+}
+function onbOppdaterAdresseFraSo(o){
+  if(o.data.leveringsadresse.kilde==='manuelt')return;
+  const kso=o.data.salgsordrer.find(s=>s.type==='Kunde'&&s.leveringsadresse);
+  if(kso){o.data.leveringsadresse={tekst:kso.leveringsadresse,kilde:`SO ${kso.nr}`};return;}
+  const k=[...vismaKunder,...hentProspektKunder()].find(x=>samKundenr(x.vismaNummer,o.vismaKundeNummer));
+  const t=onbAdresseFraKunde(k);
+  o.data.leveringsadresse=t?{tekst:t,kilde:'kundekort'}:{tekst:'',kilde:''};
+}
+
+function onbDatoKort(o,kan){
+  const red=kan&&o.status!=='Ferdig'&&o.status!=='Avbrutt';
+  const d=o.data.datoer;
+  const rad=(k,l)=>`<div class="fgrp" style="margin-bottom:8px"><label>${l}</label>${red?`<input type="date" value="${(d[k]||'').slice(0,10)}" onchange="onbSettDato('${o.id}','${k}',this.value)" style="padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px"/>`:`<div>${onbDato(d[k])||'—'}</div>`}</div>`;
+  return `<div class="card card-public" style="margin-top:16px"><div class="card-title">📅 Datoer</div>
+    ${o.data.onsketDato?`<div class="muted" style="margin-bottom:8px">Selgers ønske: ${onbDato(o.data.onsketDato)}</div>`:''}
+    ${rad('levering','Planlagt levering')}${rad('installasjon','Installasjon')}
+    <div class="muted">Ansvarlig får varsel i bjella når en dato har passert og fasen ikke er ferdig.</div></div>`;
+}
+function onbSettDato(id,k,v){const o=onbFind(id);if(!o)return;o.data.datoer[k]=v||'';onbLogg(o,`${k==='levering'?'Planlagt levering':'Installasjon'}: ${v?onbDato(v):'fjernet'}`);onbEtterEndring(o);}
+
+function onbUtstyrKort(o,kan,sett){
+  const red=kan&&o.status!=='Ferdig'&&o.status!=='Avbrutt';
+  const fraSo=new Set();
+  const varer=onbMalAktiv().varer||[];
+  o.data.salgsordrer.forEach(s=>{if(s.type==='Ikano')fraSo.add('ikano');(s.linjer||[]).forEach(l=>{const v=varer.find(x=>String(x.varenr).trim()===String(l.varenr||'').trim());if(v&&v.utstyr)fraSo.add(v.utstyr);});});
+  return `<div class="card card-public" style="margin-top:16px"><div class="card-title">🧰 Utstyr</div>
+    <div class="muted" style="margin-bottom:8px">Styrer hvilke oppgaver som vises. Utstyr fra salgsordrene er låst; resten kan krysses av for hånd.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${ONB_UTSTYR.map(u=>{const p=sett.has(u.id),laast=fraSo.has(u.id);
+      return `<label class="onb-chip${p?' på':''}" title="${laast?'Fra salgsordre':''}"><input type="checkbox" ${p?'checked':''} ${!red||laast?'disabled':''} onchange="onbSettUtstyr('${o.id}','${u.id}',this.checked)" style="display:none"/>${laast?'🧾 ':''}${u.navn}</label>`;}).join('')}</div></div>`;
+}
+function onbSettUtstyr(id,u,på){
+  const o=onbFind(id);if(!o)return;
+  const s=new Set(o.data.utstyr);på?s.add(u):s.delete(u);o.data.utstyr=[...s];
+  onbLogg(o,`Utstyr ${på?'lagt til':'fjernet'}: ${(ONB_UTSTYR.find(x=>x.id===u)||{}).navn||u}`);onbEtterEndring(o);
+}
+
+function onbLoggKort(o){
+  const l=o.data.logg.slice().reverse();
+  return `<div class="card card-public" style="margin-top:16px"><div class="card-title">🕑 Logg</div>
+    ${(onbTilgang||salgTilgang)?`<div style="display:flex;gap:6px;margin-bottom:10px"><input id="onb-kommentar" placeholder="Skriv en kommentar…" style="flex:1;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter')onbKommentar('${o.id}')"/><button class="btn-sm" onclick="onbKommentar('${o.id}')">Legg til</button></div>`:''}
+    <div style="max-height:320px;overflow:auto">${l.map(x=>`<div class="onb-logg"><span class="onb-meta">${onbDato(x.dato)} ${new Date(x.dato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})} · ${onbEsc(x.forfatter||'')}</span><div>${onbEsc(x.tekst)}</div></div>`).join('')||'<div class="muted">Ingen hendelser.</div>'}</div></div>`;
+}
+function onbKommentar(id){
+  const o=onbFind(id);const el=document.getElementById('onb-kommentar');if(!o||!el||!el.value.trim())return;
+  onbLogg(o,'💬 '+el.value.trim());el.value='';onbEtterEndring(o);
+}
+
+// ---------- Filer ----------
+function onbTrygtNavn(n){return String(n||'fil').replace(/[\\/:*?"<>|#%]+/g,'_').slice(-120);}
+async function onbLastOppFil(o,type,fil){
+  const sti=`Onboarding-vedlegg/${o.spId}/${type}-${new Date().toISOString().replace(/[:.]/g,'-')}-${onbTrygtNavn(fil.name)}`;
+  await spLastOppFil(sti,fil);
+  o.data.skjemaer[type]={...o.data.skjemaer[type],status:'lastetOpp',sti,filnavn:fil.name,av:onbMeg(),dato:new Date().toISOString(),storrelse:fil.size};
+  onbLogg(o,`📎 ${type==='varer'?'Vare- og kasseskjema':'Regnskapsskjema'} lastet opp: ${fil.name}`);
+}
+async function onbLastOppSkjema(id,type,fil){
+  const o=onbFind(id);if(!o||!fil)return;
+  if(fil.size>25*1048576){alert('Fila er for stor (maks 25 MB).');return;}
+  setSPStatus('⏳ Laster opp…');
+  try{await onbLastOppFil(o,type,fil);}
+  catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Opplastingen feilet:\n'+e.message);return;}
+  renderOnboarding();
+  await onbLagre(o);
+  if(type==='regnskap')await onbSendRegnskap(id,fil);
+}
+async function onbLastNedSkjema(id,type){
+  const o=onbFind(id);const s=o?.data.skjemaer[type];if(!s?.sti)return;
+  setSPStatus('⏳ Henter fil…');
+  const blob=await spHentFilBlob(s.sti).catch(()=>null);setSPStatus('');
+  if(!blob){alert('Klarte ikke hente fila fra SharePoint.');return;}
+  onbLastNedBlob(blob,s.filnavn||'skjema.xlsx');
+}
+function onbLastNedBlob(blob,navn){
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=navn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+const ONB_MAL_FILER={varer:'Onboarding-maler/Produktliste for import i G1.xlsx',regnskap:'Onboarding-maler/Susoft overføring til regnskap.xlsx'};
+async function onbLastNedMal(type){
+  setSPStatus('⏳ Henter mal…');
+  const blob=await spHentFilBlob(ONB_MAL_FILER[type]).catch(()=>null);setSPStatus('');
+  if(!blob){alert('Fant ikke den blanke malen i SharePoint ennå. En med onboarding-tilgang kan laste den opp under «⚙️ Mal og varer».');return;}
+  onbLastNedBlob(blob,ONB_MAL_FILER[type].split('/').pop());
+}
+function onbBlobTilBase64(blob){
+  return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(blob);});
+}
+// Sender regnskapsskjemaet til kundeservice@kbd.as via backend (eller til
+// test-mottakeren mens ONBOARDING_REGNSKAP_EPOST_DRY_RUN står på).
+async function onbSendRegnskap(id,fil){
+  const o=onbFind(id);const s=o?.data.skjemaer.regnskap;if(!o||!s?.sti)return;
+  let blob=fil;
+  if(!blob){setSPStatus('⏳ Henter fil…');blob=await spHentFilBlob(s.sti).catch(()=>null);}
+  if(!blob){alert('Klarte ikke hente regnskapsskjemaet fra SharePoint.');return;}
+  if(blob.size>3*1048576){s.sendFeil='Fila er over 3 MB og må sendes manuelt';onbEtterEndring(o);return;}
+  setSPStatus('⏳ Sender regnskapsskjema…');
+  try{
+    const kunde=[...vismaKunder,...hentProspektKunder()].find(k=>samKundenr(k.vismaNummer,o.vismaKundeNummer));
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/onboarding_send_regnskap'),{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({kundenavn:o.tittel,filnavn:s.filnavn||'regnskap.xlsx',innholdBase64:await onbBlobTilBase64(blob),
+        info:{orgNr:kunde?.orgNr||'',vismaNr:o.vismaKundeNummer||'',soNr:o.data.salgsordrer.map(x=>x.nr).join(', '),selger:o.selger||'',lastetOppAv:onbMeg(),lenke:`${location.origin}${location.pathname}?onboarding=${o.spId}`}})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
+    s.sendtDato=new Date().toISOString();s.sendtTil=data.sendtTil||'';s.dryRun=data.dryRun===true;delete s.sendFeil;
+    onbLogg(o,`📧 Regnskapsskjema sendt til ${data.dryRun?'TEST-mottaker '+(data.sendtTil||''):(data.sendtTil||'kundeservice@kbd.as')}`);
+    setSPStatus('✅ Regnskapsskjema sendt');setTimeout(()=>setSPStatus(''),3000);
+  }catch(e){
+    s.sendFeil=e.message;onbLogg(o,`⚠️ Sending av regnskapsskjema feilet: ${e.message}`);setSPStatus('❌ '+e.message,false);
+  }
+  onbEtterEndring(o);
+}
+
+// ---------- Oppfølging og ny salgsmulighet (KundeNotater) ----------
+async function onbLagNotat(o,type,tittel,innhold,forfallsdato,ekstra={}){
+  const ansvarlig=o.ansvarlig||onbMeg();
+  const ep=o.ansvarligEpost||onbMinEpost();
+  const n={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:o.vismaKundeNummer,kundeNavn:o.tittel,type,tittel,innhold,status:'Åpen',forfallsdato:forfallsdato||'',
+    varsleEpost:!!forfallsdato,varsleDashbord:!!forfallsdato,varselSendt:false,opprettetAv:ansvarlig,opprettetAvEpost:ep,opprettetDato:new Date().toISOString(),logg:[],sistAktivitet:new Date().toISOString(),...ekstra};
+  const r=await spLagreMedMykFallback(f=>spCreate('KundeNotater',f),notatFieldsPayload(n),NOTAT_MYKE_FELTER);
+  n.spId=r.id;n.id=`sp${r.id}`;kundeNotater.push(n);
+  return n;
+}
+async function onbLagOppfolging(id,dager){
+  const o=onbFind(id);if(!o)return;
+  if(!o.vismaKundeNummer){alert('Kunden mangler kundenummer, så oppfølgingen kan ikke legges i Kundesaker.');return;}
+  const d=new Date();d.setDate(d.getDate()+dager);d.setHours(9,0,0,0);
+  setSPStatus('⏳ Lager oppfølging…');
+  try{
+    await onbLagNotat(o,'Oppfølging',`Onboarding-oppfølging: ${o.tittel}`,`Oppfølging etter oppstart. Bruk samtaleguiden i onboardingen.`,d.toISOString());
+    o.data.oppfolgingDato=d.toISOString();
+    onbLogg(o,`📅 Oppfølging lagt i Kundesaker til ${d.toLocaleDateString('nb-NO')}`);
+    setSPStatus('✅ Oppfølging laget');setTimeout(()=>setSPStatus(''),2500);
+    renderVarselMeny();
+  }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Klarte ikke lage oppfølgingen:\n'+e.message);return;}
+  onbEtterEndring(o);
+}
+async function onbLagSalgsmulighet(id){
+  const o=onbFind(id);if(!o)return;
+  if(!o.vismaKundeNummer){alert('Kunden mangler kundenummer.');return;}
+  const tekst=prompt('Hva trenger kunden? (blir tittel på salgsmuligheten)','Behov fra onboarding-oppfølging');if(!tekst)return;
+  setSPStatus('⏳ Lager salgsmulighet…');
+  try{
+    const selger=o.selger||o.ansvarlig||onbMeg();
+    const b=brukere.find(x=>x.navn===selger);
+    const n=await onbLagNotat({...o,ansvarlig:selger,ansvarligEpost:(b?.epost||o.selgerEpost||'').toLowerCase()},'Tilbud',tekst,`Meldt i onboarding-oppfølgingen av ${onbMeg()}.`,'',{fase:'Lead',leadKilde:'Eksisterende kunde',leadKildeDetalj:'',tilbudSum:null,sannsynlighet:10,tilbudUtfall:'',tilbudLukketDato:'',tilbudArsak:'',tilbudArsakDetalj:''});
+    o.data.nySalgSpId=n.spId;onbLogg(o,`💼 Salgsmulighet opprettet til ${selger}: ${tekst}`);
+    setSPStatus('✅ Salgsmulighet opprettet');setTimeout(()=>setSPStatus(''),2500);
+  }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Klarte ikke lage salgsmuligheten:\n'+e.message);return;}
+  onbEtterEndring(o);
+}
+
+// ---------- PDF (etablert kunde) ----------
+function onbLagPdf(id){
+  const o=onbFind(id);if(!o)return;
+  const {jsPDF}=window.jspdf||{};if(!jsPDF){alert('PDF-biblioteket er ikke lastet.');return;}
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  let y=18;const v=14,maksB=182;
+  const linje=(t,str=10,fet=false,farge=[17,17,17])=>{doc.setFont('helvetica',fet?'bold':'normal');doc.setFontSize(str);doc.setTextColor(...farge);
+    doc.splitTextToSize(String(t),maksB).forEach(l=>{if(y>280){doc.addPage();y=18;}doc.text(l,v,y);y+=str*0.45+1.2;});};
+  linje('Kasse og Butikkdata AS',9,false,[107,114,128]);
+  linje(`Onboarding – ${o.tittel}`,16,true);y+=1;
+  linje(`Visma-nr ${o.vismaKundeNummer||'—'} · Selger ${o.selger||'—'} · Ansvarlig ${o.ansvarlig||'—'}`,9,false,[75,85,99]);
+  linje(`Startet ${onbDato(o.data.opprettet)}${o.data.avsluttet?` · Etablert kunde ${onbDato(o.data.avsluttet)}`:''}${o.data.ikanoAvtalenr?` · Ikano avtalenr. ${o.data.ikanoAvtalenr}`:''}`,9,false,[75,85,99]);
+  y+=3;linje('Levert etter salgsordre',12,true);
+  o.data.salgsordrer.forEach(s=>{
+    linje(`SO ${s.nr} (${s.type})${s.beskrivelse?' – '+s.beskrivelse:''}`,10,true);
+    (s.linjer||[]).forEach(l=>linje(`   ${l.antall!=null?String(l.antall).replace('.',','):''} ${l.enhet||''}  ${l.varenr||''}  ${l.beskrivelse||''}`,9));
+  });
+  if(o.data.kasser.length){y+=2;linje('Kasser',12,true);o.data.kasser.forEach((k,i)=>linje(`   ${i+1}. ${k.modell||'Kasse'}${k.posNr?' · POS-nr. '+k.posNr:''}${k.butikkNr?' · butikknr. '+k.butikkNr:''}`,9));}
+  y+=2;linje('Oppsett og opplæring',12,true);
+  const sett=onbUtstyrSett(o);
+  o.data.faser.forEach(f=>{
+    const akt=f.oppgaver.filter(x=>onbOppgaveAktiv(o,x,sett)&&x.type!=='info');if(!akt.length)return;
+    linje(f.navn,10,true);
+    akt.forEach(x=>{const m=x.ikkeAktuelt?'–':(onbOppgaveFerdig(x)?'✓':'○');linje(`   ${m==='✓'?'[x]':m==='–'?'[-]':'[ ]'} ${x.tekst}${x.type!=='sjekk'&&x.verdi?': '+x.verdi:''}`,9);});
+  });
+  y+=4;linje('Etter dette følges kunden opp som etablert kunde. Nye behov, utvidelser og endringer håndteres gjennom ordinære rutiner og kan faktureres.',9,false,[75,85,99]);
+  doc.save(`Onboarding ${onbTrygtNavn(o.tittel)}.pdf`);
+}
+
+// ---------- Knapper på kundekort og salgssak ----------
+function onbKundekortKnappHtml(k){
+  const kNr=String(k.vismaNummer||'').trim();
+  const aktiv=onbAktivForKunde(kNr);
+  if(aktiv)return `<button class="btn-sm" style="color:#1d4ed8" onclick="apneOnboarding('${aktiv.id}')">🚀 Onboarding (${aktiv.status==='Ny'?'ny':'pågår'})</button>`;
+  if(!onbKanStarte())return '';
+  return `<button class="btn-sm" title="Send kunden til onboarding (klargjøring, levering, installasjon og oppfølging)" onclick="apneOnbStart({kNr:'${kNr.replace(/'/g,"\\'")}'})">🚀 Send til onboarding</button>`;
+}
+function onbSakKnappHtml(n){
+  if(n.type!=='Tilbud')return '';
+  if(n.status==='Lukket'&&n.tilbudUtfall!=='Vunnet')return '';
+  const aktiv=onbAktivForKunde(n.vismaKundeNummer);
+  if(aktiv)return `<button class="btn-sm" style="color:#1d4ed8;white-space:nowrap" onclick="apneOnboarding('${aktiv.id}')">🚀 Onboarding</button>`;
+  if(!onbKanStarte())return '';
+  return `<button class="btn-sm" style="white-space:nowrap" onclick="apneOnbStart({sakId:'${n.id}'})" title="Send kunden til onboarding">🚀 Til onboarding</button>`;
+}
+
+// ---------- Startskjema ----------
+function onbAlleKunder(){return [...vismaKunder,...hentProspektKunder()];}
+function apneOnbStart(ctx={}){
+  if(!onbKanStarte()){alert('Du har ikke tilgang til å starte onboarding.');return;}
+  let kunde=null,sak=null;
+  if(ctx.sakId){sak=kundeNotater.find(x=>x.id===ctx.sakId);if(sak)kunde=onbAlleKunder().find(k=>samKundenr(k.vismaNummer,sak.vismaKundeNummer));}
+  else if(ctx.kNr)kunde=onbAlleKunder().find(k=>samKundenr(k.vismaNummer,ctx.kNr));
+  const kNr=kunde?.vismaNummer||sak?.vismaKundeNummer||'';
+  const fra=kNr&&onbAktivForKunde(kNr);
+  if(fra){if(confirm(`${fra.tittel} har allerede en aktiv onboarding. Åpne den?`))apneOnboarding(fra.id);return;}
+  onbStart={kunde,sakId:sak?.id||null,valgte:{},treff:[],filer:{varer:null,regnskap:null},vareEttersendes:false};
+  document.getElementById('onbs-kunde').value=kunde?.navn||sak?.kundeNavn||'';
+  document.getElementById('onbs-kunde').disabled=!!kunde;
+  document.getElementById('onbs-kunde-info').textContent=kunde?`Visma-nr ${kunde.vismaNummer||'—'}${kunde.orgNr?' · org.nr '+kunde.orgNr:''}`:'Skriv kundenavnet og velg fra lista.';
+  fyllOnbKundeListe();
+  document.getElementById('onbs-sok').value=(kunde?.navn||sak?.kundeNavn||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
+  document.getElementById('onbs-sonr').value='';
+  document.getElementById('onbs-kontakt').value=kunde?.kontaktNavn||'';
+  document.getElementById('onbs-telefon').value=kunde?.kontaktTelefon||'';
+  document.getElementById('onbs-dato').value='';
+  document.getElementById('onbs-notat').value='';
+  document.getElementById('onbs-ettersendes').checked=false;
+  document.getElementById('onbs-ta-selv').checked=false;
+  document.getElementById('onbs-ta-selv-wrap').style.display=onbTilgang?'':'none';
+  document.getElementById('onbs-feil').style.display='none';
+  ['varer','regnskap'].forEach(t=>{const i=document.getElementById('onbs-fil-'+t);if(i)i.value='';});
+  renderOnbStartFiler();renderOnbStartTreff();
+  document.getElementById('onb-start-modal').classList.add('open');
+  if(document.getElementById('onbs-sok').value)onbSokSalgsordre();
+}
+function lukkOnbStart(){document.getElementById('onb-start-modal').classList.remove('open');onbStart=null;}
+function fyllOnbKundeListe(){
+  const dl=document.getElementById('onbs-kunde-liste');if(!dl)return;
+  dl.innerHTML=onbAlleKunder().filter(k=>k.navn).slice(0,4000).map(k=>`<option value="${onbEsc(k.navn)}">${onbEsc(k.vismaNummer||'')}</option>`).join('');
+}
+function onbStartVelgKunde(navn){
+  if(!onbStart)return;
+  const k=onbAlleKunder().find(x=>(x.navn||'').toLowerCase()===String(navn||'').trim().toLowerCase());
+  onbStart.kunde=k||null;
+  document.getElementById('onbs-kunde-info').textContent=k?`Visma-nr ${k.vismaNummer||'—'}${k.orgNr?' · org.nr '+k.orgNr:''}`:'Fant ikke kunden – velg fra lista (kunden må finnes i Visma eller som prospekt).';
+  if(k){
+    if(!document.getElementById('onbs-kontakt').value)document.getElementById('onbs-kontakt').value=k.kontaktNavn||'';
+    if(!document.getElementById('onbs-telefon').value)document.getElementById('onbs-telefon').value=k.kontaktTelefon||'';
+    document.getElementById('onbs-sok').value=(k.navn||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
+    onbSokSalgsordre();
+  }
+}
+async function onbApi(path){
+  const token=await vfGetApiToken();
+  const resp=await fetch(vfApiUrl(path),{headers:{'Authorization':`Bearer ${token}`}});
+  const data=await resp.json().catch(()=>({}));
+  if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
+  return data;
+}
+async function onbSokSalgsordre(){
+  if(!onbStart)return;
+  const q=document.getElementById('onbs-sok').value.trim();
+  const el=document.getElementById('onbs-treff');
+  if(q.length<3){el.innerHTML='<div class="muted">Skriv minst 3 tegn.</div>';return;}
+  el.innerHTML='<div class="muted">⏳ Søker i Visma (åpne og på vent)…</div>';
+  try{
+    const data=await onbApi(`/api/onboarding_sok_salgsordre?q=${encodeURIComponent(q)}`);
+    onbStart.treff=(data.treff||[]).map(onbMerkSo);
+    renderOnbStartTreff();
+  }catch(e){el.innerHTML=`<div class="onb-advarsel">Søket feilet: ${onbEsc(e.message)}. Du kan skrive inn SO-nr. under.</div>`;}
+}
+function onbMerkSo(s){return {...s,type:/ikano/i.test(s.kundeNavn||'')?'Ikano':'Kunde'};}
+async function onbHentSoManuelt(){
+  if(!onbStart)return;
+  const nr=document.getElementById('onbs-sonr').value.trim();if(!nr)return;
+  const el=document.getElementById('onbs-treff');
+  try{
+    const data=await onbApi(`/api/onboarding_salgsordre?nr=${encodeURIComponent(nr)}`);
+    const s=onbMerkSo(data.ordre);
+    onbStart.treff=[s,...onbStart.treff.filter(x=>x.nr!==s.nr)];
+    onbStart.valgte[s.nr]=s;
+    document.getElementById('onbs-sonr').value='';
+    renderOnbStartTreff();
+  }catch(e){alert(`Fant ikke SO ${nr}: ${e.message}`);}
+}
+function renderOnbStartTreff(){
+  const el=document.getElementById('onbs-treff');if(!el||!onbStart)return;
+  const t=onbStart.treff;
+  if(!t.length){el.innerHTML='<div class="muted">Ingen salgsordrer valgt ennå.</div>';return;}
+  el.innerHTML=t.map(s=>{
+    const v=!!onbStart.valgte[s.nr];
+    const annenStatus=s.status&&!/^(åpen|open|på vent|hold|n|h)$/i.test(s.status);
+    return `<label class="onb-so-treff${v?' valgt':''}"><input type="checkbox" ${v?'checked':''} onchange="onbVelgSo('${onbEsc(s.nr)}',this.checked)"/>
+      <div style="flex:1;min-width:0"><div><strong>SO ${onbEsc(s.nr)}</strong> <span class="onb-so-type ${s.type==='Ikano'?'ikano':''}">${s.type}</span> <span class="muted">${onbDato(s.dato)} · ${onbEsc(s.status||'')}</span>${annenStatus?' <span style="color:#b45309;font-size:12px">⚠️ status '+onbEsc(s.status)+'</span>':''}</div>
+      <div style="font-size:12.5px;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${onbEsc(s.kundeNavn||'')} – ${onbEsc(s.beskrivelse||'')}</div></div>
+      <div style="font-weight:600;white-space:nowrap">${s.belop!=null?fF(s.belop):''}</div></label>`;
+  }).join('');
+}
+function onbVelgSo(nr,på){
+  if(!onbStart)return;
+  const s=onbStart.treff.find(x=>x.nr===nr);
+  if(på&&s)onbStart.valgte[nr]=s;else delete onbStart.valgte[nr];
+  renderOnbStartTreff();
+}
+function onbStartFil(type,fil){
+  if(!onbStart||!fil)return;
+  if(fil.size>25*1048576){alert('Fila er for stor (maks 25 MB).');return;}
+  onbStart.filer[type]=fil;
+  if(type==='varer'){onbStart.vareEttersendes=false;document.getElementById('onbs-ettersendes').checked=false;}
+  renderOnbStartFiler();
+}
+function onbStartFjernFil(type){if(!onbStart)return;onbStart.filer[type]=null;const i=document.getElementById('onbs-fil-'+type);if(i)i.value='';renderOnbStartFiler();}
+function renderOnbStartFiler(){
+  if(!onbStart)return;
+  ['varer','regnskap'].forEach(t=>{
+    const el=document.getElementById('onbs-filstatus-'+t);if(!el)return;
+    const f=onbStart.filer[t];
+    el.innerHTML=f?`✅ <strong>${onbEsc(f.name)}</strong> <button class="onb-lenkeknapp" style="color:#d03b3b" onclick="onbStartFjernFil('${t}')">Fjern</button>`
+      :(t==='varer'&&onbStart.vareEttersendes?'<span style="color:#b91c1c">⏳ Ettersendes – klargjøringen sperres til skjemaet er lastet opp</span>':'<span class="muted">Dra fila hit eller trykk «Velg fil»</span>');
+    document.getElementById('onbs-boks-'+t).classList.toggle('ok',!!f);
+  });
+}
+async function sendTilOnboarding(){
+  if(!onbStart)return;
+  const feil=document.getElementById('onbs-feil');const visFeil=t=>{feil.textContent=t;feil.style.display='block';};
+  if(!onbStart.kunde)onbStartVelgKunde(document.getElementById('onbs-kunde').value);
+  const kunde=onbStart.kunde;
+  if(!kunde){visFeil('Velg kunden fra lista.');return;}
+  const so=Object.values(onbStart.valgte);
+  if(!so.length&&!confirm('Ingen salgsordre er valgt. Sende til onboarding uten salgsordre?'))return;
+  onbStart.vareEttersendes=document.getElementById('onbs-ettersendes').checked;
+  if(!onbStart.filer.varer&&!onbStart.vareEttersendes){visFeil('Last opp vare- og kasseskjemaet, eller kryss av for «Ettersendes».');return;}
+  const fra=onbAktivForKunde(kunde.vismaNummer);
+  if(fra){visFeil(`${kunde.navn} har allerede en aktiv onboarding.`);return;}
+  const btn=document.getElementById('onbs-send-btn');btn.disabled=true;btn.textContent='Sender…';
+  const taSelv=onbTilgang&&document.getElementById('onbs-ta-selv').checked;
+  const naa=new Date().toISOString();
+  const mal=JSON.parse(JSON.stringify(onbMalAktiv()));
+  const o={id:'tmp',spId:null,tittel:kunde.navn,vismaKundeNummer:String(kunde.vismaNummer||''),status:taSelv?'Pågår':'Ny',
+    ansvarlig:taSelv?onbMeg():'',ansvarligEpost:taSelv?onbMinEpost():'',selger:onbMeg(),selgerEpost:onbMinEpost(),soNr:'',sistAktivitet:naa,
+    data:onbNormData({opprettet:naa,opprettetAv:onbMeg(),salgssakSpId:onbStart.sakId?(kundeNotater.find(x=>x.id===onbStart.sakId)?.spId||null):null,
+      kontaktNavn:document.getElementById('onbs-kontakt').value.trim(),kontaktTelefon:document.getElementById('onbs-telefon').value.trim(),
+      onsketDato:document.getElementById('onbs-dato').value||'',notat:document.getElementById('onbs-notat').value.trim(),
+      salgsordrer:[],faser:mal.faser.map(f=>({...f,oppgaver:f.oppgaver.map(x=>({...x,ferdig:false,verdi:'',ferdigAv:'',ferdigDato:''}))})),
+      skjemaer:{varer:{status:onbStart.vareEttersendes?'ettersendes':'mangler'},regnskap:{status:'mangler'}}})};
+  try{
+    // Hent full ordre (med linjer) for hver valgt SO.
+    for(const s of so){
+      let full=s;
+      if(!Array.isArray(s.linjer)){
+        try{full=onbMerkSo((await onbApi(`/api/onboarding_salgsordre?nr=${encodeURIComponent(s.nr)}`)).ordre);}
+        catch(e){console.warn('Klarte ikke hente linjer for SO',s.nr,e);}
+      }
+      full.type=s.type||full.type;
+      o.data.salgsordrer.push(full);
+    }
+    const ikano=o.data.salgsordrer.find(s=>s.type==='Ikano');
+    const m=ikano&&/avtale\s*nr\.?\s*([\d-]{4,})/i.exec(ikano.beskrivelse||'');
+    if(m)o.data.ikanoAvtalenr=m[1];
+    onbOppdaterAdresseFraSo(o);
+    onbLogg(o,`🚀 Sendt til onboarding av ${onbMeg()}${so.length?' med '+so.map(s=>'SO '+s.nr).join(', '):''}`);
+    if(taSelv)onbLogg(o,`🙋 ${onbMeg()} tok saken`);
+    const r=await spCreate('Onboarding',onbFelter(o));
+    o.spId=r.id;o.id=`sp${r.id}`;
+    onboardinger.push(o);
+    onbKasserFraSo(o.id,true);
+    for(const t of ['varer','regnskap']){
+      if(onbStart.filer[t]){try{await onbLastOppFil(o,t,onbStart.filer[t]);}catch(e){onbLogg(o,`⚠️ Opplasting av ${t==='varer'?'vareskjema':'regnskapsskjema'} feilet: ${e.message}`);}}
+    }
+    await onbLagre(o,true);
+    // Salgssaken settes til Vunnet hvis den fortsatt er åpen.
+    const sak=onbStart.sakId&&kundeNotater.find(x=>x.id===onbStart.sakId);
+    const regnskapFil=onbStart.filer.regnskap;
+    lukkOnbStart();
+    if(sak&&sak.type==='Tilbud'&&sak.status==='Åpen')vinnTilbud(sak.id);
+    if(regnskapFil&&o.data.skjemaer.regnskap.status==='lastetOpp')await onbSendRegnskap(o.id,regnskapFil);
+    vfShowToast(`${o.tittel} er sendt til onboarding`);
+    renderVarselMeny();
+    if(k360Valgt)renderKundeKort(k360Valgt);
+    apneOnboarding(o.id);
+  }catch(e){
+    visFeil('Klarte ikke lagre onboardingen: '+e.message);
+  }finally{btn.disabled=false;btn.textContent='🚀 Send til onboarding';}
+}
+
+// «+ Legg til / oppdater» salgsordre på en eksisterende onboarding: gjenbruker
+// startskjemaets søk i et eget lite modalvindu.
+let onbSoModalId=null,onbSoModalTreff=[];
+function onbApneLeggTilSo(id){
+  const o=onbFind(id);if(!o)return;
+  onbSoModalId=id;onbSoModalTreff=[];
+  document.getElementById('onbso-sok').value=(o.tittel||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
+  document.getElementById('onbso-nr').value='';
+  document.getElementById('onbso-treff').innerHTML='';
+  document.getElementById('onb-so-modal').classList.add('open');
+  onbSoModalSok();
+}
+function lukkOnbSoModal(){document.getElementById('onb-so-modal').classList.remove('open');onbSoModalId=null;}
+async function onbSoModalSok(){
+  const q=document.getElementById('onbso-sok').value.trim();const el=document.getElementById('onbso-treff');
+  if(q.length<3){el.innerHTML='<div class="muted">Skriv minst 3 tegn.</div>';return;}
+  el.innerHTML='<div class="muted">⏳ Søker…</div>';
+  try{onbSoModalTreff=((await onbApi(`/api/onboarding_sok_salgsordre?q=${encodeURIComponent(q)}`)).treff||[]).map(onbMerkSo);onbSoModalRender();}
+  catch(e){el.innerHTML=`<div class="onb-advarsel">Søket feilet: ${onbEsc(e.message)}</div>`;}
+}
+function onbSoModalRender(){
+  const o=onbFind(onbSoModalId);const el=document.getElementById('onbso-treff');if(!o||!el)return;
+  el.innerHTML=onbSoModalTreff.length?onbSoModalTreff.map(s=>{const har=o.data.salgsordrer.some(x=>x.nr===s.nr);
+    return `<div class="onb-so-treff"><div style="flex:1;min-width:0"><strong>SO ${onbEsc(s.nr)}</strong> <span class="onb-so-type ${s.type==='Ikano'?'ikano':''}">${s.type}</span> <span class="muted">${onbDato(s.dato)} · ${onbEsc(s.status||'')}</span><div style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${onbEsc(s.kundeNavn||'')} – ${onbEsc(s.beskrivelse||'')}</div></div>
+      <button class="btn-sm" onclick="onbLeggTilSoNr('${onbEsc(s.nr)}','${s.type}')">${har?'↻ Oppdater':'+ Legg til'}</button></div>`;}).join(''):'<div class="muted">Ingen treff blant åpne/ventende ordrer.</div>';
+}
+async function onbLeggTilSoNr(nr,type){
+  const o=onbFind(onbSoModalId);if(!o)return;
+  nr=nr||document.getElementById('onbso-nr').value.trim();if(!nr)return;
+  setSPStatus('⏳ Henter SO…');
+  try{
+    const s=onbMerkSo((await onbApi(`/api/onboarding_salgsordre?nr=${encodeURIComponent(nr)}`)).ordre);
+    if(type)s.type=type;
+    const i=o.data.salgsordrer.findIndex(x=>x.nr===s.nr);
+    if(i>=0){s.type=o.data.salgsordrer[i].type;o.data.salgsordrer[i]=s;onbLogg(o,`SO ${s.nr} oppdatert fra Visma`);}
+    else{o.data.salgsordrer.push(s);onbLogg(o,`SO ${s.nr} (${s.type}) lagt til`);}
+    if(s.type==='Ikano'&&!o.data.ikanoAvtalenr){const m=/avtale\s*nr\.?\s*([\d-]{4,})/i.exec(s.beskrivelse||'');if(m)o.data.ikanoAvtalenr=m[1];}
+    onbOppdaterAdresseFraSo(o);onbKasserFraSo(o.id,true);
+    setSPStatus('');lukkOnbSoModal();onbEtterEndring(o);
+  }catch(e){setSPStatus('❌ '+e.message,false);alert(`Fant ikke SO ${nr}: ${e.message}`);}
+}
+
+// ---------- Mal og varer (redigeres av onboarding-teamet) ----------
+function apneOnbMal(){
+  if(!onbTilgang)return;
+  onbMalUtkast=JSON.parse(JSON.stringify(onbMalAktiv()));
+  renderOnbMal();
+  document.getElementById('onb-mal-modal').classList.add('open');
+}
+function lukkOnbMal(){document.getElementById('onb-mal-modal').classList.remove('open');onbMalUtkast=null;}
+function renderOnbMal(){
+  const m=onbMalUtkast;const el=document.getElementById('onbm-innhold');if(!m||!el)return;
+  const utstyrValg=v=>`<option value="">(alle kunder)</option>`+ONB_UTSTYR.map(u=>`<option value="${u.id}"${u.id===v?' selected':''}>${u.navn}</option>`).join('');
+  const typeValg=v=>ONB_OPPGAVE_TYPER.map(t=>`<option value="${t.id}"${t.id===v?' selected':''}>${t.navn}</option>`).join('');
+  el.innerHTML=`
+    <div class="muted" style="margin-bottom:10px">Endringer gjelder nye onboardinger. Pågående onboardinger har sin egen kopi av malen.</div>
+    ${m.faser.map((f,fi)=>`<div class="onbm-fase">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input value="${onbEsc(f.ikon||'')}" style="width:44px;text-align:center" onchange="onbMalUtkast.faser[${fi}].ikon=this.value"/>
+        <input value="${onbEsc(f.navn)}" style="flex:1;font-weight:700" onchange="onbMalUtkast.faser[${fi}].navn=this.value"/>
+        <button class="btn-sm" onclick="onbMalFlytt('faser',${fi},-1)" ${fi===0?'disabled':''}>↑</button>
+        <button class="btn-sm" onclick="onbMalFlytt('faser',${fi},1)" ${fi===m.faser.length-1?'disabled':''}>↓</button>
+        <button class="btn-sm" style="color:#d03b3b" onclick="if(confirm('Fjerne hele fasen «${onbEsc(f.navn).replace(/'/g,'')}»?')){onbMalUtkast.faser.splice(${fi},1);renderOnbMal();}">✕</button>
+      </div>
+      ${f.oppgaver.map((x,j)=>`<div class="onbm-oppg">
+        <input value="${onbEsc(x.tekst)}" style="flex:3;min-width:180px" onchange="onbMalUtkast.faser[${fi}].oppgaver[${j}].tekst=this.value" placeholder="Oppgave"/>
+        <select onchange="onbMalUtkast.faser[${fi}].oppgaver[${j}].type=this.value">${typeValg(x.type)}</select>
+        <select onchange="onbMalUtkast.faser[${fi}].oppgaver[${j}].utstyr=this.value" title="Vises bare når kunden har dette utstyret">${utstyrValg(x.utstyr)}</select>
+        <button class="btn-sm" onclick="onbMalFlyttOppg(${fi},${j},-1)" ${j===0?'disabled':''}>↑</button>
+        <button class="btn-sm" onclick="onbMalFlyttOppg(${fi},${j},1)" ${j===f.oppgaver.length-1?'disabled':''}>↓</button>
+        <button class="btn-sm" style="color:#d03b3b" onclick="onbMalUtkast.faser[${fi}].oppgaver.splice(${j},1);renderOnbMal()">✕</button>
+        <input value="${onbEsc(x.hjelp||'')}" style="flex-basis:100%" onchange="onbMalUtkast.faser[${fi}].oppgaver[${j}].hjelp=this.value" placeholder="Hjelpetekst / tips (valgfritt)"/>
+      </div>`).join('')}
+      <button class="btn-sm" onclick="onbMalUtkast.faser[${fi}].oppgaver.push({id:'m'+Date.now(),tekst:'',type:'sjekk',utstyr:'',hjelp:''});renderOnbMal()">+ Oppgave</button>
+    </div>`).join('')}
+    <button class="btn-sm" onclick="onbMalUtkast.faser.push({id:'f'+Date.now(),navn:'Ny fase',ikon:'•',oppgaver:[]});renderOnbMal()">+ Fase</button>
+
+    <div class="card-title" style="margin:22px 0 6px">🧾 Varenummer → utstyr</div>
+    <div class="muted" style="margin-bottom:8px">Kobler varenummer på salgsordren til utstyr. «Kasse» lager én rad i kassetabellen per stk.</div>
+    <table class="onb-linjer"><thead><tr><th>Varenr.</th><th>Utstyr</th><th>Kasse</th><th>Modellnavn</th><th></th></tr></thead><tbody>
+      ${m.varer.map((v,i)=>`<tr><td><input value="${onbEsc(v.varenr)}" style="width:80px" onchange="onbMalUtkast.varer[${i}].varenr=this.value.trim()"/></td>
+        <td><select onchange="onbMalUtkast.varer[${i}].utstyr=this.value">${ONB_UTSTYR.map(u=>`<option value="${u.id}"${u.id===v.utstyr?' selected':''}>${u.navn}</option>`).join('')}</select></td>
+        <td style="text-align:center"><input type="checkbox" ${v.kasse?'checked':''} onchange="onbMalUtkast.varer[${i}].kasse=this.checked"/></td>
+        <td><input value="${onbEsc(v.modell||'')}" onchange="onbMalUtkast.varer[${i}].modell=this.value"/></td>
+        <td><button class="btn-sm" style="color:#d03b3b" onclick="onbMalUtkast.varer.splice(${i},1);renderOnbMal()">✕</button></td></tr>`).join('')}
+    </tbody></table>
+    <button class="btn-sm" style="margin-top:6px" onclick="onbMalUtkast.varer.push({varenr:'',utstyr:'kasse',kasse:false,modell:''});renderOnbMal()">+ Vare</button>
+
+    <div class="card-title" style="margin:22px 0 6px">📄 Blanke Excel-maler</div>
+    <div class="muted" style="margin-bottom:8px">Lastes ned av selgerne fra startskjemaet. Opplasting erstatter malen.</div>
+    ${['varer','regnskap'].map(t=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="flex:1">${t==='varer'?'📦 Vare- og kasseoppsett':'📊 Regnskapsintegrasjon'}</span>
+      <button class="btn-sm" onclick="onbLastNedMal('${t}')">⬇️ Last ned</button>
+      <label class="btn-sm" style="cursor:pointer">⬆️ Last opp ny<input type="file" accept=".xlsx,.xls" style="display:none" onchange="onbLastOppMal('${t}',this.files[0])"/></label></div>`).join('')}
+    ${onbMal?'':'<div class="onb-info-boks" style="margin-top:12px">Malen er ikke lagret i SharePoint ennå – standardmalen fra Caspers dokument brukes. «Lagre» oppretter den.</div>'}`;
+}
+function onbMalFlytt(liste,i,d){const a=onbMalUtkast[liste];const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];renderOnbMal();}
+function onbMalFlyttOppg(fi,i,d){const a=onbMalUtkast.faser[fi].oppgaver;const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];renderOnbMal();}
+async function onbLastOppMal(type,fil){
+  if(!fil)return;setSPStatus('⏳ Laster opp mal…');
+  try{await spLastOppFil(ONB_MAL_FILER[type],fil);setSPStatus('✅ Mal lastet opp');setTimeout(()=>setSPStatus(''),2500);}
+  catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Opplasting feilet:\n'+e.message);}
+}
+async function lagreOnbMal(){
+  const m=onbMalUtkast;if(!m)return;
+  m.faser.forEach(f=>f.oppgaver=f.oppgaver.filter(x=>String(x.tekst||'').trim()));
+  m.varer=m.varer.filter(v=>String(v.varenr||'').trim());
+  const felter={Title:'Mal',Data:JSON.stringify(m)};
+  setSPStatus('⏳ Lagrer mal…');
+  try{
+    if(onbMalSpId)await spUpdate('OnboardingMal',onbMalSpId,felter);
+    else{const r=await spCreate('OnboardingMal',felter);onbMalSpId=r.id;}
+    onbMal=JSON.parse(JSON.stringify(m));
+    setSPStatus('✅ Mal lagret');setTimeout(()=>setSPStatus(''),2500);
+    lukkOnbMal();renderOnboarding();
+  }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Malen ble ikke lagret:\n'+e.message);}
 }
 
 // ===== INIT =====
