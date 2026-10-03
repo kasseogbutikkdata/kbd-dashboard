@@ -431,6 +431,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .onb-stepper-stor .sos-step-line-full{margin-top:18px;height:3px}
 .onb-stepper-stor .sos-step-label{font-size:13px;margin-top:6px;color:#374151}
 .onb-stepper-stor .sos-step-label span{font-size:12px}
+.lis-kode{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#f3f4f6;padding:1px 6px;border-radius:4px;white-space:nowrap}
 .onb-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin-top:16px;align-items:start}
 @media(max-width:1100px){.onb-grid{grid-template-columns:1fr}}
 .onb-oppg{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f3f4f6;font-size:13.5px;color:#111}
@@ -654,7 +655,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.181 · Oppdatert: 3. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.182 · Oppdatert: 3. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7175,8 +7176,8 @@ function renderKundeKort(k){
 
       ${aktiveKontrakter.length===0?tomLinje('Aktive avtaler (0)','ingen aktive avtaler'):`<p class="sec-title">Aktive avtaler (${aktiveKontrakter.length})</p>
       <div class="tbl-wrap" style="margin-bottom:20px">
-        <table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th></tr></thead><tbody>
-          ${aktiveKontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td><span class="k360-status" style="color:#0ca30c;font-size:12px">● ${c.status}</span></td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td></tr>`).join('')}
+        <table><thead><tr><th>Kontrakt-ID</th><th>Status</th><th>Beskrivelse</th><th>Mal</th><th title="Hentes live fra Visma, lagres ikke">🔑 Lisenskode</th><th title="Hentes live fra Visma, lagres ikke">SoftPay lisens</th></tr></thead><tbody>
+          ${aktiveKontrakter.map(c=>`<tr><td>${c.kontraktId}</td><td><span class="k360-status" style="color:#0ca30c;font-size:12px">● ${c.status}</span></td><td>${c.beskrivelse||'—'}</td><td>${c.mal||'—'}</td>${lisensCellerHtml('k360lis',c.kontraktId)}</tr>`).join('')}
         </tbody></table>
       </div>`}
 
@@ -7205,6 +7206,7 @@ function renderKundeKort(k){
     </div>
   `;
   document.getElementById('k360-kort').innerHTML=html;
+  if(typeof aktiveKontrakter!=='undefined'&&aktiveKontrakter.length)fyllLisensCeller('k360lis',aktiveKontrakter.map(c=>c.kontraktId)); // v1.48.182
 }
 
 // Forenklet kundekort for et selskap overført fra «🏢 Nyetableringer» (se
@@ -7270,6 +7272,7 @@ function renderProspektKundeKort(k){
     </div>
   `;
   document.getElementById('k360-kort').innerHTML=html;
+  if(typeof aktiveKontrakter!=='undefined'&&aktiveKontrakter.length)fyllLisensCeller('k360lis',aktiveKontrakter.map(c=>c.kontraktId)); // v1.48.182
 }
 
 // Lagrer kontaktperson/e-post/telefon for et prospekt overført fra
@@ -10645,6 +10648,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.182',dato:'03.10.2026',punkter:[
+    'Lisenskode og SoftPay-lisens fra kundekontraktene i Visma vises nå på kundekortet (under «Aktive avtaler») og i onboardingen («🔑 Lisenser»), med «Kopier»-knapp og lenke til kundens e-Susoft-adresse.',
+    'Kodene hentes live fra Visma hver gang og lagres ikke i KBD CC.'
+  ]},
   {versjon:'v1.48.181',dato:'03.10.2026',punkter:[
     'Onboarding: trykk på «Onboarding (BETA)» i menyen tar deg alltid tilbake til oversikten, også når du står inne i en sak.',
     'Tidslinjen inne i en onboarding er større: større punkter og tydeligere tekst.',
@@ -16164,6 +16171,65 @@ function startAutoRefresh(){
 }
 
 
+// ===== LISENSER FRA KUNDEKONTRAKT (v1.48.182, 03.10.2026) =====
+// Lisenskode (LISENSKODE) og SoftPay lisens (SOFTLISENS) fra «Egenskaper» på
+// kundekontraktene i Visma. Hentes LIVE via kbd-verifone-func
+// (/api/kontrakt_lisenser, se kontrakt_lisenser.py) og lagres IKKE i
+// SharePoint eller nettleserlagring — kun i minnet i denne fanen i 10 min, så
+// kundekortet ikke spør Visma på nytt ved hver omtegning. Thomas' beslutning
+// 03.10.2026: alle kan se kodene, men bare live.
+const kontraktLisensCache={};
+const LISENS_CACHE_MS=10*60*1000;
+function lisensCelleId(prefix,felt,id){return `${prefix}-${felt}-${String(id).replace(/[^A-Za-z0-9-]/g,'_')}`;}
+function lisensCellerHtml(prefix,id){
+  const c=kontraktLisensCache[id];
+  const innhold=c&&!c.laster?lisensVisning(c.data):['<span class="muted">⏳</span>','<span class="muted">⏳</span>'];
+  return `<td id="${lisensCelleId(prefix,'kode',id)}">${innhold[0]}</td><td id="${lisensCelleId(prefix,'sp',id)}">${innhold[1]}</td>`;
+}
+function lisensVisning(d){
+  if(!d)return['<span class="muted">—</span>','<span class="muted">—</span>'];
+  if(d.feil)return[`<span class="muted" title="${escHtmlEpost(d.feil)}">⚠️ ikke hentet</span>`,''];
+  return[formaterLisenskode(d.lisenskode),d.softpayLisens?`<code class="lis-kode">${escHtmlEpost(d.softpayLisens)}</code>${kopierKnappHtml(d.softpayLisens)}`:'<span class="muted">—</span>'];
+}
+function kopierKnappHtml(tekst){return ` <button class="onb-lenkeknapp" data-kopier="${escHtmlEpost(String(tekst))}" onclick="kopierTekst(this,this.dataset.kopier)">Kopier</button>`;}
+function formaterLisenskode(v){
+  v=String(v||'').trim();if(!v)return '<span class="muted">—</span>';
+  const kode=(/License\s*code:\s*(\S+)/i.exec(v)||[])[1];
+  const url=(/URL:\s*(https?:\/\/\S+)/i.exec(v)||[])[1];
+  if(!kode&&!url)return `<span style="font-size:12px">${escHtmlEpost(v)}</span>${kopierKnappHtml(v)}`;
+  return `${kode?`<code class="lis-kode">${escHtmlEpost(kode)}</code>${kopierKnappHtml(kode)}`:''}${url?`<div style="font-size:12px;margin-top:2px"><a href="${escHtmlEpost(url)}" target="_blank" rel="noopener">${escHtmlEpost(url.replace(/^https?:\/\//,''))}</a></div>`:''}`;
+}
+function kopierTekst(btn,tekst){
+  const ren=String(tekst||'');
+  (navigator.clipboard?navigator.clipboard.writeText(ren):Promise.reject()).then(()=>{btn.textContent='✓ Kopiert';setTimeout(()=>{btn.textContent='Kopier';},1500);}).catch(()=>prompt('Kopier:',ren));
+}
+async function fyllLisensCeller(prefix,ider,tving){
+  ider=[...new Set((ider||[]).map(String).filter(Boolean))];if(!ider.length)return;
+  const naa=Date.now();
+  const mangler=ider.filter(id=>tving||!kontraktLisensCache[id]||(!kontraktLisensCache[id].laster&&naa-kontraktLisensCache[id].t>LISENS_CACHE_MS));
+  const tegn=()=>ider.forEach(id=>{const c=kontraktLisensCache[id];if(!c||c.laster)return;const [a,b]=lisensVisning(c.data);
+    const e1=document.getElementById(lisensCelleId(prefix,'kode',id)),e2=document.getElementById(lisensCelleId(prefix,'sp',id));if(e1)e1.innerHTML=a;if(e2)e2.innerHTML=b;});
+  if(!mangler.length){tegn();return;}
+  mangler.forEach(id=>{kontraktLisensCache[id]={laster:true,t:naa};const e1=document.getElementById(lisensCelleId(prefix,'kode',id));if(e1)e1.innerHTML='<span class="muted">⏳ henter…</span>';});
+  try{
+    const token=await vfGetApiToken();
+    for(let i=0;i<mangler.length;i+=30){
+      const del=mangler.slice(i,i+30);
+      const resp=await fetch(vfApiUrl(`/api/kontrakt_lisenser?kontrakter=${encodeURIComponent(del.join(','))}`),{headers:{'Authorization':`Bearer ${token}`}});
+      const data=await resp.json().catch(()=>({}));
+      if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
+      (data.kontrakter||[]).forEach(k=>{kontraktLisensCache[String(k.kontraktId)]={data:k,t:Date.now()};});
+      del.forEach(id=>{if(kontraktLisensCache[id]?.laster)kontraktLisensCache[id]={data:{feil:'Ikke i svaret fra Visma'},t:Date.now()};});
+    }
+  }catch(e){
+    console.warn('Lisensoppslag feilet:',e);
+    mangler.forEach(id=>{kontraktLisensCache[id]={data:{feil:e.message},t:0};});
+  }
+  // Tegn i begge visningene (kundekort og onboarding), hvis de finnes.
+  ['k360lis','onblis'].forEach(p=>ider.forEach(id=>{const c=kontraktLisensCache[id];if(!c||c.laster)return;const [a,b]=lisensVisning(c.data);
+    const e1=document.getElementById(lisensCelleId(p,'kode',id)),e2=document.getElementById(lisensCelleId(p,'sp',id));if(e1)e1.innerHTML=a;if(e2)e2.innerHTML=b;}));
+}
+
 // ===== ONBOARDING AV NYE KUNDER (v1.48.177, 03.10.2026) =====
 // Fase 1 av kunde-onboarding, se KBD-Command-Center-prosjektstatus.md seksjon
 // 24 og prosjektdokumentet kunde-onboarding-plan.md. Grunnlag: Caspers
@@ -16551,6 +16617,7 @@ function renderOnboardingDetalj(o){
     </div>
     <div>
       ${onbSalgssakKort(o)}
+      ${onbLisensKort(o)}
       ${onbSkjemaKort(o)}
       ${onbAdresseKort(o,kan,kunde)}
       ${onbDatoKort(o,kan)}
@@ -16762,6 +16829,16 @@ function onbSalgssakKort(o){
     ${n.innhold?`<div class="onb-salgssak-innhold">${renderNotatInnholdHTML(n)}</div>`:'<div class="muted" style="margin-top:6px">Salgssaken har ikke noe notat.</div>'}
     ${logg.length?`<div style="margin-top:8px">${logg.map(l=>`<div class="onb-logg"><span class="onb-meta">${onbDato(l.dato)} · ${onbEsc(l.forfatter||'')}</span><div>${onbEsc(l.tekst||'')}</div></div>`).join('')}</div>${n.logg.length>3?`<div class="muted">+ ${n.logg.length-3} eldre loggposter i salgssaken</div>`:''}`:''}
     ${kanKoble?`<button class="onb-lenkeknapp" style="margin-top:6px" onclick="onbKobleSalgssak('${o.id}','')">Fjern koblingen</button>`:''}
+  </div>`;
+}
+// v1.48.182: lisenser fra kundens aktive kontrakter (live fra Visma).
+function onbLisensKort(o){
+  const kontr=vismaKontrakter.filter(c=>samKundenr(c.vismaKundeNummer,o.vismaKundeNummer)&&['active','aktiv'].includes((c.status||'').toLowerCase()));
+  setTimeout(()=>{if(kontr.length)fyllLisensCeller('onblis',kontr.map(c=>c.kontraktId));},0);
+  return `<div class="card card-public" style="margin-bottom:16px"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center">🔑 Lisenser (Visma)${kontr.length?`<button class="btn-sm" onclick="fyllLisensCeller('onblis',[${kontr.map(c=>`'${onbEsc(c.kontraktId)}'`).join(',')}],true)">↻ Hent på nytt</button>`:''}</div>
+    ${kontr.length?`<div class="tbl-wrap"><table class="onb-linjer"><thead><tr><th>Kontrakt</th><th>Lisenskode</th><th>SoftPay lisens</th></tr></thead><tbody>${kontr.map(c=>`<tr><td><strong>${onbEsc(c.kontraktId)}</strong><div class="muted">${onbEsc(c.beskrivelse||'')}</div></td>${lisensCellerHtml('onblis',c.kontraktId)}</tr>`).join('')}</tbody></table></div>
+      <div class="muted" style="margin-top:6px">Hentes live fra «Egenskaper» på kontrakten i Visma og lagres ikke i KBD CC.</div>`
+      :'<div class="muted">Kunden har ingen aktive kontrakter i Visma ennå (synkes hver natt). Lisenskoden legges inn under «Egenskaper» på kundekontrakten.</div>'}
   </div>`;
 }
 function onbKobleSalgssak(id,sakId){
