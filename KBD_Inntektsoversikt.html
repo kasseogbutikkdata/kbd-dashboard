@@ -461,6 +461,11 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 #onbm-innhold table input,#onbm-innhold table select{width:auto!important}
 .onbm-fase input,.onbm-fase select,#onbm-innhold table input,#onbm-innhold table select{padding:4px 6px;border:1px solid #d0d5dd;border-radius:5px;font-size:12.5px}
 #onb-start-modal input:not([type=checkbox]):not([type=file]),#onb-so-modal input,#tp-onboarding .card input[type=text]{padding:7px 10px;border:1px solid #d0d5dd;border-radius:8px;font-size:13px;font-family:inherit}
+.onbs-forslag{position:absolute;left:0;right:0;top:100%;margin-top:2px;background:#fff;border:1px solid #d0d5dd;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.12);z-index:20;max-height:300px;overflow:auto}
+.onbs-forslag-rad{padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:13px}
+.onbs-forslag-rad:last-child{border-bottom:none}
+.onbs-forslag-rad.aktiv,.onbs-forslag-rad:hover{background:#f5f8ff}
+.onb-salgssak-innhold{font-size:12.5px;color:#374151;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin-top:6px;max-height:220px;overflow:auto}
 .onbs-boks{border:2px dashed #d0d5dd;border-radius:10px;padding:12px 14px;margin-bottom:10px}
 .onbs-boks.ok{border-style:solid;border-color:#86efac;background:#f0fdf4}
 .onbs-boks.drag{border-color:#2a78d6;background:#eff6ff}
@@ -644,7 +649,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.178 · Oppdatert: 3. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.179 · Oppdatert: 3. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2083,9 +2088,12 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <h3 style="margin-bottom:6px">🚀 Send til onboarding</h3>
       <div class="muted" style="margin-bottom:14px">Kunden havner i «📥 Nye» i Onboarding, og Håvard, Casper og Thomas får varsel.</div>
       <div class="fgrp" style="margin-bottom:12px"><label>Kunde</label>
-        <input id="onbs-kunde" list="onbs-kunde-liste" oninput="onbStartVelgKunde(this.value,true)" onchange="onbStartVelgKunde(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();onbStartVelgKunde(this.value);}" placeholder="Skriv kundenavn og velg fra forslagene" autocomplete="off"/>
-        <datalist id="onbs-kunde-liste"></datalist>
+        <div style="position:relative"><input id="onbs-kunde" style="width:100%" oninput="onbKundeInput(this.value)" onkeydown="onbKundeTast(event)" onfocus="if(this.value&&!onbStart?.kunde)onbKundeInput(this.value)" onblur="setTimeout(()=>{const b=document.getElementById('onbs-kunde-forslag');if(b)b.style.display='none';},180)" placeholder="Skriv kundenavn, org.nr eller kundenr." autocomplete="off"/>
+        <div id="onbs-kunde-forslag" class="onbs-forslag" style="display:none"></div></div>
         <div class="muted" id="onbs-kunde-info"></div></div>
+      <div class="fgrp" id="onbs-salgssak-wrap" style="margin-bottom:12px;display:none"><label>💼 Salgssak (Kundesaker)</label>
+        <select id="onbs-salgssak" style="padding:7px 10px;border:1px solid #d0d5dd;border-radius:8px;font-size:13px"></select>
+        <div class="muted">Kobles til onboardingen, så Casper og Håvard kan lese notatene i salgssaken. En åpen salgssak settes til Vunnet.</div></div>
 
       <div style="font-weight:700;margin:16px 0 6px">🧾 Salgsordrer</div>
       <div class="muted" style="margin-bottom:6px">Søk på kundenavnet. Søket finner kundens egne ordrer og Ikano-ordrer med navnet i beskrivelsen (kun status Åpen og På vent). Kryss av for alle som hører til.</div>
@@ -10632,6 +10640,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.179',dato:'03.10.2026',punkter:[
+    'Onboarding: lenke tilbake til salgssaken. Øverst til høyre i onboardingen vises salgssaken med selgerens notat og siste loggposter, og «Åpne salgssaken →» tar deg til saken i Kunde 360. Mangler koblingen, kan den kobles med ett klikk.',
+    'I «Send til onboarding» velges salgssaken i en egen liste (foreslått automatisk).',
+    'Kundefeltet viser forslag mens du skriver (navn, Visma-nr, org.nr, sted og antall salgssaker). Du kan også søke på org.nr eller kundenr., og bruke piltastene og Enter. Etter fire tegn vises også åpne salgsordrer som passer.'
+  ]},
   {versjon:'v1.48.178',dato:'03.10.2026',punkter:[
     'Onboarding: kundefeltet i «Send til onboarding» finner nå kunden også når du bare skriver en del av navnet (f.eks. «tukke») og trykker Enter eller går videre, så lenge bare én kunde passer. Velger du et forslag fra lista, velges kunden med en gang.'
   ]},
@@ -16522,6 +16535,7 @@ function renderOnboardingDetalj(o){
       ${onbKasseKort(o,kan)}
     </div>
     <div>
+      ${onbSalgssakKort(o)}
       ${onbSkjemaKort(o)}
       ${onbAdresseKort(o,kan,kunde)}
       ${onbDatoKort(o,kan)}
@@ -16713,6 +16727,35 @@ function onbKasserFraSo(id,stille){
   return lagtTil;
 }
 
+// v1.48.179: lenke tilbake til salgssaken, med notatet og siste loggposter,
+// så Casper/Håvard kan lese selgerens info uten å lete i Kundesaker.
+function onbSalgssakKort(o){
+  const n=o.data.salgssakSpId?kundeNotater.find(x=>String(x.spId)===String(o.data.salgssakSpId)):null;
+  const kanKoble=(onbTilgang||salgTilgang)&&o.status!=='Avbrutt';
+  if(!n){
+    const saker=onbKundeSalgssaker(o.vismaKundeNummer);
+    return `<div class="card card-public" style="margin-bottom:16px"><div class="card-title">💼 Salgssak</div>
+      <div class="muted" style="margin-bottom:6px">${o.data.salgssakSpId?'Den koblede salgssaken finnes ikke lenger.':'Ingen salgssak koblet til onboardingen.'}</div>
+      ${kanKoble&&saker.length?saker.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:13px"><span>${onbEsc(onbSakEtikett(x))}</span><button class="btn-sm" onclick="onbKobleSalgssak('${o.id}','${x.id}')">Koble</button></div>`).join(''):''}
+      ${kanKoble&&!saker.length?'<div class="muted">Kunden har ingen åpne eller vunne salgssaker.</div>':''}</div>`;
+  }
+  const logg=(Array.isArray(n.logg)?n.logg:[]).slice(-3).reverse();
+  return `<div class="card card-public" style="margin-bottom:16px">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">💼 Salgssak <button class="btn-sm" onclick="gaTilKundeFraSak('${n.id}')">Åpne salgssaken →</button></div>
+    <div style="font-weight:600;font-size:13.5px">${onbEsc(n.tittel||'(uten tittel)')}</div>
+    <div class="muted" style="margin-top:2px">${n.status==='Åpen'?onbEsc(salgFase(n)):(n.tilbudUtfall==='Vunnet'?'✅ Vunnet':onbEsc(n.status))} · Selger ${onbEsc(n.opprettetAv||'—')}${n.tilbudSum?' · '+fS(n.tilbudSum):''}${n.opprettetDato?' · opprettet '+onbDato(n.opprettetDato):''}</div>
+    ${n.innhold?`<div class="onb-salgssak-innhold">${renderNotatInnholdHTML(n)}</div>`:'<div class="muted" style="margin-top:6px">Salgssaken har ikke noe notat.</div>'}
+    ${logg.length?`<div style="margin-top:8px">${logg.map(l=>`<div class="onb-logg"><span class="onb-meta">${onbDato(l.dato)} · ${onbEsc(l.forfatter||'')}</span><div>${onbEsc(l.tekst||'')}</div></div>`).join('')}</div>${n.logg.length>3?`<div class="muted">+ ${n.logg.length-3} eldre loggposter i salgssaken</div>`:''}`:''}
+    ${kanKoble?`<button class="onb-lenkeknapp" style="margin-top:6px" onclick="onbKobleSalgssak('${o.id}','')">Fjern koblingen</button>`:''}
+  </div>`;
+}
+function onbKobleSalgssak(id,sakId){
+  const o=onbFind(id);if(!o)return;
+  const n=sakId?kundeNotater.find(x=>x.id===sakId):null;
+  o.data.salgssakSpId=n?.spId||null;
+  onbLogg(o,n?`💼 Koblet til salgssaken «${n.tittel||''}»`:'Kobling til salgssak fjernet');
+  onbEtterEndring(o);
+}
 function onbSkjemaKort(o){
   const sk=o.data.skjemaer;
   const kanLaste=(onbTilgang||salgTilgang)&&o.status!=='Avbrutt';
@@ -16965,9 +17008,10 @@ function apneOnbStart(ctx={}){
   if(fra){if(confirm(`${fra.tittel} har allerede en aktiv onboarding. Åpne den?`))apneOnboarding(fra.id);return;}
   onbStart={kunde,sakId:sak?.id||null,valgte:{},treff:[],filer:{varer:null,regnskap:null},vareEttersendes:false};
   document.getElementById('onbs-kunde').value=kunde?.navn||sak?.kundeNavn||'';
-  document.getElementById('onbs-kunde').disabled=!!kunde;
-  document.getElementById('onbs-kunde-info').textContent=kunde?`Visma-nr ${kunde.vismaNummer||'—'}${kunde.orgNr?' · org.nr '+kunde.orgNr:''}`:'Skriv kundenavnet og velg fra lista.';
-  fyllOnbKundeListe();
+  document.getElementById('onbs-kunde').disabled=false;
+  document.getElementById('onbs-kunde-info').textContent=kunde?onbKundeInfoTekst(kunde):'Skriv kundenavn, org.nr eller kundenr. – forslagene vises mens du skriver.';
+  document.getElementById('onbs-kunde-forslag').style.display='none';
+  renderOnbStartSalgssak();
   document.getElementById('onbs-sok').value=(kunde?.navn||sak?.kundeNavn||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
   document.getElementById('onbs-sonr').value='';
   document.getElementById('onbs-kontakt').value=kunde?.kontaktNavn||'';
@@ -16984,38 +17028,86 @@ function apneOnbStart(ctx={}){
   if(document.getElementById('onbs-sok').value)onbSokSalgsordre();
 }
 function lukkOnbStart(){document.getElementById('onb-start-modal').classList.remove('open');onbStart=null;}
-function fyllOnbKundeListe(){
-  const dl=document.getElementById('onbs-kunde-liste');if(!dl)return;
-  dl.innerHTML=onbAlleKunder().filter(k=>k.navn).slice(0,4000).map(k=>`<option value="${onbEsc(k.navn)}">${onbEsc(k.vismaNummer||'')}</option>`).join('');
+// v1.48.179: forhåndsvisning av kunder (egen forslagsliste i stedet for
+// datalist) og salgsordrer mens kundenavnet skrives.
+let onbKundeForslag=[],onbKundeForslagIdx=0,onbSokTimer=null;
+function onbKundeInfoTekst(k){return `✓ Visma-nr ${k.vismaNummer||'—'}${k.orgNr?' · org.nr '+k.orgNr:''}${k.sted?' · '+k.sted:''}`;}
+function onbFinnKunder(q){
+  q=String(q||'').trim().toLowerCase();if(q.length<2)return[];
+  const qn=q.replace(/\s/g,'');
+  return onbAlleKunder().filter(k=>k.navn&&(k.navn.toLowerCase().includes(q)||(qn.length>=3&&/^\d+$/.test(qn)&&((k.orgNr||'').replace(/\s/g,'').startsWith(qn)||String(k.vismaNummer||'')===qn))))
+    .sort((a,b)=>(a.navn.toLowerCase().startsWith(q)?0:1)-(b.navn.toLowerCase().startsWith(q)?0:1)||a.navn.localeCompare(b.navn,'nb')).slice(0,8);
 }
-// v1.48.178: godtar også delnavn. Ved inntasting (fraInput) velges kunden bare
-// ved eksakt treff (f.eks. når et forslag velges i lista); ved «ferdig»
-// (change/Enter/Send) velges kunden også når delnavnet gir nøyaktig ett treff.
-function onbStartVelgKunde(navn,fraInput){
+function onbKundeInput(v){
+  if(!onbStart)return;
+  const q=String(v||'').trim();
+  if(onbStart.kunde&&onbStart.kunde.navn!==q){onbStart.kunde=null;renderOnbStartSalgssak();}
+  onbKundeForslag=onbFinnKunder(q);onbKundeForslagIdx=0;
+  renderOnbKundeForslag();
+  const info=document.getElementById('onbs-kunde-info');
+  if(!onbStart.kunde)info.textContent=q.length<2?'Skriv kundenavn, org.nr eller kundenr. – forslagene vises mens du skriver.':(onbKundeForslag.length?`${onbKundeForslag.length===8?'8+':onbKundeForslag.length} kunde${onbKundeForslag.length>1?'r':''} passer – velg i lista.`:'Ingen kunder passer (kunden må finnes i Visma eller som prospekt).');
+  clearTimeout(onbSokTimer);
+  if(q.length>=4&&!onbStart.kunde){
+    onbSokTimer=setTimeout(()=>{if(!onbStart||onbStart.kunde)return;document.getElementById('onbs-sok').value=q;onbSokSalgsordre(true);},700);
+  }
+}
+function renderOnbKundeForslag(){
+  const box=document.getElementById('onbs-kunde-forslag');if(!box)return;
+  if(!onbKundeForslag.length){box.style.display='none';return;}
+  box.innerHTML=onbKundeForslag.map((k,i)=>{
+    const aktiv=onbAktivForKunde(k.vismaNummer);
+    const saker=onbKundeSalgssaker(k.vismaNummer).length;
+    return `<div class="onbs-forslag-rad${i===onbKundeForslagIdx?' aktiv':''}" onmousedown="event.preventDefault();onbStartSettKunde(onbKundeForslag[${i}])">
+      <div style="font-weight:600">${onbEsc(k.navn)}${aktiv?' <span style="font-size:11px;color:#1d4ed8;background:#dbeafe;padding:1px 7px;border-radius:20px">🚀 har aktiv onboarding</span>':''}</div>
+      <div class="muted">Visma-nr ${onbEsc(k.vismaNummer||'—')}${k.orgNr?' · org.nr '+onbEsc(k.orgNr):''}${k.sted?' · '+onbEsc(k.sted):''}${saker?` · 💼 ${saker} salgssak${saker>1?'er':''}`:''}</div></div>`;
+  }).join('');
+  box.style.display='';
+}
+function onbKundeTast(e){
+  const n=onbKundeForslag.length;
+  if(e.key==='ArrowDown'&&n){e.preventDefault();onbKundeForslagIdx=(onbKundeForslagIdx+1)%n;renderOnbKundeForslag();}
+  else if(e.key==='ArrowUp'&&n){e.preventDefault();onbKundeForslagIdx=(onbKundeForslagIdx-1+n)%n;renderOnbKundeForslag();}
+  else if(e.key==='Enter'){e.preventDefault();if(n)onbStartSettKunde(onbKundeForslag[onbKundeForslagIdx]);}
+  else if(e.key==='Escape'){document.getElementById('onbs-kunde-forslag').style.display='none';}
+}
+function onbStartSettKunde(k){
+  if(!onbStart||!k)return;
+  const fra=onbAktivForKunde(k.vismaNummer);
+  if(fra){if(confirm(`${fra.tittel} har allerede en aktiv onboarding. Åpne den?`)){lukkOnbStart();apneOnboarding(fra.id);}return;}
+  clearTimeout(onbSokTimer);
+  onbStart.kunde=k;onbKundeForslag=[];
+  document.getElementById('onbs-kunde').value=k.navn;
+  document.getElementById('onbs-kunde-forslag').style.display='none';
+  document.getElementById('onbs-kunde-info').textContent=onbKundeInfoTekst(k);
+  if(!document.getElementById('onbs-kontakt').value)document.getElementById('onbs-kontakt').value=k.kontaktNavn||'';
+  if(!document.getElementById('onbs-telefon').value)document.getElementById('onbs-telefon').value=k.kontaktTelefon||'';
+  document.getElementById('onbs-sok').value=(k.navn||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
+  renderOnbStartSalgssak();
+  onbSokSalgsordre();
+}
+// Brukes ved «Send» hvis kunden ikke er valgt: eksakt navn, eller ett treff.
+function onbStartVelgKunde(navn){
   if(!onbStart)return;
   const q=String(navn||'').trim().toLowerCase();
-  const alle=onbAlleKunder().filter(x=>x.navn);
-  let k=alle.find(x=>x.navn.toLowerCase()===q)||null;
-  let antall=k?1:0;
-  if(!k&&q.length>=3){
-    const del=alle.filter(x=>x.navn.toLowerCase().includes(q));
-    antall=del.length;
-    if(del.length===1&&!fraInput){k=del[0];document.getElementById('onbs-kunde').value=k.navn;}
-  }
-  if(fraInput&&!k&&onbStart.kunde&&onbStart.kunde.navn.toLowerCase()!==q)onbStart.kunde=null;
-  if(fraInput&&!k){
-    document.getElementById('onbs-kunde-info').textContent=q.length<3?'Skriv minst 3 tegn og velg kunden fra forslagene.':(antall?`${antall} treff – velg kunden fra forslagene${antall===1?' eller trykk Enter':''}.`:'Ingen kunder med dette navnet (kunden må finnes i Visma eller som prospekt).');
-    return;
-  }
-  if(onbStart.kunde&&k&&onbStart.kunde===k&&fraInput)return;
-  onbStart.kunde=k||null;
-  document.getElementById('onbs-kunde-info').textContent=k?`✓ Visma-nr ${k.vismaNummer||'—'}${k.orgNr?' · org.nr '+k.orgNr:''}`:(antall>1?`${antall} kunder passer – velg riktig fra forslagene.`:'Fant ikke kunden – velg fra forslagene (kunden må finnes i Visma eller som prospekt).');
-  if(k){
-    if(!document.getElementById('onbs-kontakt').value)document.getElementById('onbs-kontakt').value=k.kontaktNavn||'';
-    if(!document.getElementById('onbs-telefon').value)document.getElementById('onbs-telefon').value=k.kontaktTelefon||'';
-    document.getElementById('onbs-sok').value=(k.navn||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
-    onbSokSalgsordre();
-  }
+  const treff=onbFinnKunder(q);
+  const k=onbAlleKunder().find(x=>(x.navn||'').toLowerCase()===q)||(treff.length===1?treff[0]:null);
+  if(k)onbStartSettKunde(k);
+}
+// Salgssaker (Tilbud) for kunden: åpne og vunne, nyeste først.
+function onbKundeSalgssaker(kNr){
+  if(!kNr)return[];
+  return kundeNotater.filter(n=>n.type==='Tilbud'&&samKundenr(n.vismaKundeNummer,kNr)&&(n.status==='Åpen'||n.tilbudUtfall==='Vunnet'))
+    .sort((a,b)=>new Date(b.opprettetDato||0)-new Date(a.opprettetDato||0));
+}
+function onbSakEtikett(n){return `${n.status==='Åpen'?salgFase(n):'✅ Vunnet'} · ${n.tittel||'(uten tittel)'} · ${n.opprettetAv||'—'}${n.tilbudSum?' · '+fS(n.tilbudSum):''}`;}
+function renderOnbStartSalgssak(){
+  const wrap=document.getElementById('onbs-salgssak-wrap'),sel=document.getElementById('onbs-salgssak');if(!wrap||!sel||!onbStart)return;
+  const k=onbStart.kunde;
+  if(!k){wrap.style.display='none';sel.innerHTML='';return;}
+  const saker=onbKundeSalgssaker(k.vismaNummer);
+  const valgt=onbStart.sakId&&saker.some(n=>n.id===onbStart.sakId)?onbStart.sakId:(saker[0]?.id||'');
+  sel.innerHTML=`<option value="">Ingen salgssak</option>`+saker.map(n=>`<option value="${n.id}"${n.id===valgt?' selected':''}>${onbEsc(onbSakEtikett(n))}</option>`).join('');
+  wrap.style.display='';
 }
 async function onbApi(path){
   const token=await vfGetApiToken();
@@ -17024,10 +17116,11 @@ async function onbApi(path){
   if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
   return data;
 }
-async function onbSokSalgsordre(){
+async function onbSokSalgsordre(forhand){
   if(!onbStart)return;
   const q=document.getElementById('onbs-sok').value.trim();
   const el=document.getElementById('onbs-treff');
+  onbStart.forhand=!!forhand;
   if(q.length<3){el.innerHTML='<div class="muted">Skriv minst 3 tegn.</div>';return;}
   el.innerHTML='<div class="muted">⏳ Søker i Visma (åpne og på vent)…</div>';
   try{
@@ -17053,8 +17146,8 @@ async function onbHentSoManuelt(){
 function renderOnbStartTreff(){
   const el=document.getElementById('onbs-treff');if(!el||!onbStart)return;
   const t=onbStart.treff;
-  if(!t.length){el.innerHTML='<div class="muted">Ingen salgsordrer valgt ennå.</div>';return;}
-  el.innerHTML=t.map(s=>{
+  if(!t.length){el.innerHTML=`<div class="muted">${document.getElementById('onbs-sok')?.value.trim().length>=3?'Ingen åpne/ventende salgsordrer passer søket.':'Ingen salgsordrer valgt ennå.'}</div>`;return;}
+  el.innerHTML=(onbStart.forhand&&!onbStart.kunde?'<div class="muted" style="margin-bottom:4px">Forhåndsvisning – velg kunden over for å koble ordrene.</div>':'')+t.map(s=>{
     const v=!!onbStart.valgte[s.nr];
     const annenStatus=s.status&&!/^(åpen|open|på vent|hold|n|h)$/i.test(s.status);
     return `<label class="onb-so-treff${v?' valgt':''}"><input type="checkbox" ${v?'checked':''} onchange="onbVelgSo('${onbEsc(s.nr)}',this.checked)"/>
@@ -17089,6 +17182,7 @@ function renderOnbStartFiler(){
 }
 async function sendTilOnboarding(){
   if(!onbStart)return;
+  onbStart.sakId=document.getElementById('onbs-salgssak')?.value||null; // v1.48.179
   const feil=document.getElementById('onbs-feil');const visFeil=t=>{feil.textContent=t;feil.style.display='block';};
   if(!onbStart.kunde)onbStartVelgKunde(document.getElementById('onbs-kunde').value);
   const kunde=onbStart.kunde;
