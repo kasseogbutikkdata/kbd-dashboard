@@ -426,6 +426,11 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .sos-step-line-full{flex:1 1 auto;height:2px;background:#e5e7eb;margin-top:13px;min-width:8px}
 .sos-step-line-full.done{background:#1baf7a}
 /* Onboarding (v1.48.177) — gjenbruker .sos-stepper-full/.sos-sak-card fra SOS. */
+.onb-stepper-stor{margin:18px 0 6px}
+.onb-stepper-stor .sos-step-circle{width:36px;height:36px;font-size:16px}
+.onb-stepper-stor .sos-step-line-full{margin-top:18px;height:3px}
+.onb-stepper-stor .sos-step-label{font-size:13px;margin-top:6px;color:#374151}
+.onb-stepper-stor .sos-step-label span{font-size:12px}
 .onb-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin-top:16px;align-items:start}
 @media(max-width:1100px){.onb-grid{grid-template-columns:1fr}}
 .onb-oppg{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f3f4f6;font-size:13.5px;color:#111}
@@ -649,7 +654,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.180 · Oppdatert: 3. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.181 · Oppdatert: 3. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -747,7 +752,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            uten å tynge ned Kunde 360-undermenyen. -->
       <!-- Onboarding av nye kunder (v1.48.177, 03.10.2026). Ikke i MODULER —
            synlig for alle; skriving styres av tilgang.onboarding / salgTilgang. -->
-      <div class="nav-item" id="tab-onboarding" onclick="showTab('onboarding',this)">
+      <div class="nav-item" id="tab-onboarding" onclick="onbValgtId=null;onbValgtFase=null;showTab('onboarding',this)">
         <span class="nav-item-icon">🚀</span>Onboarding (BETA)<span id="onb-nav-badge" style="display:none;margin-left:auto;font-size:11px;font-weight:700;background:#f59e0b;color:#fff;border-radius:20px;padding:1px 7px"></span>
       </div>
       <div class="nav-item" id="tab-smsutsendelse" onclick="showTab('smsutsendelse',this);toggleSmsUtsendelseSub(true)">
@@ -10640,6 +10645,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.181',dato:'03.10.2026',punkter:[
+    'Onboarding: trykk på «Onboarding (BETA)» i menyen tar deg alltid tilbake til oversikten, også når du står inne i en sak.',
+    'Tidslinjen inne i en onboarding er større: større punkter og tydeligere tekst.',
+    'Under «⚙️ Mal og varer» kan et varenummer kobles til «Ingen egne oppgaver», for varer som ikke trenger egne oppgaver (f.eks. etablering og klargjøring). Slike varer vises som «info» i stedet for «vurder».'
+  ]},
   {versjon:'v1.48.180',dato:'03.10.2026',punkter:[
     'Menypunktet heter nå «Onboarding (BETA)», siden modulen fortsatt testes.'
   ]},
@@ -16188,7 +16198,7 @@ const ONB_UTSTYR=[
   {id:'kasseskuff',navn:'Kasseskuff'},{id:'terminal',navn:'Betalingsterminal'},{id:'softpay',navn:'SoftPay'},
   {id:'zebra',navn:'Zebra etikettskriver'},{id:'skanner',navn:'Skanner'},{id:'vekt',navn:'Vekt'},
   {id:'rfid',navn:'RFID'},{id:'lokalserver',navn:'Lokalserver'},{id:'regnskap',navn:'Regnskapsintegrasjon'},
-  {id:'fakturering',navn:'Fakturering'},{id:'ikano',navn:'Ikano-finansiering'}
+  {id:'fakturering',navn:'Fakturering'},{id:'ikano',navn:'Ikano-finansiering'},{id:'info',navn:'Ingen egne oppgaver'}
 ];
 const ONB_OPPGAVE_TYPER=[{id:'sjekk',navn:'Avkrysning'},{id:'janei',navn:'Ja/Nei'},{id:'verdi',navn:'Verdi/tekst'},{id:'info',navn:'Info/tips'}];
 
@@ -16254,7 +16264,9 @@ function onbStandardMal(){
     ]}
   ],varer:[
     {varenr:'6841',utstyr:'kasse',kasse:true,modell:'C9D 15,6"'},
+    {varenr:'6817',utstyr:'kasse',kasse:true,modell:'Android POS 11"'},
     {varenr:'6815',utstyr:'mpos',kasse:true,modell:'Telpo M1'},
+    {varenr:'6764',utstyr:'info',kasse:false,modell:''},{varenr:'6766',utstyr:'info',kasse:false,modell:''},{varenr:'6767',utstyr:'info',kasse:false,modell:''},{varenr:'8316',utstyr:'info',kasse:false,modell:''},
     {varenr:'2411',utstyr:'bongskriver',kasse:false,modell:''},
     {varenr:'1183',utstyr:'kasseskuff',kasse:false,modell:''},
     {varenr:'9921',utstyr:'terminal',kasse:false,modell:''},
@@ -16456,7 +16468,7 @@ function onbStepperHtml(o,klikkbar){
   const sett=onbUtstyrSett(o);
   const aktiv=onbAktivFaseIndeks(o);
   const valgt=klikkbar?(onbValgtFase??Math.min(aktiv,o.data.faser.length-1)):-1;
-  return '<div class="sos-stepper-full">'+o.data.faser.map((f,i)=>{
+  return `<div class="sos-stepper-full${klikkbar?' onb-stepper-stor':''}">`+o.data.faser.map((f,i)=>{
     const st=onbFaseStatus(o,f,sett);
     const ferdig=st.ferdig;
     const kl=ferdig?'done':(i===aktiv?'next':'');
@@ -16676,7 +16688,7 @@ function onbSalgsordreKort(o,kan){
       </div>
       ${s.beskrivelse?`<div class="muted" style="margin:2px 0 6px">${onbEsc(s.beskrivelse)}</div>`:''}
       ${(s.linjer||[]).length?`<table class="onb-linjer"><tbody>${s.linjer.map(l=>{const v=(onbMalAktiv().varer||[]).find(x=>String(x.varenr).trim()===String(l.varenr||'').trim());
-        return `<tr><td style="width:70px;color:#6b7280">${onbEsc(l.varenr||'')}</td><td>${onbEsc(l.beskrivelse||'')}</td><td style="text-align:right;white-space:nowrap">${l.antall!=null?onbEsc(String(l.antall).replace('.',',')):''} ${onbEsc(l.enhet||'')}</td><td style="white-space:nowrap">${v?`<span class="onb-utstyr">${onbEsc((ONB_UTSTYR.find(u=>u.id===v.utstyr)||{}).navn||v.utstyr)}</span>`:(l.varenr?'<span class="onb-utstyr" style="background:#fef3c7;color:#92400e">vurder</span>':'')}</td></tr>`;}).join('')}</tbody></table>`:'<div class="muted">Ingen linjer hentet.</div>'}
+        return `<tr><td style="width:70px;color:#6b7280">${onbEsc(l.varenr||'')}</td><td>${onbEsc(l.beskrivelse||'')}</td><td style="text-align:right;white-space:nowrap">${l.antall!=null?onbEsc(String(l.antall).replace('.',',')):''} ${onbEsc(l.enhet||'')}</td><td style="white-space:nowrap">${v&&v.utstyr==='info'?'<span class="onb-utstyr" style="background:#f3f4f6;color:#6b7280">info</span>':v?`<span class="onb-utstyr">${onbEsc((ONB_UTSTYR.find(u=>u.id===v.utstyr)||{}).navn||v.utstyr)}</span>`:(l.varenr?'<span class="onb-utstyr" style="background:#fef3c7;color:#92400e">vurder</span>':'')}</td></tr>`;}).join('')}</tbody></table>`:'<div class="muted">Ingen linjer hentet.</div>'}
       ${kan&&o.status!=='Ferdig'?`<button class="onb-lenkeknapp" style="color:#d03b3b" onclick="onbFjernSo('${o.id}',${i})">Fjern fra onboardingen</button> <button class="onb-lenkeknapp" onclick="onbByttSoType('${o.id}',${i})">Merk som ${s.type==='Ikano'?'Kunde':'Ikano'}</button>`:''}
     </div>`).join(''):'<div class="muted">Ingen salgsordrer koblet til ennå.</div>'}
     ${umappede.length?`<div class="onb-advarsel" style="margin-top:8px">⚠️ ${umappede.length} varelinje${umappede.length>1?'r':''} uten kobling i «⚙️ Mal og varer» (varenr. ${[...new Set(umappede.map(l=>l.varenr))].join(', ')}). Vurder om de trenger egne oppgaver.</div>`:''}
@@ -16830,7 +16842,7 @@ function onbUtstyrKort(o,kan,sett){
   o.data.salgsordrer.forEach(s=>{if(s.type==='Ikano')fraSo.add('ikano');(s.linjer||[]).forEach(l=>{const v=varer.find(x=>String(x.varenr).trim()===String(l.varenr||'').trim());if(v&&v.utstyr)fraSo.add(v.utstyr);});});
   return `<div class="card card-public" style="margin-top:16px"><div class="card-title">🧰 Utstyr</div>
     <div class="muted" style="margin-bottom:8px">Styrer hvilke oppgaver som vises. Utstyr fra salgsordrene er låst; resten kan krysses av for hånd.</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px">${ONB_UTSTYR.map(u=>{const p=sett.has(u.id),laast=fraSo.has(u.id);
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${ONB_UTSTYR.filter(u=>u.id!=='info').map(u=>{const p=sett.has(u.id),laast=fraSo.has(u.id);
       return `<label class="onb-chip${p?' på':''}" title="${laast?'Fra salgsordre':''}"><input type="checkbox" ${p?'checked':''} ${!red||laast?'disabled':''} onchange="onbSettUtstyr('${o.id}','${u.id}',this.checked)" style="display:none"/>${laast?'🧾 ':''}${u.navn}</label>`;}).join('')}</div></div>`;
 }
 function onbSettUtstyr(id,u,på){
@@ -17299,7 +17311,7 @@ function apneOnbMal(){
 function lukkOnbMal(){document.getElementById('onb-mal-modal').classList.remove('open');onbMalUtkast=null;}
 function renderOnbMal(){
   const m=onbMalUtkast;const el=document.getElementById('onbm-innhold');if(!m||!el)return;
-  const utstyrValg=v=>`<option value="">(alle kunder)</option>`+ONB_UTSTYR.map(u=>`<option value="${u.id}"${u.id===v?' selected':''}>${u.navn}</option>`).join('');
+  const utstyrValg=v=>`<option value="">(alle kunder)</option>`+ONB_UTSTYR.filter(u=>u.id!=='info').map(u=>`<option value="${u.id}"${u.id===v?' selected':''}>${u.navn}</option>`).join('');
   const typeValg=v=>ONB_OPPGAVE_TYPER.map(t=>`<option value="${t.id}"${t.id===v?' selected':''}>${t.navn}</option>`).join('');
   el.innerHTML=`
     <div class="muted" style="margin-bottom:10px">Endringer gjelder nye onboardinger. Pågående onboardinger har sin egen kopi av malen.</div>
