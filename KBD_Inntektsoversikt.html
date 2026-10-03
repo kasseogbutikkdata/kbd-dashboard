@@ -644,7 +644,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.177 · Oppdatert: 3. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.178 · Oppdatert: 3. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2083,7 +2083,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <h3 style="margin-bottom:6px">🚀 Send til onboarding</h3>
       <div class="muted" style="margin-bottom:14px">Kunden havner i «📥 Nye» i Onboarding, og Håvard, Casper og Thomas får varsel.</div>
       <div class="fgrp" style="margin-bottom:12px"><label>Kunde</label>
-        <input id="onbs-kunde" list="onbs-kunde-liste" onchange="onbStartVelgKunde(this.value)" placeholder="Kundenavn"/>
+        <input id="onbs-kunde" list="onbs-kunde-liste" oninput="onbStartVelgKunde(this.value,true)" onchange="onbStartVelgKunde(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();onbStartVelgKunde(this.value);}" placeholder="Skriv kundenavn og velg fra forslagene" autocomplete="off"/>
         <datalist id="onbs-kunde-liste"></datalist>
         <div class="muted" id="onbs-kunde-info"></div></div>
 
@@ -2113,7 +2113,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <div class="fgrp"><label>Ønsket levering/installasjon</label><input type="date" id="onbs-dato"/></div>
       </div>
       <div class="fgrp" style="margin-top:10px"><label>Notat til teknikerne</label><textarea id="onbs-notat" rows="3" style="width:100%;padding:8px;border:1px solid #d0d5dd;border-radius:8px;font-family:inherit;font-size:13px"></textarea></div>
-      <label id="onbs-ta-selv-wrap" style="display:flex;gap:6px;align-items:center;font-size:13px;margin-top:10px;cursor:pointer"><input type="checkbox" id="onbs-ta-selv"/>Jeg tar saken selv (blir ansvarlig med en gang)</label>
+      <label id="onbs-ta-selv-wrap" style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:10px;cursor:pointer"><input type="checkbox" id="onbs-ta-selv" style="width:16px;height:16px;flex:0 0 auto;margin:0"/>Jeg tar saken selv (blir ansvarlig med en gang)</label>
       <div id="onbs-feil" class="onb-advarsel" style="display:none"></div>
       <div class="modal-footer">
         <button class="btn-sm" onclick="lukkOnbStart()">Avbryt</button>
@@ -10632,6 +10632,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.178',dato:'03.10.2026',punkter:[
+    'Onboarding: kundefeltet i «Send til onboarding» finner nå kunden også når du bare skriver en del av navnet (f.eks. «tukke») og trykker Enter eller går videre, så lenge bare én kunde passer. Velger du et forslag fra lista, velges kunden med en gang.'
+  ]},
   {versjon:'v1.48.177',dato:'03.10.2026',punkter:[
     'Ny meny «🚀 Onboarding»: nye kunder følges fra klargjøring til etablert kunde på en tidslinje (grønn strek med punkter), med oppgaver under hvert punkt, basert på Caspers onboarding-dokument.',
     'Selgeren sender kunden til onboarding med «🚀 Til onboarding» på salgssaken eller «🚀 Send til onboarding» på kundekortet. Startskjemaet søker opp salgsordrene i Visma på kundenavn (også Ikano-ordrer), og har egne felt for vare- og kasseskjemaet og regnskapsskjemaet.',
@@ -16985,11 +16988,28 @@ function fyllOnbKundeListe(){
   const dl=document.getElementById('onbs-kunde-liste');if(!dl)return;
   dl.innerHTML=onbAlleKunder().filter(k=>k.navn).slice(0,4000).map(k=>`<option value="${onbEsc(k.navn)}">${onbEsc(k.vismaNummer||'')}</option>`).join('');
 }
-function onbStartVelgKunde(navn){
+// v1.48.178: godtar også delnavn. Ved inntasting (fraInput) velges kunden bare
+// ved eksakt treff (f.eks. når et forslag velges i lista); ved «ferdig»
+// (change/Enter/Send) velges kunden også når delnavnet gir nøyaktig ett treff.
+function onbStartVelgKunde(navn,fraInput){
   if(!onbStart)return;
-  const k=onbAlleKunder().find(x=>(x.navn||'').toLowerCase()===String(navn||'').trim().toLowerCase());
+  const q=String(navn||'').trim().toLowerCase();
+  const alle=onbAlleKunder().filter(x=>x.navn);
+  let k=alle.find(x=>x.navn.toLowerCase()===q)||null;
+  let antall=k?1:0;
+  if(!k&&q.length>=3){
+    const del=alle.filter(x=>x.navn.toLowerCase().includes(q));
+    antall=del.length;
+    if(del.length===1&&!fraInput){k=del[0];document.getElementById('onbs-kunde').value=k.navn;}
+  }
+  if(fraInput&&!k&&onbStart.kunde&&onbStart.kunde.navn.toLowerCase()!==q)onbStart.kunde=null;
+  if(fraInput&&!k){
+    document.getElementById('onbs-kunde-info').textContent=q.length<3?'Skriv minst 3 tegn og velg kunden fra forslagene.':(antall?`${antall} treff – velg kunden fra forslagene${antall===1?' eller trykk Enter':''}.`:'Ingen kunder med dette navnet (kunden må finnes i Visma eller som prospekt).');
+    return;
+  }
+  if(onbStart.kunde&&k&&onbStart.kunde===k&&fraInput)return;
   onbStart.kunde=k||null;
-  document.getElementById('onbs-kunde-info').textContent=k?`Visma-nr ${k.vismaNummer||'—'}${k.orgNr?' · org.nr '+k.orgNr:''}`:'Fant ikke kunden – velg fra lista (kunden må finnes i Visma eller som prospekt).';
+  document.getElementById('onbs-kunde-info').textContent=k?`✓ Visma-nr ${k.vismaNummer||'—'}${k.orgNr?' · org.nr '+k.orgNr:''}`:(antall>1?`${antall} kunder passer – velg riktig fra forslagene.`:'Fant ikke kunden – velg fra forslagene (kunden må finnes i Visma eller som prospekt).');
   if(k){
     if(!document.getElementById('onbs-kontakt').value)document.getElementById('onbs-kontakt').value=k.kontaktNavn||'';
     if(!document.getElementById('onbs-telefon').value)document.getElementById('onbs-telefon').value=k.kontaktTelefon||'';
