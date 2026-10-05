@@ -263,6 +263,8 @@ button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
 .salg-kilde{margin-left:8px;font-size:11.5px;color:#4b5563}
 th.th-hjelp{cursor:help}
 th.th-hjelp::after{content:' ⓘ';font-size:10px;color:#c0c4cc;font-weight:400}
+tr.ks-underrad td{font-size:12.5px;color:#4b5563;background:#fcfcfd}
+tr.ks-underrad td:first-child{padding-left:28px}
 tr.ks-sumrad td{font-weight:700;background:#f3f4f6;border-top:2px solid #e5e7eb}
 tr.ks-sumrad-lett td{color:#6b7280;font-style:italic;background:#fafafa}
 .notat-bakgrunn{background:#f8f7fc;border-left:3px solid var(--bg-c,#6d28d9);border-radius:0 6px 6px 0;padding:8px 12px;margin:6px 0 10px}
@@ -655,7 +657,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.185 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.186 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2047,9 +2049,10 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <!-- Salgsfase + leadkilde (v1.48.156, 30.09.2026 — «salgsprosess trinn 1»). Se SALG_FASER/LEAD_KILDER. -->
         <div class="fg" style="grid-template-columns:1fr 1fr;margin-bottom:8px">
           <div class="fgrp"><label>Fase</label><select id="n-fase" onchange="faseEndretISkjema()"></select></div>
-          <div class="fgrp"><label>Leadkilde</label><select id="n-leadkilde" onchange="document.getElementById('n-leadkilde-detalj-wrap').style.display=this.value==='Annet'?'':'none'"></select></div>
+          <div class="fgrp"><label>Leadkilde</label><select id="n-leadkilde" onchange="kildeDetaljOppdater('n')"></select></div>
         </div>
         <div class="fgrp" id="n-leadkilde-detalj-wrap" style="display:none;margin-bottom:8px"><label>Hvilken kilde?</label><input type="text" id="n-leadkilde-detalj" placeholder="F.eks. messe, tips fra kunde …"/></div>
+        <div class="fgrp" id="n-leadkilde-fant-wrap" style="display:none;margin-bottom:8px"><label>📞 Hvordan fant de oss?</label><select id="n-leadkilde-fant"></select></div>
         <div class="fg" style="grid-template-columns:1fr 1fr">
           <div class="fgrp"><label>Totalsum tilbud (kr)</label><input type="number" id="n-tilbudsum" min="0" step="500" placeholder="F.eks. 50000" oninput="oppdaterTilbudVektetVisning()"/></div>
           <div class="fgrp"><label>Sannsynlighet: <span id="n-sannsynlighet-verdi">50</span> %</label><input type="range" id="n-sannsynlighet" min="0" max="100" step="5" value="50" style="width:100%;accent-color:#6d28d9;margin-top:10px" oninput="document.getElementById('n-sannsynlighet-verdi').textContent=this.value;oppdaterTilbudVektetVisning();"/></div>
@@ -2168,8 +2171,9 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <textarea id="ta-detalj" rows="2" placeholder="Beskriv kort..."></textarea>
       </div>
       <div id="ta-kilde-wrap" style="display:none;margin-bottom:10px;padding:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
-        <div class="fgrp" style="margin-bottom:6px"><label>📍 Leadkilde mangler — hvor kom leadet fra?</label><select id="ta-kilde" onchange="document.getElementById('ta-kilde-detalj-wrap').style.display=this.value==='Annet'?'':'none'"></select></div>
+        <div class="fgrp" style="margin-bottom:6px"><label>📍 Leadkilde mangler — hvor kom leadet fra?</label><select id="ta-kilde" onchange="kildeDetaljOppdater('ta')"></select></div>
         <div class="fgrp" id="ta-kilde-detalj-wrap" style="display:none"><label>Hvilken kilde?</label><input type="text" id="ta-kilde-detalj" placeholder="F.eks. messe, tips fra kunde …"/></div>
+        <div class="fgrp" id="ta-kilde-fant-wrap" style="display:none"><label>📞 Hvordan fant de oss?</label><select id="ta-kilde-fant"></select></div>
       </div>
       <div class="modal-footer">
         <button class="btn-sm" onclick="lukkTaptArsakModal()">Avbryt</button>
@@ -2186,8 +2190,9 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
     <div class="modal" style="max-width:420px">
       <h3 style="margin-bottom:6px">📍 Hvor kom leadet fra?</h3>
       <div class="muted" id="lk-info" style="margin-bottom:14px">Leadkilde må være registrert før saken kan gå videre.</div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Leadkilde</label><select id="lk-kilde" onchange="document.getElementById('lk-detalj-wrap').style.display=this.value==='Annet'?'':'none'"></select></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Leadkilde</label><select id="lk-kilde" onchange="kildeDetaljOppdater('lk')"></select></div>
       <div class="fgrp" id="lk-detalj-wrap" style="display:none;margin-bottom:10px"><label>Hvilken kilde?</label><input type="text" id="lk-detalj" placeholder="F.eks. messe, tips fra kunde …"/></div>
+      <div class="fgrp" id="lk-fant-wrap" style="display:none;margin-bottom:10px"><label>📞 Hvordan fant de oss?</label><select id="lk-fant"></select></div>
       <div class="modal-footer">
         <button class="btn-sm" onclick="lukkLeadKildeModal()">Avbryt</button>
         <button class="prim" onclick="bekreftLeadKilde()">Lagre og fortsett</button>
@@ -7671,7 +7676,13 @@ function renderTilbudspipeline(ansvarlig){
       </tbody></table></div>
       <div class="hint" style="margin-bottom:8px">📍 Pr. leadkilde — alle salgsmuligheter (tilbud), «Ukjent» = registrert før leadkilde fantes</div>
       ${kilder.length?`<div class="tbl-wrap" style="margin-bottom:16px"><table><thead><tr>${thT('Kilde','Hvor leadet kom fra. «Ukjent» = registrert før leadkilde ble obligatorisk.')}${thT('Totalt','Alle salgsmuligheter fra kilden — åpne, utsatte, vunnede og tapte.')}${thT('Åpne','Aktive åpne salgsmuligheter (utsatte er ikke med).')}${thT('Åpen sum','Hva de åpne sakene fra kilden er verdt (full sum, ikke vektet). Utsatte er ikke med.')}${thT('Vunnet','Antall vunnede salg.')}${thT('Tapt','Antall tapte salg.')}${thT('Treff','Andel av de avgjorte sakene som ble vunnet: vunnet ÷ (vunnet + tapt).')}${thT('Vunnet sum','Samlet totalsum på vunnede salg.')}${thT('Snitt dager','Gjennomsnittlig antall dager fra saken ble opprettet til den ble vunnet eller tapt.')}</tr></thead><tbody>
-        ${kilder.map(r=>`<tr><td>${escHtmlEpost(r.kilde)}</td><td>${r.antall}</td><td>${r.apne}</td><td>${fS(r.apenSum)}</td><td>${r.vunnet}</td><td>${r.tapt}</td><td>${pst(r.treff)}</td><td>${fS(r.vunnetSum)}</td><td>${r.snittDager==null?'—':Math.round(r.snittDager)+' d'}</td></tr>`).join('')}
+        ${kilder.map(r=>{
+          const celler=x=>`<td>${x.antall}</td><td>${x.apne}</td><td>${fS(x.apenSum)}</td><td>${x.vunnet}</td><td>${x.tapt}</td><td>${pst(x.treff)}</td><td>${fS(x.vunnetSum)}</td><td>${x.snittDager==null?'—':Math.round(x.snittDager)+' d'}</td>`;
+          if(!r.under)return `<tr><td>${escHtmlEpost(r.kilde)}</td>${celler(r)}</tr>`;
+          const apen=ksKildeUtvidet.has(r.kilde);
+          return `<tr class="rad-klikkbar" onclick="toggleKsKilde('${r.kilde.replace(/'/g,"\\'")}')" title="Vis fordeling på «Hvordan fant de oss?»"><td>${apen?'▾':'▸'} ${escHtmlEpost(r.kilde)}</td>${celler(r)}</tr>`
+            +(apen?r.under.map(u=>`<tr class="ks-underrad"><td>↳ ${escHtmlEpost(u.kilde)}</td>${celler(u)}</tr>`).join(''):'');
+        }).join('')}
         ${kilder.length>1?`<tr${SUMRAD} title="Treff og snitt dager er regnet på alle sakene samlet, ikke som gjennomsnitt av radene."><td>Totalt</td><td>${kSum.antall}</td><td>${kSum.apne}</td><td>${fS(kSum.apenSum)}</td><td>${kSum.vunnet}</td><td>${kSum.tapt}</td><td>${pst(kSum.treff)}</td><td>${fS(kSum.vunnetSum)}</td><td>${kSum.snittDager==null?'—':Math.round(kSum.snittDager)+' d'}</td></tr>`:''}
       </tbody></table></div>`:'<div class="empty" style="margin-bottom:16px">Ingen salgsmuligheter ennå.</div>'}`;
     })()}
@@ -9801,7 +9812,7 @@ function notatFieldsPayload(n){
     // så eldre tilbud uten fase ikke får en «oppdiktet» fase lagret.
     if(n.fase)felter.Fase=n.fase;
     if(n.leadKilde)felter.LeadKilde=n.leadKilde;
-    if(n.leadKilde)felter.LeadKildeDetalj=n.leadKilde==='Annet'?(n.leadKildeDetalj||''):'';
+    if(n.leadKilde)felter.LeadKildeDetalj=kildeHarDetalj(n.leadKilde)?(n.leadKildeDetalj||''):'';
   }
   return felter;
 }
@@ -9834,6 +9845,39 @@ const LEAD_KILDER=['www.kbd.as','Telefon','Susoft','NHO IK','KNIF','Systemkjøp'
 // Ingen datamigrering nødvendig.
 const LEAD_KILDE_ALIAS={'Hjemmeside':'www.kbd.as'};
 function normLeadKilde(k){const v=String(k||'').trim();return LEAD_KILDE_ALIAS[v]||v;}
+// v1.48.186: «Telefon» får oppfølgingsspørsmålet «Hvordan fant de oss?».
+// Svaret lagres i LeadKildeDetalj (samme kolonne som fritekst ved «Annet»),
+// så ingen ny SharePoint-kolonne. «Ikke spurt / vet ikke» gjør feltet
+// obligatorisk uten å tvinge frem et svar, og viser hvor ofte vi faktisk spør.
+const TELEFON_FANT_OSS=['Google / søk på nett','Anbefalt av noen','Kjenner KBD fra før','Facebook / sosiale medier','Så oss et sted (bil, skilt, butikk, messe)','Annet','Ikke spurt / vet ikke'];
+const KILDE_SKJEMA={
+  n:{kilde:'n-leadkilde',annetWrap:'n-leadkilde-detalj-wrap',annet:'n-leadkilde-detalj',fantWrap:'n-leadkilde-fant-wrap',fant:'n-leadkilde-fant'},
+  lk:{kilde:'lk-kilde',annetWrap:'lk-detalj-wrap',annet:'lk-detalj',fantWrap:'lk-fant-wrap',fant:'lk-fant'},
+  ta:{kilde:'ta-kilde',annetWrap:'ta-kilde-detalj-wrap',annet:'ta-kilde-detalj',fantWrap:'ta-kilde-fant-wrap',fant:'ta-kilde-fant'}
+};
+function kildeHarDetalj(kilde){return kilde==='Annet'||kilde==='Telefon';}
+function kildeDetaljOppdater(p){
+  const c=KILDE_SKJEMA[p];const g=id=>document.getElementById(id);
+  const k=g(c.kilde)?.value||'';
+  if(g(c.annetWrap))g(c.annetWrap).style.display=k==='Annet'?'':'none';
+  if(g(c.fantWrap))g(c.fantWrap).style.display=k==='Telefon'?'':'none';
+  const fs=g(c.fant);
+  if(fs&&!fs.options.length)fs.innerHTML='<option value="">— velg —</option>'+TELEFON_FANT_OSS.map(v=>`<option value="${v}">${v}</option>`).join('');
+}
+function kildeDetaljFyll(p,kilde,detalj){
+  const c=KILDE_SKJEMA[p];const g=id=>document.getElementById(id);
+  if(g(c.annet))g(c.annet).value=kilde==='Annet'?(detalj||''):'';
+  kildeDetaljOppdater(p);
+  if(g(c.fant))g(c.fant).value=kilde==='Telefon'&&TELEFON_FANT_OSS.includes(detalj)?detalj:'';
+}
+// Leser kilde + detalj fra et skjema. Returnerer {kilde,detalj} eller {feil}.
+function kildeDetaljLes(p){
+  const c=KILDE_SKJEMA[p];const g=id=>document.getElementById(id);
+  const kilde=g(c.kilde)?.value||'';
+  if(kilde==='Annet'){const d=(g(c.annet)?.value||'').trim();if(!d)return{kilde,feil:'Skriv hvilken kilde det er når du velger «Annet».'};return{kilde,detalj:d};}
+  if(kilde==='Telefon'){const d=g(c.fant)?.value||'';if(!d)return{kilde,feil:'Velg hvordan de fant oss (velg «Ikke spurt / vet ikke» hvis du ikke vet).'};return{kilde,detalj:d};}
+  return{kilde,detalj:''};
+}
 const FASER_MED_SUM=['Tilbud sendt','Closing'];
 function salgFase(n){
   if(!n||n.type!=='Tilbud')return '';
@@ -9853,14 +9897,13 @@ function erUtsatt(n){return !!n&&n.type==='Tilbud'&&n.status==='Åpen'&&n.fase==
 function salgFaseIkon(navn){return navn===SALG_UTSATT?'⏸':((SALG_FASER.find(f=>f.navn===navn)||{}).ikon||(navn==='Vunnet'?'✅':navn==='Tapt'?'❌':''));}
 function salgFaseIndeks(navn){const i=SALG_FASER.findIndex(f=>f.navn===navn);return i<0?(navn===SALG_UTSATT?85:navn==='Vunnet'?90:navn==='Tapt'?91:99):i;}
 function salgFaseSans(navn){return (SALG_FASER.find(f=>f.navn===navn)||{}).sans;}
-function leadKildeVis(n){return n.leadKilde?(n.leadKilde==='Annet'&&n.leadKildeDetalj?`Annet: ${n.leadKildeDetalj}`:n.leadKilde):'Ukjent';}
+function leadKildeVis(n){return n.leadKilde?(n.leadKilde==='Annet'&&n.leadKildeDetalj?`Annet: ${n.leadKildeDetalj}`:(n.leadKilde==='Telefon'&&n.leadKildeDetalj?`Telefon · ${n.leadKildeDetalj}`:n.leadKilde)):'Ukjent';}
 function fyllFaseOgKildeValg(fase,kilde,detalj){
   const fs=document.getElementById('n-fase');
   if(fs){fs.innerHTML=SALG_FASER.map(f=>`<option value="${f.navn}">${f.ikon} ${f.navn}</option>`).join('')+`<option value="${SALG_UTSATT}">⏸ Utsatt (ta opp igjen på forfallsdato)</option>`;fs.value=fase||'Tilbud sendt';fs.dataset.forrige=fs.value;}
   const ks=document.getElementById('n-leadkilde');
   if(ks){ks.innerHTML='<option value="">— velg kilde —</option>'+LEAD_KILDER.map(k=>`<option value="${k}">${k}</option>`).join('');ks.value=kilde||'';}
-  const d=document.getElementById('n-leadkilde-detalj');if(d)d.value=detalj||'';
-  const dw=document.getElementById('n-leadkilde-detalj-wrap');if(dw)dw.style.display=kilde==='Annet'?'':'none';
+  kildeDetaljFyll('n',kilde,detalj);
 }
 // Bytter man fase i skjemaet, foreslås fasens standard-sannsynlighet (kan
 // fortsatt justeres manuelt etterpå med glidebryteren).
@@ -9928,20 +9971,34 @@ function renderSalgFaseHTML(n){
 }
 
 // Rapporter (Tilbudsanalyse): pr. leadkilde og åpen pipeline pr. fase.
+const ksKildeUtvidet=new Set();
+function toggleKsKilde(k){ksKildeUtvidet.has(k)?ksKildeUtvidet.delete(k):ksKildeUtvidet.add(k);renderKundesaker();}
 function kundesakerPrLeadkilde(ansvarlig){
   const g={};
-  ksAnalyseGrunnlag(ansvarlig).filter(n=>n.type==='Tilbud').forEach(n=>{
-    const k=n.leadKilde||'Ukjent';
-    if(!g[k])g[k]={kilde:k,antall:0,apne:0,apenSum:0,vunnet:0,tapt:0,vunnetSum:0,dagerSum:0,dagerAnt:0};
-    const r=g[k];r.antall++;
+  const ny=k=>({kilde:k,antall:0,apne:0,apenSum:0,vunnet:0,tapt:0,vunnetSum:0,dagerSum:0,dagerAnt:0});
+  const leggTil=(r,n)=>{
+    r.antall++;
     // v1.48.171: «Åpne»/«Åpen sum» = aktive åpne saker (utsatte holdes utenfor, som pipelinen).
     if(n.status==='Åpen'&&!erUtsatt(n)){r.apne++;r.apenSum+=n.tilbudSum||0;}
     if(n.tilbudUtfall==='Vunnet'){r.vunnet++;r.vunnetSum+=n.tilbudSum||0;}
     if(n.tilbudUtfall==='Tapt')r.tapt++;
     const fra=new Date(n.opprettetDato),til=new Date(n.tilbudLukketDato);
     if(n.tilbudUtfall&&n.opprettetDato&&n.tilbudLukketDato&&!isNaN(fra)&&!isNaN(til)&&til>=fra){r.dagerSum+=(til-fra)/86400000;r.dagerAnt++;}
+  };
+  const ferdig=r=>({...r,treff:(r.vunnet+r.tapt)?r.vunnet/(r.vunnet+r.tapt)*100:null,snittDager:r.dagerAnt?r.dagerSum/r.dagerAnt:null});
+  ksAnalyseGrunnlag(ansvarlig).filter(n=>n.type==='Tilbud').forEach(n=>{
+    const k=n.leadKilde||'Ukjent';
+    if(!g[k])g[k]=ny(k);
+    leggTil(g[k],n);
+    // v1.48.186: Telefon fordeles på «Hvordan fant de oss?» (underrader).
+    if(k==='Telefon'){
+      const d=n.leadKildeDetalj||'Ikke registrert';
+      g[k].under=g[k].under||{};
+      if(!g[k].under[d])g[k].under[d]=ny(d);
+      leggTil(g[k].under[d],n);
+    }
   });
-  return Object.values(g).map(r=>({...r,treff:(r.vunnet+r.tapt)?r.vunnet/(r.vunnet+r.tapt)*100:null,snittDager:r.dagerAnt?r.dagerSum/r.dagerAnt:null}))
+  return Object.values(g).map(r=>({...ferdig(r),under:r.under?Object.values(r.under).map(ferdig).sort((a,b)=>b.antall-a.antall||a.kilde.localeCompare(b.kilde,'nb')):null}))
     .sort((a,b)=>(a.kilde==='Ukjent')-(b.kilde==='Ukjent')||b.antall-a.antall||a.kilde.localeCompare(b.kilde,'nb'));
 }
 function kundesakerApenPrFase(ansvarlig){
@@ -9964,21 +10021,19 @@ function krevLeadKilde(id,fortsett){
   if(n.leadKilde){if(fortsett)fortsett();return;}
   leadKildeId=id;leadKildeFortsett=fortsett||null;
   fyllKildeSelect(document.getElementById('lk-kilde'),'');
-  document.getElementById('lk-detalj').value='';
-  document.getElementById('lk-detalj-wrap').style.display='none';
+  kildeDetaljFyll('lk','','');
   document.getElementById('lk-info').textContent=`«${n.tittel||'Salgsmulighet'}» mangler leadkilde. Den er obligatorisk på alle åpne salgsmuligheter.`;
   document.getElementById('leadkilde-modal').classList.add('open');
 }
 function lukkLeadKildeModal(){leadKildeId=null;leadKildeFortsett=null;document.getElementById('leadkilde-modal').classList.remove('open');}
 function bekreftLeadKilde(){
   const n=kundeNotater.find(x=>x.id===leadKildeId);if(!n){lukkLeadKildeModal();return;}
-  const kilde=document.getElementById('lk-kilde').value;
-  const detalj=document.getElementById('lk-detalj').value.trim();
+  const {kilde,detalj,feil}=kildeDetaljLes('lk');
   if(!kilde){alert('Velg hvor leadet kommer fra.');return;}
-  if(kilde==='Annet'&&!detalj){alert('Skriv hvilken kilde det er når du velger «Annet».');return;}
+  if(feil){alert(feil);return;}
   const fortsett=leadKildeFortsett;
   lukkLeadKildeModal();
-  n.leadKilde=kilde;n.leadKildeDetalj=kilde==='Annet'?detalj:'';
+  n.leadKilde=kilde;n.leadKildeDetalj=detalj||'';
   markerAktivitet(n);
   lagreNotatHelt(n,'Leadkilde'); // lagres alltid, også om neste steg avbrytes
   if(fortsett)fortsett();
@@ -10082,13 +10137,14 @@ function saveNotat(){
   // salgsmuligheter; eldre saker uten kilde blokkeres ikke ved redigering.
   const faseValgt=document.getElementById('n-fase')?.value||'Tilbud sendt';
   const leadKildeValgt=document.getElementById('n-leadkilde')?.value||'';
-  const leadKildeDetaljValgt=(document.getElementById('n-leadkilde-detalj')?.value||'').trim();
+  const kildeLest=kildeDetaljLes('n');
+  const leadKildeDetaljValgt=kildeLest.detalj||'';
   const redigertSak=editId?kundeNotater.find(x=>x.id===editId):null;
   const erApenSak=!redigertSak||redigertSak.status==='Åpen';
   // v1.48.158: leadkilde obligatorisk på ALLE åpne salgsmuligheter (også
   // eldre). Lukkede saker fra før kan fortsatt lagres som «Ukjent».
   if(type==='Tilbud'&&erApenSak&&!leadKildeValgt){alert('Velg hvor leadet kommer fra (Leadkilde) — det er obligatorisk på åpne salgsmuligheter.');document.getElementById('n-leadkilde')?.focus();return;}
-  if(type==='Tilbud'&&leadKildeValgt==='Annet'&&!leadKildeDetaljValgt){alert('Skriv hvilken kilde det er når du velger «Annet».');return;}
+  if(type==='Tilbud'&&leadKildeValgt&&kildeLest.feil){alert(kildeLest.feil);return;}
   if(type==='Tilbud'&&erApenSak&&faseValgt===SALG_UTSATT&&!forfallsdatoRaw){alert('Fasen «Utsatt» trenger en forfallsdato — datoen saken skal tas opp igjen.');return;}
   if(type==='Tilbud'&&erApenSak&&FASER_MED_SUM.includes(faseValgt)&&(!tilbudSum||tilbudSum<=0)){alert(`Fyll inn en totalsum — fasen «${faseValgt}» krever det.`);return;}
   if((varsleEpost||varsleDashbord)&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato/klokkeslett for å kunne varsle');return;}
@@ -10132,7 +10188,7 @@ function saveNotat(){
         else{n.fase=faseValgt;faseLogg(n,gammelFase,faseValgt);}
       }
       else if(!n.fase&&n.status==='Åpen')n.fase=faseValgt;
-      n.leadKilde=leadKildeValgt;n.leadKildeDetalj=leadKildeValgt==='Annet'?leadKildeDetaljValgt:'';
+      n.leadKilde=leadKildeValgt;n.leadKildeDetalj=kildeHarDetalj(leadKildeValgt)?leadKildeDetaljValgt:'';
     }
     markerAktivitet(n);
     // Ansvarlig/selger — lagt til 03.09.2026 (Terjes spørsmål om å kunne endre
@@ -10173,7 +10229,7 @@ function saveNotat(){
     const ansvarligValgt=ansvarligNavn||currentUser?.name||currentUser?.username||'Ukjent';
     const ansvarligMatch=brukere.find(b=>b.navn===ansvarligValgt);
     const ansvarligEpost=ansvarligMatch?.epost||(ansvarligValgt===(currentUser?.name||currentUser?.username)?(currentUser?.username||''):'');
-    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,tilbudSum,sannsynlighet,tilbudUtfall:'',tilbudLukketDato:'',sistAktivitet:now,logg:[],fase:type==='Tilbud'?faseValgt:'',leadKilde:type==='Tilbud'?leadKildeValgt:'',leadKildeDetalj:type==='Tilbud'&&leadKildeValgt==='Annet'?leadKildeDetaljValgt:''};
+    const nyNotat={id:'tmp'+Math.random().toString(36).slice(2),spId:null,vismaKundeNummer:kNr,kundeNavn:kNavn,type,tittel,innhold,status:'Åpen',forfallsdato,varsleEpost,varsleDashbord,varselSendt:false,opprettetAv:ansvarligValgt,opprettetAvEpost:ansvarligEpost,opprettetDato:now,tilbudSum,sannsynlighet,tilbudUtfall:'',tilbudLukketDato:'',sistAktivitet:now,logg:[],fase:type==='Tilbud'?faseValgt:'',leadKilde:type==='Tilbud'?leadKildeValgt:'',leadKildeDetalj:type==='Tilbud'&&kildeHarDetalj(leadKildeValgt)?leadKildeDetaljValgt:''};
     if(type==='Tilbud')faseLogg(nyNotat,'',faseValgt);
     kundeNotater.push(nyNotat);
     if(k360Valgt)renderKundeKort(k360Valgt);
@@ -10303,7 +10359,7 @@ function apneTaptArsakModal(id){
   const n=kundeNotater.find(x=>x.id===id);
   const manglerKilde=!!n&&!n.leadKilde;
   document.getElementById('ta-kilde-wrap').style.display=manglerKilde?'':'none';
-  if(manglerKilde){fyllKildeSelect(document.getElementById('ta-kilde'),'');document.getElementById('ta-kilde-detalj').value='';document.getElementById('ta-kilde-detalj-wrap').style.display='none';}
+  if(manglerKilde){fyllKildeSelect(document.getElementById('ta-kilde'),'');kildeDetaljFyll('ta','','');}
   document.getElementById('tapt-arsak-modal').classList.add('open');
 }
 function lukkTaptArsakModal(){
@@ -10324,11 +10380,10 @@ function bekreftTaptMedArsak(){
   const id=taptArsakId;
   const sak=kundeNotater.find(x=>x.id===id);
   if(sak&&!sak.leadKilde){
-    const kilde=document.getElementById('ta-kilde').value;
-    const kd=document.getElementById('ta-kilde-detalj').value.trim();
+    const {kilde,detalj:kd,feil}=kildeDetaljLes('ta');
     if(!kilde){alert('Velg hvor leadet kom fra (Leadkilde).');return;}
-    if(kilde==='Annet'&&!kd){alert('Skriv hvilken kilde det er når du velger «Annet».');return;}
-    sak.leadKilde=kilde;sak.leadKildeDetalj=kilde==='Annet'?kd:'';
+    if(feil){alert(feil);return;}
+    sak.leadKilde=kilde;sak.leadKildeDetalj=kd||'';
   }
   lukkTaptArsakModal();
   lukkTilbudMedUtfall(id,'Tapt',arsak,detalj);
@@ -10773,6 +10828,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.186',dato:'05.10.2026',punkter:[
+    'Leadkilde «Telefon» har fått spørsmålet «Hvordan fant de oss?»: Google / søk på nett, Anbefalt av noen, Kjenner KBD fra før, Facebook / sosiale medier, Så oss et sted, Annet eller Ikke spurt / vet ikke. Spørsmålet må besvares. Kilden vises som f.eks. «📍 Telefon · Google / søk på nett».',
+    'Tilbudsanalyse → Pr. leadkilde: klikk på Telefon-raden for å se fordelingen på hvordan de fant oss.'
+  ]},
   {versjon:'v1.48.185',dato:'05.10.2026',punkter:[
     'Leadkilde: «Hjemmeside» heter nå «www.kbd.as», og «Telefon» er ny kilde (nye kunder som ringer inn). Eldre saker med «Hjemmeside» vises automatisk som www.kbd.as og telles i samme rad i Tilbudsanalyse.'
   ]},
