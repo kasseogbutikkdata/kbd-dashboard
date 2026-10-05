@@ -661,7 +661,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.190 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.191 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2162,6 +2162,16 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <h3>⚙️ Onboarding – mal og varer</h3>
       <div id="onbm-innhold"></div>
       <div class="modal-footer"><button class="btn-sm" onclick="lukkOnbMal()">Avbryt</button><button class="prim" onclick="lagreOnbMal()">Lagre</button></div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING: popup når Klargjøring er ferdig (v1.48.191) -->
+  <div class="modal-overlay" id="onb-klar-modal" onclick="if(event.target===this)lukkOnbKlar()">
+    <div class="modal" style="max-width:440px;text-align:center">
+      <div style="font-size:40px;margin-bottom:4px">🛠️✅</div>
+      <h3 style="margin-bottom:6px">Klargjøringen er ferdig</h3>
+      <div id="onbk-tekst" style="font-size:13.5px;color:#374151;margin-bottom:14px"></div>
+      <div class="modal-footer" style="justify-content:center"><button class="btn-sm" onclick="lukkOnbKlar()">Senere</button><button class="prim" onclick="onbKlarSend()">📧 Forhåndsvis og send info-e-post</button></div>
     </div>
   </div>
 
@@ -10844,6 +10854,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.191',dato:'05.10.2026',punkter:[
+    'Onboarding: når siste oppgave i Klargjøring hukes av, kommer det en popup «Klargjøringen er ferdig» med knappen «📧 Forhåndsvis og send info-e-post» (eller «Senere»). Vises ikke hvis info-e-posten allerede er sendt.'
+  ]},
   {versjon:'v1.48.190',dato:'05.10.2026',punkter:[
     'Info-e-post til kunden: standardteksten er nå den samme som e-posten fra Pureservice (support, kunnskapsbase, SMS-varsling, «Glemt passord»), justert for KBD CC: saksnummer er byttet ut med ONB-nummeret, og kunden svarer på e-posten (går til teknisk@kbd.as). Er malen allerede lagret med den gamle teksten, trykk «↺ Standardtekst» og «Lagre» i «⚙️ Mal og varer».'
   ]},
@@ -16796,6 +16809,7 @@ function lukkOnboardingDetalj(){onbValgtId=null;onbValgtFase=null;renderOnboardi
 
 // ---------- Detaljvisning ----------
 function renderOnboardingDetalj(o){
+  if(onbKlarStatus[o.id]===undefined)onbKlarStatus[o.id]=onbKlargjoringFerdig(o);
   const wrap=document.getElementById('onb-innhold');
   const filterDiv=document.getElementById('onb-filter');if(filterDiv)filterDiv.innerHTML='';
   const kan=onbTilgang;
@@ -16936,7 +16950,14 @@ function onbOverstyrVareskjema(id){
   onbLogg(o,`🔓 Vareskjema overstyrt: ${grunn.trim()}`);
   onbEtterEndring(o);
 }
-function onbEtterEndring(o){renderOnboarding();renderVarselMeny();onbLagre(o);}
+function onbEtterEndring(o){
+  // v1.48.191: popup når Klargjøring akkurat ble ferdig (av denne brukeren, i denne økten).
+  const naa=onbKlargjoringFerdig(o),for_=onbKlarStatus[o.id];onbKlarStatus[o.id]=naa;
+  renderOnboarding();renderVarselMeny();onbLagre(o);
+  const ie=o.data.infoEpost||{};
+  if(for_===false&&naa&&onbTilgang&&o.status==='Pågår'&&!(ie.sendtDato&&!ie.dryRun))setTimeout(()=>apneOnbKlar(o.id),250);
+}
+const onbKlarStatus={};
 
 function onbTaSaken(id){
   const o=onbFind(id);if(!o)return;
@@ -17822,6 +17843,15 @@ async function onbHentKundeUrl(o){
 }
 function onbFlett(mal,f){return String(mal||'').replace(/\{(\w+)\}/g,(m,k)=>Object.prototype.hasOwnProperty.call(f,k)?(f[k]||''):m);}
 let onbInfo=null;
+let onbKlarId=null;
+function apneOnbKlar(id){
+  const o=onbFind(id);if(!o)return;onbKlarId=id;
+  const ep=o.data.kontaktEpost;
+  document.getElementById('onbk-tekst').innerHTML=`${onbEsc(o.tittel)} (${onbNr(o)}) er klar for info-e-posten med innlogging og brukerveiledning.<br><span class="muted">${ep?`Sendes til ${onbEsc(ep)}${o.selgerEpost?' med kopi til selger':''}.`:'Kontakt-e-post mangler – den fylles inn i neste steg.'}</span>`;
+  document.getElementById('onb-klar-modal').classList.add('open');
+}
+function lukkOnbKlar(){document.getElementById('onb-klar-modal').classList.remove('open');onbKlarId=null;}
+function onbKlarSend(){const id=onbKlarId;lukkOnbKlar();if(id)apneOnbInfo(id);}
 async function apneOnbInfo(id){
   const o=onbFind(id);if(!o)return;
   if(!onbKlargjoringFerdig(o)&&!confirm('Klargjøringen er ikke ferdig ennå. Vil du likevel lage info-e-posten?'))return;
@@ -17927,7 +17957,7 @@ async function onbLastNedInfoPdf(){
 // ===== INIT =====
 initNotatDatePicker();
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeSmsGruppeModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();if(typeof lukkOnbInfo==='function'&&document.getElementById('onb-info-modal')?.classList.contains('open'))lukkOnbInfo();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeSmsGruppeModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();if(typeof lukkOnbKlar==='function'&&document.getElementById('onb-klar-modal')?.classList.contains('open'))lukkOnbKlar();if(typeof lukkOnbInfo==='function'&&document.getElementById('onb-info-modal')?.classList.contains('open'))lukkOnbInfo();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
 
 
 /* ===== Verifone trans.avgift (vf-namespace) ===== */
