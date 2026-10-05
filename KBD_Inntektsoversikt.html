@@ -463,6 +463,8 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .onb-chip.på{background:#ecfdf5;border-color:#6ee7b7;color:#065f46;font-weight:600}
 .onb-logg{font-size:12.5px;padding:6px 0;border-bottom:1px solid #f3f4f6}
 .onbm-fase{border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:10px;background:#fafbfc}
+.onb-nr{font-size:12px;font-weight:700;color:#1A3A6B;background:#e8eef8;padding:2px 9px;border-radius:20px;font-family:ui-monospace,Consolas,monospace}
+#onb-info-modal input[type=text],#onb-info-modal input[type=email],#onb-info-modal textarea,#onbm-innhold .onbm-info input,#onbm-innhold .onbm-info textarea{width:100%;padding:7px 10px;border:1px solid #d0d5dd;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box}
 .onbm-oppg{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px 0;border-bottom:1px dashed #e5e7eb}
 .onbm-fase input,.onbm-fase select,.onbm-fase button{width:auto!important}
 .onbm-oppg>input:first-child{flex:1 1 280px}
@@ -659,7 +661,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.188 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.189 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2131,6 +2133,8 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <div class="fgrp"><label>Telefon</label><input id="onbs-telefon"/></div>
         <div class="fgrp"><label>Ønsket levering/installasjon</label><input type="date" id="onbs-dato"/></div>
       </div>
+      <div class="fgrp" style="margin-top:10px"><label>Kontakt-e-post (brukernavn i backoffice)</label><input id="onbs-epost" type="email" style="width:100%" placeholder="post@kunde.no"/>
+        <div class="muted">Info-e-posten med innlogging og brukerveiledning sendes hit når klargjøringen er ferdig.</div></div>
       <div class="fgrp" style="margin-top:10px"><label>Notat til teknikerne</label><textarea id="onbs-notat" rows="3" style="width:100%;padding:8px;border:1px solid #d0d5dd;border-radius:8px;font-family:inherit;font-size:13px"></textarea></div>
       <label id="onbs-ta-selv-wrap" style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:10px;cursor:pointer"><input type="checkbox" id="onbs-ta-selv" style="width:16px;height:16px;flex:0 0 auto;margin:0"/>Jeg tar saken selv (blir ansvarlig med en gang)</label>
       <div id="onbs-feil" class="onb-advarsel" style="display:none"></div>
@@ -2158,6 +2162,16 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <h3>⚙️ Onboarding – mal og varer</h3>
       <div id="onbm-innhold"></div>
       <div class="modal-footer"><button class="btn-sm" onclick="lukkOnbMal()">Avbryt</button><button class="prim" onclick="lagreOnbMal()">Lagre</button></div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING: info-e-post til kunden (v1.48.189) -->
+  <div class="modal-overlay" id="onb-info-modal" onclick="if(event.target===this)lukkOnbInfo()">
+    <div class="modal" style="width:720px;max-height:92vh;overflow:auto">
+      <h3>📧 Info-e-post til kunden</h3>
+      <div id="onbi-innhold"></div>
+      <div id="onbi-feil" class="onb-advarsel" style="display:none"></div>
+      <div class="modal-footer"><button class="btn-sm" onclick="lukkOnbInfo()">Avbryt</button><button class="prim" id="onbi-send-btn" onclick="sendOnbInfo()">📧 Send</button></div>
     </div>
   </div>
 
@@ -10830,6 +10844,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.189',dato:'05.10.2026',punkter:[
+    'Onboarding: info-e-post til kunden sendes nå fra KBD CC (erstatter Pureservice). Når klargjøringen er ferdig, vises kortet «📧 Info-e-post til kunden» med forhåndsvisning og Send. Sendes fra teknisk@kbd.as med kopi til selger og brukerveiledningen (PDF) vedlagt. Oppgaven om info-e-posten hukes av automatisk.',
+    'Hver onboarding har fått et nummer (f.eks. ONB-0012) som vises i oversikten, i detaljvisningen, i Teams-kortet og i e-posten. Søkefeltet finner også ONB-nummer og kontakt-e-post.',
+    'Nytt felt «Kontakt-e-post (brukernavn i backoffice)» i startskjemaet og på onboardingen.',
+    '«⚙️ Mal og varer»: tekst, emne og PDF-vedlegg for info-e-posten kan endres. Flettefelt: {kundenavn}, {kontaktperson}, {url}, {brukernavn}, {onbnr}, {ansvarlig}, {selger}.'
+  ]},
   {versjon:'v1.48.188',dato:'05.10.2026',punkter:[
     'Lisenser: e-Susoft-adressen (URL) under lisenskoden har nå også egen «Kopier»-knapp.'
   ]},
@@ -16516,7 +16536,7 @@ function onbStandardMal(){
       o('Profrakt: vekt, adresse, telefon, antall kolli, lapp og SO-nr. som referanse'),
       o('Visma: frakt ført (enhetskostnad, total rundet til nærmeste 100)'),
       o('Ikano-sak fakturert ved nedpakking',{utstyr:'ikano'}),
-      o('Pureservice: info-e-post med BackOffice-lenke sendt, sak avsluttet')
+      o('Info-e-post med BackOffice-lenke sendt fra KBD CC',{hjelp:'Sendes fra kortet «📧 Info-e-post til kunden». Hukes av automatisk når e-posten er sendt.'})
     ]},
     {id:'f3',navn:'Installasjon og introkurs',ikon:'🎓',oppgaver:[
       o('Terminal: internett på kabel bekreftet hvis WiFi/Bluetooth er ustabilt',{utstyr:'terminal'}),
@@ -16569,7 +16589,7 @@ async function loadOnboarding(){
   });
   if(malItems.length){
     onbMalSpId=malItems[0].id;
-    try{const m=JSON.parse(malItems[0].fields.Data||'null');if(m&&Array.isArray(m.faser))onbMal={faser:m.faser,varer:Array.isArray(m.varer)?m.varer:[]};}catch{}
+    try{const m=JSON.parse(malItems[0].fields.Data||'null');if(m&&Array.isArray(m.faser))onbMal={faser:m.faser,varer:Array.isArray(m.varer)?m.varer:[],infoEpost:m.infoEpost&&typeof m.infoEpost==='object'?m.infoEpost:null};}catch{}
   }
 }
 function onbNormData(d){
@@ -16662,6 +16682,9 @@ function onbErMin(o){
   return (o.ansvarligEpost&&o.ansvarligEpost.toLowerCase()===e)||(!o.ansvarligEpost&&o.ansvarlig===onbMeg());
 }
 function onbFind(id){return onboardinger.find(x=>x.id===id);}
+// v1.48.189: onboarding-nummer (erstatter Pureservice-saksnummer i info-e-posten). Fra SharePoint-ID-en.
+function onbNr(o){return o?.spId?`ONB-${String(o.spId).padStart(4,'0')}`:'';}
+function onbGyldigEpost(e){return /^[^@\s,;<>]+@[^@\s,;<>]+\.[A-Za-z]{2,}$/.test(String(e||'').trim());}
 function onbAktivForKunde(kNr){return onboardinger.find(o=>(o.status==='Ny'||o.status==='Pågår')&&kNr&&samKundenr(o.vismaKundeNummer,kNr));}
 function onbDato(s){if(!s)return '';const d=new Date(s);return isNaN(d)?'':d.toLocaleDateString('nb-NO');}
 function onbEsc(s){return escHtmlEpost(s);}
@@ -16711,7 +16734,7 @@ function renderOnboarding(){
     +`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:6px"><input type="checkbox" ${onbBareMine?'checked':''} onchange="onbBareMine=this.checked;renderOnboarding()"/>Bare mine</label>`;
   let liste=onboardinger.filter(o=>onbFilter==='aktive'?(o.status==='Ny'||o.status==='Pågår'):onbFilter==='alle'?true:o.status===onbFilter);
   if(onbBareMine)liste=liste.filter(o=>onbErMin(o)||(o.selgerEpost&&o.selgerEpost.toLowerCase()===onbMinEpost()));
-  if(onbSok){const q=onbSok.toLowerCase();liste=liste.filter(o=>(o.tittel||'').toLowerCase().includes(q)||(o.soNr||'').includes(q)||(o.vismaKundeNummer||'').includes(q));}
+  if(onbSok){const q=onbSok.toLowerCase();const qNr=(/^(?:onb-?)?0*(\d+)$/.exec(q)||[])[1];liste=liste.filter(o=>(o.tittel||'').toLowerCase().includes(q)||(o.soNr||'').includes(q)||(o.vismaKundeNummer||'').includes(q)||(qNr&&String(o.spId)===qNr)||(o.data.kontaktEpost||'').toLowerCase().includes(q));}
   liste.sort((a,b)=>(a.status==='Ny'?0:1)-(b.status==='Ny'?0:1)||onbSistAktivitet(b)-onbSistAktivitet(a));
   if(!liste.length){
     wrap.innerHTML=`<div class="card card-public"><div class="muted" style="padding:10px 0">${onboardinger.length?'Ingen onboardinger i dette utvalget.':'Ingen onboardinger ennå. Start en fra en salgssak, kundekortet eller «🚀 Start onboarding» over.'}</div></div>`;
@@ -16724,7 +16747,7 @@ function renderOnboarding(){
     return `<div class="sos-sak-card rad-klikkbar" onclick="apneOnboarding('${o.id}')" style="cursor:pointer">
       <div class="sos-sak-card-top">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <strong style="font-size:15px">${onbEsc(o.tittel)}</strong>
+          <strong style="font-size:15px">${onbEsc(o.tittel)}</strong><span class="onb-nr">${onbNr(o)}</span>
           <span style="font-size:11px;font-weight:700;color:${sf.c};background:${sf.bg};padding:2px 9px;border-radius:20px">${o.status==='Ny'?'📥 Ny':o.status}</span>
           ${o.data.salgsordrer.some(s=>s.type==='Ikano')?'<span style="font-size:11px;color:#7c3aed;background:#f3e8ff;padding:2px 8px;border-radius:20px">Ikano</span>':''}
           ${onbVareskjemaMangler(o)&&(o.status==='Ny'||o.status==='Pågår')?'<span style="font-size:11px;color:#b91c1c;background:#fee2e2;padding:2px 8px;border-radius:20px">📦 Vareskjema mangler</span>':''}
@@ -16794,6 +16817,7 @@ function renderOnboardingDetalj(o){
         <button class="btn-sm" onclick="lukkOnboardingDetalj()" style="margin-bottom:10px">← Alle onboardinger</button>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="font-size:26px;font-weight:700;color:#111">${onbEsc(o.tittel)}</div>
+          <span class="onb-nr" title="Onboarding-nummer – brukes som referanse i info-e-posten">${onbNr(o)}</span>
           <span style="font-size:12px;font-weight:700;color:${sf.c};background:${sf.bg};padding:3px 10px;border-radius:20px">${o.status==='Ny'?'📥 Ny':o.status}</span>
           ${kunde?`<button class="btn-sm" onclick="onbTilKundekort('${o.id}')">🧑‍💼 Kundekort</button>`:''}
         </div>
@@ -16829,6 +16853,7 @@ function renderOnboardingDetalj(o){
     </div>
     <div>
       ${onbSalgssakKort(o)}
+      ${onbInfoKort(o,kan)}
       ${onbLisensKort(o)}
       ${onbSkjemaKort(o)}
       ${onbAdresseKort(o,kan,kunde)}
@@ -17225,7 +17250,7 @@ async function onbVarsleTeams(o){
     const status=s=>s.status==='lastetOpp'?'Lastet opp':s.status==='ettersendes'?'Ettersendes':'Ikke lastet opp';
     const token=await vfGetApiToken();
     const resp=await fetch(vfApiUrl('/api/onboarding_varsle_teams'),{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
-      body:JSON.stringify({spId:o.spId,kundenavn:o.tittel,selger:o.selger,salgsordrer:o.data.salgsordrer.map(s=>({nr:s.nr,type:s.type})),
+      body:JSON.stringify({spId:o.spId,onbNr:onbNr(o),kundenavn:o.tittel,selger:o.selger,salgsordrer:o.data.salgsordrer.map(s=>({nr:s.nr,type:s.type})),
         vareskjema:status(sk.varer),regnskap:status(sk.regnskap),onsketDato:o.data.onsketDato?onbDato(o.data.onsketDato):'',notat:o.data.notat||''})});
     const data=await resp.json().catch(()=>({}));
     if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
@@ -17338,6 +17363,7 @@ function apneOnbStart(ctx={}){
   document.getElementById('onbs-sonr').value='';
   document.getElementById('onbs-kontakt').value=kunde?.kontaktNavn||'';
   document.getElementById('onbs-telefon').value=kunde?.kontaktTelefon||'';
+  document.getElementById('onbs-epost').value=kunde?.kontaktEpost||'';
   document.getElementById('onbs-dato').value='';
   document.getElementById('onbs-notat').value='';
   document.getElementById('onbs-ettersendes').checked=false;
@@ -17403,6 +17429,7 @@ function onbStartSettKunde(k){
   document.getElementById('onbs-kunde-info').textContent=onbKundeInfoTekst(k);
   if(!document.getElementById('onbs-kontakt').value)document.getElementById('onbs-kontakt').value=k.kontaktNavn||'';
   if(!document.getElementById('onbs-telefon').value)document.getElementById('onbs-telefon').value=k.kontaktTelefon||'';
+  if(!document.getElementById('onbs-epost').value)document.getElementById('onbs-epost').value=k.kontaktEpost||'';
   document.getElementById('onbs-sok').value=(k.navn||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
   renderOnbStartSalgssak();
   onbSokSalgsordre();
@@ -17515,6 +17542,8 @@ async function sendTilOnboarding(){
   if(!onbStart.filer.varer&&!onbStart.vareEttersendes){visFeil('Last opp vare- og kasseskjemaet, eller kryss av for «Ettersendes».');return;}
   const fra=onbAktivForKunde(kunde.vismaNummer);
   if(fra){visFeil(`${kunde.navn} har allerede en aktiv onboarding.`);return;}
+  const kontaktEpost=document.getElementById('onbs-epost').value.trim();
+  if(kontaktEpost&&!onbGyldigEpost(kontaktEpost)){visFeil('Kontakt-e-posten ser ikke gyldig ut.');return;}
   const btn=document.getElementById('onbs-send-btn');btn.disabled=true;btn.textContent='Sender…';
   const taSelv=onbTilgang&&document.getElementById('onbs-ta-selv').checked;
   const naa=new Date().toISOString();
@@ -17522,7 +17551,7 @@ async function sendTilOnboarding(){
   const o={id:'tmp',spId:null,tittel:kunde.navn,vismaKundeNummer:String(kunde.vismaNummer||''),status:taSelv?'Pågår':'Ny',
     ansvarlig:taSelv?onbMeg():'',ansvarligEpost:taSelv?onbMinEpost():'',selger:onbMeg(),selgerEpost:onbMinEpost(),soNr:'',sistAktivitet:naa,
     data:onbNormData({opprettet:naa,opprettetAv:onbMeg(),salgssakSpId:onbStart.sakId?(kundeNotater.find(x=>x.id===onbStart.sakId)?.spId||null):null,
-      kontaktNavn:document.getElementById('onbs-kontakt').value.trim(),kontaktTelefon:document.getElementById('onbs-telefon').value.trim(),
+      kontaktNavn:document.getElementById('onbs-kontakt').value.trim(),kontaktTelefon:document.getElementById('onbs-telefon').value.trim(),kontaktEpost,
       onsketDato:document.getElementById('onbs-dato').value||'',notat:document.getElementById('onbs-notat').value.trim(),
       salgsordrer:[],faser:mal.faser.map(f=>({...f,oppgaver:f.oppgaver.map(x=>({...x,ferdig:false,verdi:'',ferdigAv:'',ferdigDato:''}))})),
       skjemaer:{varer:{status:onbStart.vareEttersendes?'ettersendes':'mangler'},regnskap:{status:'mangler'}}})};
@@ -17613,6 +17642,7 @@ async function onbLeggTilSoNr(nr,type){
 function apneOnbMal(){
   if(!onbTilgang)return;
   onbMalUtkast=JSON.parse(JSON.stringify(onbMalAktiv()));
+  onbMalUtkast.infoEpost={...ONB_INFO_STANDARD,...(onbMalUtkast.infoEpost||{})};
   renderOnbMal();
   document.getElementById('onb-mal-modal').classList.add('open');
 }
@@ -17660,6 +17690,7 @@ function renderOnbMal(){
     ${['varer','regnskap'].map(t=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="flex:1">${t==='varer'?'📦 Vare- og kasseoppsett':'📊 Regnskapsintegrasjon'}</span>
       <button class="btn-sm" onclick="onbLastNedMal('${t}')">⬇️ Last ned</button>
       <label class="btn-sm" style="cursor:pointer">⬆️ Last opp ny<input type="file" accept=".xlsx,.xls" style="display:none" onchange="onbLastOppMal('${t}',this.files[0])"/></label></div>`).join('')}
+    ${onbInfoMalHtml(m)}
     ${onbMal?'':'<div class="onb-info-boks" style="margin-top:12px">Malen er ikke lagret i SharePoint ennå – standardmalen fra Caspers dokument brukes. «Lagre» oppretter den.</div>'}`;
 }
 function onbMalFlytt(liste,i,d){const a=onbMalUtkast[liste];const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];renderOnbMal();}
@@ -17684,10 +17715,182 @@ async function lagreOnbMal(){
   }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Malen ble ikke lagret:\n'+e.message);}
 }
 
+// ===== INFO-E-POST TIL KUNDEN (v1.48.189, 05.10.2026) =====
+// Erstatter info-e-posten fra Pureservice. Sendes fra teknisk@kbd.as (delt
+// postboks) via kbd-verifone-func (/api/onboarding_send_info) med kopi til
+// selger og PDF-brukerveiledningen som vedlegg. Teknikeren ser forhåndsvisning
+// og trykker Send selv. Backend har dry-run-brems
+// (ONBOARDING_INFO_EPOST_DRY_RUN, default på → bare test-mottaker).
+// Ingen SoftPay-brukernavn/passord i e-posten (Thomas 05.10.2026).
+const ONB_INFO_PDF='Onboarding-maler/Info-epost-vedlegg.pdf';
+const ONB_INFO_STANDARD={
+  emne:'Velkommen som SuSoft-kunde – {kundenavn} ({onbnr})',
+  tekst:`Hei {kontaktperson}
+
+Takk for at dere har valgt Kasse og Butikkdata og SuSoft! Kassesystemet deres er nå klargjort.
+
+Her logger dere inn i BackOffice, der dere blant annet finner varer, rapporter og innstillinger:
+
+Adresse: {url}
+Brukernavn: {brukernavn}
+
+Vedlagt ligger en enkel brukerveiledning for SuSoft.
+
+Har dere spørsmål, er det bare å svare på denne e-posten. Oppgi gjerne referansen {onbnr} når dere kontakter oss.
+
+Med vennlig hilsen
+{ansvarlig}
+Kasse og Butikkdata AS
+teknisk@kbd.as`,
+  vedleggNavn:'Enkel brukerveiledning SuSoft v3.pdf'
+};
+const ONB_INFO_FLETTEFELT=[['{kundenavn}','Kundens navn'],['{kontaktperson}','Kontaktperson fra onboardingen'],['{url}','e-Susoft-adressen fra lisenskoden (live fra Visma)'],['{brukernavn}','Kontakt-e-posten'],['{onbnr}','Onboarding-nummer, f.eks. ONB-0012'],['{ansvarlig}','Ansvarlig tekniker'],['{selger}','Selger']];
+function onbInfoMal(){return {...ONB_INFO_STANDARD,...(onbMalAktiv().infoEpost||{})};}
+function onbKlargjoringFase(o){return o.data.faser.find(f=>f.id==='f1')||o.data.faser.find(f=>/klargj/i.test(f.navn||''))||o.data.faser[0];}
+function onbKlargjoringFerdig(o){const f=onbKlargjoringFase(o);return !!f&&onbFaseStatus(o,f,onbUtstyrSett(o)).ferdig;}
+function onbInfoKort(o,kan){
+  const ie=o.data.infoEpost||{};
+  const sendt=ie.sendtDato&&!ie.dryRun;
+  const klar=onbKlargjoringFerdig(o);
+  const kanSende=kan&&o.status==='Pågår';
+  const ep=o.data.kontaktEpost||'';
+  let status;
+  if(sendt)status=`<div style="color:#15803d;font-weight:600">✅ Sendt ${onbDato(ie.sendtDato)} til ${onbEsc(ie.sendtTil||'')}${ie.kopi?` (kopi ${onbEsc(ie.kopi)})`:''}</div><div class="onb-meta">av ${onbEsc(ie.av||'')}</div>`;
+  else if(klar)status=`<div class="onb-info-boks" style="margin:0">🛠️ Klargjøringen er ferdig – info-e-posten er klar til å sendes.</div>`;
+  else status=`<div class="muted">Sendes når klargjøringen er ferdig.</div>`;
+  const test=ie.sendtDato&&ie.dryRun?`<div class="onb-meta" style="margin-top:4px">Siste sending var TEST (til ${onbEsc(ie.sendtTil||'')}, ${onbDato(ie.sendtDato)}).</div>`:'';
+  return `<div class="card card-public" style="margin-bottom:16px${klar&&!sendt&&kanSende?';border:2px solid #1A3A6B':''}">
+    <div class="card-title">📧 Info-e-post til kunden</div>
+    ${status}${test}
+    <div style="margin-top:8px;font-size:13px">
+      <label class="muted" style="display:block;margin-bottom:2px">Kontakt-e-post (brukernavn i backoffice)</label>
+      ${(onbTilgang||salgTilgang)&&o.status!=='Avbrutt'?`<input type="text" value="${onbEsc(ep)}" placeholder="post@kunde.no" onchange="onbSettKontaktEpost('${o.id}',this.value)" style="width:100%;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;box-sizing:border-box"/>`:`<strong>${onbEsc(ep||'—')}</strong>`}
+    </div>
+    ${kanSende?`<button class="${klar&&!sendt?'prim':'btn-sm'}" style="margin-top:10px" onclick="apneOnbInfo('${o.id}')">${sendt?'Send på nytt…':'👁️ Forhåndsvis og send'}</button>`:''}
+  </div>`;
+}
+function onbSettKontaktEpost(id,v){
+  const o=onbFind(id);if(!o)return;v=String(v||'').trim();
+  if(v&&!onbGyldigEpost(v)){alert('E-postadressen ser ikke gyldig ut.');renderOnboarding();return;}
+  if(v===(o.data.kontaktEpost||''))return;
+  o.data.kontaktEpost=v;onbLogg(o,`Kontakt-e-post: ${v||'fjernet'}`);onbEtterEndring(o);
+}
+// Finner e-Susoft-adressen i lisenskoden på kundens aktive kontrakter (live).
+async function onbHentKundeUrl(o){
+  const ider=vismaKontrakter.filter(c=>samKundenr(c.vismaKundeNummer,o.vismaKundeNummer)&&['active','aktiv'].includes((c.status||'').toLowerCase())).map(c=>String(c.kontraktId));
+  if(!ider.length)return '';
+  await fyllLisensCeller('onblis',ider);
+  for(const id of ider){const u=(/URL:\s*(https?:\/\/\S+)/i.exec(kontraktLisensCache[id]?.data?.lisenskode||'')||[])[1];if(u)return u;}
+  return '';
+}
+function onbFlett(mal,f){return String(mal||'').replace(/\{(\w+)\}/g,(m,k)=>Object.prototype.hasOwnProperty.call(f,k)?(f[k]||''):m);}
+let onbInfo=null;
+async function apneOnbInfo(id){
+  const o=onbFind(id);if(!o)return;
+  if(!onbKlargjoringFerdig(o)&&!confirm('Klargjøringen er ikke ferdig ennå. Vil du likevel lage info-e-posten?'))return;
+  const ie=o.data.infoEpost||{};
+  if(ie.sendtDato&&!ie.dryRun&&!confirm(`Info-e-posten ble sendt ${onbDato(ie.sendtDato)}. Sende på nytt?`))return;
+  setSPStatus('⏳ Henter lisens og vedlegg…');
+  const [url,pdf]=await Promise.all([onbHentKundeUrl(o).catch(()=>''),spHentFilBlob(ONB_INFO_PDF).catch(()=>null)]);
+  setSPStatus('');
+  const mal=onbInfoMal();
+  const felt={kundenavn:o.tittel,kontaktperson:o.data.kontaktNavn||'',url,brukernavn:o.data.kontaktEpost||'',onbnr:onbNr(o),ansvarlig:o.ansvarlig||onbMeg(),selger:o.selger||''};
+  onbInfo={id,pdf,vedleggNavn:mal.vedleggNavn||'Brukerveiledning.pdf'};
+  const advarsler=[];
+  if(!url)advarsler.push('Fant ingen e-Susoft-adresse i lisenskoden på kundens aktive kontrakter. Fyll inn adressen i teksten.');
+  if(!o.data.kontaktEpost)advarsler.push('Onboardingen har ingen kontakt-e-post. Fyll inn mottaker og brukernavn.');
+  if(!pdf)advarsler.push('Fant ikke PDF-vedlegget. Last det opp under «⚙️ Mal og varer», ellers sendes e-posten uten vedlegg.');
+  else if(pdf.size>3*1048576)advarsler.push('PDF-vedlegget er over 3 MB og kan ikke sendes. Last opp en mindre fil under «⚙️ Mal og varer».');
+  const selgerEp=(o.selgerEpost||'').toLowerCase();
+  document.getElementById('onbi-innhold').innerHTML=`
+    ${advarsler.map(a=>`<div class="onb-advarsel" style="margin-bottom:6px">⚠️ ${onbEsc(a)}</div>`).join('')}
+    <div class="fgrp"><label>Til (kunden)</label><input type="email" id="onbi-til" value="${onbEsc(o.data.kontaktEpost||'')}"/></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0 10px;cursor:pointer"><input type="checkbox" id="onbi-kopi" ${selgerEp.endsWith('@kbd.as')?'checked':'disabled'} style="width:16px;height:16px;margin:0"/>Kopi til selger ${selgerEp?`(${onbEsc(o.selger||'')}, ${onbEsc(selgerEp)})`:'(mangler e-post)'}</label>
+    <div class="fgrp" style="margin-bottom:10px"><label>Fra</label><div style="font-size:13px">teknisk@kbd.as – svar fra kunden havner der</div></div>
+    <div class="fgrp"><label>Emne</label><input type="text" id="onbi-emne" value="${onbEsc(onbFlett(mal.emne,felt))}"/></div>
+    <div class="fgrp"><label>Tekst (kan endres før sending)</label><textarea id="onbi-tekst" rows="16">${onbEsc(onbFlett(mal.tekst,felt))}</textarea></div>
+    <div style="font-size:13px;margin-top:8px">📎 ${pdf&&pdf.size<=3*1048576?`${onbEsc(onbInfo.vedleggNavn)} <span class="muted">(${Math.max(1,Math.round(pdf.size/1024))} KB)</span>`:'<span class="muted">Ingen vedlegg</span>'}</div>`;
+  document.getElementById('onbi-feil').style.display='none';
+  const btn=document.getElementById('onbi-send-btn');btn.disabled=false;btn.textContent='📧 Send';
+  document.getElementById('onb-info-modal').classList.add('open');
+}
+function lukkOnbInfo(){document.getElementById('onb-info-modal').classList.remove('open');onbInfo=null;}
+async function sendOnbInfo(){
+  if(!onbInfo)return;
+  const o=onbFind(onbInfo.id);if(!o)return;
+  const feil=document.getElementById('onbi-feil');const visFeil=t=>{feil.textContent=t;feil.style.display='block';};
+  const til=document.getElementById('onbi-til').value.trim();
+  const emne=document.getElementById('onbi-emne').value.trim();
+  const tekst=document.getElementById('onbi-tekst').value.trim();
+  const kopi=document.getElementById('onbi-kopi').checked?(o.selgerEpost||'').trim():'';
+  if(!onbGyldigEpost(til)){visFeil('Skriv en gyldig e-postadresse til kunden.');return;}
+  if(!emne||!tekst){visFeil('Emne og tekst må fylles ut.');return;}
+  const rest=/\{(kundenavn|kontaktperson|url|brukernavn|onbnr|ansvarlig|selger)\}/.exec(emne+tekst);
+  if(rest){visFeil(`Teksten inneholder fortsatt ${rest[0]}. Fyll inn eller fjern den.`);return;}
+  if(!confirm(`Sende info-e-posten til ${til}${kopi?` med kopi til ${kopi}`:''}?\n\n(Står testbremsen på i Azure, går den bare til test-mottakeren.)`))return;
+  const btn=document.getElementById('onbi-send-btn');btn.disabled=true;btn.textContent='Sender…';
+  try{
+    const pdf=onbInfo.pdf&&onbInfo.pdf.size<=3*1048576?onbInfo.pdf:null;
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/onboarding_send_info'),{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({til,kopi,emne,tekst,onbNr:onbNr(o),vedleggNavn:onbInfo.vedleggNavn,vedleggBase64:pdf?await onbBlobTilBase64(pdf):''})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
+    o.data.infoEpost={sendtDato:new Date().toISOString(),sendtTil:data.sendtTil||til,kopi:data.kopi||'',dryRun:data.dryRun===true,av:onbMeg(),emne};
+    if(!o.data.kontaktEpost)o.data.kontaktEpost=til;
+    if(data.dryRun){
+      onbLogg(o,`📧 Info-e-post sendt som TEST til ${data.sendtTil||''} (ville gått til ${til}${kopi?', kopi '+kopi:''})`);
+    }else{
+      onbLogg(o,`📧 Info-e-post sendt til ${data.sendtTil||til}${data.kopi?' (kopi '+data.kopi+')':''} fra ${data.avsender||'teknisk@kbd.as'}`);
+      // Huk av oppgavene om info-e-posten automatisk.
+      o.data.faser.forEach(f=>f.oppgaver.forEach(x=>{
+        if(!/info-?e-?post/i.test(x.tekst||'')||x.type==='info')return;
+        if(x.type==='janei')x.verdi='Ja';else x.ferdig=true;
+        x.ferdigAv=onbMeg();x.ferdigDato=new Date().toISOString();
+      }));
+    }
+    lukkOnbInfo();onbEtterEndring(o);
+    vfShowToast(data.dryRun?`TEST: info-e-posten gikk til ${data.sendtTil}`:`Info-e-posten er sendt til ${data.sendtTil||til}`);
+  }catch(e){
+    visFeil('Sending feilet: '+e.message);btn.disabled=false;btn.textContent='📧 Send';
+  }
+}
+// Malredigering: emne, tekst og PDF under «⚙️ Mal og varer».
+function onbInfoMalHtml(m){
+  const ie=m.infoEpost||ONB_INFO_STANDARD;
+  return `<div class="card-title" style="margin:22px 0 6px">📧 Info-e-post til kunden</div>
+    <div class="onbm-info">
+      <div class="muted" style="margin-bottom:6px">Sendes fra teknisk@kbd.as med kopi til selger når klargjøringen er ferdig. Flettefelt: ${ONB_INFO_FLETTEFELT.map(([k,b])=>`<code title="${onbEsc(b)}">${k}</code>`).join(' ')}</div>
+      <div class="fgrp"><label>Emne</label><input type="text" value="${onbEsc(ie.emne||'')}" onchange="onbMalUtkast.infoEpost.emne=this.value"/></div>
+      <div class="fgrp"><label>Tekst</label><textarea rows="14" onchange="onbMalUtkast.infoEpost.tekst=this.value">${onbEsc(ie.tekst||'')}</textarea></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap"><span style="flex:1">📎 Vedlegg: <strong id="onbm-info-vedlegg">${onbEsc(ie.vedleggNavn||'')}</strong> <span class="muted">(PDF, maks 3 MB)</span></span>
+        <button class="btn-sm" onclick="onbLastNedInfoPdf()">⬇️ Last ned</button>
+        <label class="btn-sm" style="cursor:pointer">⬆️ Last opp ny<input type="file" accept=".pdf,application/pdf" style="display:none" onchange="onbLastOppInfoPdf(this.files[0])"/></label>
+        <button class="btn-sm" onclick="if(confirm('Tilbakestille emne og tekst til standardteksten?')){onbMalUtkast.infoEpost={...onbMalUtkast.infoEpost,emne:ONB_INFO_STANDARD.emne,tekst:ONB_INFO_STANDARD.tekst};renderOnbMal();}">↺ Standardtekst</button></div>
+    </div>`;
+}
+async function onbLastOppInfoPdf(fil){
+  if(!fil)return;
+  if(!/\.pdf$/i.test(fil.name)){alert('Velg en PDF-fil.');return;}
+  if(fil.size>3*1048576){alert('PDF-en er over 3 MB og kan ikke sendes som vedlegg. Komprimer den først.');return;}
+  setSPStatus('⏳ Laster opp PDF…');
+  try{
+    await spLastOppFil(ONB_INFO_PDF,fil);
+    if(onbMalUtkast){onbMalUtkast.infoEpost.vedleggNavn=fil.name;const el=document.getElementById('onbm-info-vedlegg');if(el)el.textContent=fil.name;}
+    setSPStatus('✅ PDF lastet opp – trykk «Lagre» for å lagre filnavnet');setTimeout(()=>setSPStatus(''),4000);
+  }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Opplasting feilet:\n'+e.message);}
+}
+async function onbLastNedInfoPdf(){
+  setSPStatus('⏳ Henter PDF…');
+  const blob=await spHentFilBlob(ONB_INFO_PDF).catch(()=>null);setSPStatus('');
+  if(!blob){alert('PDF-vedlegget er ikke lastet opp ennå.');return;}
+  onbLastNedBlob(blob,(onbMalUtkast?.infoEpost?.vedleggNavn)||onbInfoMal().vedleggNavn||'Brukerveiledning.pdf');
+}
+
 // ===== INIT =====
 initNotatDatePicker();
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeSmsGruppeModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeSmsGruppeModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();if(typeof lukkOnbInfo==='function'&&document.getElementById('onb-info-modal')?.classList.contains('open'))lukkOnbInfo();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
 
 
 /* ===== Verifone trans.avgift (vf-namespace) ===== */
