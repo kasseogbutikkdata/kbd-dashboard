@@ -661,7 +661,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.189 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.190 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10844,6 +10844,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.190',dato:'05.10.2026',punkter:[
+    'Info-e-post til kunden: standardteksten er nå den samme som e-posten fra Pureservice (support, kunnskapsbase, SMS-varsling, «Glemt passord»), justert for KBD CC: saksnummer er byttet ut med ONB-nummeret, og kunden svarer på e-posten (går til teknisk@kbd.as). Er malen allerede lagret med den gamle teksten, trykk «↺ Standardtekst» og «Lagre» i «⚙️ Mal og varer».'
+  ]},
   {versjon:'v1.48.189',dato:'05.10.2026',punkter:[
     'Onboarding: info-e-post til kunden sendes nå fra KBD CC (erstatter Pureservice). Når klargjøringen er ferdig, vises kortet «📧 Info-e-post til kunden» med forhåndsvisning og Send. Sendes fra teknisk@kbd.as med kopi til selger og brukerveiledningen (PDF) vedlagt. Oppgaven om info-e-posten hukes av automatisk.',
     'Hver onboarding har fått et nummer (f.eks. ONB-0012) som vises i oversikten, i detaljvisningen, i Teams-kortet og i e-posten. Søkefeltet finner også ONB-nummer og kontakt-e-post.',
@@ -17724,24 +17727,58 @@ async function lagreOnbMal(){
 // Ingen SoftPay-brukernavn/passord i e-posten (Thomas 05.10.2026).
 const ONB_INFO_PDF='Onboarding-maler/Info-epost-vedlegg.pdf';
 const ONB_INFO_STANDARD={
-  emne:'Velkommen som SuSoft-kunde – {kundenavn} ({onbnr})',
-  tekst:`Hei {kontaktperson}
+  // v1.48.190: basert på info-e-posten fra Pureservice (Thomas 05.10.2026). Saksnummer → ONB-nummer.
+  emne:'Nytt kassesystem fra KBD – {kundenavn} – ref. {onbnr}',
+  tekst:`Hei
 
-Takk for at dere har valgt Kasse og Butikkdata og SuSoft! Kassesystemet deres er nå klargjort.
+Vi har nå satt opp et nytt kassesystem til dere, som bestilt.
+Utstyret sendes til dere ferdig satt opp, og må kobles opp hos dere.
 
-Her logger dere inn i BackOffice, der dere blant annet finner varer, rapporter og innstillinger:
+Når dere har mottatt utstyret, kobler dere det til strøm og internett.
+Det er viktig at alt utstyret er koblet til det samme nettverket.
+Når alt er koblet opp, ringer dere support og oppgir referansen {onbnr} (står også i emnefeltet), så avtaler vi videre oppsett og opplæring.
 
-Adresse: {url}
+G1+ backoffice – innlogging
+Her er lenke og innloggingsinformasjon til backoffice, der dere finner salgstall og salgsrapporter, og legger inn og endrer varer.
+
+Lenke til backoffice: {url}
 Brukernavn: {brukernavn}
+Passord: Første gang må du bruke «Glemt passord» for å opprette ditt personlige passord.
+
+Logg inn når det er gjort, og svar på denne e-posten, så gir vi deg admin-tilgang.
+Når du har logget inn, trykker du på:
+- ADMIN-PANELET øverst til høyre
+- Avanserte innstillinger
+Da er du logget inn i ny backoffice og klar til å bruke den.
+
+Det meste er selvforklarende. Et tips er Quick Lounge Meny under APOS – der endrer du hvilke varer som skal ligge på kasseskjermen (menyoppsettet).
+Ellers er det bare å si ifra om dere har spørsmål.
+
+Support
+Telefon: 66 85 02 62
+Åpningstider:
+Mandag–fredag: kl. 08–20
+Lørdag: kl. 10–15
+Søndag: kl. 10–14
+Ønsker dere tilgang til support utover disse tidene, kan det bestilles.
+
+Kunnskapsbase
+Her finner dere alle manualer og veiledninger KBD har laget, og et lite innblikk i hva mer Susoft-løsningen kan tilby:
+https://casio.pureservice.com/#/faqs
+Første gang trykker du på «Opprett konto», deretter logger du inn.
+
+SMS-varsling
+Meld deg på SMS-varslingstjenesten og få beskjed om planlagte oppdateringer av Susoft og uforutsette hendelser.
+Meld deg PÅ: send SMS med kodeordet KBD til 27333
+Meld deg AV: send KBD STOPP til 27333
+Tjenesten er gratis for KBDs kunder.
 
 Vedlagt ligger en enkel brukerveiledning for SuSoft.
-
-Har dere spørsmål, er det bare å svare på denne e-posten. Oppgi gjerne referansen {onbnr} når dere kontakter oss.
 
 Med vennlig hilsen
 {ansvarlig}
 Kasse og Butikkdata AS
-teknisk@kbd.as`,
+https://www.kbd.as`,
   vedleggNavn:'Enkel brukerveiledning SuSoft v3.pdf'
 };
 const ONB_INFO_FLETTEFELT=[['{kundenavn}','Kundens navn'],['{kontaktperson}','Kontaktperson fra onboardingen'],['{url}','e-Susoft-adressen fra lisenskoden (live fra Visma)'],['{brukernavn}','Kontakt-e-posten'],['{onbnr}','Onboarding-nummer, f.eks. ONB-0012'],['{ansvarlig}','Ansvarlig tekniker'],['{selger}','Selger']];
