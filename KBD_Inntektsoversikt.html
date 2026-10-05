@@ -659,7 +659,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.187 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.188 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10830,6 +10830,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.188',dato:'05.10.2026',punkter:[
+    'Lisenser: e-Susoft-adressen (URL) under lisenskoden har nå også egen «Kopier»-knapp.'
+  ]},
   {versjon:'v1.48.187',dato:'05.10.2026',punkter:[
     'SoftPay-lisensen (kundekort «Aktive avtaler» og onboarding «🔑 Lisenser») deles nå opp i Brukernavn og Passord, hver med egen «Kopier»-knapp. Fortsatt bare live fra Visma, ingenting lagres.'
   ]},
@@ -16406,7 +16409,7 @@ function formaterLisenskode(v){
   const kode=(/License\s*code:\s*(\S+)/i.exec(v)||[])[1];
   const url=(/URL:\s*(https?:\/\/\S+)/i.exec(v)||[])[1];
   if(!kode&&!url)return `<span style="font-size:12px">${escHtmlEpost(v)}</span>${kopierKnappHtml(v)}`;
-  return `${kode?`<code class="lis-kode">${escHtmlEpost(kode)}</code>${kopierKnappHtml(kode)}`:''}${url?`<div style="font-size:12px;margin-top:2px"><a href="${escHtmlEpost(url)}" target="_blank" rel="noopener">${escHtmlEpost(url.replace(/^https?:\/\//,''))}</a></div>`:''}`;
+  return `${kode?`<code class="lis-kode">${escHtmlEpost(kode)}</code>${kopierKnappHtml(kode)}`:''}${url?`<div style="font-size:12px;margin-top:2px"><a href="${escHtmlEpost(url)}" target="_blank" rel="noopener">${escHtmlEpost(url.replace(/^https?:\/\//,''))}</a>${kopierKnappHtml(url)}</div>`:''}`;
 }
 function kopierTekst(btn,tekst){
   const ren=String(tekst||'');
