@@ -661,7 +661,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.191 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.192 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10854,6 +10854,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.192',dato:'05.10.2026',punkter:[
+    'Lenkene mellom onboarding, kundekort og salgssak åpnes nå i ny fane (merket ↗): «🧑‍💼 Kundekort» og «Åpne salgssaken» i onboardingen, og «🚀 Onboarding» på kundekortet og salgssakene. Fanen du kom fra blir stående der du var.'
+  ]},
   {versjon:'v1.48.191',dato:'05.10.2026',punkter:[
     'Onboarding: når siste oppgave i Klargjøring hukes av, kommer det en popup «Klargjøringen er ferdig» med knappen «📧 Forhåndsvis og send info-e-post» (eller «Senere»). Vises ikke hvis info-e-posten allerede er sendt.'
   ]},
@@ -16836,7 +16839,7 @@ function renderOnboardingDetalj(o){
           <div style="font-size:26px;font-weight:700;color:#111">${onbEsc(o.tittel)}</div>
           <span class="onb-nr" title="Onboarding-nummer – brukes som referanse i info-e-posten">${onbNr(o)}</span>
           <span style="font-size:12px;font-weight:700;color:${sf.c};background:${sf.bg};padding:3px 10px;border-radius:20px">${o.status==='Ny'?'📥 Ny':o.status}</span>
-          ${kunde?`<button class="btn-sm" onclick="onbTilKundekort('${o.id}')">🧑‍💼 Kundekort</button>`:''}
+          ${kunde?kbdNyFaneKnapp('kunde='+encodeURIComponent(kunde.vismaNummer),'🧑‍💼 Kundekort'):''}
         </div>
         <div class="muted" style="margin-top:4px;font-size:12.5px;color:#4b5563">
           Visma-nr ${onbEsc(o.vismaKundeNummer||'—')}${kunde?.orgNr?` · Org.nr ${onbEsc(kunde.orgNr)}`:''} · Selger ${onbEsc(o.selger||'—')} · Startet ${onbDato(o.data.opprettet)}${o.data.ikanoAvtalenr?` · Ikano avtalenr. ${onbEsc(o.data.ikanoAvtalenr)}`:''}
@@ -16993,6 +16996,12 @@ function onbAvslutt(id){
   onbEtterEndring(o);
   onbLagPdf(id);
 }
+// v1.48.192: lenker mellom onboarding, kundekort og salgssak åpnes i NY FANE
+// (Thomas: vanskelig å komme tilbake ellers). Bruker de eksisterende
+// deep-linkene i handleDeepLink(): ?kunde=<nr>[&notat=<spId>] og ?onboarding=<spId>.
+// Innloggingen deles via MSAL-cachen (localStorage), så ny fane logger inn stille.
+function kbdNyFaneLenke(q){return `${location.origin}${location.pathname}?${q}`;}
+function kbdNyFaneKnapp(q,tekst,ekstraStil='',tittel='Åpnes i ny fane'){return `<a class="btn-sm" href="${kbdNyFaneLenke(q)}" target="_blank" rel="noopener" title="${tittel}" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;${ekstraStil}">${tekst} <span style="font-size:11px;opacity:.7">↗</span></a>`;}
 function onbTilKundekort(id){
   const o=onbFind(id);if(!o)return;
   const kunde=[...vismaKunder,...hentProspektKunder()].find(k=>samKundenr(k.vismaNummer,o.vismaKundeNummer));
@@ -17084,7 +17093,7 @@ function onbSalgssakKort(o){
   }
   const logg=(Array.isArray(n.logg)?n.logg:[]).slice(-3).reverse();
   return `<div class="card card-public" style="margin-bottom:16px">
-    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">💼 Salgssak <button class="btn-sm" onclick="gaTilKundeFraSak('${n.id}')">Åpne salgssaken →</button></div>
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">💼 Salgssak ${n.spId?kbdNyFaneKnapp(`kunde=${encodeURIComponent(n.vismaKundeNummer||'')}&notat=${n.spId}`,'Åpne salgssaken'):`<button class="btn-sm" onclick="gaTilKundeFraSak('${n.id}')">Åpne salgssaken →</button>`}</div>
     <div style="font-weight:600;font-size:13.5px">${onbEsc(n.tittel||'(uten tittel)')}</div>
     <div class="muted" style="margin-top:2px">${n.status==='Åpen'?onbEsc(salgFase(n)):(n.tilbudUtfall==='Vunnet'?'✅ Vunnet':onbEsc(n.status))} · Selger ${onbEsc(n.opprettetAv||'—')}${n.tilbudSum?' · '+fS(n.tilbudSum):''}${n.opprettetDato?' · opprettet '+onbDato(n.opprettetDato):''}</div>
     ${n.innhold?`<div class="onb-salgssak-innhold">${renderNotatInnholdHTML(n)}</div>`:'<div class="muted" style="margin-top:6px">Salgssaken har ikke noe notat.</div>'}
@@ -17354,7 +17363,7 @@ function onbLagPdf(id){
 function onbKundekortKnappHtml(k){
   const kNr=String(k.vismaNummer||'').trim();
   const aktiv=onbAktivForKunde(kNr);
-  if(aktiv)return `<button class="btn-sm" style="color:#1d4ed8" onclick="apneOnboarding('${aktiv.id}')">🚀 Onboarding (${aktiv.status==='Ny'?'ny':'pågår'})</button>`;
+  if(aktiv)return kbdNyFaneKnapp('onboarding='+aktiv.spId,`🚀 Onboarding (${aktiv.status==='Ny'?'ny':'pågår'})`,'color:#1d4ed8');
   if(!onbKanStarte())return '';
   return `<button class="btn-sm" title="Send kunden til onboarding (klargjøring, levering, installasjon og oppfølging)" onclick="apneOnbStart({kNr:'${kNr.replace(/'/g,"\\'")}'})">🚀 Send til onboarding</button>`;
 }
@@ -17362,7 +17371,7 @@ function onbSakKnappHtml(n){
   if(n.type!=='Tilbud')return '';
   if(n.status==='Lukket'&&n.tilbudUtfall!=='Vunnet')return '';
   const aktiv=onbAktivForKunde(n.vismaKundeNummer);
-  if(aktiv)return `<button class="btn-sm" style="color:#1d4ed8;white-space:nowrap" onclick="apneOnboarding('${aktiv.id}')">🚀 Onboarding</button>`;
+  if(aktiv)return kbdNyFaneKnapp('onboarding='+aktiv.spId,'🚀 Onboarding','color:#1d4ed8;white-space:nowrap');
   if(!onbKanStarte())return '';
   return `<button class="btn-sm" style="white-space:nowrap" onclick="apneOnbStart({sakId:'${n.id}'})" title="Send kunden til onboarding">🚀 Til onboarding</button>`;
 }
