@@ -661,7 +661,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.192 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.193 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10854,6 +10854,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.193',dato:'05.10.2026',punkter:[
+    'Aldersfordelt: nøkkeltallene øverst følger nå aldersgruppene du velger under «Vis:». Velger du f.eks. «1–30 dager», viser kortene utestående for 1–30 dager, gruppens andel av totalt utestående og endring fra forrige uke for akkurat den gruppen. «Alle» viser som før.'
+  ]},
   {versjon:'v1.48.192',dato:'05.10.2026',punkter:[
     'Lenkene mellom onboarding, kundekort og salgssak åpnes nå i ny fane (merket ↗): «🧑‍💼 Kundekort» og «Åpne salgssaken» i onboardingen, og «🚀 Onboarding» på kundekortet og salgssakene. Fanen du kom fra blir stående der du var.'
   ]},
@@ -13366,6 +13369,11 @@ function renderAging(){
   // KPI cards
   const kpiEl=document.getElementById('aging-kpis');
   const sorted=[...aging].filter(e=>e.date).sort((a,b)=>parseLD(a.date)-parseLD(b.date));
+  // v1.48.193 (05.10.2026): nøkkeltallene følger valgte aldersgrupper i
+  // «Vis:»-pillsene (Thomas' ønske). Ingen valgt («Alle») = som før.
+  const kpiKeys=AGING_KEYS.filter(k=>agingFilters.size===0||agingFilters.has(k));
+  const kpiFiltrert=agingFilters.size>0;
+  const kpiValgtTekst=kpiFiltrert?kpiKeys.map(k=>AGING_LABELS[AGING_KEYS.indexOf(k)]).join(' + '):'';
   if(kpiEl){
     if(!sorted.length){
       kpiEl.innerHTML=`
@@ -13374,17 +13382,32 @@ function renderAging(){
         <div class="kpi"><div class="kpi-lbl">Endring fra forrige</div><div style="font-size:24px;font-weight:700;color:#d0d5dd">—</div><div class="kpi-sub">Ingen tidligere data</div></div>`;
     } else {
       const last=sorted[sorted.length-1];
-      const tot=AGING_KEYS.reduce((s,k)=>s+(last[k]||0),0);
-      const over90=last.d90plus||0;
-      const pct90=tot>0?((over90/tot)*100).toFixed(1):0;
+      const sumKeys=(e,keys)=>keys.reduce((s,k)=>s+(e[k]||0),0);
+      const totAlle=sumKeys(last,AGING_KEYS);
+      const tot=sumKeys(last,kpiKeys);
       const prev=sorted.length>1?sorted[sorted.length-2]:null;
-      const prevTot=prev?AGING_KEYS.reduce((s,k)=>s+(prev[k]||0),0):null;
+      const prevTot=prev?sumKeys(prev,kpiKeys):null;
       const delta=prevTot!=null&&prevTot>0?((tot-prevTot)/prevTot*100):null;
       const deltaHtml=delta!=null?`<div style="font-size:22px;font-weight:700;color:${delta>=0?'#dc2626':'#1baf7a'}">${delta>=0?'▲':'▼'}${Math.abs(delta).toFixed(1)}%</div><div class="kpi-sub">${fS(prevTot)} (${fDateShort(prev.date)})</div>`:`<div style="font-size:22px;font-weight:700;color:#d0d5dd">—</div><div class="kpi-sub">Ingen tidligere data</div>`;
+      // Kort 2: uten filter = «Andel over 90 dager» (som før, rødt over 25 %).
+      // Med filter = valgte gruppers andel av totalt utestående.
+      let kort2;
+      if(!kpiFiltrert){
+        const over90=last.d90plus||0;
+        const pct90=totAlle>0?((over90/totAlle)*100).toFixed(1):0;
+        const c=Number(pct90)>25?'#dc2626':'#1baf7a';
+        kort2=`<div class="kpi" style="border-left:4px solid ${c}"><div class="kpi-lbl">Andel over 90 dager</div><div style="font-size:24px;font-weight:700;color:${c}">${pct90}%</div><div class="kpi-sub">${fS(over90)}</div></div>`;
+      }else{
+        const pct=totAlle>0?((tot/totAlle)*100).toFixed(1):0;
+        const c=(kpiKeys.length===1&&kpiKeys[0]==='d90plus'&&Number(pct)>25)?'#dc2626':'#1A3A6B';
+        kort2=`<div class="kpi" style="border-left:4px solid ${c}"><div class="kpi-lbl">Andel av totalt utestående</div><div style="font-size:24px;font-weight:700;color:${c}">${pct}%</div><div class="kpi-sub">av ${fS(totAlle)} totalt</div></div>`;
+      }
+      const lbl1=kpiFiltrert?`Utestående ${kpiValgtTekst} (siste)`:'Total utestående (siste)';
+      const lbl3=kpiFiltrert?`Endring fra forrige · ${kpiValgtTekst}`:'Endring fra forrige';
       kpiEl.innerHTML=`
-        <div class="kpi accent"><div class="kpi-lbl">Total utestående (siste)</div><div style="font-size:24px;font-weight:700;color:#1A3A6B">${fS(tot)}</div><div class="kpi-sub">${fDateShort(last.date)}</div></div>
-        <div class="kpi" style="border-left:4px solid ${Number(pct90)>25?'#dc2626':'#1baf7a'}"><div class="kpi-lbl">Andel over 90 dager</div><div style="font-size:24px;font-weight:700;color:${Number(pct90)>25?'#dc2626':'#1baf7a'}">${pct90}%</div><div class="kpi-sub">${fS(over90)}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Endring fra forrige</div>${deltaHtml}</div>`;
+        <div class="kpi accent"><div class="kpi-lbl">${lbl1}</div><div style="font-size:24px;font-weight:700;color:#1A3A6B">${fS(tot)}</div><div class="kpi-sub">${fDateShort(last.date)}</div></div>
+        ${kort2}
+        <div class="kpi"><div class="kpi-lbl">${lbl3}</div>${deltaHtml}</div>`;
     }
   }
 
