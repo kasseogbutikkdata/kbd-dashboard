@@ -661,7 +661,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.193 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.194 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5121,6 +5121,7 @@ const JOBBER_KONFIG={
   sjekk_susoft_rma:{visningsnavn:'Susoft RMA-varsling',maksMinutter:26*60},
   sjekk_sos_invitasjoner:{visningsnavn:'Silent Ordering-invitasjoner',maksMinutter:26*60},
   send_salgsoppsummering:{visningsnavn:'Kunde 360 – ukentlig salgsoppsummering',maksMinutter:8*24*60}, // lagt til 29.09.2026, mandag 06:00 UTC — holdes i sync med JOBBER i jobbstatus.py
+  sjekk_onboarding_datoer:{visningsnavn:'Onboarding – datovarsler til ansvarlig',maksMinutter:26*60}, // lagt til 05.10.2026, daglig 06:45 UTC — holdes i sync med JOBBER i jobbstatus.py
   // RETTET 10.09.2026: disse tre sto med 6*60 (6t), men jobbene kjører kun én
   // gang i døgnet — 6t margin garanterte rødt hver kveld uten reell feil.
   // Hevet til 26*60, samme som de andre daglige jobbene over.
@@ -10854,6 +10855,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.194',dato:'05.10.2026',punkter:[
+    'Onboarding: jobber flere på samme kunde samtidig, overskriver dere ikke lenger hverandres avhukinger. Dashbordet henter siste versjon rett før lagring og slår sammen endringene.',
+    'Onboarding: den ansvarlige får Teams-melding når vare- eller regnskapsskjemaet lastes opp av noen andre, når noen andre setter dem som ansvarlig, og dagen etter planlagt levering/installasjon hvis fasen ikke er ferdig.',
+    'Info-e-post: mangler onboardingen kontakt-e-post, foreslås kundens e-post fra Visma (med påminnelse om å sjekke at det er riktig person).'
+  ]},
   {versjon:'v1.48.193',dato:'05.10.2026',punkter:[
     'Aldersfordelt: nøkkeltallene øverst følger nå aldersgruppene du velger under «Vis:». Velger du f.eks. «1–30 dager», viser kortene utestående for 1–30 dager, gruppens andel av totalt utestående og endring fra forrige uke for akkurat den gruppen. «Alle» viser som før.'
   ]},
@@ -16623,16 +16629,82 @@ async function loadOnboarding(){
     spGetItems('Onboarding').catch(e=>{console.warn('Onboarding-lista finnes trolig ikke ennå:',e);return[];}),
     spGetItems('OnboardingMal').catch(()=>[])
   ]);
+  const gamle=new Map(onboardinger.map(o=>[o.id,o]));
   onboardinger=items.map(i=>{
-    let data={};try{data=JSON.parse(i.fields.Data||'{}')||{};}catch{data={};}
-    return {id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'Ny',
-      ansvarlig:i.fields.Ansvarlig||'',ansvarligEpost:i.fields.AnsvarligEpost||'',selger:i.fields.Selger||'',selgerEpost:i.fields.SelgerEpost||'',
-      soNr:i.fields.SoNr||'',sistAktivitet:i.fields.SistAktivitet||'',data:onbNormData(data)};
+    const g=gamle.get(`sp${i.id}`);
+    if(g&&g._lagrer>0)return g; // v1.48.194: ikke bytt ut et objekt som lagres akkurat nå
+    return onbFraItem(i);
   });
   if(malItems.length){
     onbMalSpId=malItems[0].id;
     try{const m=JSON.parse(malItems[0].fields.Data||'null');if(m&&Array.isArray(m.faser))onbMal={faser:m.faser,varer:Array.isArray(m.varer)?m.varer:[],infoEpost:m.infoEpost&&typeof m.infoEpost==='object'?m.infoEpost:null};}catch{}
   }
+}
+function onbFraItem(i){
+  let data={};try{data=JSON.parse(i.fields.Data||'{}')||{};}catch{data={};}
+  const o={id:`sp${i.id}`,spId:i.id,tittel:i.fields.Title||'',vismaKundeNummer:i.fields.VismaKundeNummer||'',status:i.fields.Status||'Ny',
+    ansvarlig:i.fields.Ansvarlig||'',ansvarligEpost:i.fields.AnsvarligEpost||'',selger:i.fields.Selger||'',selgerEpost:i.fields.SelgerEpost||'',
+    soNr:i.fields.SoNr||'',sistAktivitet:i.fields.SistAktivitet||'',data:onbNormData(data)};
+  onbSettBase(o);
+  return o;
+}
+// ---------- v1.48.194: trygg lagring når flere jobber på samme onboarding ----------
+// Før: hver lagring skrev hele Data fra nettleserens kopi (oppdatert hvert 5. min),
+// så to personer kunne stille overskrive hverandres avhukinger. Nå: hent siste
+// versjon fra SharePoint rett før lagring og slå sammen (3-veis: sist innlest
+// «base», egen kopi og serverens). Egne endringer legges oppå serverens; bare
+// når begge har endret SAMME felt vinner egen endring. Lister med id/nr
+// (faser, oppgaver, salgsordrer) slås sammen per element, loggen per post.
+const ONB_TOPPFELT=['tittel','vismaKundeNummer','status','ansvarlig','ansvarligEpost','selger','selgerEpost'];
+function onbSnapshot(o){const s={};ONB_TOPPFELT.forEach(k=>s[k]=o[k]??'');s.data=o.data;return JSON.parse(JSON.stringify(s));}
+function onbSettBase(o){o._base=onbSnapshot(o);}
+function onbLik(a,b){
+  if(a===b)return true;
+  if(typeof a!==typeof b||a===null||b===null||typeof a!=='object')return a===b||((a??'')===''&&(b??'')==='');
+  if(Array.isArray(a)!==Array.isArray(b))return false;
+  if(Array.isArray(a)){if(a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(!onbLik(a[i],b[i]))return false;return true;}
+  const ka=Object.keys(a).filter(k=>a[k]!==undefined),kb=Object.keys(b).filter(k=>b[k]!==undefined);
+  if(ka.length!==kb.length)return false;
+  return ka.every(k=>onbLik(a[k],b[k]));
+}
+function onbNokkel(x){
+  if(!x||typeof x!=='object'||Array.isArray(x))return null;
+  if(x.id!=null)return 'id:'+x.id;
+  if(x.nr!=null)return 'nr:'+x.nr;
+  if(x.dato&&x.tekst!=null)return 'l:'+x.dato+'|'+x.tekst; // loggposter
+  return null;
+}
+function onbFlett3(b,l,s){
+  if(onbLik(l,b))return s;
+  if(onbLik(s,b))return l;
+  if(onbLik(l,s))return l;
+  if(Array.isArray(l)&&Array.isArray(s)){
+    const bb=Array.isArray(b)?b:[];
+    const alle=[...bb,...l,...s];
+    if(!alle.length||alle.some(x=>onbNokkel(x)===null))return l; // uten nøkler: egen versjon vinner
+    const mB=new Map(bb.map(x=>[onbNokkel(x),x])),mL=new Map(l.map(x=>[onbNokkel(x),x]));
+    const ut=[],sett=new Set();
+    for(const x of s){const k=onbNokkel(x);sett.add(k);
+      if(mL.has(k))ut.push(onbFlett3(mB.get(k),mL.get(k),x));
+      else if(!(mB.has(k)&&onbLik(mB.get(k),x)))ut.push(x); // ikke slettet lokalt (eller endret på server)
+    }
+    for(const x of l){const k=onbNokkel(x);if(sett.has(k))continue;
+      if(mB.has(k)&&onbLik(mB.get(k),x))continue; // slettet på serveren
+      ut.push(x);
+    }
+    return ut;
+  }
+  const obj=v=>v&&typeof v==='object'&&!Array.isArray(v);
+  if(obj(l)&&obj(s)){
+    const bo=obj(b)?b:{},ut={};
+    new Set([...Object.keys(s),...Object.keys(l)]).forEach(k=>{const v=onbFlett3(bo[k],l[k],s[k]);if(v!==undefined)ut[k]=v;});
+    return ut;
+  }
+  return l;
+}
+async function onbHentFraServer(spId){
+  const i=await graphReq(`sites/${siteId}/lists/Onboarding/items/${spId}?expand=fields`);
+  return onbFraItem(i);
 }
 function onbNormData(d){
   d.salgsordrer=Array.isArray(d.salgsordrer)?d.salgsordrer:[];
@@ -16654,11 +16726,38 @@ function onbFelter(o){
 function onbMeg(){return currentUser?.name||currentUser?.username||'Ukjent';}
 function onbMinEpost(){return (currentUser?.username||'').toLowerCase();}
 function onbLogg(o,tekst){o.data.logg.push({dato:new Date().toISOString(),tekst,forfatter:onbMeg()});o.sistAktivitet=new Date().toISOString();}
-async function onbLagre(o,stille){
-  if(!o.spId)return;
+function onbLagre(o,stille){
+  if(!o.spId)return Promise.resolve();
+  // Én lagring om gangen per onboarding (ellers kan to raske klikk krysse hverandre).
+  o._lagrer=(o._lagrer||0)+1;
+  o._lagreKo=(o._lagreKo||Promise.resolve()).then(()=>onbLagreNaa(o,stille)).finally(()=>{o._lagrer--;});
+  return o._lagreKo;
+}
+async function onbLagreNaa(o,stille){
   if(!stille)setSPStatus('⏳ Lagrer…');
   try{
+    let flettet=false;
+    if(o._base){
+      const server=await onbHentFraServer(o.spId);
+      const srv=onbSnapshot(server);
+      if(!onbLik(srv,o._base)){
+        const lokal=onbSnapshot(o);
+        const ny=onbFlett3(o._base,lokal,srv);
+        if(!onbLik(ny,lokal)){
+          ONB_TOPPFELT.forEach(k=>o[k]=ny[k]);
+          o.data=onbNormData(ny.data);
+          if(Array.isArray(o.data.logg))o.data.logg.sort((a,b)=>String(a.dato).localeCompare(String(b.dato)));
+          flettet=true;
+        }
+      }
+    }
     await spLagreMedMykFallback(f=>spUpdate('Onboarding',o.spId,f),onbFelter(o),['SistAktivitet']);
+    onbSettBase(o);
+    if(flettet){
+      console.info('Onboarding',o.spId,'slått sammen med endringer fra andre');
+      renderOnboarding();renderVarselMeny();
+      vfShowToast('Onboardingen er oppdatert med endringer andre har gjort');
+    }
     if(!stille){setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),2500);}
   }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Onboardingen ble ikke lagret i SharePoint:\n'+e.message);}
 }
@@ -16979,9 +17078,10 @@ function onbOverstyrVareskjema(id){
 function onbEtterEndring(o){
   // v1.48.191: popup når Klargjøring akkurat ble ferdig (av denne brukeren, i denne økten).
   const naa=onbKlargjoringFerdig(o),for_=onbKlarStatus[o.id];onbKlarStatus[o.id]=naa;
-  renderOnboarding();renderVarselMeny();onbLagre(o);
+  renderOnboarding();renderVarselMeny();const p=onbLagre(o);
   const ie=o.data.infoEpost||{};
   if(for_===false&&naa&&onbTilgang&&o.status==='Pågår'&&!(ie.sendtDato&&!ie.dryRun))setTimeout(()=>apneOnbKlar(o.id),250);
+  return p;
 }
 const onbKlarStatus={};
 
@@ -16996,7 +17096,7 @@ function onbSettAnsvarlig(id,navn){
   const b=brukere.find(x=>x.navn===navn);
   onbLogg(o,`Ansvarlig endret fra ${o.ansvarlig||'—'} til ${navn}`);
   o.ansvarlig=navn;o.ansvarligEpost=(b?.epost||'').toLowerCase();
-  onbEtterEndring(o);
+  onbEtterEndring(o).then(()=>onbVarsleAnsvarlig(o,'ansvarlig'));
 }
 function onbAvbryt(id){
   const o=onbFind(id);if(!o)return;
@@ -17248,6 +17348,7 @@ async function onbLastOppSkjema(id,type,fil){
   catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Opplastingen feilet:\n'+e.message);return;}
   renderOnboarding();
   await onbLagre(o);
+  onbVarsleAnsvarlig(o,type); // v1.48.194: Teams til ansvarlig (venter ikke)
   if(type==='regnskap')await onbSendRegnskap(id,fil);
 }
 async function onbLastNedSkjema(id,type){
@@ -17312,6 +17413,23 @@ async function onbVarsleTeams(o){
     if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
     if(data.sendt){onbLogg(o,'💬 Varslet i Teams (KBD Teknisk)');onbLagre(o,true);}
   }catch(e){console.warn('Teams-varsel feilet (onboardingen er lagret):',e);}
+}
+
+// v1.48.194: personlig Teams-melding til ANSVARLIG for onboardingen (Flow bot,
+// TEAMS_PERSON_WEBHOOK_URL i Azure). Backend henter mottakeren fra SharePoint-
+// raden selv. Sendes ikke når det er en selv som er ansvarlig, og aldri før
+// noen har tatt saken. En feil her stopper aldri noe annet.
+async function onbVarsleAnsvarlig(o,hendelse){
+  try{
+    if(!o?.spId||o.status!=='Pågår'||!o.ansvarligEpost)return;
+    if(o.ansvarligEpost.toLowerCase()===onbMinEpost())return;
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/onboarding_varsle_person'),{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({spId:o.spId,hendelse,av:onbMeg()})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
+    if(data.sendt){onbLogg(o,`💬 ${o.ansvarlig||'Ansvarlig'} varslet i Teams`);onbLagre(o,true);}
+  }catch(e){console.warn('Teams-varsel til ansvarlig feilet:',e);}
 }
 
 // ---------- Oppfølging og ny salgsmulighet (KundeNotater) ----------
@@ -17629,7 +17747,7 @@ async function sendTilOnboarding(){
     onbLogg(o,`🚀 Sendt til onboarding av ${onbMeg()}${so.length?' med '+so.map(s=>'SO '+s.nr).join(', '):''}`);
     if(taSelv)onbLogg(o,`🙋 ${onbMeg()} tok saken`);
     const r=await spCreate('Onboarding',onbFelter(o));
-    o.spId=r.id;o.id=`sp${r.id}`;
+    o.spId=r.id;o.id=`sp${r.id}`;onbSettBase(o);
     onboardinger.push(o);
     onbKasserFraSo(o.id,true);
     for(const t of ['varer','regnskap']){
@@ -17856,8 +17974,15 @@ function onbInfoKort(o,kan){
       <label class="muted" style="display:block;margin-bottom:2px">Kontakt-e-post (brukernavn i backoffice)</label>
       ${(onbTilgang||salgTilgang)&&o.status!=='Avbrutt'?`<input type="text" value="${onbEsc(ep)}" placeholder="post@kunde.no" onchange="onbSettKontaktEpost('${o.id}',this.value)" style="width:100%;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;box-sizing:border-box"/>`:`<strong>${onbEsc(ep||'—')}</strong>`}
     </div>
+    ${!ep&&onbVismaEpost(o)&&(onbTilgang||salgTilgang)&&o.status!=='Avbrutt'?`<div class="onb-hjelp" style="margin-top:4px">Forslag fra Visma: <strong>${onbEsc(onbVismaEpost(o))}</strong> <button class="onb-lenkeknapp" onclick="onbSettKontaktEpost('${o.id}','${onbEsc(onbVismaEpost(o)).replace(/'/g,'')}')">Bruk</button><br><span class="muted">Sjekk at det er riktig person – ofte er dette en felles- eller fakturaadresse.</span></div>`:''}
     ${kanSende?`<button class="${klar&&!sendt?'prim':'btn-sm'}" style="margin-top:10px" onclick="apneOnbInfo('${o.id}')">${sendt?'Send på nytt…':'👁️ Forhåndsvis og send'}</button>`:''}
   </div>`;
+}
+// v1.48.194: forslag fra Visma (KontaktEpost på kunden) når onboardingen mangler adresse.
+function onbVismaEpost(o){
+  const k=[...vismaKunder,...hentProspektKunder()].find(x=>samKundenr(x.vismaNummer,o.vismaKundeNummer));
+  const e=String(k?.kontaktEpost||'').trim();
+  return onbGyldigEpost(e)?e:'';
 }
 function onbSettKontaktEpost(id,v){
   const o=onbFind(id);if(!o)return;v=String(v||'').trim();
@@ -17879,7 +18004,8 @@ let onbKlarId=null;
 function apneOnbKlar(id){
   const o=onbFind(id);if(!o)return;onbKlarId=id;
   const ep=o.data.kontaktEpost;
-  document.getElementById('onbk-tekst').innerHTML=`${onbEsc(o.tittel)} (${onbNr(o)}) er klar for info-e-posten med innlogging og brukerveiledning.<br><span class="muted">${ep?`Sendes til ${onbEsc(ep)}${o.selgerEpost?' med kopi til selger':''}.`:'Kontakt-e-post mangler – den fylles inn i neste steg.'}</span>`;
+  const vEp=!ep?onbVismaEpost(o):'';
+  document.getElementById('onbk-tekst').innerHTML=`${onbEsc(o.tittel)} (${onbNr(o)}) er klar for info-e-posten med innlogging og brukerveiledning.<br><span class="muted">${ep?`Sendes til ${onbEsc(ep)}${o.selgerEpost?' med kopi til selger':''}.`:vEp?`Forslag fra Visma: ${onbEsc(vEp)} – sjekk adressen i neste steg.`:'Kontakt-e-post mangler – den fylles inn i neste steg.'}</span>`;
   document.getElementById('onb-klar-modal').classList.add('open');
 }
 function lukkOnbKlar(){document.getElementById('onb-klar-modal').classList.remove('open');onbKlarId=null;}
@@ -17893,17 +18019,20 @@ async function apneOnbInfo(id){
   const [url,pdf]=await Promise.all([onbHentKundeUrl(o).catch(()=>''),spHentFilBlob(ONB_INFO_PDF).catch(()=>null)]);
   setSPStatus('');
   const mal=onbInfoMal();
-  const felt={kundenavn:o.tittel,kontaktperson:o.data.kontaktNavn||'',url,brukernavn:o.data.kontaktEpost||'',onbnr:onbNr(o),ansvarlig:o.ansvarlig||onbMeg(),selger:o.selger||''};
+  const vismaEp=!o.data.kontaktEpost?onbVismaEpost(o):'';
+  const tilEp=o.data.kontaktEpost||vismaEp;
+  const felt={kundenavn:o.tittel,kontaktperson:o.data.kontaktNavn||'',url,brukernavn:tilEp,onbnr:onbNr(o),ansvarlig:o.ansvarlig||onbMeg(),selger:o.selger||''};
   onbInfo={id,pdf,vedleggNavn:mal.vedleggNavn||'Brukerveiledning.pdf'};
   const advarsler=[];
   if(!url)advarsler.push('Fant ingen e-Susoft-adresse i lisenskoden på kundens aktive kontrakter. Fyll inn adressen i teksten.');
-  if(!o.data.kontaktEpost)advarsler.push('Onboardingen har ingen kontakt-e-post. Fyll inn mottaker og brukernavn.');
+  if(vismaEp)advarsler.push(`Mottaker og brukernavn er foreslått fra Visma (${vismaEp}). Sjekk at det er riktig person – ofte er dette en felles- eller fakturaadresse.`);
+  else if(!o.data.kontaktEpost)advarsler.push('Onboardingen har ingen kontakt-e-post. Fyll inn mottaker og brukernavn.');
   if(!pdf)advarsler.push('Fant ikke PDF-vedlegget. Last det opp under «⚙️ Mal og varer», ellers sendes e-posten uten vedlegg.');
   else if(pdf.size>3*1048576)advarsler.push('PDF-vedlegget er over 3 MB og kan ikke sendes. Last opp en mindre fil under «⚙️ Mal og varer».');
   const selgerEp=(o.selgerEpost||'').toLowerCase();
   document.getElementById('onbi-innhold').innerHTML=`
     ${advarsler.map(a=>`<div class="onb-advarsel" style="margin-bottom:6px">⚠️ ${onbEsc(a)}</div>`).join('')}
-    <div class="fgrp"><label>Til (kunden)</label><input type="email" id="onbi-til" value="${onbEsc(o.data.kontaktEpost||'')}"/></div>
+    <div class="fgrp"><label>Til (kunden)</label><input type="email" id="onbi-til" value="${onbEsc(tilEp)}"/></div>
     <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0 10px;cursor:pointer"><input type="checkbox" id="onbi-kopi" ${selgerEp.endsWith('@kbd.as')?'checked':'disabled'} style="width:16px;height:16px;margin:0"/>Kopi til selger ${selgerEp?`(${onbEsc(o.selger||'')}, ${onbEsc(selgerEp)})`:'(mangler e-post)'}</label>
     <div class="fgrp" style="margin-bottom:10px"><label>Fra</label><div style="font-size:13px">teknisk@kbd.as – svar fra kunden havner der</div></div>
     <div class="fgrp"><label>Emne</label><input type="text" id="onbi-emne" value="${onbEsc(onbFlett(mal.emne,felt))}"/></div>
