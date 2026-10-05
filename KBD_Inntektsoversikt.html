@@ -655,7 +655,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.183 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.184 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -6577,12 +6577,20 @@ function prospektKundenummer(n){return 'LEAD-'+(n.orgNr||n.spId||n.id);}
 let _prospektAliasCache={sig:'',map:new Map()};
 function prospektAliasMap(){
   const overfort=nyetableringer.filter(n=>n.status==='Overført'&&n.orgNr);
-  const sig=`${vismaKunder.length}|${overfort.length}|${overfort.map(n=>n.id).join(',')}`;
+  const sig=`${vismaKunder.length}|${overfort.length}|${overfort.map(n=>n.id+':'+n.orgNr).join(',')}`;
   if(_prospektAliasCache.sig===sig)return _prospektAliasCache.map;
   const vismaPrOrgnr=new Map();
   vismaKunder.forEach(k=>{const nr=normOrgNr(k.orgNr);if(nr.length===9&&!vismaPrOrgnr.has(nr))vismaPrOrgnr.set(nr,String(k.vismaNummer||'').trim());});
   const map=new Map();
-  overfort.forEach(n=>{const v=vismaPrOrgnr.get(normOrgNr(n.orgNr));if(v)map.set(prospektKundenummer(n),v);});
+  overfort.forEach(n=>{
+    const v=vismaPrOrgnr.get(normOrgNr(n.orgNr));
+    if(v)map.set(prospektKundenummer(n),v);
+    // v1.48.184: org.nr lagt inn i etterkant → saker som evt. fortsatt ligger
+    // på den gamle nøkkelen LEAD-<spId> vises likevel på riktig kunde (sikkerhetsnett
+    // hvis flyttingen av saker ble avbrutt underveis).
+    const gammel='LEAD-'+(n.spId||n.id);
+    if(gammel!==prospektKundenummer(n))map.set(gammel,v||prospektKundenummer(n));
+  });
   _prospektAliasCache={sig,map};
   return map;
 }
@@ -7240,6 +7248,11 @@ function renderProspektKundeKort(k){
           <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
+              ${!k.orgNr&&salgTilgang?`<tr><td class="muted" style="width:160px">Org.nr</td><td>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><input type="text" id="prospekt-orgnr" inputmode="numeric" placeholder="9 siffer" maxlength="11" style="width:140px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter'){event.preventDefault();prospektOrgnrSjekk('${k.nyetableringId}');}"/>
+                <button class="btn-sm" onclick="prospektOrgnrSjekk('${k.nyetableringId}')">🔎 Sjekk i Brreg</button>
+                <span class="hint" style="margin:0">Legg inn når selskapet har fått org.nr</span></div>
+                <div id="prospekt-orgnr-forhand" style="margin-top:8px"></div></td></tr>`:''}
               <tr><td class="muted" style="width:160px">Adresse${k.manueltOpprettet?'':' (Brreg)'}</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
               <tr><td class="muted">Kontaktperson</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-navn" value="${(k.kontaktNavn||'').replace(/"/g,'&quot;')}" placeholder="Navn" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktNavn||'—')}</td></tr>
               <tr><td class="muted">E-post</td><td>${salgTilgang?`<input type="email" id="prospekt-kontakt-epost" value="${(k.kontaktEpost||'').replace(/"/g,'&quot;')}" placeholder="navn@firma.no" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktEpost||'—')}</td></tr>
@@ -7298,6 +7311,112 @@ function lagreProspektKontaktinfo(nyetableringId){
     k360Valgt=hentProspektKunder().find(x=>x.id===k360Valgt.id)||k360Valgt;
     renderKundeKort(k360Valgt);
   }
+}
+
+// ===== ORG.NR I ETTERKANT PÅ PROSPEKT (v1.48.184) =====
+// Thomas: «hvor får jeg lagt inn org.nr når det blir klart?» (manuelt
+// registrert lead, f.eks. nytt selskap under stiftelse). Nøkkelen sakene
+// kobles på er LEAD-<spId> uten org.nr og LEAD-<orgnr> med — å bare fylle inn
+// org.nr ville gjort sakene usynlige. Flyt: sjekk mot Brreg → forhåndsvisning
+// (navn/adresse, antall saker/onboardinger som flyttes, evt. duplikat) →
+// lagre: (1) OrgNr (+ evt. Title/adresse) på Nyetableringer-raden, (2)
+// VismaKundeNummer på saker (KundeNotater) og onboardinger flyttes til ny
+// nøkkel, (3) loggpost. prospektAliasMap() mapper i tillegg gammel nøkkel →
+// ny, så ingenting forsvinner selv om (2) skulle feile underveis.
+let prospektOrgnrForslag=null;
+async function prospektOrgnrSjekk(nyId){
+  const n=nyetableringer.find(x=>x.id===nyId);if(!n)return;
+  const ut=document.getElementById('prospekt-orgnr-forhand');
+  const nr=normOrgNr(document.getElementById('prospekt-orgnr')?.value);
+  prospektOrgnrForslag=null;
+  if(nr.length!==9){ut.innerHTML='<div style="color:#d03b3b;font-size:12.5px">Org.nr må være 9 siffer.</div>';return;}
+  ut.innerHTML='<div class="hint" style="margin:0">Henter fra Brønnøysundregisteret…</div>';
+  let e=null;
+  try{
+    for(const ep of['enheter','underenheter']){
+      const r=await fetch(`https://data.brreg.no/enhetsregisteret/api/${ep}/${nr}`);
+      if(r.ok){e=await r.json();break;}
+    }
+  }catch(err){console.warn('Brreg-oppslag feilet',err);}
+  const adr=e?(e.forretningsadresse||e.beliggenhetsadresse||{}):{};
+  const brreg=e?{navn:e.navn||'',adresse:(adr.adresse||[]).join(' '),postnr:adr.postnummer||'',poststed:adr.poststed||'',kommune:adr.kommune||''}:null;
+  const gammelNokkel=prospektKundenummer(n);
+  const nyNokkel='LEAD-'+nr;
+  const saker=kundeNotater.filter(x=>String(x.vismaKundeNummer||'').trim()===gammelNokkel);
+  const onb=(typeof onboardinger!=='undefined'?onboardinger:[]).filter(o=>String(o.vismaKundeNummer||'').trim()===gammelNokkel);
+  const visma=vismaKunder.find(k=>normOrgNr(k.orgNr)===nr);
+  const dupl=nyetableringer.filter(x=>x.id!==n.id&&normOrgNr(x.orgNr)===nr);
+  prospektOrgnrForslag={nyId,nr,brreg,gammelNokkel,nyNokkel,saker,onb,visma,dupl};
+  const esc=escHtmlEpost;
+  ut.innerHTML=`<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;font-size:13px">
+    ${brreg?`<div>✅ <strong>${esc(brreg.navn)}</strong> (org.nr ${nr})</div>
+      <div class="muted" style="margin:2px 0 6px">${esc(brreg.adresse||'—')}${brreg.postnr||brreg.poststed?`, ${esc(brreg.postnr)} ${esc(brreg.poststed)}`:''}</div>
+      <label style="display:flex;gap:6px;align-items:center;cursor:pointer;margin-bottom:6px"><input type="checkbox" id="prospekt-orgnr-oppdater" ${brreg.navn?'checked':''}/> Oppdater navn og adresse fra Brreg (nå: «${esc(n.tittel||'')}»)</label>`
+      :`<div style="color:#b45309">⚠️ Fant ikke org.nr ${nr} i Brønnøysundregisteret (kan være helt nytt). Du kan likevel lagre det.</div>`}
+    <div style="margin:4px 0">${saker.length} ${saker.length===1?'sak':'saker'}${onb.length?` og ${onb.length} onboarding${onb.length===1?'':'er'}`:''} flyttes med.</div>
+    ${visma?`<div style="color:#1d4ed8;margin:4px 0">ℹ️ Org.nr finnes allerede som Visma-kunde <strong>${esc(visma.navn)}</strong> (kundenr ${esc(visma.vismaNummer)}). Sakene vises da på Visma-kundekortet, og prospektet skjules.</div>`:''}
+    ${dupl.length?`<div style="color:#b45309;margin:4px 0">⚠️ Org.nr er også registrert på ${dupl.map(x=>`«${esc(x.tittel||'')}» (${esc(x.status)})`).join(', ')}. Den/de settes til «Ikke aktuell» med en loggpost, og eventuelle saker der samles på dette kortet.</div>`:''}
+    <div style="display:flex;gap:6px;margin-top:8px"><button class="prim" style="padding:5px 14px;font-size:13px" onclick="prospektOrgnrLagre()">💾 Lagre org.nr</button><button class="btn-sm" onclick="document.getElementById('prospekt-orgnr-forhand').innerHTML='';prospektOrgnrForslag=null">Avbryt</button></div>
+  </div>`;
+}
+async function prospektOrgnrLagre(){
+  const f=prospektOrgnrForslag;if(!f)return;
+  const n=nyetableringer.find(x=>x.id===f.nyId);if(!n)return;
+  if(n.orgNr){alert('Prospektet har allerede org.nr.');return;}
+  const oppdater=!!(f.brreg&&document.getElementById('prospekt-orgnr-oppdater')?.checked);
+  const bruker=currentUser?.name||currentUser?.username||'Ukjent';
+  const naa=new Date().toISOString();
+  const gammeltNavn=n.tittel;
+  // 1) Nyetableringer-raden
+  n.orgNr=f.nr;
+  const felter={OrgNr:f.nr};
+  if(oppdater){
+    if(f.brreg.navn){n.tittel=f.brreg.navn;felter.Title=f.brreg.navn;}
+    if(f.brreg.adresse||f.brreg.postnr){n.adresse=f.brreg.adresse;n.postnummer=f.brreg.postnr;n.poststed=f.brreg.poststed;n.kommune=f.brreg.kommune||n.kommune;
+      Object.assign(felter,{Adresse:f.brreg.adresse,Postnummer:f.brreg.postnr,Poststed:f.brreg.poststed});if(f.brreg.kommune)felter.Kommune=f.brreg.kommune;}
+  }
+  if(!Array.isArray(n.logg))n.logg=[];
+  n.logg.push({dato:naa,tekst:`Org.nr lagt inn: ${f.nr}${oppdater&&gammeltNavn!==n.tittel?` (navn endret fra «${gammeltNavn}»)`:''}`,forfatter:bruker});
+  felter.Logg=JSON.stringify(n.logg);
+  setSPStatus('⏳ Lagrer org.nr…');
+  try{
+    if(n.spId)await spUpdate('Nyetableringer',n.spId,felter);
+  }catch(e){
+    n.orgNr='';n.tittel=gammeltNavn;n.logg.pop();
+    setSPStatus('❌ '+e.message,false);alert('⚠️ Org.nr ble ikke lagret — ingenting er endret:\n'+e.message);return;
+  }
+  // 2) Duplikater → Ikke aktuell (saker der ligger allerede på LEAD-<orgnr>)
+  for(const d of f.dupl){
+    if(d.status==='Ikke aktuell')continue;
+    d.status='Ikke aktuell';
+    if(!Array.isArray(d.logg))d.logg=[];
+    d.logg.push({dato:naa,tekst:`Satt til «Ikke aktuell»: samme org.nr er lagt inn på «${n.tittel}» (Kunde 360) av ${bruker}.`,forfatter:bruker});
+    try{if(d.spId)await spUpdate('Nyetableringer',d.spId,{Status:'Ikke aktuell',Logg:JSON.stringify(d.logg)});}catch(e){console.error('Duplikat ble ikke oppdatert',e);}
+  }
+  // 3) Flytt saker og onboardinger til ny nøkkel
+  let feil=0;
+  for(const x of f.saker){
+    x.vismaKundeNummer=f.nyNokkel;
+    const ff={VismaKundeNummer:f.nyNokkel};
+    if(oppdater&&f.brreg.navn){x.kundeNavn=f.brreg.navn;ff.KundeNavn=f.brreg.navn;}
+    try{if(x.spId)await spUpdate('KundeNotater',x.spId,ff);}catch(e){feil++;console.error('Sak ble ikke flyttet',x.id,e);}
+  }
+  for(const o of f.onb){
+    o.vismaKundeNummer=f.nyNokkel;
+    try{if(o.spId)await spUpdate('Onboarding',o.spId,{VismaKundeNummer:f.nyNokkel});}catch(e){feil++;console.error('Onboarding ble ikke flyttet',o.id,e);}
+  }
+  prospektOrgnrForslag=null;
+  setSPStatus(feil?`⚠️ Org.nr lagret, ${feil} sak(er) ikke flyttet`:'✅ Org.nr lagret',!feil);
+  if(!feil)setTimeout(()=>setSPStatus(''),3000);
+  if(feil)alert(`Org.nr er lagret, men ${feil} sak(er)/onboarding(er) ble ikke flyttet i SharePoint. De vises likevel på kunden (gammel nøkkel kobles automatisk). Prøv gjerne å laste siden på nytt senere.`);
+  // 4) Vis riktig kort: Visma-kunden hvis den finnes, ellers prospektet
+  const visma=vismaKunder.find(k=>normOrgNr(k.orgNr)===f.nr);
+  const pros=hentProspektKunder().find(x=>x.nyetableringId===n.id);
+  const mal=visma||pros;
+  if(mal){document.getElementById('k360-search').value=mal.navn||'';velgKunde360(mal);}
+  if(typeof renderKundesaker==='function')renderKundesaker();
+  if(typeof renderNyetableringer==='function')renderNyetableringer();
+  renderVarselMeny?.();
 }
 
 // ===== NY KUNDE (manuell registrering, lagt til 28.08.2026) =====
@@ -10648,6 +10767,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.184',dato:'05.10.2026',punkter:[
+    'Kunde 360: på et manuelt registrert prospekt uten org.nr kan du nå legge inn org.nr under Kontaktinfo når selskapet har fått det. «🔎 Sjekk i Brreg» viser navn og adresse fra Brønnøysundregisteret, og du kan velge å oppdatere navn og adresse. Du ser også hvor mange saker og onboardinger som flyttes med.',
+    'Saker, logg og onboardinger blir værende på kunden. Finnes org.nr allerede som Visma-kunde, vises sakene der. Finnes det samme org.nr på et annet prospekt eller i Nyetableringer, settes det til «Ikke aktuell», og sakene samles på dette kortet.'
+  ]},
   {versjon:'v1.48.183',dato:'05.10.2026',punkter:[
     'Onboarding: når en selger sender en kunde til onboarding, kommer det et varsel i Teams-chatten «KBD Teknisk» med kunde, salgsordrer, skjemastatus og en knapp som åpner saken i KBD CC.'
   ]},
