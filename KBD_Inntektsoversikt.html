@@ -434,6 +434,8 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .onb-stepper-stor .sos-step-label{font-size:13px;margin-top:6px;color:#374151}
 .onb-stepper-stor .sos-step-label span{font-size:12px}
 .lis-kode{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#f3f4f6;padding:1px 6px;border-radius:4px;white-space:nowrap}
+.lis-rad{display:flex;align-items:center;gap:6px;white-space:nowrap;margin:1px 0}
+.lis-etikett{font-size:11px;color:#6b7280;min-width:68px}
 .onb-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin-top:16px;align-items:start}
 @media(max-width:1100px){.onb-grid{grid-template-columns:1fr}}
 .onb-oppg{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f3f4f6;font-size:13.5px;color:#111}
@@ -657,7 +659,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.186 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.187 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10828,6 +10830,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.187',dato:'05.10.2026',punkter:[
+    'SoftPay-lisensen (kundekort «Aktive avtaler» og onboarding «🔑 Lisenser») deles nå opp i Brukernavn og Passord, hver med egen «Kopier»-knapp. Fortsatt bare live fra Visma, ingenting lagres.'
+  ]},
   {versjon:'v1.48.186',dato:'05.10.2026',punkter:[
     'Leadkilde «Telefon» har fått spørsmålet «Hvordan fant de oss?»: Google / søk på nett, Anbefalt av noen, Kjenner KBD fra før, Facebook / sosiale medier, Så oss et sted, Annet eller Ikke spurt / vet ikke. Spørsmålet må besvares. Kilden vises som f.eks. «📍 Telefon · Google / søk på nett».',
     'Tilbudsanalyse → Pr. leadkilde: klikk på Telefon-raden for å se fordelingen på hvordan de fant oss.'
@@ -16383,7 +16388,17 @@ function lisensCellerHtml(prefix,id){
 function lisensVisning(d){
   if(!d)return['<span class="muted">—</span>','<span class="muted">—</span>'];
   if(d.feil)return[`<span class="muted" title="${escHtmlEpost(d.feil)}">⚠️ ikke hentet</span>`,''];
-  return[formaterLisenskode(d.lisenskode),d.softpayLisens?`<code class="lis-kode">${escHtmlEpost(d.softpayLisens)}</code>${kopierKnappHtml(d.softpayLisens)}`:'<span class="muted">—</span>'];
+  return[formaterLisenskode(d.lisenskode),formaterSoftpayLisens(d.softpayLisens)];
+}
+// v1.48.187: SoftPay-lisensen ligger som én tekst i Visma («Username: XXX Softpay password is: YYY»).
+// Deles opp i Brukernavn/Passord med hver sin Kopier-knapp. Ukjent format → hele teksten + Kopier.
+function formaterSoftpayLisens(v){
+  v=String(v||'').trim();if(!v)return '<span class="muted">—</span>';
+  const bruker=(/User\s*name\s*:\s*(\S+)/i.exec(v)||[])[1];
+  const passord=(/password(?:\s*is)?\s*:\s*(\S+)/i.exec(v)||[])[1];
+  if(!bruker&&!passord)return `<code class="lis-kode">${escHtmlEpost(v)}</code>${kopierKnappHtml(v)}`;
+  const rad=(etikett,verdi)=>verdi?`<div class="lis-rad"><span class="lis-etikett">${etikett}</span><code class="lis-kode">${escHtmlEpost(verdi)}</code>${kopierKnappHtml(verdi)}</div>`:'';
+  return rad('Brukernavn',bruker)+rad('Passord',passord);
 }
 function kopierKnappHtml(tekst){return ` <button class="onb-lenkeknapp" data-kopier="${escHtmlEpost(String(tekst))}" onclick="kopierTekst(this,this.dataset.kopier)">Kopier</button>`;}
 function formaterLisenskode(v){
