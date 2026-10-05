@@ -655,7 +655,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.182 · Oppdatert: 3. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.183 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10648,6 +10648,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.183',dato:'05.10.2026',punkter:[
+    'Onboarding: når en selger sender en kunde til onboarding, kommer det et varsel i Teams-chatten «KBD Teknisk» med kunde, salgsordrer, skjemastatus og en knapp som åpner saken i KBD CC.'
+  ]},
   {versjon:'v1.48.182',dato:'03.10.2026',punkter:[
     'Lisenskode og SoftPay-lisens fra kundekontraktene i Visma vises nå på kundekortet (under «Aktive avtaler») og i onboardingen («🔑 Lisenser»), med «Kopier»-knapp og lenke til kundens e-Susoft-adresse.',
     'Kodene hentes live fra Visma hver gang og lagres ikke i KBD CC.'
@@ -17003,6 +17006,24 @@ async function onbSendRegnskap(id,fil){
   onbEtterEndring(o);
 }
 
+// v1.48.183: Teams-kort til gruppechatten «KBD Teknisk» når en selger sender
+// en ny onboarding. Selve webhook-adressen ligger bare i Azure
+// (TEAMS_TEKNISK_WEBHOOK_URL). Er den ikke satt, svarer backend sendt:false og
+// ingenting skjer. En feil her stopper aldri onboardingen.
+async function onbVarsleTeams(o){
+  try{
+    const sk=o.data.skjemaer;
+    const status=s=>s.status==='lastetOpp'?'Lastet opp':s.status==='ettersendes'?'Ettersendes':'Ikke lastet opp';
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/onboarding_varsle_teams'),{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({spId:o.spId,kundenavn:o.tittel,selger:o.selger,salgsordrer:o.data.salgsordrer.map(s=>({nr:s.nr,type:s.type})),
+        vareskjema:status(sk.varer),regnskap:status(sk.regnskap),onsketDato:o.data.onsketDato?onbDato(o.data.onsketDato):'',notat:o.data.notat||''})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok)throw new Error(data.error||`HTTP ${resp.status}`);
+    if(data.sendt){onbLogg(o,'💬 Varslet i Teams (KBD Teknisk)');onbLagre(o,true);}
+  }catch(e){console.warn('Teams-varsel feilet (onboardingen er lagret):',e);}
+}
+
 // ---------- Oppfølging og ny salgsmulighet (KundeNotater) ----------
 async function onbLagNotat(o,type,tittel,innhold,forfallsdato,ekstra={}){
   const ansvarlig=o.ansvarlig||onbMeg();
@@ -17327,6 +17348,7 @@ async function sendTilOnboarding(){
     lukkOnbStart();
     if(sak&&sak.type==='Tilbud'&&sak.status==='Åpen')vinnTilbud(sak.id);
     if(regnskapFil&&o.data.skjemaer.regnskap.status==='lastetOpp')await onbSendRegnskap(o.id,regnskapFil);
+    if(!taSelv)onbVarsleTeams(o); // v1.48.183: Teams-varsel til «KBD Teknisk» (venter ikke på svaret)
     vfShowToast(`${o.tittel} er sendt til onboarding`);
     renderVarselMeny();
     if(k360Valgt)renderKundeKort(k360Valgt);
