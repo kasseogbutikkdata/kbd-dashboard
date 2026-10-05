@@ -655,7 +655,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.184 · Oppdatert: 5. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.185 · Oppdatert: 5. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3803,7 +3803,7 @@ async function loadDataFromSP(){
   // IKKE opprettet i SharePoint ennå (se Liste 25 i sjekklisten) — feltene
   // kommer da rett og slett tilbake som undefined fra Graph, og ||null/!=null
   // -sjekkene under gir da bare null/tom streng, helt ufarlig.
-  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',tilbudArsak:i.fields.TilbudArsak||'',tilbudArsakDetalj:i.fields.TilbudArsakDetalj||'',fase:i.fields.Fase||'',leadKilde:i.fields.LeadKilde||'',leadKildeDetalj:i.fields.LeadKildeDetalj||'',sistAktivitet:i.fields.SistAktivitet||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',tilbudArsak:i.fields.TilbudArsak||'',tilbudArsakDetalj:i.fields.TilbudArsakDetalj||'',fase:i.fields.Fase||'',leadKilde:normLeadKilde(i.fields.LeadKilde),leadKildeDetalj:i.fields.LeadKildeDetalj||'',sistAktivitet:i.fields.SistAktivitet||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -9827,7 +9827,13 @@ const SALG_FASER=[
   {navn:'Tilbud sendt',sans:60,ikon:'📄'},
   {navn:'Closing',sans:80,ikon:'🤝'},
 ];
-const LEAD_KILDER=['Hjemmeside','Susoft','NHO IK','KNIF','Systemkjøp','Eksisterende kunde','Frisk Asker','FNA','Nyetableringer (Brreg)','Annet'];
+const LEAD_KILDER=['www.kbd.as','Telefon','Susoft','NHO IK','KNIF','Systemkjøp','Eksisterende kunde','Frisk Asker','FNA','Nyetableringer (Brreg)','Annet'];
+// v1.48.185: «Hjemmeside» heter nå «www.kbd.as». Eldre saker har fortsatt
+// LeadKilde='Hjemmeside' i SharePoint — leses inn som 'www.kbd.as' (kort,
+// Rediger, rapporter), og skrives med ny verdi neste gang saken lagres.
+// Ingen datamigrering nødvendig.
+const LEAD_KILDE_ALIAS={'Hjemmeside':'www.kbd.as'};
+function normLeadKilde(k){const v=String(k||'').trim();return LEAD_KILDE_ALIAS[v]||v;}
 const FASER_MED_SUM=['Tilbud sendt','Closing'];
 function salgFase(n){
   if(!n||n.type!=='Tilbud')return '';
@@ -10767,6 +10773,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.185',dato:'05.10.2026',punkter:[
+    'Leadkilde: «Hjemmeside» heter nå «www.kbd.as», og «Telefon» er ny kilde (nye kunder som ringer inn). Eldre saker med «Hjemmeside» vises automatisk som www.kbd.as og telles i samme rad i Tilbudsanalyse.'
+  ]},
   {versjon:'v1.48.184',dato:'05.10.2026',punkter:[
     'Kunde 360: på et manuelt registrert prospekt uten org.nr kan du nå legge inn org.nr under Kontaktinfo når selskapet har fått det. «🔎 Sjekk i Brreg» viser navn og adresse fra Brønnøysundregisteret, og du kan velge å oppdatere navn og adresse. Du ser også hvor mange saker og onboardinger som flyttes med.',
     'Saker, logg og onboardinger blir værende på kunden. Finnes org.nr allerede som Visma-kunde, vises sakene der. Finnes det samme org.nr på et annet prospekt eller i Nyetableringer, settes det til «Ikke aktuell», og sakene samles på dette kortet.'
