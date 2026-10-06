@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.201 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.202 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3153,9 +3153,9 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <span class="filter-lbl" style="margin-left:8px">Grunnlag:</span>
         <select id="ta-ka-grunnlag" onchange="taKaGrunnlag=this.value;renderTaKundeanalyse()" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px"><option value="snitt3">Snitt siste 3 mnd</option><option value="snitt12">Snitt siste 12 mnd</option><option value="siste">Siste måned</option></select>
         <span class="filter-lbl" style="margin-left:8px">Grense (kr/mnd):</span>
-        <input id="ta-ka-terskel" type="number" min="0" step="500" value="1000" oninput="taKaTerskel=Math.max(0,parseFloat(this.value)||0);renderTaKundeanalyse()" style="width:90px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px">
+        <input id="ta-ka-terskel" type="number" min="0" step="500" value="1000" oninput="taKaTerskel=Math.max(0,parseFloat(this.value)||0);taKaRenderSnart()" style="width:90px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px">
         <label style="font-size:13px;color:#374151;margin-left:8px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="ta-ka-forhandlere" onchange="taKaForhandlere=this.checked;renderTaKundeanalyse()">Ta med forhandlere</label>
-        <input id="ta-ka-sok" type="search" placeholder="Søk kunde eller kundenr" oninput="taKaSok=this.value;renderTaKundeanalyse()" style="flex:1 1 180px;min-width:160px;padding:5px 10px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px">
+        <input id="ta-ka-sok" type="search" placeholder="Søk kunde eller kundenr" oninput="taKaSok=this.value;taKaRenderSnart()" style="flex:1 1 180px;min-width:160px;padding:5px 10px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px">
         <button class="btn-sm" onclick="taKaHent(true)">↻ Oppdater</button>
         <button class="btn-sm" onclick="taKaEksporterCsv()">⬇ CSV</button>
       </div>
@@ -11034,6 +11034,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.202',dato:'06.10.2026',punkter:[
+    'Kundeanalyse: filtre, sortering og søk reagerer nå med en gang. Før ble hele analysen regnet ut på nytt ved hvert klikk og hvert tastetrykk.',
+    'Kundeanalyse: inneværende måned brukes ikke lenger som «siste måned», fordi den bare er delvis fakturert. Før ga det 0 kr i «Siste mnd» for mange kunder og trakk ned 3-månederssnittet.'
+  ]},
   {versjon:'v1.48.201',dato:'06.10.2026',punkter:[
     'Trans.avgift-rapport: ny visning «🔍 Kundeanalyse» ved siden av «📈 Månedsoversikt». Den viser hva hver kunde betaler i transaksjonsavgift (Verifone og Nets), hentet fra fakturalinjene i Visma.',
     'Kundeanalyse: kort som viser hvor mange kunder som ligger over 1 000, 2 000, 5 000 og 10 000 kr per måned. Klikk på et kort for å bruke det som grense. Tabellen viser snitt for 3 og 12 måneder, endring, antall transaksjoner, pris per transaksjon, en trendgraf for 12 måneder og merkene Forhandler, Åpen sak og Kontakt siste 90 dager.',
@@ -15893,11 +15897,19 @@ async function taKaHent(oppdater){
 // leverandørens første måned med data (Nets startet sept. 2026 — et
 // 12-mnd-snitt delt på 12 ville gitt for lave tall).
 function taKaRef(){
+  // v1.48.202: cache per datasett, og inneværende kalendermåned teller ikke
+  // (den er bare delvis fakturert — ga 0 kr i «Siste mnd» for mange kunder).
+  if(taKaRef._c&&taKaRef._c.data===taKaData)return taKaRef._c.v;
+  const naa=new Date();const naaMnd=`${naa.getFullYear()}-${String(naa.getMonth()+1).padStart(2,'0')}`;
+  const maks=taKaData.maaneder.findIndex(m=>m>=naaMnd);
+  const grense=maks<0?taKaData.maaneder.length-1:maks-1;
   const n=taKaData.maaneder.length;let ref=-1;const start={};
   taKaData.kunder.forEach(k=>Object.entries(k.leverandorer).forEach(([lev,s])=>{
-    s.belop.forEach((v,i)=>{if(v!==0){if(i>ref)ref=i;if(start[lev]===undefined||i<start[lev])start[lev]=i;}});
+    s.belop.forEach((v,i)=>{if(v!==0&&i<=grense){if(i>ref)ref=i;if(start[lev]===undefined||i<start[lev])start[lev]=i;}});
   }));
-  return {ref:ref<0?n-1:ref,start};
+  const v={ref:ref<0?Math.max(0,Math.min(grense,n-1)):ref,start};
+  taKaRef._c={data:taKaData,v};
+  return v;
 }
 function taKaSnitt(arr,ref,mnd,startIdx){
   const fra=Math.max(ref-mnd+1,startIdx??0);
@@ -15905,11 +15917,33 @@ function taKaSnitt(arr,ref,mnd,startIdx){
   let s=0;for(let i=fra;i<=ref;i++)s+=arr[i]||0;
   return s/(ref-fra+1);
 }
-function taKaRader(){
-  const {ref,start}=taKaRef();
+// v1.48.202: tidligere ble vismaKunder.find()/kundeNotater.filter() kjørt
+// med samKundenr() for HVER kunde ved HVERT klikk/tastetrykk (kunder ×
+// (Visma-kunder + notater) sammenligninger). Nå bygges oppslagstabeller én
+// gang, og ferdige rader caches til data/leverandør/grunnlag/forhandler-valg
+// endres. Søk og grense filtrerer bare de ferdige radene.
+let _taKaRaderCache={nokkel:null,rader:null};
+function taKaIndekser(){
+  const vk=new Map();
+  vismaKunder.forEach(k=>{const n=effektivKundenr(k.vismaNummer);if(n&&!vk.has(n))vk.set(n,k);});
   const nyligGrense=Date.now()-90*864e5;
+  const not=new Map();
+  kundeNotater.forEach(x=>{
+    const n=effektivKundenr(x.vismaKundeNummer);if(!n)return;
+    const o=not.get(n)||{apen:false,nylig:false};
+    if(x.status==='Åpen')o.apen=true;
+    if(!o.nylig&&x.opprettetDato&&new Date(x.opprettetDato).getTime()>=nyligGrense)o.nylig=true;
+    not.set(n,o);
+  });
+  return {vk,not};
+}
+function taKaRader(){
+  const nokkel=[taKaData.generert,taKaLev,taKaGrunnlag,taKaForhandlere,vismaKunder.length,kundeNotater.length].join('|');
+  if(_taKaRaderCache.nokkel===nokkel&&_taKaRaderCache.data===taKaData)return _taKaRaderCache.rader;
+  const {ref,start}=taKaRef();
+  const idx=taKaIndekser();
   const levListe=taKaLev==='Alle'?['Verifone','Nets']:[taKaLev];
-  return taKaData.kunder.map(k=>{
+  const rader=taKaData.kunder.map(k=>{
     const serier=levListe.map(l=>[l,k.leverandorer[l]]).filter(([,s])=>s);
     if(!serier.length)return null;
     const sum=(fn)=>serier.reduce((t,[l,s])=>t+fn(l,s),0);
@@ -15925,8 +15959,9 @@ function taKaRader(){
     const trans3=sum((l,s)=>taKaSnitt(s.antall,ref,3,start[l]));
     const kost12=sum((l,s)=>taKaSnitt(s.kostnad,ref,12,start[l]));
     const trend=[];for(let i=Math.max(0,ref-11);i<=ref;i++)trend.push(serier.reduce((t,[,s])=>t+(s.belop[i]||0),0));
-    const vk=vismaKunder.find(x=>samKundenr(x.vismaNummer,k.kundenr));
-    const notater=kundeNotater.filter(n=>samKundenr(n.vismaKundeNummer,k.kundenr));
+    const kn=effektivKundenr(k.kundenr);
+    const vk=idx.vk.get(kn);
+    const ns=idx.not.get(kn)||{apen:false,nylig:false};
     const r={
       kundenr:k.kundenr,navn:(vk&&vk.navn)||k.navn||k.kundenr,vkId:vk?vk.id:null,
       lev:serier.map(([l])=>l),siste,snitt3,snitt12,
@@ -15935,12 +15970,14 @@ function taKaRader(){
       margin:snitt12>0?(snitt12-kost12)/snitt12*100:null,
       trend,
       forhandler:!!(vk&&vk.kundeklasse&&vk.kundeklasse.toLowerCase().includes('forhandler')),
-      apenSak:notater.some(n=>n.status==='Åpen'),
-      nyligKontakt:notater.some(n=>n.opprettetDato&&new Date(n.opprettetDato).getTime()>=nyligGrense),
+      apenSak:ns.apen,
+      nyligKontakt:ns.nylig,
     };
     r.grunnlag=r[taKaGrunnlag];
     return r;
   }).filter(r=>r&&(taKaForhandlere||!r.forhandler)&&r.grunnlag!==0);
+  _taKaRaderCache={nokkel,data:taKaData,rader};
+  return rader;
 }
 
 function taKaSpark(v){
@@ -15949,6 +15986,7 @@ function taKaSpark(v){
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="#1A3A6B" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 }
 function taKaKr(v){return v==null?'—':Math.round(v).toLocaleString('nb-NO')+' kr';}
+function taKaRenderSnart(){clearTimeout(window._taKaTimer);window._taKaTimer=setTimeout(renderTaKundeanalyse,180);}
 function taKaSettSort(felt){taKaSort=taKaSort.felt===felt?{felt,synk:!taKaSort.synk}:{felt,synk:true};renderTaKundeanalyse();}
 function taKaTilKundekort(id){
   const kunde=vismaKunder.find(x=>x.id===id);if(!kunde)return;
