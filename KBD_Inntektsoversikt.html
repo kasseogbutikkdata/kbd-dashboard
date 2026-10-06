@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.205 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.206 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11035,6 +11035,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.206',dato:'06.10.2026',punkter:[
+    'Kundeanalyse: knappene for grunnlag står nå i rekkefølgen Siste mnd, Snitt 3 mnd, Snitt 12 mnd, fra kort til lang periode, som i tabellen. Snitt 3 mnd er fortsatt valgt som standard.'
+  ]},
   {versjon:'v1.48.205',dato:'06.10.2026',punkter:[
     'Kundeanalyse har fått nytt oppsett: et stort søkefelt øverst, og leverandør og grunnlag som knapper på én linje sammen med grense, forhandlere, Oppdater og CSV.',
     'Kundeanalyse: grensen er 0 kr som standard, så alle kundene vises, med de største øverst. En ny rad med nøkkeltall viser antall kunder, totalt per måned, snitt per kunde og hvor mye de 10 største står for.',
@@ -16022,7 +16025,7 @@ function taKaTegnKnapper(){
   const lev=document.getElementById('ta-ka-lev-knapper');
   if(lev)lev.innerHTML=[['Alle',null],['Verifone',TA_LEV_FARGE.Verifone],['Nets',TA_LEV_FARGE.Nets]].map(([l,f])=>pill(taKaLev===l,l,`taKaLev='${l}';taKaVisAlle=false;renderTaKundeanalyse()`,f)).join('');
   const gr=document.getElementById('ta-ka-grunnlag-knapper');
-  if(gr)gr.innerHTML=[['snitt3','Snitt 3 mnd'],['snitt12','Snitt 12 mnd'],['siste','Siste mnd']].map(([v,t])=>pill(taKaGrunnlag===v,t,`taKaGrunnlag='${v}';taKaVisAlle=false;renderTaKundeanalyse()`)).join('');
+  if(gr)gr.innerHTML=[['siste','Siste mnd'],['snitt3','Snitt 3 mnd'],['snitt12','Snitt 12 mnd']].map(([v,t])=>pill(taKaGrunnlag===v,t,`taKaGrunnlag='${v}';taKaVisAlle=false;renderTaKundeanalyse()`)).join('');
 }
 function taKaRenderSnart(){clearTimeout(window._taKaTimer);window._taKaTimer=setTimeout(renderTaKundeanalyse,180);}
 function taKaSettSort(felt){taKaSort=taKaSort.felt===felt?{felt,synk:!taKaSort.synk}:{felt,synk:true};renderTaKundeanalyse();}
