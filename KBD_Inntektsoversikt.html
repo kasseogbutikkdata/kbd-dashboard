@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.207 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.208 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11038,6 +11038,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.208',dato:'06.10.2026',punkter:[
+    'Fakturaoppfølging: kolonnen «Faktura» står nå mellom «Kontakt» og «Beløp», så kunden kommer først.',
+    'E-post til kunden settes med kopi til mirrow@kbd.as, og teksten ber kunden svare dit.'
+  ]},
   {versjon:'v1.48.207',dato:'06.10.2026',punkter:[
     'Fakturaoppfølging: ny «📋 Min arbeidsliste» som standard. Den viser det som skal følges opp i dag, med de viktigste øverst (beløp × dager forfalt), og en teller med antall og sum.',
     'Arbeidslisten tar med fakturaer over et minstebeløp og et minste antall dager forfalt (standard 500 kr og 7 dager), pluss alt med neste oppfølging i dag eller tidligere. Administrator endrer tersklene under «⚙️ Innstillinger».',
@@ -13520,14 +13524,17 @@ function foFellesStatus(fs){
 
 // ----- Kontakt: klikkbar telefon og e-post -----
 function foTelHref(t){return 'tel:'+String(t||'').replace(/[^\d+]/g,'');}
+const FO_SVAR_EPOST='mirrow@kbd.as';
 function foMailHref(rad){
   const fs=rad.fs;
   const emne=fs.length===1?`Faktura ${fs[0].fakturanr} fra Kasse og Butikkdata AS`:`Ubetalte fakturaer fra Kasse og Butikkdata AS`;
   const linjer=fs.map(f=>`- Faktura ${f.fakturanr}: ${fF(f.utestaende||0)}, forfall ${fDateShort(f.forfallsdato)}`).join('\n');
   const navn=(rad.kontaktNavn||'').split(' ')[0];
   const avsender=(typeof currentUser!=='undefined'&&currentUser&&(currentUser.name||currentUser.username))||'';
-  const tekst=`Hei${navn?' '+navn:''},\n\nVi ser at ${fs.length===1?'denne fakturaen':'disse fakturaene'} ikke er registrert betalt hos oss:\n\n${linjer}\n\nKan du sjekke dette? Si gjerne ifra om noe er uklart, eller om betaling allerede er sendt.\n\nMed vennlig hilsen\n${avsender?avsender+'\n':''}Kasse og Butikkdata AS`;
-  return `mailto:${encodeURIComponent(rad.kontaktEpost||'')}?subject=${encodeURIComponent(emne)}&body=${encodeURIComponent(tekst)}`;
+  const tekst=`Hei${navn?' '+navn:''},\n\nVi ser at ${fs.length===1?'denne fakturaen':'disse fakturaene'} ikke er registrert betalt hos oss:\n\n${linjer}\n\nKan du sjekke dette? Si gjerne ifra om noe er uklart, eller om betaling allerede er sendt. Svar gjerne til ${FO_SVAR_EPOST}.\n\nMed vennlig hilsen\n${avsender?avsender+'\n':''}Kasse og Butikkdata AS`;
+  // v1.48.208: svar skal gå til fellesadressen mirrow@kbd.as — den settes på
+  // kopi (mailto kan ikke sette Reply-To pålitelig) og nevnes i teksten.
+  return `mailto:${encodeURIComponent(rad.kontaktEpost||'')}?cc=${encodeURIComponent(FO_SVAR_EPOST)}&subject=${encodeURIComponent(emne)}&body=${encodeURIComponent(tekst)}`;
 }
 function foKontaktHtml(rad){
   const esc=s=>String(s||'').replace(/</g,'&lt;');
@@ -13656,9 +13663,9 @@ function renderFakturaoppfolging(){
 
   foPanelMap={};
   target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-      <th style="cursor:pointer" onclick="sortFoBy('faktura')">Faktura <span id="fosh-faktura"></span></th>
       <th style="cursor:pointer" onclick="sortFoBy('kunde')">Kunde <span id="fosh-kunde"></span></th>
       <th>Kontakt</th>
+      <th style="cursor:pointer" onclick="sortFoBy('faktura')">Faktura <span id="fosh-faktura"></span></th>
       <th class="tr" style="cursor:pointer" onclick="sortFoBy('belop')">Beløp <span id="fosh-belop"></span></th>
       <th class="tr" style="cursor:pointer" onclick="sortFoBy('utestaende')">Utestående <span id="fosh-utestaende"></span></th>
       <th style="cursor:pointer" onclick="sortFoBy('forfall')">Forfalt <span id="fosh-forfall"></span></th>
@@ -13678,9 +13685,9 @@ function renderFakturaoppfolging(){
       const radStil=apen?' style="background:#eef2ff"':'';
       const forsteCelleStil=apen?' style="border-left:3px solid #1A3A6B"':'';
       const rows=[`<tr${radStil}>
-        <td${forsteCelleStil}>${flere?`<b>${r.fs.length} fakturaer</b><div style="font-size:11px;color:#9ca3af">${r.fs.slice(0,3).map(f=>f.fakturanr).join(', ')}${r.fs.length>3?' …':''}</div>`:r.fs[0].fakturanr}${harKommentar?' <span title="Har kommentarer/logg" style="cursor:default">💬</span>':''}</td>
-        <td>${r.kundenavn}<div style="font-size:11px;color:#9ca3af">Kundenr ${r.kundenr}</div></td>
+        <td${forsteCelleStil}>${r.kundenavn}<div style="font-size:11px;color:#9ca3af">Kundenr ${r.kundenr}</div></td>
         <td style="font-size:12px;color:#374151">${foKontaktHtml(r)}</td>
+        <td>${flere?`<b>${r.fs.length} fakturaer</b><div style="font-size:11px;color:#9ca3af">${r.fs.slice(0,3).map(f=>f.fakturanr).join(', ')}${r.fs.length>3?' …':''}</div>`:r.fs[0].fakturanr}${harKommentar?' <span title="Har kommentarer/logg" style="cursor:default">💬</span>':''}</td>
         <td class="tr">${fF(r.belop)}</td>
         <td class="tr">${fF(r.utestaende)}</td>
         <td>${fDateShort(r.forfallsdato)}${flere?'<div style="font-size:10px;color:#9ca3af">eldste</div>':''}${r.dager>0?`<div style="color:#dc2626;font-size:11px">${r.dager} dager forfalt</div>`:''}${r.betaltDato?`<div style="color:#1baf7a;font-size:11px">✓ Betalt ${fDateShort(r.betaltDato)}</div>`:''}</td>
