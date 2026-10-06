@@ -664,7 +664,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.195 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.196 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10176,7 +10176,7 @@ const TILBUD_TAPT_ARSAKER=['Pris','Løsning/produkt','Timing','Valgte konkurrent
 // «Tapt pr. konkurrent» kan telles opp. Lagres i TilbudArsakDetalj (samme
 // kolonne som fritekst ved «Annet»), «Annet: <navn>» for andre. Listen er et
 // forslag — juster her ved behov.
-const TILBUD_KONKURRENTER=['Zettle','SumUp','PCKasse','Munu','Trivec','Extenda','Lightspeed','Shopify POS','Sitoo','Annen Susoft-forhandler','Annet'];
+const TILBUD_KONKURRENTER=['Favrit','Zettle','SumUp','PCKasse','Munu','Trivec','Extenda','Lightspeed','Shopify POS','Sitoo','Annen Susoft-forhandler','Annet'];
 function konkurrentFraDetalj(d){const v=String(d||'').trim();if(!v)return 'Ikke oppgitt';if(TILBUD_KONKURRENTER.includes(v))return v;const m=/^Annet:\s*(.+)$/.exec(v);return m?`${m[1]} (annet)`:v;}
 
 function saveNotat(){
@@ -10917,6 +10917,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.196',dato:'06.10.2026',punkter:[
+    'Tapt-vinduet: Favrit er lagt til øverst i konkurrentlisten.'
+  ]},
   {versjon:'v1.48.195',dato:'06.10.2026',punkter:[
     'Tapt-vinduet: velger du «Valgte konkurrent», må du også velge hvilken konkurrent (Zettle, SumUp, PCKasse, Munu, Trivec, Extenda, Lightspeed, Shopify POS, Sitoo, Annen Susoft-forhandler eller Annet). I Tilbudsanalyse → Tapt pr. årsak kan du klikke på «Valgte konkurrent» for å se fordelingen.',
     'Onboarding: en sak kan merkes «🚩 Prioritert», enten når den sendes eller senere i saken. Prioriterte saker får rødt flagg og ligger øverst. Det finnes et eget filter for dem, og Teams-varselet til KBD Teknisk viser «🚩 PRIORITERT».',
