@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.208 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.210 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -848,7 +848,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            Brukertilgang, inkl. Veronika (Mirrow), inntil Thomas velger hvem
            som skal ha tilgang. -->
       <div class="nav-item" id="tab-fakturaoppfolging" onclick="showTab('fakturaoppfolging',this);toggleFakturaoppfolgingSub(true)">
-        <span class="nav-item-icon">🧾</span>Fakturaoppfølging
+        <span class="nav-item-icon">🧾</span>Fakturaoppfølging<span id="fo-nav-badge" style="display:none;margin-left:auto;font-size:11px;font-weight:700;background:#dc2626;color:#fff;border-radius:20px;padding:1px 7px"></span>
       </div>
       <div class="nav-sub" id="fakturaoppfolging-sub-nav">
         <div class="nav-sub-item" id="fosub-purring" onclick="showTab('purring',document.getElementById('tab-fakturaoppfolging'));setFakturaoppfolgingSubActive('purring')">🔔 Purring-SMS</div>
@@ -4137,7 +4137,10 @@ function renderVarselMeny(){
   const mineRma=hentMineRmaVarsler();
   const mineOnb=hentMineOnboardingVarsler(); // v1.48.177
   onbOppdaterNavBadge();
-  const antall=mine.length+mineRma.length+mineOnb.length;
+  // v1.48.209: arbeidslisten i Fakturaoppfølging (ett punkt per dag).
+  // try/catch: bjella skal aldri feile pga. Fakturaoppfølging (f.eks. før data er lastet).
+  let foVarsler=[];try{foVarsler=hentFoVarsler();foOppdaterNavBadge();}catch(e){console.warn('Fakturaoppfølging-varsel:',e);}
+  const antall=mine.length+mineRma.length+mineOnb.length+foVarsler.length;
   if(antall===0){
     btn.style.display='none';
     badge.style.display='none';
@@ -4150,7 +4153,10 @@ function renderVarselMeny(){
   badge.style.display='inline-block';
   badge.textContent=antall>99?'99+':String(antall);
 
-  dropdown.innerHTML=mineOnb.map(v=>`<div onclick="gaTilOnboardingFraVarsel('${v.nokkel}','${v.o.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
+  dropdown.innerHTML=foVarsler.map(v=>`<div onclick="gaTilFakturaoppfolgingFraVarsel('${v.type}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
+      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🧾 [Fakturaoppfølging] ${v.tittel}</div>
+      <div style="font-size:12px;color:#b45309">${fF(v.sum)} utestående · åpne arbeidslisten</div>
+    </div>`).join('')+mineOnb.map(v=>`<div onclick="gaTilOnboardingFraVarsel('${v.nokkel}','${v.o.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
       <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🚀 [Onboarding] ${onbEsc(v.o.tittel)}</div>
       <div style="font-size:12px;color:#b45309">${onbEsc(v.tekst)}</div>
     </div>`).join('')+mineRma.map(r=>`<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';jumpToRmaSak('${r.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">
@@ -11038,6 +11044,15 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.210',dato:'06.10.2026',punkter:[
+    'Fakturaoppfølging: varsler går nå til riktig person. Den som sist skrev i loggen på en kunde, får varselet når neste oppfølging kommer («N av dine oppfølginger i dag»).',
+    'Nye kunder på arbeidslisten som ingen har tatt ennå, varsles til én fast mottaker som administrator velger under «⚙️ Innstillinger». Er ingen valgt, går de til alle med tilgang.',
+    'Arbeidslisten har fått et valg for «Mine oppfølginger» og «Nye, ingen har tatt dem», og viser 👤 hvem som sist fulgte opp under Neste.'
+  ]},
+  {versjon:'v1.48.209',dato:'06.10.2026',punkter:[
+    'Fakturaoppfølging har fått et rødt tall i menyen med hvor mange kunder (eller fakturaer) som skal følges opp i dag.',
+    'Varselbjella 🔔 viser «🧾 [Fakturaoppfølging] N å følge opp i dag» én gang per dag. Klikk åpner arbeidslisten. Gjelder brukere med tilgang til Fakturaoppfølging.'
+  ]},
   {versjon:'v1.48.208',dato:'06.10.2026',punkter:[
     'Fakturaoppfølging: kolonnen «Faktura» står nå mellom «Kontakt» og «Beløp», så kunden kommer først.',
     'E-post til kunden settes med kopi til mirrow@kbd.as, og teksten ber kunden svare dit.'
@@ -13418,8 +13433,8 @@ function foStatusBadge(s){
 //     Lovet betaling / Ny frist fyller ut skjemaet og krever dato).
 //  5) Telefon og e-post er klikkbare (tel:/mailto: med ferdig utfylt tekst).
 // Purring-SMS-radene fra v1.48.176 (foSmsForFaktura) er uendret og vises fortsatt.
-let foVisning='arbeidsliste',foGrupper=true,foVisInnst=false;
-let foInnst={minBelop:500,minDager:7},foInnstSpId=null;
+let foVisning='arbeidsliste',foGrupper=true,foVisInnst=false,foEierFilter='alle';
+let foInnst={minBelop:500,minDager:7,nyeSakerTil:''},foInnstSpId=null;
 let foPanelMap={}; // key -> [fakturanr] for åpne/viste rader (settes i render)
 try{
   const v=localStorage.getItem('kbdcc_fo_visning');if(v==='alle'||v==='arbeidsliste')foVisning=v;
@@ -13445,7 +13460,7 @@ async function foLastInnstillinger(){
       const f=items[0].fields||{};
       foInnstSpId=items[0].id;
       const b=parseFloat(f.MinBelop),d=parseInt(f.MinDager);
-      foInnst={minBelop:isNaN(b)?500:b,minDager:isNaN(d)?7:d};
+      foInnst={minBelop:isNaN(b)?500:b,minDager:isNaN(d)?7:d,nyeSakerTil:f.NyeSakerTil||''};
       renderFakturaoppfolging();
     }
   }catch(e){console.warn('FakturaoppfolgingInnstillinger ikke tilgjengelig (bruker standard 500 kr / 7 dager):',e);}
@@ -13455,9 +13470,10 @@ async function lagreFoInnstillinger(){
   const b=parseFloat(document.getElementById('fo-innst-belop')?.value);
   const d=parseInt(document.getElementById('fo-innst-dager')?.value);
   if(isNaN(b)||b<0||isNaN(d)||d<0){alert('Fyll inn gyldig beløp og antall dager (0 eller mer).');return;}
-  foInnst={minBelop:b,minDager:d};
+  const til=document.getElementById('fo-innst-mottaker')?.value||'';
+  foInnst={minBelop:b,minDager:d,nyeSakerTil:til};
   renderFakturaoppfolging();
-  const felter={Title:'Innstillinger',MinBelop:b,MinDager:d};
+  const felter={Title:'Innstillinger',MinBelop:b,MinDager:d,NyeSakerTil:til};
   setSPStatus('⏳ Lagrer…');
   try{
     if(foInnstSpId){await spUpdate('FakturaoppfolgingInnstillinger',foInnstSpId,felter);}
@@ -13465,7 +13481,7 @@ async function lagreFoInnstillinger(){
     setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
   }catch(e){
     setSPStatus('❌ '+e.message,false);
-    alert('⚠️ Klarte ikke lagre innstillingene i SharePoint. Er lista «FakturaoppfolgingInnstillinger» opprettet (se Kunde360-oppsett-sjekkliste.md)?\n\nVerdiene gjelder bare i denne økta til lista finnes.\n\n'+e.message);
+    alert('⚠️ Klarte ikke lagre innstillingene i SharePoint. Er lista «FakturaoppfolgingInnstillinger» opprettet med kolonnene MinBelop, MinDager og NyeSakerTil (se Kunde360-oppsett-sjekkliste.md)?\n\nVerdiene gjelder bare i denne økta til lista finnes.\n\n'+e.message);
   }
 }
 
@@ -13498,6 +13514,94 @@ function foGrupperPerKunde(rader){
   rader.forEach(f=>{const k=f.kundenr||('?'+f.kundenavn);if(!m.has(k))m.set(k,[]);m.get(k).push(f);});
   return [...m.entries()].map(([kundenr,fs])=>foGruppeObj(kundenr,fs));
 }
+// v1.48.210 (06.10.2026): varsler fordeles på person.
+// «Eier» av en kunde/faktura = den som sist skrev i oppfølgingsloggen (Kilde
+// «KBD CC», feltet SkrevetAv). Ingen ny kolonne. Fordeling av arbeidslisten:
+//  - Mine oppfølginger: eier er innlogget bruker → varsles til meg.
+//  - Nye saker: ingen eier ennå → varsles til «mottaker av nye saker»
+//    (foInnst.nyeSakerTil = e-post, satt under ⚙️). Tom = alle med tilgang.
+//  - Eid av andre: ingen varsel til meg (men vises fortsatt i lista).
+function foLc(s){return String(s||'').trim().toLowerCase();}
+function foErMeg(navn){
+  const n=foLc(navn);if(!n)return false;
+  const prof=typeof finnMinBrukerprofil==='function'?finnMinBrukerprofil():null;
+  return n===foLc(currentUser?.name)||n===foLc(currentUser?.username)||(prof&&(n===foLc(prof.navn)||n===foLc(prof.epost)));
+}
+// fakturanr -> siste manuelle loggrad (bygges per kall, få hundre rader).
+function foSisteLoggMap(){
+  const m=new Map();
+  fakturaoppfolgingLogg.forEach(l=>{
+    if(!l.skrevetAv||l.kilde==='Automatisk')return;
+    const p=m.get(l.fakturanr);
+    if(!p||new Date(l.dato||0)>new Date(p.dato||0))m.set(l.fakturanr,l);
+  });
+  return m;
+}
+function foEierFor(fs,loggMap){
+  let siste=null;
+  fs.forEach(f=>{const l=loggMap.get(f.fakturanr);if(l&&(!siste||new Date(l.dato||0)>new Date(siste.dato||0)))siste=l;});
+  return siste?siste.skrevetAv:'';
+}
+function foJegFarNyeSaker(){
+  const til=foLc(foInnst.nyeSakerTil);
+  if(!til)return true; // ingen satt: alle med tilgang
+  const prof=typeof finnMinBrukerprofil==='function'?finnMinBrukerprofil():null;
+  return til===foLc(currentUser?.username)||(prof&&til===foLc(prof.epost));
+}
+function foNyeSakerMottakerNavn(){
+  const til=foLc(foInnst.nyeSakerTil);if(!til)return '';
+  const b=(typeof brukere!=='undefined'?brukere:[]).find(x=>foLc(x.epost)===til);
+  return b?b.navn:foInnst.nyeSakerTil;
+}
+// Arbeidslisten (uten søk/aldersgruppe/status-filter) delt på eier.
+function foArbeidslisteAntall(){
+  const grunnlag=fakturaoppfolging.filter(foArbeidsGrunnlag);
+  const rader=foGrupper?foGrupperPerKunde(grunnlag).filter(g=>foGruppeKvalifiserer(g.fs)):grunnlag.filter(foKvalifiserer).map(foFakturaObj);
+  const loggMap=foSisteLoggMap();
+  const del={mine:{antall:0,sum:0},nye:{antall:0,sum:0},andre:{antall:0,sum:0}};
+  rader.forEach(r=>{
+    const eier=foEierFor(r.fs,loggMap);
+    const k=!eier?'nye':foErMeg(eier)?'mine':'andre';
+    del[k].antall++;del[k].sum+=r.utestaende||0;
+  });
+  const ent=n=>foGrupper?(n===1?'kunde':'kunder'):(n===1?'faktura':'fakturaer');
+  return{antall:rader.length,sum:rader.reduce((s,r)=>s+(r.utestaende||0),0),enhet:ent(rader.length),ent,...del};
+}
+function foMittAntall(a){return a.mine.antall+(foJegFarNyeSaker()?a.nye.antall:0);}
+function foOppdaterNavBadge(){
+  const el=document.getElementById('fo-nav-badge');if(!el)return;
+  const tilgang=typeof harTilgangTilModul==='function'&&harTilgangTilModul('fakturaoppfolging');
+  if(!tilgang){el.style.display='none';return;}
+  const a=foArbeidslisteAntall();
+  const n=foMittAntall(a);
+  el.textContent=n>99?'99+':n;el.style.display=n?'':'none';
+  const deler=[];
+  if(a.mine.antall)deler.push(`${a.mine.antall} av dine oppfølginger`);
+  if(foJegFarNyeSaker()&&a.nye.antall)deler.push(`${a.nye.antall} ${a.nye.antall===1?'ny':'nye'} ${a.ent(a.nye.antall)}`);
+  el.title=deler.length?deler.join(' + ')+' i dag':'';
+}
+function foVarselNokkel(type){const d=new Date();return `fo-${type}|${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
+// Bjella: inntil to punkter per dag (mine / nye). Hvert punkt forsvinner når
+// det er klikket (resten av dagen). Menytallet står til lista er tom.
+function hentFoVarsler(){
+  if(typeof harTilgangTilModul!=='function'||!harTilgangTilModul('fakturaoppfolging'))return[];
+  const a=foArbeidslisteAntall(),ut=[];
+  const sett=k=>typeof varselSettSet!=='undefined'&&varselSettSet.has(foVarselNokkel(k));
+  if(a.mine.antall&&!sett('mine'))ut.push({type:'mine',tittel:`${a.mine.antall} av dine oppfølginger i dag`,sum:a.mine.sum});
+  if(a.nye.antall&&foJegFarNyeSaker()&&!sett('nye'))ut.push({type:'nye',tittel:`${a.nye.antall} ${a.nye.antall===1?'ny':'nye'} ${a.ent(a.nye.antall)} å følge opp`,sum:a.nye.sum});
+  return ut;
+}
+function gaTilFakturaoppfolgingFraVarsel(type){
+  try{varselSettSet.add(foVarselNokkel(type));localStorage.setItem('kbdVarselSett',JSON.stringify([...varselSettSet].slice(-300)));}catch(e){}
+  closeVarselMeny();
+  foVisning='arbeidsliste';foEierFilter=(type==='mine'||type==='nye')?type:'alle';foSort={col:'score',dir:'desc'};foApenRad=null;
+  const el=document.getElementById('tab-fakturaoppfolging');
+  if(el){showTab('fakturaoppfolging',el);if(typeof toggleFakturaoppfolgingSub==='function')toggleFakturaoppfolgingSub(true);}
+  renderFakturaoppfolging();
+  renderVarselMeny();
+}
+function setFoEierFilter(v){foEierFilter=v;foApenRad=null;renderFakturaoppfolging();}
+
 function foGruppeObj(kundenr,fs){
   fs=[...fs].sort((a,b)=>foScore(b)-foScore(a));
   const forste=fs[0];
@@ -13580,6 +13684,7 @@ function renderFakturaoppfolging(){
       </button>`;
     }).join('');
 
+  foOppdaterNavBadge(); // v1.48.209
   const arb=foVisning==='arbeidsliste';
   // «Vis kun forfalte»/«Vis også betalte» gir bare mening i «Alle fakturaer».
   ['fo-lbl-kunforfalte','fo-lbl-visbetalte'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=arb?'none':'flex';});
@@ -13601,6 +13706,11 @@ function renderFakturaoppfolging(){
     rader=rader.filter(fellesFilter);
     visRader=foGrupper?foGrupperPerKunde(rader):rader.map(foFakturaObj);
   }
+  // v1.48.210: eier = siste som skrev i loggen. Filter «Mine»/«Nye» i arbeidslista.
+  const foLoggMap=foSisteLoggMap();
+  visRader.forEach(r=>{r.eier=foEierFor(r.fs,foLoggMap);r.eierType=!r.eier?'nye':foErMeg(r.eier)?'mine':'andre';});
+  const eierTall={alle:visRader.length,mine:visRader.filter(r=>r.eierType==='mine').length,nye:visRader.filter(r=>r.eierType==='nye').length};
+  if(arb&&foEierFilter!=='alle')visRader=visRader.filter(r=>r.eierType===foEierFilter);
   const antFakt=visRader.reduce((s,r)=>s+r.fs.length,0);
   const sumVis=visRader.reduce((s,r)=>s+(r.utestaende||0),0);
 
@@ -13617,13 +13727,19 @@ function renderFakturaoppfolging(){
     const innst=(userRole==='admin'&&foVisInnst)?`<div style="width:100%;margin-top:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">
         <div class="fgrp" style="margin:0"><label>Minstebeløp utestående (kr)</label><input type="number" min="0" step="50" id="fo-innst-belop" value="${foInnst.minBelop}" style="width:150px"/></div>
         <div class="fgrp" style="margin:0"><label>Minst antall dager forfalt</label><input type="number" min="0" step="1" id="fo-innst-dager" value="${foInnst.minDager}" style="width:150px"/></div>
+        <div class="fgrp" style="margin:0"><label>Varsel om nye saker går til</label><select id="fo-innst-mottaker" style="min-width:220px"><option value="">Alle med tilgang</option>${(typeof brukere!=='undefined'?brukere:[]).filter(x=>x.epost).sort((x,y)=>x.navn.localeCompare(y.navn)).map(x=>`<option value="${x.epost}"${foLc(x.epost)===foLc(foInnst.nyeSakerTil)?' selected':''}>${x.navn}${x.tilgang&&x.tilgang.fakturaoppfolging?'':' (mangler tilgang)'}</option>`).join('')}</select></div>
         <button class="prim" onclick="lagreFoInnstillinger()">💾 Lagre innstillinger</button>
-        <span style="font-size:11px;color:#6b7280;flex-basis:100%">Gjelder arbeidslisten for alle brukere. Endres bare av administrator.${foInnstSpId?'':' (Ikke lagret i SharePoint ennå, standardverdier brukes.)'}</span>
+        <span style="font-size:11px;color:#6b7280;flex-basis:100%">Gjelder arbeidslisten for alle brukere. Endres bare av administrator. Oppfølginger noen allerede har skrevet i loggen på, varsles til den som skrev sist.${foInnstSpId?'':' (Ikke lagret i SharePoint ennå, standardverdier brukes.)'}</span>
       </div>`:'';
     barEl.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           ${knapp('arbeidsliste','📋 Min arbeidsliste')}${knapp('alle','🧾 Alle fakturaer')}
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:8px"><input type="checkbox" ${foGrupper?'checked':''} onchange="setFoGrupper(this.checked)"/> Grupper per kunde</label>
+          ${arb?`<select onchange="setFoEierFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px" title="Eier = den som sist skrev i loggen">
+            <option value="alle"${foEierFilter==='alle'?' selected':''}>Alle på lista (${eierTall.alle})</option>
+            <option value="mine"${foEierFilter==='mine'?' selected':''}>👤 Mine oppfølginger (${eierTall.mine})</option>
+            <option value="nye"${foEierFilter==='nye'?' selected':''}>🆕 Nye, ingen har tatt dem (${eierTall.nye})</option>
+          </select>`:''}
         </div>
         <div style="display:flex;gap:10px;align-items:center">${teller}${tannhjul}</div>
         ${regel}${innst}
@@ -13693,7 +13809,7 @@ function renderFakturaoppfolging(){
         <td>${fDateShort(r.forfallsdato)}${flere?'<div style="font-size:10px;color:#9ca3af">eldste</div>':''}${r.dager>0?`<div style="color:#dc2626;font-size:11px">${r.dager} dager forfalt</div>`:''}${r.betaltDato?`<div style="color:#1baf7a;font-size:11px">✓ Betalt ${fDateShort(r.betaltDato)}</div>`:''}</td>
         <td class="tr">${r.score>0?Math.round(r.score).toLocaleString('nb-NO'):'—'}</td>
         <td>${statuser.map(foStatusBadge).join(' ')}${sisteSms?`<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Automatisk purring-SMS (fra Purring-SMS-loggen)">📱 SMS sendt ${sisteSms.dato?fDateShort(sisteSms.dato):''}</div>`:''}</td>
-        <td${nesteForfalt?' style="color:#dc2626;font-weight:600"':''}>${r.nesteOppfolging?fDateShort(r.nesteOppfolging):'—'}</td>
+        <td><span${nesteForfalt?' style="color:#dc2626;font-weight:600"':''}>${r.nesteOppfolging?fDateShort(r.nesteOppfolging):'—'}</span>${r.eier?`<div style="font-size:11px;color:${r.eierType==='mine'?'#1A3A6B':'#9ca3af'}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g,'')}">👤 ${String(r.eier).split(' ')[0].replace(/</g,'&lt;')}</div>`:''}</td>
         <td><button class="btn-sm" onclick="toggleFoDetalj('${r.key.replace(/'/g,"\\'")}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
       </tr>`];
       if(apen){
