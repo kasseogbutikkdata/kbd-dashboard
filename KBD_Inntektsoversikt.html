@@ -261,6 +261,11 @@ button.salg-fase:hover{border-color:#6d28d9;color:#6d28d9}
 .salg-fase.aktiv{background:#6d28d9;color:#fff;border-color:#6d28d9;font-weight:600}
 .salg-pil{color:#c4b5fd;font-size:12px}
 .salg-kilde{margin-left:8px;font-size:11.5px;color:#4b5563}
+.tale-knapp{border:1px solid #d1d5db;background:#fff;border-radius:6px;padding:5px 9px;font-size:13px;cursor:pointer;line-height:1;font-family:inherit;white-space:nowrap}
+.tale-knapp:hover{background:#f3f4f6}
+.rt-verktoy .tale-knapp{border-color:transparent;background:none;padding:3px 8px;font-size:12.5px}
+.tale-knapp.lytter{background:#fee2e2 !important;border-color:#f87171 !important;color:#b91c1c;animation:tale-puls 1.2s ease-in-out infinite}
+@keyframes tale-puls{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}50%{box-shadow:0 0 0 5px rgba(239,68,68,0)}}
 .onb-pri{font-size:11px;font-weight:700;color:#b91c1c;background:#fee2e2;padding:2px 8px;border-radius:20px;white-space:nowrap}
 .onb-pri-kort{border-left:4px solid #d03b3b !important}
 .btn-sm.onb-pri-pa{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;font-weight:600}
@@ -664,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.199 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.200 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2081,6 +2086,8 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
           <span class="rt-skille"></span>
           <button type="button" title="Sett inn lenke på markert tekst" onclick="rtLenke()">🔗 Lenke</button>
           <button type="button" title="Fjern formatering på markert tekst" onclick="rtKommando('removeFormat')">✕ Fjern</button>
+          <span class="rt-skille tale-statisk" style="display:none"></span>
+          <button type="button" class="tale-knapp tale-statisk" data-tale-for="n-innhold" style="display:none" title="Diktér: trykk og snakk – trykk igjen for å stoppe" onclick="taleToggle('n-innhold',this)">🎤 Diktér</button>
         </div>
         <div id="n-innhold" class="rt-felt" contenteditable="true" data-placeholder="Notat, tilbudsdetaljer eller hva som skal følges opp…" onpaste="rtLimInn(event)"></div></div>
       <input type="hidden" id="n-edit-id"/>
@@ -8133,6 +8140,81 @@ function gaTilKundeFraSak(id){
   },150);
 }
 
+// ===== DIKTERING (🎤) (v1.48.200, 06.10.2026) =====
+// Thomas: «lese inn info fra salg via mikrofon». Bruker nettleserens innebygde
+// talegjenkjenning (Web Speech API, norsk «nb-NO»): Chrome/Edge på PC og Chrome
+// på Android. Ikke støttet (f.eks. Firefox, enkelte Safari-versjoner) → knappen
+// vises ikke; da brukes Windows-diktering (Win+H) eller tastaturets mikrofon.
+// NB: lyden behandles av nettleserleverandørens talegjenkjenning (Google/
+// Microsoft), som vanlig diktering — ikke dikter passord o.l.
+// Ett felt om gangen. Tekst settes inn der markøren står (input/textarea) eller
+// på slutten/ved markøren i Innhold-editoren (contenteditable). Foreløpig tekst
+// vises fortløpende i vanlige felt; i Innhold settes ferdige setninger inn.
+const TaleGjenkjenning=window.SpeechRecognition||window.webkitSpeechRecognition||null;
+let taleAktiv=null; // {rec,targetId}
+function taleStottet(){return !!TaleGjenkjenning;}
+function taleKnappHtml(targetId){
+  if(!taleStottet())return '';
+  return `<button type="button" class="tale-knapp" data-tale-for="${targetId}" onclick="taleToggle('${targetId}',this)" title="Diktér: trykk og snakk – trykk igjen for å stoppe" aria-label="Diktér">🎤</button>`;
+}
+function taleVisStatiske(){if(!taleStottet())return;document.querySelectorAll('.tale-statisk').forEach(e=>e.style.display='');}
+function taleMarkerKnapper(targetId,pa){document.querySelectorAll(`[data-tale-for="${targetId}"]`).forEach(b=>{b.classList.toggle('lytter',pa);b.setAttribute('aria-pressed',pa?'true':'false');});}
+function taleStopp(){
+  if(!taleAktiv)return;
+  const a=taleAktiv;taleAktiv=null;
+  try{a.rec.stop();}catch(e){}
+  taleMarkerKnapper(a.targetId,false);
+}
+function taleSkill(foran){return !foran||/\s$/.test(foran)?'':' ';}
+function taleStorForbokstav(tekst,foran){
+  const t=String(tekst||'').trim();if(!t)return '';
+  return (!foran.trim()||/[.!?]\s*$/.test(foran))?t.charAt(0).toUpperCase()+t.slice(1):t;
+}
+function taleToggle(targetId){
+  if(taleAktiv){const samme=taleAktiv.targetId===targetId;taleStopp();if(samme)return;}
+  const el0=document.getElementById(targetId);if(!el0||!TaleGjenkjenning)return;
+  const rec=new TaleGjenkjenning();
+  rec.lang='nb-NO';rec.continuous=true;rec.interimResults=true;
+  const erRik=el0.isContentEditable;
+  // For vanlige felt: husk teksten før/etter markøren, og bygg feltet på nytt
+  // fortløpende (ferdig + foreløpig tekst) så man ser ordene mens man snakker.
+  let foran='',bak='',ferdig='';
+  if(!erRik){const pos=el0.selectionStart??el0.value.length;foran=el0.value.slice(0,pos);bak=el0.value.slice(el0.selectionEnd??pos);}
+  rec.onresult=e=>{
+    const el=document.getElementById(targetId);if(!el)return; // feltet kan ha blitt tegnet på nytt
+    let midl='',nyFerdig='';
+    for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)nyFerdig+=t;else midl+=t;}
+    if(erRik){
+      if(nyFerdig.trim()){
+        el.focus();
+        const sel=window.getSelection();
+        if(!sel.rangeCount||!el.contains(sel.anchorNode)){const r=document.createRange();r.selectNodeContents(el);r.collapse(false);sel.removeAllRanges();sel.addRange(r);}
+        let forTekst='';try{const r0=document.createRange();r0.selectNodeContents(el);r0.setEnd(sel.anchorNode,sel.anchorOffset);forTekst=r0.toString();}catch(_){}
+        const t=taleStorForbokstav(nyFerdig,forTekst);
+        document.execCommand('insertText',false,taleSkill(forTekst)+t);
+      }
+    }else{
+      if(nyFerdig)ferdig+=nyFerdig;
+      const tekst=taleStorForbokstav((ferdig+midl).replace(/\s+/g,' '),foran);
+      el.value=foran+taleSkill(foran)+tekst+(bak&&!/^\s/.test(bak)?' ':'')+bak;
+      const p=(foran+taleSkill(foran)+tekst).length;try{el.setSelectionRange(p,p);}catch(_){}
+    }
+  };
+  rec.onerror=e=>{
+    if(e.error==='not-allowed'||e.error==='service-not-allowed')alert('Nettleseren fikk ikke bruke mikrofonen. Klikk på hengelåsen/kamera-ikonet i adressefeltet og gi tilgang til mikrofon, og prøv igjen.');
+    else if(e.error==='audio-capture')alert('Fant ingen mikrofon på denne maskinen.');
+    else if(e.error!=='no-speech'&&e.error!=='aborted')console.warn('Diktering feilet:',e.error);
+  };
+  rec.onend=()=>{if(taleAktiv&&taleAktiv.rec===rec){taleAktiv=null;taleMarkerKnapper(targetId,false);}};
+  try{rec.start();}catch(e){console.warn('Klarte ikke starte diktering',e);return;}
+  taleAktiv={rec,targetId};
+  taleMarkerKnapper(targetId,true);
+  const haddeFokus=document.activeElement===el0;
+  el0.focus();
+  // Innhold-editoren: står ikke markøren der allerede, legg teksten til på slutten.
+  if(erRik&&!haddeFokus){const r=document.createRange();r.selectNodeContents(el0);r.collapse(false);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);}
+}
+
 // Liten tidslinje av daterte oppdateringer PÅ én oppføring (f.eks. flere
 // "ringte kunden"/"sendte tilbud"-innlegg på samme Tilbud over tid), i stedet
 // for å måtte opprette en helt ny oppføring for hver kommentar.
@@ -8160,6 +8242,7 @@ function renderNotatLoggHTML(n,metaHtml){
   // nyeste post), og metalinjen (ansvarlig/frist/varsel) over loggen.
   const loggInput=salgTilgang?`<div class="logg-ny" style="display:flex;gap:6px">
     <input type="text" id="logg-input-${n.id}" placeholder="Legg til en datert oppdatering…" style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter'){event.preventDefault();leggTilLoggpost('${n.id}');}"/>
+    ${taleKnappHtml('logg-input-'+n.id)}
     <button class="btn-sm" style="padding:5px 10px;font-size:12px" onclick="leggTilLoggpost('${n.id}')">Legg til</button>
     <button class="btn-sm" style="padding:5px 10px;font-size:12px;white-space:nowrap" onclick="document.getElementById('epost-fil-${n.id}').click()" title="Legg til e-post (.msg/.eml), bilder, PDF eller andre filer på saken — du kan også dra filene rett inn på kortet">📎 Fil/e-post</button>
     <input type="file" id="epost-fil-${n.id}" multiple style="display:none" onchange="epostFraFilvelger(event,'${n.id}')"/>
@@ -8483,6 +8566,7 @@ function fyllAnsvarligSelect(gjeldendeNavn){
 }
 
 function openNyNotatModal(kNr,navn){
+  taleVisStatiske();
   settLeadModus(false);
   fyllFaseOgKildeValg('Tilbud sendt','','');
   document.getElementById('notat-modal-title').textContent='Ny oppføring';
@@ -8512,6 +8596,7 @@ function openNyNotatModal(kNr,navn){
 }
 
 function openRedigerNotat(id){
+  taleVisStatiske();
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   settLeadModus(false);
   document.getElementById('notat-modal-title').textContent='Rediger oppføring';
@@ -8536,7 +8621,7 @@ function openRedigerNotat(id){
   document.getElementById('notat-modal').classList.add('open');
 }
 
-function closeNotatModal(){document.getElementById('notat-modal').classList.remove('open');}
+function closeNotatModal(){if(taleAktiv&&taleAktiv.targetId==='n-innhold')taleStopp();document.getElementById('notat-modal').classList.remove('open');}
 
 // ===== NYTT LEAD I ETT STEG (lagt til 29.09.2026, v1.48.142) =====
 // Thomas' observasjon: for å registrere et nytt lead måtte man først
@@ -10924,6 +11009,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.200',dato:'06.10.2026',punkter:[
+    'Diktering: 🎤-knapp ved loggfeltet på sakene, i «Innhold» (ny sak, Nytt lead og Rediger) og ved kommentarfeltet i onboarding. Trykk på knappen og snakk, så skrives teksten inn. Trykk igjen for å stoppe. Virker i Chrome og Edge på PC og i Chrome på Android. Der det ikke støttes, vises ikke knappen, og du kan bruke Windows-tast + H eller mikrofonen på tastaturet.'
+  ]},
   {versjon:'v1.48.199',dato:'06.10.2026',punkter:[
     'Feilretting: et nytt lead kan nå åpnes fra Kundesaker med en gang. Før måtte du først åpne et annet lead.'
   ]},
@@ -17453,7 +17541,7 @@ function onbSettUtstyr(id,u,på){
 function onbLoggKort(o){
   const l=o.data.logg.slice().reverse();
   return `<div class="card card-public" style="margin-top:16px"><div class="card-title">🕑 Logg</div>
-    ${(onbTilgang||salgTilgang)?`<div style="display:flex;gap:6px;margin-bottom:10px"><input id="onb-kommentar" placeholder="Skriv en kommentar…" style="flex:1;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter')onbKommentar('${o.id}')"/><button class="btn-sm" onclick="onbKommentar('${o.id}')">Legg til</button></div>`:''}
+    ${(onbTilgang||salgTilgang)?`<div style="display:flex;gap:6px;margin-bottom:10px"><input id="onb-kommentar" placeholder="Skriv en kommentar…" style="flex:1;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter')onbKommentar('${o.id}')"/>${taleKnappHtml('onb-kommentar')}<button class="btn-sm" onclick="onbKommentar('${o.id}')">Legg til</button></div>`:''}
     <div style="max-height:320px;overflow:auto">${l.map(x=>`<div class="onb-logg"><span class="onb-meta">${onbDato(x.dato)} ${new Date(x.dato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})} · ${onbEsc(x.forfatter||'')}</span><div>${onbEsc(x.tekst)}</div></div>`).join('')||'<div class="muted">Ingen hendelser.</div>'}</div></div>`;
 }
 function onbKommentar(id){
