@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.212 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.213 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11028,6 +11028,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.213',dato:'06.10.2026',punkter:[
+    'Fakturaoppfølging: når du klikker på kundens e-postadresse, spør KBD CC «Sendte du e-posten?». «Ja, logg» lagrer «Purring sendt på e-post» på fakturaene og setter ny oppfølging om 5 virkedager.'
+  ]},
   {versjon:'v1.48.212',dato:'06.10.2026',punkter:[
     'Aldersfordelt: velg periode for grafen (3, 6, 12 mnd eller alt), og ny stiplet rød linje for «forfalt over 30 dager».',
     '«👥 Hvem skylder mest»: de 10 kundene med høyest forfalt beløp, med knapp som åpner kunden i Fakturaoppfølging (krever tilgang til Fakturaoppfølging).',
@@ -13637,7 +13640,46 @@ function foMailHref(rad){
 }
 function foKontaktHtml(rad){
   const esc=s=>String(s||'').replace(/</g,'&lt;');
-  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon?`<div><a href="${foTelHref(rad.kontaktTelefon)}" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>`:''}${rad.kontaktEpost?`<div><a href="${foMailHref(rad)}" style="color:#2563eb;text-decoration:none" title="Skriv e-post med ferdig tekst">✉️ ${esc(rad.kontaktEpost)}</a></div>`:''}`;
+  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon?`<div><a href="${foTelHref(rad.kontaktTelefon)}" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>`:''}${rad.kontaktEpost?`<div><a href="${foMailHref(rad)}" onclick="foEpostKlikk('${String(rad.key).replace(/'/g,"\\'")}')" style="color:#2563eb;text-decoration:none" title="Skriv e-post med ferdig tekst">✉️ ${esc(rad.kontaktEpost)}</a></div>`:''}`;
+}
+
+// v1.48.213: etter klikk på e-postadressen spør KBD CC om e-posten ble sendt.
+// «Ja, logg» lagrer samme som hurtigknappen «✉️ E-post sendt» på alle
+// fakturaene i raden (panelet trenger ikke være åpent). Spørsmålet står til
+// det er besvart; nytt klikk erstatter det.
+function foEpostKlikk(key){
+  const fs=foFsForKey(key);if(!fs.length)return;
+  let el=document.getElementById('fo-epost-sporsmal');
+  if(!el){el=document.createElement('div');el.id='fo-epost-sporsmal';document.body.appendChild(el);}
+  el.style.cssText='position:fixed;right:20px;bottom:20px;z-index:2000;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #1A3A6B;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:14px 16px;max-width:360px;font-size:13px;color:#111';
+  const navn=String(fs[0].kundenavn||'').replace(/</g,'&lt;');
+  const k=String(key).replace(/'/g,"\\'");
+  el.innerHTML=`<div style="font-weight:600;margin-bottom:4px">✉️ Sendte du e-posten?</div>
+    <div style="color:#4b5563;margin-bottom:10px">${navn} · ${fs.length===1?'faktura '+fs[0].fakturanr:fs.length+' fakturaer'}. «Ja» logger «Purring sendt på e-post» og ny oppfølging om 5 virkedager.</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn-sm" onclick="foEpostSvar(null)">Nei</button><button class="prim" style="padding:6px 14px;font-size:13px" onclick="foEpostSvar('${k}')">Ja, logg</button></div>`;
+}
+function foEpostSvar(key){
+  const el=document.getElementById('fo-epost-sporsmal');if(el)el.remove();
+  if(!key)return;
+  const fs=foFsForKey(key);if(!fs.length)return;
+  const skrevetAv=currentUser?.name||currentUser?.username||'Ukjent';
+  const naa=new Date().toISOString();
+  const nesteRaw=foVirkedager(5),nesteISO=new Date(nesteRaw+'T08:00').toISOString();
+  const kommentar='Purring sendt på e-post.';
+  const oppgaver=[];
+  setSPStatus('⏳ Lagrer…');
+  fs.forEach(f=>{
+    const rad={id:`temp${uid()}`,fakturanr:f.fakturanr,skrevetAv,type:'E-post',kilde:'KBD CC',dato:naa,kommentar};
+    fakturaoppfolgingLogg.push(rad);
+    oppgaver.push(spCreate('FakturaoppfolgingLogg',{Fakturanummer:f.fakturanr,SkrevetAv:skrevetAv,HenvendelseType:'E-post',Kilde:'KBD CC',Dato:naa,Kommentar:kommentar}).then(r=>{rad.id=`sp${r.id}`;rad.spId=r.id;}));
+    const felt={};
+    if(f.status==='Ikke kontaktet'){f.status='Kontaktet';felt.Status='Kontaktet';}
+    if((f.nesteOppfolging||'')!==nesteISO){f.nesteOppfolging=nesteISO;felt.NesteOppfolging=nesteISO;}
+    if(Object.keys(felt).length&&f.spId)oppgaver.push(spUpdate('Fakturaoppfolging',f.spId,felt));
+  });
+  renderFakturaoppfolging();
+  Promise.all(oppgaver).then(()=>{setSPStatus('✅ E-post logget');setTimeout(()=>setSPStatus(''),3000);})
+    .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
 }
 
 function foKeyId(key){return String(key).replace(/[^A-Za-z0-9_-]/g,'_');}
