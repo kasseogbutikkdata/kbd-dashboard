@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.204 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.205 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3127,7 +3127,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
   <div id="tp-transavgiftrapport" class="tp">
     <div class="card">
       <div class="card-title">📈 Trans.avgift-rapport — Nets og Verifone</div>
-      <div class="hint">«Månedsoversikt» viser totalene fra fakturakjøringene (Historikk). «Kundeanalyse» viser hva hver kunde betaler, hentet fra fakturalinjene i Visma (v1.48.201).</div>
+      <div class="hint">«Månedsoversikt» viser totalene fra fakturakjøringene (Historikk). «Kundeanalyse» viser hva hver kunde betaler i transaksjonsavgift, hentet fra fakturalinjene i Visma.</div>
     </div>
     <!-- v1.48.201: visningsvelger inne i fanen (bevisst IKKE ny nav-sub i
          venstremenyen — arver dermed tilgangsstyringen for transavgiftrapport
@@ -3147,20 +3147,19 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
     <div class="tbl-wrap"><table id="tbl-ta"></table></div>
     </div>
     <div id="ta-vis-kunder" style="display:none">
-      <div class="filters" style="margin-top:16px">
-        <span class="filter-lbl">Leverandør:</span>
-        <select id="ta-ka-lev" onchange="taKaLev=this.value;renderTaKundeanalyse()" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px"><option>Alle</option><option>Verifone</option><option>Nets</option></select>
-        <span class="filter-lbl" style="margin-left:8px">Grunnlag:</span>
-        <select id="ta-ka-grunnlag" onchange="taKaGrunnlag=this.value;renderTaKundeanalyse()" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px"><option value="snitt3">Snitt siste 3 mnd</option><option value="snitt12">Snitt siste 12 mnd</option><option value="siste">Siste måned</option></select>
-        <span class="filter-lbl" style="margin-left:8px">Grense (kr/mnd):</span>
-        <input id="ta-ka-terskel" type="number" min="0" step="500" value="1000" oninput="taKaTerskel=Math.max(0,parseFloat(this.value)||0);taKaRenderSnart()" style="width:90px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px">
-        <label style="font-size:13px;color:#374151;margin-left:8px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="ta-ka-forhandlere" onchange="taKaForhandlere=this.checked;renderTaKundeanalyse()">Ta med forhandlere</label>
-        <input id="ta-ka-sok" type="search" placeholder="Søk kunde eller kundenr" oninput="taKaSok=this.value;taKaRenderSnart()" style="flex:1 1 180px;min-width:160px;padding:5px 10px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px">
-        <button class="btn-sm" onclick="taKaHent(true)">↻ Oppdater</button>
-        <button class="btn-sm" onclick="taKaEksporterCsv()">⬇ CSV</button>
+      <!-- v1.48.205: kompakt verktøylinje — søk øverst, leverandør/grunnlag som
+           knapper (rendres av renderTaKundeanalyse), resten på samme linje. -->
+      <input id="ta-ka-sok" type="search" placeholder="🔍 Søk kunde eller kundenummer" oninput="taKaSok=this.value;taKaVisAlle=false;taKaRenderSnart()" style="width:100%;box-sizing:border-box;margin-top:16px;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:15px;background:#fff">
+      <div class="filters" style="margin-top:10px;row-gap:8px">
+        <span class="filter-lbl">Leverandør:</span><span id="ta-ka-lev-knapper" style="display:flex;gap:6px"></span>
+        <span class="filter-lbl" style="margin-left:10px">Grunnlag:</span><span id="ta-ka-grunnlag-knapper" style="display:flex;gap:6px"></span>
+        <span class="filter-lbl" style="margin-left:10px">Grense:</span>
+        <span style="display:flex;align-items:center;gap:4px"><input id="ta-ka-terskel" type="number" min="0" step="500" value="0" oninput="taKaTerskel=Math.max(0,parseFloat(this.value)||0);taKaVisAlle=false;taKaRenderSnart()" style="width:80px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px"><span style="font-size:12px;color:#6b7280">kr/mnd</span></span>
+        <label style="font-size:13px;color:#374151;margin-left:10px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="ta-ka-forhandlere" onchange="taKaForhandlere=this.checked;renderTaKundeanalyse()">Ta med forhandlere</label>
+        <span style="margin-left:auto;display:flex;gap:6px"><button class="btn-sm" onclick="taKaHent(true)">↻ Oppdater</button><button class="btn-sm" onclick="taKaEksporterCsv()">⬇ CSV</button></span>
       </div>
-      <div class="hint" id="ta-ka-meta" style="margin:-4px 0 12px"></div>
       <div id="ta-ka-innhold"></div>
+      <div class="hint" id="ta-ka-meta" style="margin:8px 0 0"></div>
     </div>
   </div>
 
@@ -11036,6 +11035,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.205',dato:'06.10.2026',punkter:[
+    'Kundeanalyse har fått nytt oppsett: et stort søkefelt øverst, og leverandør og grunnlag som knapper på én linje sammen med grense, forhandlere, Oppdater og CSV.',
+    'Kundeanalyse: grensen er 0 kr som standard, så alle kundene vises, med de største øverst. En ny rad med nøkkeltall viser antall kunder, totalt per måned, snitt per kunde og hvor mye de 10 største står for.',
+    'Kundeanalyse: tabellen viser de 50 første med en knapp for å vise alle, og kolonneoverskriftene blir stående når du ruller. Endring på 0 % vises i grått.'
+  ]},
   {versjon:'v1.48.204',dato:'06.10.2026',punkter:[
     'Kundeanalyse: klikk på en kunde for å åpne detaljer under raden. Du ser måned for måned (søylediagram og tabell), fordelingen per brukersted/BAX, korttyper for Nets, og saker og kontakt.',
     'Kunde 360: nytt felt «🧾 Transaksjonsavgift» på kundekortet med snitt 12 mnd, siste måned, endring, transaksjoner og trend, siste loggførte vurdering, og knappene «Se detaljer» og «📝 Logg på kundekortet».',
@@ -15877,7 +15881,7 @@ function setTaMetric(m){taMetric=m;renderTransavgiftRapport();}
 // Margin (beløp − kostnad) vises kun for admin.
 let taVisning='maaned'; // 'maaned' | 'kunder'
 let taKaData=null, taKaLaster=false, taKaFeil='';
-let taKaLev='Alle', taKaGrunnlag='snitt3', taKaTerskel=1000, taKaForhandlere=false, taKaSok='';
+let taKaLev='Alle', taKaGrunnlag='snitt3', taKaTerskel=0, taKaForhandlere=false, taKaSok='', taKaVisAlle=false; // v1.48.205: grense 0 som standard
 let taKaSort={felt:'grunnlag',synk:true};
 const TA_KA_TERSKLER=[1000,2000,5000,10000];
 const TA_KA_GRUNNLAG={snitt3:'Snitt siste 3 mnd',snitt12:'Snitt siste 12 mnd',siste:'Siste måned'};
@@ -16012,6 +16016,14 @@ function taKaSpark(v){
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="#1A3A6B" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 }
 function taKaKr(v){return v==null?'—':Math.round(v).toLocaleString('nb-NO')+' kr';}
+// v1.48.205: leverandør/grunnlag som knapper (samme fpill-stil som Månedsoversikt).
+function taKaTegnKnapper(){
+  const pill=(on,txt,klikk,farge)=>`<button class="fpill${on?' f-on':' f-off'}" style="${on?`border-color:${farge||'#1A3A6B'}`:''}" onclick="${klikk}">${farge?`<span class="fpill-dot" style="background:${on?farge:'#d0d5dd'}"></span>`:''}<span style="font-weight:600">${txt}</span></button>`;
+  const lev=document.getElementById('ta-ka-lev-knapper');
+  if(lev)lev.innerHTML=[['Alle',null],['Verifone',TA_LEV_FARGE.Verifone],['Nets',TA_LEV_FARGE.Nets]].map(([l,f])=>pill(taKaLev===l,l,`taKaLev='${l}';taKaVisAlle=false;renderTaKundeanalyse()`,f)).join('');
+  const gr=document.getElementById('ta-ka-grunnlag-knapper');
+  if(gr)gr.innerHTML=[['snitt3','Snitt 3 mnd'],['snitt12','Snitt 12 mnd'],['siste','Siste mnd']].map(([v,t])=>pill(taKaGrunnlag===v,t,`taKaGrunnlag='${v}';taKaVisAlle=false;renderTaKundeanalyse()`)).join('');
+}
 function taKaRenderSnart(){clearTimeout(window._taKaTimer);window._taKaTimer=setTimeout(renderTaKundeanalyse,180);}
 function taKaSettSort(felt){taKaSort=taKaSort.felt===felt?{felt,synk:!taKaSort.synk}:{felt,synk:true};renderTaKundeanalyse();}
 function taKaTilKundekort(id){
@@ -16034,7 +16046,9 @@ function renderTaKundeanalyse(){
   const pg=taKaData.periodegrunnlag||{};
   const dekning=Object.entries(pg).map(([lev,g])=>{const t=g.fraTekst+g.fraFakturadato;return t?`${lev} ${Math.round(g.fraTekst/t*100)} %`:'';}).filter(Boolean).join(', ');
   if(erTrans&&!renderTaKundeanalyse._logget){renderTaKundeanalyse._logget=true;console.info('Kundeanalyse — periodegrunnlag (linjer uten periode i teksten bruker fakturadato):',pg);}
-  if(meta)meta.textContent=`${erTrans?'Transaksjoner':'Fakturert'} t.o.m. ${taMndLabel(refMnd)}${erTrans&&dekning?` · måned fra linjeteksten: ${dekning} av linjene (resten fakturadato)`:''} · hentet ${new Date(taKaData.generert).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${taKaData.manglendePerioder.length?` · mangler perioder: ${taKaData.manglendePerioder.join(', ')}`:''}`;
+  taKaTegnKnapper();
+  const periodeTekst=`${erTrans?'Transaksjoner':'Fakturert'} t.o.m. ${taMndLabel(refMnd)}`;
+  if(meta)meta.textContent=[erTrans&&dekning?`Måned fra linjeteksten: ${dekning} av linjene (resten fakturadato)`:'',`Hentet ${new Date(taKaData.generert).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}`,taKaData.manglendePerioder.length?`mangler perioder: ${taKaData.manglendePerioder.join(', ')}`:''].filter(Boolean).join(' · ');
 
   const alle=taKaRader();
   const total=alle.reduce((t,r)=>t+Math.max(r.grunnlag,0),0);
@@ -16044,36 +16058,50 @@ function renderTaKundeanalyse(){
   const f=taKaSort.felt,sg=taKaSort.synk?-1:1;
   rader.sort((a,b)=>{const x=a[f],y=b[f];if(typeof x==='string'||typeof y==='string')return sg*String(x).localeCompare(String(y),'nb');return sg*((x??-Infinity)-(y??-Infinity));});
   window._taKaVist=rader;
+  const visGrense=50;const alleRader=rader;
+  if(!taKaVisAlle&&rader.length>visGrense)rader=rader.slice(0,visGrense);
 
-  const kort=fordeling.map(d=>`<div style="flex:1 1 150px;background:white;border-radius:8px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center;cursor:pointer;${taKaTerskel===d.t?'outline:2px solid #1A3A6B;':''}" onclick="taKaTerskel=${d.t};document.getElementById('ta-ka-terskel').value=${d.t};renderTaKundeanalyse()">
+  const kort=fordeling.map(d=>`<div style="flex:1 1 150px;background:white;border-radius:8px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center;cursor:pointer;${taKaTerskel===d.t?'outline:2px solid #1A3A6B;':''}" onclick="taKaTerskel=taKaTerskel===${d.t}?0:${d.t};taKaVisAlle=false;document.getElementById('ta-ka-terskel').value=taKaTerskel;renderTaKundeanalyse()" title="Klikk igjen for å fjerne grensen">
       <div style="font-size:12px;color:#6b7280;margin-bottom:4px">≥ ${d.t.toLocaleString('nb-NO')} kr/mnd</div>
       <div style="font-size:20px;font-weight:700;color:#1A3A6B">${d.antall} kunder</div>
       <div style="font-size:11px;color:#9ca3af;margin-top:2px">${d.andel.toFixed(0)} % av totalen</div></div>`).join('');
 
-  const th=(felt,txt,hoyre)=>`<th style="cursor:pointer;white-space:nowrap${hoyre?';text-align:right':''}" onclick="taKaSettSort('${felt}')">${txt}${taKaSort.felt===felt?(taKaSort.synk?' ▼':' ▲'):''}</th>`;
+  const th=(felt,txt,hoyre)=>`<th style="cursor:pointer;white-space:nowrap;position:sticky;top:0;z-index:1${hoyre?';text-align:right':''}" onclick="taKaSettSort('${felt}')">${txt}${taKaSort.felt===felt?(taKaSort.synk?' ▼':' ▲'):''}</th>`;
   const merke=(t,farge)=>`<span style="display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:10px;margin:1px 3px 1px 0;background:${farge}1a;color:${farge}">${t}</span>`;
   const body=rader.map(r=>`<tr style="cursor:pointer${taKaApen===r.kundenr?';background:#f0f4ff':''}" onclick="taKaToggle('${r.kundenr}')" title="Klikk for detaljer">
-      <td>${taKaApen===r.kundenr?'▾ ':'▸ '}${r.vkId?`<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${r.vkId}');return false" style="color:#1A3A6B;font-weight:600;text-decoration:none">${escHtmlEpost(r.navn)}</a>`:escHtmlEpost(r.navn)}<div style="font-size:11px;color:#9ca3af">${escHtmlEpost(r.kundenr)}</div></td>
+      <td style="min-width:240px">${taKaApen===r.kundenr?'▾ ':'▸ '}${r.vkId?`<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${r.vkId}');return false" style="color:#1A3A6B;font-weight:600;text-decoration:none">${escHtmlEpost(r.navn)}</a>`:escHtmlEpost(r.navn)}<div style="font-size:11px;color:#9ca3af">${escHtmlEpost(r.kundenr)}</div></td>
       <td>${r.lev.map(l=>`<span class="fpill-dot" style="display:inline-block;background:${TA_LEV_FARGE[l]};margin-right:4px"></span>${l}`).join('<br>')}</td>
       <td class="tr" style="font-weight:700;color:#111">${taKaKr(r.grunnlag)}</td>
       <td class="tr">${taKaKr(r.siste)}</td>
       <td class="tr">${taKaKr(r.snitt3)}</td>
       <td class="tr">${taKaKr(r.snitt12)}</td>
-      <td class="tr">${r.endring==null?'<span style="color:#9ca3af">ny</span>':`<span style="color:${r.endring>=0?'#dc2626':'#16a34a'}">${r.endring>=0?'▲':'▼'}${Math.abs(r.endring).toFixed(0)} %</span>`}</td>
+      <td class="tr">${r.endring==null?'<span style="color:#9ca3af">ny</span>':Math.abs(r.endring)<0.5?'<span style="color:#9ca3af">0 %</span>':`<span style="color:${r.endring>=0?'#dc2626':'#16a34a'}">${r.endring>=0?'▲':'▼'}${Math.abs(r.endring).toFixed(0)} %</span>`}</td>
       <td class="tr">${Math.round(r.trans3).toLocaleString('nb-NO')}</td>
       <td class="tr">${r.prisPerTrans==null?'—':r.prisPerTrans.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr'}</td>
       ${admin?`<td class="tr">${r.margin==null?'—':r.margin.toFixed(0)+' %'}</td>`:''}
       <td>${taKaSpark(r.trend)}</td>
       <td>${r.forhandler?merke('Forhandler','#6b7280'):''}${r.apenSak?merke('Åpen sak','#d97706'):''}${r.nyligKontakt?merke('Kontakt < 90 d','#2563eb'):''}</td>
     </tr>${taKaApen===r.kundenr?`<tr><td colspan="${admin?12:11}" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${taKaDetaljHtml(r.kundenr)}</td></tr>`:''}`).join('');
-  const sumRader=rader.reduce((t,r)=>t+r.grunnlag,0);
+  const sumRader=alleRader.reduce((t,r)=>t+r.grunnlag,0);
+  const topp10=[...alle].sort((a,b)=>b.grunnlag-a.grunnlag).slice(0,10).reduce((t,r)=>t+Math.max(r.grunnlag,0),0);
+  const nk=(l,v,sub)=>`<div style="flex:1 1 150px;background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.07)"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">${l}</div><div style="font-size:19px;font-weight:700;color:#111;margin-top:2px">${v}</div><div style="font-size:11px;color:#9ca3af">${sub}</div></div>`;
+  const grunnTekst=TA_KA_GRUNNLAG[taKaGrunnlag].toLowerCase();
+  const nokkeltall=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 12px">
+    ${nk('Kunder',alleRader.length.toLocaleString('nb-NO'),taKaTerskel>0||sok?`av ${alle.length} med valgte filtre`:'med transaksjonsavgift')}
+    ${nk('Totalt per måned',taKaKr(sumRader),grunnTekst)}
+    ${nk('Snitt per kunde',alleRader.length?taKaKr(sumRader/alleRader.length):'—',grunnTekst)}
+    ${nk('Topp 10',total>0?Math.round(topp10/total*100)+' %':'—','av totalen')}
+    ${nk(erTrans?'Transaksjoner t.o.m.':'Fakturert t.o.m.',taMndLabel(refMnd),'siste ferdig fakturerte måned')}
+  </div>`;
 
-  el.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 16px">${kort}</div>
-    <div style="font-size:13px;color:#374151;margin:0 0 8px"><strong>${rader.length}</strong> kunder på eller over ${taKaTerskel.toLocaleString('nb-NO')} kr/mnd (${TA_KA_GRUNNLAG[taKaGrunnlag].toLowerCase()}) — til sammen ${taKaKr(sumRader)} per måned.</div>
-    <div class="tbl-wrap" style="overflow-x:auto"><table>
-      <thead><tr>${th('navn','Kunde')}<th>Leverandør</th>${th('grunnlag',TA_KA_GRUNNLAG[taKaGrunnlag],1)}${th('siste','Siste mnd',1)}${th('snitt3','Snitt 3 mnd',1)}${th('snitt12','Snitt 12 mnd',1)}${th('endring','Endring',1)}${th('trans3','Trans./mnd',1)}${th('prisPerTrans','Pris/trans.',1)}${admin?th('margin','Margin',1):''}<th>Siste 12 mnd</th><th>Merker</th></tr></thead>
+  el.innerHTML=`${nokkeltall}
+    <div style="font-size:12px;color:#6b7280;margin:2px 0 6px">Fordeling (${grunnTekst}) — klikk for å bruke som grense:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px">${kort}</div>
+    <div class="tbl-wrap" style="overflow:auto;max-height:72vh"><table>
+      <thead><tr>${th('navn','Kunde')}<th style="position:sticky;top:0;z-index:1">Leverandør</th>${th('grunnlag',TA_KA_GRUNNLAG[taKaGrunnlag],1)}${th('siste','Siste mnd',1)}${th('snitt3','Snitt 3 mnd',1)}${th('snitt12','Snitt 12 mnd',1)}${th('endring','Endring',1)}${th('trans3','Trans./mnd',1)}${th('prisPerTrans','Pris/trans.',1)}${admin?th('margin','Margin',1):''}<th style="position:sticky;top:0;z-index:1">Siste 12 mnd</th><th style="position:sticky;top:0;z-index:1">Merker</th></tr></thead>
       <tbody>${body||`<tr><td colspan="12" class="muted" style="text-align:center;padding:24px">Ingen kunder over terskelen med valgte filtre.</td></tr>`}</tbody>
     </table></div>
+    ${alleRader.length>rader.length?`<div style="text-align:center;margin:10px 0"><button class="btn-sm" onclick="taKaVisAlle=true;renderTaKundeanalyse()">Vis alle ${alleRader.length} kunder (viser ${rader.length})</button></div>`:''}
     <div class="hint" style="margin-top:6px">Beløp eks. mva, ${erTrans?'fordelt på transaksjonsmåned (fra linjeteksten, ellers fakturadato)':'fakturert måned (fakturaen gjelder transaksjoner måneden før)'}. Endring = snitt siste 3 mnd mot de 3 før. Trans./mnd = snitt siste 3 mnd.${admin?' Margin = (beløp − kostnad) / beløp, siste 12 mnd — Nets har kickback i tillegg, som ikke er med her. Vises kun for admin.':''}</div>`;
 }
 
@@ -16148,7 +16176,7 @@ function taKaVisKunde(kundenr){
   showTab('transavgiftrapport',document.getElementById('tab-transavgiftrapport'));
   taKaLev='Alle';taKaTerskel=0;taKaForhandlere=true;taKaSok=String(kundenr);taKaApen=String(kundenr);
   const sett=(id,egenskap,v)=>{const e=document.getElementById(id);if(e)e[egenskap]=v;};
-  sett('ta-ka-lev','value','Alle');sett('ta-ka-terskel','value',0);sett('ta-ka-forhandlere','checked',true);sett('ta-ka-sok','value',String(kundenr));
+  sett('ta-ka-terskel','value',0);sett('ta-ka-forhandlere','checked',true);sett('ta-ka-sok','value',String(kundenr));
   visTaVisning('kunder');
 }
 
