@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.200 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.201 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3127,8 +3127,16 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
   <div id="tp-transavgiftrapport" class="tp">
     <div class="card">
       <div class="card-title">📈 Trans.avgift-rapport — Nets og Verifone</div>
-      <div class="hint">Månedlig oversikt over hva som er fakturert i transaksjonsavgift, basert på historikken fra Verifone og Nets trans.avgift. Ingen kundedetaljer her — se «📋 Historikk» under hver leverandør i Transaksjonsavgift-menyen for det.</div>
+      <div class="hint">«Månedsoversikt» viser totalene fra fakturakjøringene (Historikk). «Kundeanalyse» viser hva hver kunde betaler, hentet fra fakturalinjene i Visma (v1.48.201).</div>
     </div>
+    <!-- v1.48.201: visningsvelger inne i fanen (bevisst IKKE ny nav-sub i
+         venstremenyen — arver dermed tilgangsstyringen for transavgiftrapport
+         uendret). Se visTaVisning()/renderTaKundeanalyse(). -->
+    <div class="filters" id="ta-visning-velger" style="margin-top:14px">
+      <button class="fpill f-on" data-v="maaned" style="border-color:#1A3A6B" onclick="visTaVisning('maaned')"><span style="font-weight:600">📈 Månedsoversikt</span></button>
+      <button class="fpill f-off" data-v="kunder" onclick="visTaVisning('kunder')"><span style="font-weight:600">🔍 Kundeanalyse</span></button>
+    </div>
+    <div id="ta-vis-maaned">
     <p class="sec-title" style="margin-top:16px">Vis</p>
     <div class="filters" id="ta-metric-filters"></div>
     <p class="sec-title">Leverandør</p>
@@ -3137,6 +3145,23 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
     <div id="ta-arstotaler" style="display:grid;gap:10px;margin:16px 0 0"></div>
     <div id="ta-maaneder" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:16px 0"></div>
     <div class="tbl-wrap"><table id="tbl-ta"></table></div>
+    </div>
+    <div id="ta-vis-kunder" style="display:none">
+      <div class="filters" style="margin-top:16px">
+        <span class="filter-lbl">Leverandør:</span>
+        <select id="ta-ka-lev" onchange="taKaLev=this.value;renderTaKundeanalyse()" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px"><option>Alle</option><option>Verifone</option><option>Nets</option></select>
+        <span class="filter-lbl" style="margin-left:8px">Grunnlag:</span>
+        <select id="ta-ka-grunnlag" onchange="taKaGrunnlag=this.value;renderTaKundeanalyse()" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px"><option value="snitt3">Snitt siste 3 mnd</option><option value="snitt12">Snitt siste 12 mnd</option><option value="siste">Siste måned</option></select>
+        <span class="filter-lbl" style="margin-left:8px">Grense (kr/mnd):</span>
+        <input id="ta-ka-terskel" type="number" min="0" step="500" value="1000" oninput="taKaTerskel=Math.max(0,parseFloat(this.value)||0);renderTaKundeanalyse()" style="width:90px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px">
+        <label style="font-size:13px;color:#374151;margin-left:8px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="ta-ka-forhandlere" onchange="taKaForhandlere=this.checked;renderTaKundeanalyse()">Ta med forhandlere</label>
+        <input id="ta-ka-sok" type="search" placeholder="Søk kunde eller kundenr" oninput="taKaSok=this.value;renderTaKundeanalyse()" style="flex:1 1 180px;min-width:160px;padding:5px 10px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px">
+        <button class="btn-sm" onclick="taKaHent(true)">↻ Oppdater</button>
+        <button class="btn-sm" onclick="taKaEksporterCsv()">⬇ CSV</button>
+      </div>
+      <div class="hint" id="ta-ka-meta" style="margin:-4px 0 12px"></div>
+      <div id="ta-ka-innhold"></div>
+    </div>
   </div>
 
 <!-- IMPORT MODAL -->
@@ -11009,6 +11034,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.201',dato:'06.10.2026',punkter:[
+    'Trans.avgift-rapport: ny visning «🔍 Kundeanalyse» ved siden av «📈 Månedsoversikt». Den viser hva hver kunde betaler i transaksjonsavgift (Verifone og Nets), hentet fra fakturalinjene i Visma.',
+    'Kundeanalyse: kort som viser hvor mange kunder som ligger over 1 000, 2 000, 5 000 og 10 000 kr per måned. Klikk på et kort for å bruke det som grense. Tabellen viser snitt for 3 og 12 måneder, endring, antall transaksjoner, pris per transaksjon, en trendgraf for 12 måneder og merkene Forhandler, Åpen sak og Kontakt siste 90 dager.',
+    'Kundeanalyse: filtre for leverandør, grunnlag og egen grense, søk, klikk på kunden for å åpne kundekortet, og eksport til CSV for Excel. Margin vises bare for admin. Ingenting sendes til kundene.'
+  ]},
   {versjon:'v1.48.200',dato:'06.10.2026',punkter:[
     'Diktering: 🎤-knapp ved loggfeltet på sakene, i «Innhold» (ny sak, Nytt lead og Rediger) og ved kommentarfeltet i onboarding. Trykk på knappen og snakk, så skrives teksten inn. Trykk igjen for å stoppe. Virker i Chrome og Edge på PC og i Chrome på Android. Der det ikke støttes, vises ikke knappen, og du kan bruke Windows-tast + H eller mikrofonen på tastaturet.'
   ]},
@@ -15821,6 +15851,176 @@ function toggleTaLevFilter(lev){
   renderTransavgiftRapport();
 }
 function setTaMetric(m){taMetric=m;renderTransavgiftRapport();}
+
+// ===== TRANS.AVGIFT — KUNDEANALYSE (v1.48.201, 06.10.2026) =====
+// Fase 1 av «kontakt kunder med høye trans.avgifter»: KUN visning, ingen
+// utsending. Data fra GET /api/transavgift_kunder (kbd-verifone-func, se
+// transavgift_analyse.py) = LisensSync sine rådatafiler, vare 9925 (Verifone)
+// og 9929 (Nets), per kunde per måned (fakturadato). Kobles mot vismaKunder
+// (forhandler-flagg, kundekort) og kundeNotater (åpen sak / nylig kontakt).
+// Margin (beløp − kostnad) vises kun for admin.
+let taVisning='maaned'; // 'maaned' | 'kunder'
+let taKaData=null, taKaLaster=false, taKaFeil='';
+let taKaLev='Alle', taKaGrunnlag='snitt3', taKaTerskel=1000, taKaForhandlere=false, taKaSok='';
+let taKaSort={felt:'grunnlag',synk:true};
+const TA_KA_TERSKLER=[1000,2000,5000,10000];
+const TA_KA_GRUNNLAG={snitt3:'Snitt siste 3 mnd',snitt12:'Snitt siste 12 mnd',siste:'Siste måned'};
+
+function visTaVisning(v){
+  taVisning=v;
+  document.getElementById('ta-vis-maaned').style.display=v==='maaned'?'':'none';
+  document.getElementById('ta-vis-kunder').style.display=v==='kunder'?'':'none';
+  document.querySelectorAll('#ta-visning-velger .fpill').forEach(b=>{const on=b.dataset.v===v;b.classList.toggle('f-on',on);b.classList.toggle('f-off',!on);b.style.borderColor=on?'#1A3A6B':'';});
+  if(v==='kunder'){if(!taKaData&&!taKaLaster)taKaHent(false);else renderTaKundeanalyse();}
+  else renderTransavgiftRapport();
+}
+
+async function taKaHent(oppdater){
+  taKaLaster=true;taKaFeil='';renderTaKundeanalyse();
+  try{
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/transavgift_kunder?maaneder=24'+(oppdater?'&oppdater=1':'')),{headers:{Authorization:`Bearer ${token}`}});
+    const tekst=await resp.text();
+    let data=null;try{data=JSON.parse(tekst);}catch(_){}
+    if(!resp.ok||!data||!Array.isArray(data.kunder))throw new Error((data&&data.error)||`Feil fra server (${resp.status})`);
+    taKaData=data;
+  }catch(err){taKaFeil=err.message;}
+  taKaLaster=false;renderTaKundeanalyse();
+}
+
+// Referansemåned = siste måned der NOEN kunde har trans.avgift (inneværende
+// måned er ofte ikke fakturert ennå). Snitt regnes per leverandør fra
+// leverandørens første måned med data (Nets startet sept. 2026 — et
+// 12-mnd-snitt delt på 12 ville gitt for lave tall).
+function taKaRef(){
+  const n=taKaData.maaneder.length;let ref=-1;const start={};
+  taKaData.kunder.forEach(k=>Object.entries(k.leverandorer).forEach(([lev,s])=>{
+    s.belop.forEach((v,i)=>{if(v!==0){if(i>ref)ref=i;if(start[lev]===undefined||i<start[lev])start[lev]=i;}});
+  }));
+  return {ref:ref<0?n-1:ref,start};
+}
+function taKaSnitt(arr,ref,mnd,startIdx){
+  const fra=Math.max(ref-mnd+1,startIdx??0);
+  if(fra>ref)return 0;
+  let s=0;for(let i=fra;i<=ref;i++)s+=arr[i]||0;
+  return s/(ref-fra+1);
+}
+function taKaRader(){
+  const {ref,start}=taKaRef();
+  const nyligGrense=Date.now()-90*864e5;
+  const levListe=taKaLev==='Alle'?['Verifone','Nets']:[taKaLev];
+  return taKaData.kunder.map(k=>{
+    const serier=levListe.map(l=>[l,k.leverandorer[l]]).filter(([,s])=>s);
+    if(!serier.length)return null;
+    const sum=(fn)=>serier.reduce((t,[l,s])=>t+fn(l,s),0);
+    const siste=sum((l,s)=>s.belop[ref]||0);
+    const snitt3=sum((l,s)=>taKaSnitt(s.belop,ref,3,start[l]));
+    const snitt12=sum((l,s)=>taKaSnitt(s.belop,ref,12,start[l]));
+    // Endring sammenligner bare leverandører som har data i begge
+    // periodene (ellers ser en ny leverandør, f.eks. Nets fra sept. 2026, ut
+    // som en kraftig økning).
+    const harForrige=l=>ref-3>=(start[l]??0);
+    const forrige3=sum((l,s)=>harForrige(l)?taKaSnitt(s.belop,ref-3,3,start[l]):0);
+    const naa3Sammenlignbar=sum((l,s)=>harForrige(l)?taKaSnitt(s.belop,ref,3,start[l]):0);
+    const trans3=sum((l,s)=>taKaSnitt(s.antall,ref,3,start[l]));
+    const kost12=sum((l,s)=>taKaSnitt(s.kostnad,ref,12,start[l]));
+    const trend=[];for(let i=Math.max(0,ref-11);i<=ref;i++)trend.push(serier.reduce((t,[,s])=>t+(s.belop[i]||0),0));
+    const vk=vismaKunder.find(x=>samKundenr(x.vismaNummer,k.kundenr));
+    const notater=kundeNotater.filter(n=>samKundenr(n.vismaKundeNummer,k.kundenr));
+    const r={
+      kundenr:k.kundenr,navn:(vk&&vk.navn)||k.navn||k.kundenr,vkId:vk?vk.id:null,
+      lev:serier.map(([l])=>l),siste,snitt3,snitt12,
+      endring:forrige3>0?(naa3Sammenlignbar-forrige3)/forrige3*100:null,
+      trans3,prisPerTrans:trans3>0?snitt3/trans3:null,
+      margin:snitt12>0?(snitt12-kost12)/snitt12*100:null,
+      trend,
+      forhandler:!!(vk&&vk.kundeklasse&&vk.kundeklasse.toLowerCase().includes('forhandler')),
+      apenSak:notater.some(n=>n.status==='Åpen'),
+      nyligKontakt:notater.some(n=>n.opprettetDato&&new Date(n.opprettetDato).getTime()>=nyligGrense),
+    };
+    r.grunnlag=r[taKaGrunnlag];
+    return r;
+  }).filter(r=>r&&(taKaForhandlere||!r.forhandler)&&r.grunnlag!==0);
+}
+
+function taKaSpark(v){
+  const w=96,h=24,max=Math.max(...v,1),min=Math.min(0,...v);
+  const pts=v.map((x,i)=>`${(i*(w-4)/Math.max(v.length-1,1)+2).toFixed(1)},${(h-2-(x-min)/(max-min||1)*(h-4)).toFixed(1)}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="#1A3A6B" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+function taKaKr(v){return v==null?'—':Math.round(v).toLocaleString('nb-NO')+' kr';}
+function taKaSettSort(felt){taKaSort=taKaSort.felt===felt?{felt,synk:!taKaSort.synk}:{felt,synk:true};renderTaKundeanalyse();}
+function taKaTilKundekort(id){
+  const kunde=vismaKunder.find(x=>x.id===id);if(!kunde)return;
+  showTab('kunder',document.getElementById('tab-kunder'));
+  document.getElementById('k360-search').value=kunde.navn||'';
+  velgKunde360(kunde);
+}
+
+function renderTaKundeanalyse(){
+  const el=document.getElementById('ta-ka-innhold');if(!el)return;
+  const meta=document.getElementById('ta-ka-meta');
+  if(taKaLaster){el.innerHTML='<div class="hint" style="padding:24px 4px">Henter fakturalinjer fra Visma-rådata … (første gang tar det noen sekunder)</div>';return;}
+  if(taKaFeil){el.innerHTML=`<div style="background:#fef2f2;color:#991b1b;border-radius:8px;padding:14px 16px;font-size:13px">Kunne ikke hente kundeanalysen: ${escHtmlEpost(taKaFeil)}</div>`;return;}
+  if(!taKaData){el.innerHTML='';return;}
+  const admin=userRole==='admin';
+  const {ref}=taKaRef();
+  const refMnd=taKaData.maaneder[ref];
+  if(meta)meta.textContent=`Fakturert t.o.m. ${taMndLabel(refMnd)} · hentet ${new Date(taKaData.generert).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${taKaData.manglendePerioder.length?` · mangler perioder: ${taKaData.manglendePerioder.join(', ')}`:''}`;
+
+  const alle=taKaRader();
+  const total=alle.reduce((t,r)=>t+Math.max(r.grunnlag,0),0);
+  const fordeling=TA_KA_TERSKLER.map(t=>{const u=alle.filter(r=>r.grunnlag>=t);return{t,antall:u.length,andel:total>0?u.reduce((s,r)=>s+r.grunnlag,0)/total*100:0};});
+  const sok=taKaSok.trim().toLowerCase();
+  let rader=alle.filter(r=>r.grunnlag>=taKaTerskel&&(!sok||r.navn.toLowerCase().includes(sok)||String(r.kundenr).includes(sok)));
+  const f=taKaSort.felt,sg=taKaSort.synk?-1:1;
+  rader.sort((a,b)=>{const x=a[f],y=b[f];if(typeof x==='string'||typeof y==='string')return sg*String(x).localeCompare(String(y),'nb');return sg*((x??-Infinity)-(y??-Infinity));});
+  window._taKaVist=rader;
+
+  const kort=fordeling.map(d=>`<div style="flex:1 1 150px;background:white;border-radius:8px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center;cursor:pointer;${taKaTerskel===d.t?'outline:2px solid #1A3A6B;':''}" onclick="taKaTerskel=${d.t};document.getElementById('ta-ka-terskel').value=${d.t};renderTaKundeanalyse()">
+      <div style="font-size:12px;color:#6b7280;margin-bottom:4px">≥ ${d.t.toLocaleString('nb-NO')} kr/mnd</div>
+      <div style="font-size:20px;font-weight:700;color:#1A3A6B">${d.antall} kunder</div>
+      <div style="font-size:11px;color:#9ca3af;margin-top:2px">${d.andel.toFixed(0)} % av totalen</div></div>`).join('');
+
+  const th=(felt,txt,hoyre)=>`<th style="cursor:pointer;white-space:nowrap${hoyre?';text-align:right':''}" onclick="taKaSettSort('${felt}')">${txt}${taKaSort.felt===felt?(taKaSort.synk?' ▼':' ▲'):''}</th>`;
+  const merke=(t,farge)=>`<span style="display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:10px;margin:1px 3px 1px 0;background:${farge}1a;color:${farge}">${t}</span>`;
+  const body=rader.map(r=>`<tr>
+      <td>${r.vkId?`<a href="#" onclick="taKaTilKundekort('${r.vkId}');return false" style="color:#1A3A6B;font-weight:600;text-decoration:none">${escHtmlEpost(r.navn)}</a>`:escHtmlEpost(r.navn)}<div style="font-size:11px;color:#9ca3af">${escHtmlEpost(r.kundenr)}</div></td>
+      <td>${r.lev.map(l=>`<span class="fpill-dot" style="display:inline-block;background:${TA_LEV_FARGE[l]};margin-right:4px"></span>${l}`).join('<br>')}</td>
+      <td class="tr" style="font-weight:700;color:#111">${taKaKr(r.grunnlag)}</td>
+      <td class="tr">${taKaKr(r.siste)}</td>
+      <td class="tr">${taKaKr(r.snitt3)}</td>
+      <td class="tr">${taKaKr(r.snitt12)}</td>
+      <td class="tr">${r.endring==null?'<span style="color:#9ca3af">ny</span>':`<span style="color:${r.endring>=0?'#dc2626':'#16a34a'}">${r.endring>=0?'▲':'▼'}${Math.abs(r.endring).toFixed(0)} %</span>`}</td>
+      <td class="tr">${Math.round(r.trans3).toLocaleString('nb-NO')}</td>
+      <td class="tr">${r.prisPerTrans==null?'—':r.prisPerTrans.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr'}</td>
+      ${admin?`<td class="tr">${r.margin==null?'—':r.margin.toFixed(0)+' %'}</td>`:''}
+      <td>${taKaSpark(r.trend)}</td>
+      <td>${r.forhandler?merke('Forhandler','#6b7280'):''}${r.apenSak?merke('Åpen sak','#d97706'):''}${r.nyligKontakt?merke('Kontakt < 90 d','#2563eb'):''}</td>
+    </tr>`).join('');
+  const sumRader=rader.reduce((t,r)=>t+r.grunnlag,0);
+
+  el.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 16px">${kort}</div>
+    <div style="font-size:13px;color:#374151;margin:0 0 8px"><strong>${rader.length}</strong> kunder på eller over ${taKaTerskel.toLocaleString('nb-NO')} kr/mnd (${TA_KA_GRUNNLAG[taKaGrunnlag].toLowerCase()}) — til sammen ${taKaKr(sumRader)} per måned.</div>
+    <div class="tbl-wrap" style="overflow-x:auto"><table>
+      <thead><tr>${th('navn','Kunde')}<th>Leverandør</th>${th('grunnlag',TA_KA_GRUNNLAG[taKaGrunnlag],1)}${th('siste','Siste mnd',1)}${th('snitt3','Snitt 3 mnd',1)}${th('snitt12','Snitt 12 mnd',1)}${th('endring','Endring',1)}${th('trans3','Trans./mnd',1)}${th('prisPerTrans','Pris/trans.',1)}${admin?th('margin','Margin',1):''}<th>Siste 12 mnd</th><th>Merker</th></tr></thead>
+      <tbody>${body||`<tr><td colspan="12" class="muted" style="text-align:center;padding:24px">Ingen kunder over terskelen med valgte filtre.</td></tr>`}</tbody>
+    </table></div>
+    <div class="hint" style="margin-top:6px">Beløp eks. mva, fakturert måned (fakturaen gjelder transaksjoner måneden før). Endring = snitt siste 3 mnd mot de 3 før. Trans./mnd = snitt siste 3 mnd.${admin?' Margin = (beløp − kostnad) / beløp, siste 12 mnd — Nets har kickback i tillegg, som ikke er med her. Vises kun for admin.':''}</div>`;
+}
+
+function taKaEksporterCsv(){
+  const rader=window._taKaVist||[];if(!rader.length){vfShowToast('Ingen rader å eksportere.');return;}
+  const admin=userRole==='admin';
+  const tall=v=>v==null?'':String(Math.round(v*100)/100).replace('.',',');
+  const hode=['Kundenr','Kunde','Leverandør','Siste mnd','Snitt 3 mnd','Snitt 12 mnd','Endring %','Trans./mnd','Pris/trans.',...(admin?['Margin %']:[]),'Forhandler','Åpen sak','Kontakt < 90 d'];
+  const linjer=rader.map(r=>[r.kundenr,r.navn,r.lev.join('+'),tall(r.siste),tall(r.snitt3),tall(r.snitt12),tall(r.endring),tall(r.trans3),tall(r.prisPerTrans),...(admin?[tall(r.margin)]:[]),r.forhandler?'Ja':'',r.apenSak?'Ja':'',r.nyligKontakt?'Ja':''].map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';'));
+  const blob=new Blob(['﻿'+[hode.join(';'),...linjer].join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`transavgift-kundeanalyse-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
 
 function renderTransavgiftRapport(){
   const {maaneder,agg}=taAggregerPerMaaned();
