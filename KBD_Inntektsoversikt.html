@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.214 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.215 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11029,6 +11029,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.215',dato:'06.10.2026',punkter:[
+    'Fakturaoppfølging: spørsmålet «Sendte du e-posten?» vises nå midt på skjermen i stedet for nede i hjørnet.'
+  ]},
   {versjon:'v1.48.214',dato:'06.10.2026',punkter:[
     'Aldersfordelt: forklaring under grafen på hva linjene betyr. Mørkeblå = sum av valgte aldersgrupper, rød stiplet = forfalt over 30 dager.'
   ]},
@@ -13655,12 +13658,14 @@ function foEpostKlikk(key){
   const fs=foFsForKey(key);if(!fs.length)return;
   let el=document.getElementById('fo-epost-sporsmal');
   if(!el){el=document.createElement('div');el.id='fo-epost-sporsmal';document.body.appendChild(el);}
-  el.style.cssText='position:fixed;right:20px;bottom:20px;z-index:2000;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #1A3A6B;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:14px 16px;max-width:360px;font-size:13px;color:#111';
+  // v1.48.215: midt på skjermen med mørk bakgrunn (Thomas' ønske), ikke nede i hjørnet.
+  el.style.cssText='position:fixed;inset:0;z-index:2000;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;padding:16px';
   const navn=String(fs[0].kundenavn||'').replace(/</g,'&lt;');
   const k=String(key).replace(/'/g,"\\'");
-  el.innerHTML=`<div style="font-weight:600;margin-bottom:4px">✉️ Sendte du e-posten?</div>
-    <div style="color:#4b5563;margin-bottom:10px">${navn} · ${fs.length===1?'faktura '+fs[0].fakturanr:fs.length+' fakturaer'}. «Ja» logger «Purring sendt på e-post» og ny oppfølging om 5 virkedager.</div>
-    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn-sm" onclick="foEpostSvar(null)">Nei</button><button class="prim" style="padding:6px 14px;font-size:13px" onclick="foEpostSvar('${k}')">Ja, logg</button></div>`;
+  el.innerHTML=`<div style="background:#fff;border-radius:12px;border-top:4px solid #1A3A6B;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:420px;font-size:14px;color:#111">
+    <div style="font-weight:700;font-size:16px;margin-bottom:6px">✉️ Sendte du e-posten?</div>
+    <div style="color:#4b5563;margin-bottom:16px;line-height:1.45"><b>${navn}</b> · ${fs.length===1?'faktura '+fs[0].fakturanr:fs.length+' fakturaer'}.<br>«Ja» logger «Purring sendt på e-post» og ny oppfølging om 5 virkedager.</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn-sm" style="padding:8px 16px;font-size:14px" onclick="foEpostSvar(null)">Nei</button><button class="prim" onclick="foEpostSvar('${k}')">Ja, logg</button></div></div>`;
 }
 function foEpostSvar(key){
   const el=document.getElementById('fo-epost-sporsmal');if(el)el.remove();
