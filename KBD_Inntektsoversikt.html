@@ -664,7 +664,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.197 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.198 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5131,6 +5131,7 @@ const JOBBER_KONFIG={
   sjekk_sos_invitasjoner:{visningsnavn:'Silent Ordering-invitasjoner',maksMinutter:26*60},
   send_salgsoppsummering:{visningsnavn:'Kunde 360 – ukentlig salgsoppsummering',maksMinutter:8*24*60}, // lagt til 29.09.2026, mandag 06:00 UTC — holdes i sync med JOBBER i jobbstatus.py
   sjekk_onboarding_datoer:{visningsnavn:'Onboarding – datovarsler til ansvarlig',maksMinutter:26*60}, // lagt til 05.10.2026, daglig 06:45 UTC — holdes i sync med JOBBER i jobbstatus.py
+  send_onboarding_oppfolging:{visningsnavn:'Onboarding – oppfølgings-e-post etter 3 uker',maksMinutter:26*60}, // lagt til 06.10.2026, daglig 07:00 UTC (sender kun hverdager) — holdes i sync med JOBBER i jobbstatus.py
   // RETTET 10.09.2026: disse tre sto med 6*60 (6t), men jobbene kjører kun én
   // gang i døgnet — 6t margin garanterte rødt hver kveld uten reell feil.
   // Hevet til 26*60, samme som de andre daglige jobbene over.
@@ -10917,6 +10918,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.198',dato:'06.10.2026',punkter:[
+    'Onboarding: 21 dager etter at en onboarding er avsluttet, sendes det automatisk en oppfølgings-e-post til kunden («Hvordan går det …?»). Den går fra teknisk@kbd.as, svar kommer dit, og selger får kopi. Ansvarlig tekniker får beskjed i Teams. Sendes bare på hverdager.',
+    'I onboardingen viser kortet «📧 Oppfølging etter 21 dager» når e-posten sendes eller ble sendt. Der kan du krysse av «Ikke send». Teksten og en hovedbryter for automatisk utsending ligger i «⚙️ Mal og varer».',
+    'Krever at backend er publisert. Testbremsen står på til den slås av i Azure, og til da går e-postene bare til test-mottakeren.'
+  ]},
   {versjon:'v1.48.197',dato:'06.10.2026',punkter:[
     'Konkurrentlisten i Tapt-vinduet: Shop Box og 992ninito er lagt til, og Trivec heter nå Caspeco/Trivec (eldre «Trivec» telles med der).'
   ]},
@@ -16711,7 +16717,7 @@ async function loadOnboarding(){
   });
   if(malItems.length){
     onbMalSpId=malItems[0].id;
-    try{const m=JSON.parse(malItems[0].fields.Data||'null');if(m&&Array.isArray(m.faser))onbMal={faser:m.faser,varer:Array.isArray(m.varer)?m.varer:[],infoEpost:m.infoEpost&&typeof m.infoEpost==='object'?m.infoEpost:null};}catch{}
+    try{const m=JSON.parse(malItems[0].fields.Data||'null');if(m&&Array.isArray(m.faser))onbMal={faser:m.faser,varer:Array.isArray(m.varer)?m.varer:[],infoEpost:m.infoEpost&&typeof m.infoEpost==='object'?m.infoEpost:null,oppfolgingEpost:m.oppfolgingEpost&&typeof m.oppfolgingEpost==='object'?m.oppfolgingEpost:null};}catch{}
   }
 }
 function onbFraItem(i){
@@ -17081,6 +17087,7 @@ function renderOnboardingDetalj(o){
     <div>
       ${onbSalgssakKort(o)}
       ${onbInfoKort(o,kan)}
+      ${onbOppfolgingKort(o,kan)}
       ${onbLisensKort(o)}
       ${onbSkjemaKort(o)}
       ${onbAdresseKort(o,kan,kunde)}
@@ -17933,6 +17940,7 @@ function apneOnbMal(){
   if(!onbTilgang)return;
   onbMalUtkast=JSON.parse(JSON.stringify(onbMalAktiv()));
   onbMalUtkast.infoEpost={...ONB_INFO_STANDARD,...(onbMalUtkast.infoEpost||{})};
+  onbMalUtkast.oppfolgingEpost={...ONB_OPPF_STANDARD,...(onbMalUtkast.oppfolgingEpost||{})};
   renderOnbMal();
   document.getElementById('onb-mal-modal').classList.add('open');
 }
@@ -17981,6 +17989,7 @@ function renderOnbMal(){
       <button class="btn-sm" onclick="onbLastNedMal('${t}')">⬇️ Last ned</button>
       <label class="btn-sm" style="cursor:pointer">⬆️ Last opp ny<input type="file" accept=".xlsx,.xls" style="display:none" onchange="onbLastOppMal('${t}',this.files[0])"/></label></div>`).join('')}
     ${onbInfoMalHtml(m)}
+    ${onbOppfMalHtml(m)}
     ${onbMal?'':'<div class="onb-info-boks" style="margin-top:12px">Malen er ikke lagret i SharePoint ennå – standardmalen fra Caspers dokument brukes. «Lagre» oppretter den.</div>'}`;
 }
 function onbMalFlytt(liste,i,d){const a=onbMalUtkast[liste];const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];renderOnbMal();}
@@ -18093,6 +18102,73 @@ function onbInfoKort(o,kan){
     ${!ep&&onbVismaEpost(o)&&(onbTilgang||salgTilgang)&&o.status!=='Avbrutt'?`<div class="onb-hjelp" style="margin-top:4px">Forslag fra Visma: <strong>${onbEsc(onbVismaEpost(o))}</strong> <button class="onb-lenkeknapp" onclick="onbSettKontaktEpost('${o.id}','${onbEsc(onbVismaEpost(o)).replace(/'/g,'')}')">Bruk</button><br><span class="muted">Sjekk at det er riktig person – ofte er dette en felles- eller fakturaadresse.</span></div>`:''}
     ${kanSende?`<button class="${klar&&!sendt?'prim':'btn-sm'}" style="margin-top:10px" onclick="apneOnbInfo('${o.id}')">${sendt?'Send på nytt…':'👁️ Forhåndsvis og send'}</button>`:''}
   </div>`;
+}
+// ===== OPPFØLGINGS-E-POST 3 UKER ETTER FULLFØRT ONBOARDING (v1.48.198) =====
+// Sendes AUTOMATISK av backend-jobben send_onboarding_oppfolging_timer
+// (kbd-verifone-func/onboarding_oppfolging.py), hverdager 07:00 UTC, når
+// onboardingen har vært «Ferdig» i 21 dager (maks 45). Fra teknisk@kbd.as, svar
+// til teknisk@, kopi til selger, Teams-melding til ansvarlig. Dry-run-brems i
+// Azure: ONBOARDING_OPPFOLGING_EPOST_DRY_RUN (default på → kun test-mottaker).
+// Her i dashbordet: malen (Mal og varer), status pr. onboarding og «Ikke send».
+// Holdes i sync med ONBOARDING_OPPFOLGING_DAGER/MAKS_DAGER i backend.
+const ONB_OPPF_DAGER=21,ONB_OPPF_MAKS_DAGER=45;
+const ONB_OPPF_STANDARD={
+  aktiv:true,
+  emne:'Hvordan går det med det nye kassesystemet? – {kundenavn} – ref. {onbnr}',
+  tekst:`Hei {kontaktperson}
+
+Det er nå tre uker siden vi satte opp løsningen hos {kundenavn}, og vi vil gjerne høre hvordan det går.
+
+Fungerer alt som det skal, eller er det noe du lurer på eller ønsker å endre? Svar gjerne direkte på denne e-posten, eller ring support på 66 85 02 62.
+
+Med vennlig hilsen
+{ansvarlig}
+KBD Teknisk – Kasse og Butikkdata AS
+https://www.kbd.as`
+};
+const ONB_OPPF_FLETTEFELT=[['{kundenavn}','Kundens navn'],['{kontaktperson}','Kontaktperson fra onboardingen (tom = bare «Hei»)'],['{onbnr}','Onboarding-nummer'],['{ansvarlig}','Ansvarlig tekniker'],['{selger}','Selger']];
+function onbOppfMalHtml(m){
+  const oe=m.oppfolgingEpost||ONB_OPPF_STANDARD;
+  return `<div class="card-title" style="margin:22px 0 6px">📧 Oppfølgings-e-post (${ONB_OPPF_DAGER} dager etter avsluttet onboarding)</div>
+    <div class="onbm-info">
+      <div class="muted" style="margin-bottom:6px">Sendes <strong>automatisk</strong> på hverdager fra teknisk@kbd.as (svar kommer dit) med kopi til selger, til kontakt-e-posten på onboardingen. Ansvarlig tekniker får beskjed i Teams. Kan stoppes pr. kunde med «Ikke send» i onboardingen. Flettefelt: ${ONB_OPPF_FLETTEFELT.map(([k,b])=>`<code title="${onbEsc(b)}">${k}</code>`).join(' ')}</div>
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin-bottom:8px;cursor:pointer"><input type="checkbox" ${oe.aktiv!==false?'checked':''} onchange="onbMalUtkast.oppfolgingEpost.aktiv=this.checked"/> Send oppfølgings-e-post automatisk</label>
+      <div class="fgrp"><label>Emne</label><input type="text" value="${onbEsc(oe.emne||'')}" onchange="onbMalUtkast.oppfolgingEpost.emne=this.value"/></div>
+      <div class="fgrp"><label>Tekst</label><textarea rows="10" onchange="onbMalUtkast.oppfolgingEpost.tekst=this.value">${onbEsc(oe.tekst||'')}</textarea></div>
+      <button class="btn-sm" style="margin-top:6px" onclick="if(confirm('Tilbakestille emne og tekst til standardteksten?')){onbMalUtkast.oppfolgingEpost={...onbMalUtkast.oppfolgingEpost,emne:ONB_OPPF_STANDARD.emne,tekst:ONB_OPPF_STANDARD.tekst};renderOnbMal();}">↺ Standardtekst</button>
+    </div>`;
+}
+function onbOppfolgingKort(o,kan){
+  if(o.status!=='Ferdig'&&o.status!=='Pågår')return '';
+  const oe=o.data.oppfolgingEpost||{};
+  const malAv=(onbMalAktiv().oppfolgingEpost||{}).aktiv===false;
+  const ep=o.data.kontaktEpost||'';
+  const avsl=o.data.avsluttet?new Date(o.data.avsluttet):null;
+  const plan=avsl&&!isNaN(avsl)?new Date(avsl.getTime()+ONB_OPPF_DAGER*864e5):null;
+  const forGammel=avsl&&!isNaN(avsl)&&(Date.now()-avsl.getTime())/864e5>ONB_OPPF_MAKS_DAGER;
+  let status;
+  if(oe.sendt)status=`<div style="color:#15803d;font-weight:600">✅ Sendt ${onbDato(oe.sendt)} til ${onbEsc(oe.til||'')}</div>`;
+  else if(oe.hoppOver)status=`<div class="muted">⛔ Sendes ikke for denne kunden${oe.hoppOverAv?` (valgt av ${onbEsc(oe.hoppOverAv)})`:''}.</div>`;
+  else if(malAv)status=`<div class="muted">Automatisk utsending er slått av i «⚙️ Mal og varer».</div>`;
+  else if(o.status==='Pågår')status=`<div class="muted">Sendes automatisk ${ONB_OPPF_DAGER} dager etter at onboardingen er avsluttet.</div>`;
+  else if(forGammel)status=`<div class="muted">Sendes ikke – onboardingen ble avsluttet for over ${ONB_OPPF_MAKS_DAGER} dager siden.</div>`;
+  else if(!ep)status=`<div style="color:#b45309">⚠️ Mangler kontakt-e-post – legg den inn under «📧 Info-e-post til kunden», ellers sendes ingenting.</div>`;
+  else status=`<div>📅 Sendes automatisk rundt <strong>${plan?plan.toLocaleDateString('nb-NO'):'—'}</strong> til ${onbEsc(ep)}</div>`;
+  const test=oe.testSendt&&!oe.sendt?`<div class="onb-meta" style="margin-top:4px">Test sendt ${onbDato(oe.testSendt)} (testbremsen står på i Azure).</div>`:'';
+  const kanEndre=(kan||salgTilgang)&&!oe.sendt;
+  return `<div class="card card-public" style="margin-bottom:16px">
+    <div class="card-title">📧 Oppfølging etter ${ONB_OPPF_DAGER} dager</div>
+    ${status}${test}
+    ${kanEndre?`<label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:8px;cursor:pointer"><input type="checkbox" ${oe.hoppOver?'checked':''} onchange="onbSettOppfHoppOver('${o.id}',this.checked)"/> Ikke send oppfølgings-e-post til denne kunden</label>`:''}
+  </div>`;
+}
+function onbSettOppfHoppOver(id,pa){
+  const o=onbFind(id);if(!o)return;
+  const oe=o.data.oppfolgingEpost||{};
+  if(pa){oe.hoppOver=true;oe.hoppOverAv=onbMeg();}else{delete oe.hoppOver;delete oe.hoppOverAv;}
+  o.data.oppfolgingEpost=oe;
+  onbLogg(o,pa?'⛔ Oppfølgings-e-post (3 uker) skal ikke sendes':'Oppfølgings-e-post (3 uker) sendes likevel');
+  onbEtterEndring(o);
 }
 // v1.48.194: forslag fra Visma (KontaktEpost på kunden) når onboardingen mangler adresse.
 function onbVismaEpost(o){
