@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.202 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.203 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11034,6 +11034,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.203',dato:'06.10.2026',punkter:[
+    'Kundeanalyse: beløpene fordeles nå på måneden transaksjonene skjedde, hentet fra linjeteksten (for eksempel «periode 2026.08»), og ikke på fakturadatoen. Trendgrafer, 3-månederssnitt og endring blir dermed jevnere når flere måneder er fakturert samtidig.',
+    'Kundeanalyse: «siste måned» er den siste måneden som er ferdig fakturert. Linjen øverst viser hvor stor andel av linjene som hadde periode i teksten. Resten bruker fakturadatoen.'
+  ]},
   {versjon:'v1.48.202',dato:'06.10.2026',punkter:[
     'Kundeanalyse: filtre, sortering og søk reagerer nå med en gang. Før ble hele analysen regnet ut på nytt ved hvert klikk og hvert tastetrykk.',
     'Kundeanalyse: inneværende måned brukes ikke lenger som «siste måned», fordi den bare er delvis fakturert. Før ga det 0 kr i «Siste mnd» for mange kunder og trakk ned 3-månederssnittet.'
@@ -15856,7 +15860,7 @@ function toggleTaLevFilter(lev){
 }
 function setTaMetric(m){taMetric=m;renderTransavgiftRapport();}
 
-// ===== TRANS.AVGIFT — KUNDEANALYSE (v1.48.201, 06.10.2026) =====
+// ===== TRANS.AVGIFT — KUNDEANALYSE (v1.48.201, 06.10.2026; transaksjonsmåned fra v1.48.203) =====
 // Fase 1 av «kontakt kunder med høye trans.avgifter»: KUN visning, ingen
 // utsending. Data fra GET /api/transavgift_kunder (kbd-verifone-func, se
 // transavgift_analyse.py) = LisensSync sine rådatafiler, vare 9925 (Verifone)
@@ -15907,6 +15911,19 @@ function taKaRef(){
   taKaData.kunder.forEach(k=>Object.entries(k.leverandorer).forEach(([lev,s])=>{
     s.belop.forEach((v,i)=>{if(v!==0&&i<=grense){if(i>ref)ref=i;if(start[lev]===undefined||i<start[lev])start[lev]=i;}});
   }));
+  // v1.48.203: med transaksjonsmåned faktureres siste måned(er) etterskuddsvis
+  // — en måned som ennå bare er delvis fakturert, har langt lavere total enn
+  // månedene før. Gå inntil 2 måneder tilbake så lenge totalen er under 60 %
+  // av snittet for de 3 foregående månedene med data.
+  if(ref>0&&taKaData.maanedGrunnlag==='transaksjonsmaaned'){
+    const T=new Array(n).fill(0);
+    taKaData.kunder.forEach(k=>Object.values(k.leverandorer).forEach(s=>s.belop.forEach((v,i)=>{T[i]+=v;})));
+    for(let steg=0;steg<2&&ref>0;steg++){
+      const prev=[T[ref-1],T[ref-2],T[ref-3]].filter(x=>x>0);
+      const snitt=prev.length?prev.reduce((a,b)=>a+b,0)/prev.length:0;
+      if(snitt>0&&T[ref]<0.6*snitt)ref--;else break;
+    }
+  }
   const v={ref:ref<0?Math.max(0,Math.min(grense,n-1)):ref,start};
   taKaRef._c={data:taKaData,v};
   return v;
@@ -16004,7 +16021,11 @@ function renderTaKundeanalyse(){
   const admin=userRole==='admin';
   const {ref}=taKaRef();
   const refMnd=taKaData.maaneder[ref];
-  if(meta)meta.textContent=`Fakturert t.o.m. ${taMndLabel(refMnd)} · hentet ${new Date(taKaData.generert).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${taKaData.manglendePerioder.length?` · mangler perioder: ${taKaData.manglendePerioder.join(', ')}`:''}`;
+  const erTrans=taKaData.maanedGrunnlag==='transaksjonsmaaned';
+  const pg=taKaData.periodegrunnlag||{};
+  const dekning=Object.entries(pg).map(([lev,g])=>{const t=g.fraTekst+g.fraFakturadato;return t?`${lev} ${Math.round(g.fraTekst/t*100)} %`:'';}).filter(Boolean).join(', ');
+  if(erTrans&&!renderTaKundeanalyse._logget){renderTaKundeanalyse._logget=true;console.info('Kundeanalyse — periodegrunnlag (linjer uten periode i teksten bruker fakturadato):',pg);}
+  if(meta)meta.textContent=`${erTrans?'Transaksjoner':'Fakturert'} t.o.m. ${taMndLabel(refMnd)}${erTrans&&dekning?` · måned fra linjeteksten: ${dekning} av linjene (resten fakturadato)`:''} · hentet ${new Date(taKaData.generert).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${taKaData.manglendePerioder.length?` · mangler perioder: ${taKaData.manglendePerioder.join(', ')}`:''}`;
 
   const alle=taKaRader();
   const total=alle.reduce((t,r)=>t+Math.max(r.grunnlag,0),0);
@@ -16044,7 +16065,7 @@ function renderTaKundeanalyse(){
       <thead><tr>${th('navn','Kunde')}<th>Leverandør</th>${th('grunnlag',TA_KA_GRUNNLAG[taKaGrunnlag],1)}${th('siste','Siste mnd',1)}${th('snitt3','Snitt 3 mnd',1)}${th('snitt12','Snitt 12 mnd',1)}${th('endring','Endring',1)}${th('trans3','Trans./mnd',1)}${th('prisPerTrans','Pris/trans.',1)}${admin?th('margin','Margin',1):''}<th>Siste 12 mnd</th><th>Merker</th></tr></thead>
       <tbody>${body||`<tr><td colspan="12" class="muted" style="text-align:center;padding:24px">Ingen kunder over terskelen med valgte filtre.</td></tr>`}</tbody>
     </table></div>
-    <div class="hint" style="margin-top:6px">Beløp eks. mva, fakturert måned (fakturaen gjelder transaksjoner måneden før). Endring = snitt siste 3 mnd mot de 3 før. Trans./mnd = snitt siste 3 mnd.${admin?' Margin = (beløp − kostnad) / beløp, siste 12 mnd — Nets har kickback i tillegg, som ikke er med her. Vises kun for admin.':''}</div>`;
+    <div class="hint" style="margin-top:6px">Beløp eks. mva, ${erTrans?'fordelt på transaksjonsmåned (fra linjeteksten, ellers fakturadato)':'fakturert måned (fakturaen gjelder transaksjoner måneden før)'}. Endring = snitt siste 3 mnd mot de 3 før. Trans./mnd = snitt siste 3 mnd.${admin?' Margin = (beløp − kostnad) / beløp, siste 12 mnd — Nets har kickback i tillegg, som ikke er med her. Vises kun for admin.':''}</div>`;
 }
 
 function taKaEksporterCsv(){
