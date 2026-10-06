@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.210 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.212 · Oppdatert: 6. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2777,29 +2777,13 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
     <p class="sec-title">Utvikling over tid</p>
     <div id="aging-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center"></div>
     <div class="chart-wrap"><canvas id="chart-aging" height="250"></canvas></div>
+    <!-- v1.48.212: analyse (topp 10, over 90 etter status, betalingstid, før/etter) — renderAgingAnalyse() -->
+    <div id="aging-analyse"></div>
 
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div class="card-title" style="margin-bottom:0">Legg til ukentlig saldo</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-sm" onclick="importAgingBuiltin()" title="Importer 91 uker fra Aldersfordelt_oversikt.xlsx">📥 Importer historikk</button>
-          <button class="btn-sm" onclick="document.getElementById('aging-file-input').click()">📁 Velg Excel-fil</button>
-          <input type="file" id="aging-file-input" accept=".xlsx" style="display:none" onchange="handleAgingFile(event)"/>
-        </div>
-      </div>
-      <div class="fg" style="grid-template-columns:170px 1fr 1fr 1fr 1fr;margin-bottom:10px">
-        <div class="fgrp"><label>Dato</label><input type="date" id="ag-date" style="width:100%"/></div>
-        <div class="fgrp"><label style="color:#16a34a">1–30 dager</label><input type="number" id="ag-d1_30" placeholder="0" style="width:100%"/></div>
-        <div class="fgrp"><label style="color:#eda100">31–60 dager</label><input type="number" id="ag-d31_60" placeholder="0" style="width:100%"/></div>
-        <div class="fgrp"><label style="color:#eb6834">61–90 dager</label><input type="number" id="ag-d61_90" placeholder="0" style="width:100%"/></div>
-        <div class="fgrp"><label style="color:#dc2626">Over 90 dager</label><input type="number" id="ag-d90plus" placeholder="0" style="width:100%"/></div>
-      </div>
-      <div class="frow">
-        <input type="text" id="ag-note" placeholder="Notat (valgfritt)" style="flex:1"/>
-        <button class="prim" onclick="addAging()">+ Legg til</button>
-      </div>
-    </div>
-
+    <!-- v1.48.211 (06.10.2026): «Legg til ukentlig saldo» (manuell registrering +
+         Excel-import) fjernet på Thomas' ønske — tallene kommer automatisk fra
+         AldersfordeltSync hver mandag. addAging()/importAgingBuiltin()/
+         handleAgingFile() står igjen i koden, men kalles ikke lenger. -->
     <div class="tbl-wrap">
       <table>
         <thead><tr>
@@ -11044,6 +11028,17 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.212',dato:'06.10.2026',punkter:[
+    'Aldersfordelt: velg periode for grafen (3, 6, 12 mnd eller alt), og ny stiplet rød linje for «forfalt over 30 dager».',
+    '«👥 Hvem skylder mest»: de 10 kundene med høyest forfalt beløp, med knapp som åpner kunden i Fakturaoppfølging (krever tilgang til Fakturaoppfølging).',
+    '«🔴 Over 90 dager – hva står fast?»: viser hvor mye som er i aktiv oppfølging, hos inkasso og bestridt.',
+    '«⏱️ Hvor fort betaler kundene?»: snitt dager fra forfall til betalt, per måned.',
+    '«📊 Før og etter oppfølging i KBD CC» (kun administrator): ukesnitt før og etter start, henvendelser, betalt innen 14 dager etter kontakt og Mirrow-kostnad.'
+  ]},
+  {versjon:'v1.48.211',dato:'06.10.2026',punkter:[
+    'Aldersfordelt: «Legg til ukentlig saldo» er fjernet. Tallene kommer automatisk fra Visma hver mandag.',
+    'Tabellen viser nå «Endring» i prosent mot uka før (kolonnen var tom og forskjøv resten av tabellen). Bare administrator kan slette rader.'
+  ]},
   {versjon:'v1.48.210',dato:'06.10.2026',punkter:[
     'Fakturaoppfølging: varsler går nå til riktig person. Den som sist skrev i loggen på en kunde, får varselet når neste oppfølging kommer («N av dine oppfølginger i dag»).',
     'Nye kunder på arbeidslisten som ingen har tatt ennå, varsles til én fast mottaker som administrator velger under «⚙️ Innstillinger». Er ingen valgt, går de til alle med tilgang.',
@@ -13974,6 +13969,136 @@ function lagreFoOppfolging(key,opts={}){
   });
 }
 
+// ===== ALDERSFORDELT – ANALYSE (v1.48.212, 06.10.2026) =====
+// Thomas ba om alle fem forslagene. Alt regnes i nettleseren fra data som
+// allerede er lastet (aging = ukentlige summer, fakturaoppfolging/
+// fakturaoppfolgingLogg = per faktura). Ingen nye lister eller backend.
+//  1) Topp 10 kunder med forfalt beløp — kun for brukere med tilgang til
+//     Fakturaoppfølging (Aldersfordelt ellers bare viser summer).
+//  2) «Over 90 dager» delt i aktiv oppfølging / sendt til inkasso / bestridt.
+//  3) Periodevalg for grafen + linje for «forfalt over 30 dager».
+//  4) Betalingstid: dager fra forfall til betalt, per måned (BetaltDato
+//     registreres av FakturaoppfolgingSync fra 10.09.2026).
+//  5) Før/etter KBD CC-oppfølging — kun admin (ikke synlig for Mirrow).
+let agingPeriode='12';
+try{const p=localStorage.getItem('kbdcc_aging_periode');if(['3','6','12','alle'].includes(p))agingPeriode=p;}catch(e){}
+function setAgingPeriode(p){agingPeriode=p;try{localStorage.setItem('kbdcc_aging_periode',p);}catch(e){}renderAging();}
+function agingIPeriode(e){
+  if(agingPeriode==='alle')return true;
+  const fra=new Date();fra.setHours(0,0,0,0);fra.setMonth(fra.getMonth()-parseInt(agingPeriode));
+  const d=parseLD(e.date);return d&&d>=fra;
+}
+function agEsc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function agBucketFor(dager){return dager>90?'d90plus':dager>60?'d61_90':dager>30?'d31_60':dager>0?'d1_30':null;}
+function agDagerMellom(a,b){const x=parseLD(a),y=parseLD(b);return(x&&y)?Math.round((y-x)/86400000):null;}
+
+// Åpner kunden i Fakturaoppfølging («Alle fakturaer», gruppert, kunderaden åpen).
+function agApneKunde(kundenr){
+  if(typeof foVisning==='undefined')return;
+  foVisning='alle';foGrupper=true;foBucket='alle';foStatusFilter='alle';foKunForfalte=true;foSearch=String(kundenr).toLowerCase();
+  const sok=document.getElementById('fo-search');if(sok)sok.value=kundenr;
+  const sf=document.getElementById('fo-status-filter');if(sf)sf.value='alle';
+  const kf=document.getElementById('fo-kun-forfalte');if(kf)kf.checked=true;
+  foApenRad='K:'+kundenr;
+  const el=document.getElementById('tab-fakturaoppfolging');
+  if(el){showTab('fakturaoppfolging',el);if(typeof toggleFakturaoppfolgingSub==='function')toggleFakturaoppfolgingSub(true);}
+  renderFakturaoppfolging();
+}
+
+function renderAgingAnalyse(){
+  const wrap=document.getElementById('aging-analyse');if(!wrap)return;
+  const fo=(typeof fakturaoppfolging!=='undefined'?fakturaoppfolging:[]);
+  const apne=fo.filter(f=>!f.betaltDato);
+  const forfalte=apne.filter(f=>foDagerForfalt(f)>0);
+  const harFo=typeof harTilgangTilModul==='function'&&harTilgangTilModul('fakturaoppfolging');
+  const deler=[];
+  const kort=(tittel,undertittel,innhold,ekstraStil='')=>`<div class="card card-public" style="margin:0;${ekstraStil}"><div class="card-title" style="margin-bottom:2px">${tittel}</div><div style="font-size:11px;color:#6b7280;margin-bottom:12px">${undertittel}</div>${innhold}</div>`;
+
+  // --- 1) Topp 10 kunder ---
+  if(harFo){
+    const perKunde=new Map();
+    forfalte.forEach(f=>{
+      const k=f.kundenr||f.kundenavn;
+      if(!perKunde.has(k))perKunde.set(k,{kundenr:f.kundenr,kundenavn:f.kundenavn,sum:0,d1_30:0,d31_60:0,d61_90:0,d90plus:0,maks:0,ant:0,statuser:new Set()});
+      const r=perKunde.get(k),d=foDagerForfalt(f),b=agBucketFor(d);
+      r.sum+=f.utestaende||0;if(b)r[b]+=f.utestaende||0;r.maks=Math.max(r.maks,d);r.ant++;r.statuser.add(f.status);
+    });
+    const topp=[...perKunde.values()].sort((a,b)=>b.sum-a.sum).slice(0,10);
+    const totalt=forfalte.reduce((s,f)=>s+(f.utestaende||0),0);
+    const toppSum=topp.reduce((s,r)=>s+r.sum,0);
+    const celle=(v,i)=>`<td class="tr" style="color:${v?AGING_COLORS[i]:'#d0d5dd'}">${v?fF(v):'—'}</td>`;
+    const tabell=topp.length?`<div class="tbl-wrap" style="margin:0"><table><thead><tr><th>Kunde</th><th class="tr">Forfalt</th>${AGING_LABELS.map((l,i)=>`<th class="tr" style="color:${AGING_COLORS[i]}">${l}</th>`).join('')}<th class="tr">Eldste</th><th>Status</th><th></th></tr></thead><tbody>
+      ${topp.map(r=>`<tr><td>${agEsc(r.kundenavn)}<div style="font-size:11px;color:#9ca3af">Kundenr ${agEsc(r.kundenr)} · ${r.ant} faktura${r.ant===1?'':'er'}</div></td><td class="tr" style="font-weight:600">${fF(r.sum)}</td>${AGING_KEYS.map((k,i)=>celle(r[k],i)).join('')}<td class="tr" style="color:#dc2626">${r.maks} d</td><td>${[...r.statuser].map(foStatusBadge).join(' ')}</td><td><button class="btn-sm" onclick="agApneKunde('${agEsc(r.kundenr).replace(/'/g,"\\'")}')">Åpne →</button></td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="empty">Ingen forfalte fakturaer.</div>';
+    deler.push(kort('👥 Hvem skylder mest',`De 10 kundene med høyest forfalt beløp akkurat nå · ${fF(toppSum)} av ${fF(totalt)} forfalt (${totalt?Math.round(toppSum/totalt*100):0} %). Kun synlig med tilgang til Fakturaoppfølging.`,tabell,'grid-column:1/-1'));
+  }
+
+  // --- 2) Over 90 dager delt etter status ---
+  const over90=forfalte.filter(f=>foDagerForfalt(f)>90);
+  const grp={aktiv:[],inkasso:[],bestridt:[]};
+  over90.forEach(f=>{(f.status==='Sendt til inkasso'?grp.inkasso:f.status==='Bestridt'?grp.bestridt:grp.aktiv).push(f);});
+  const sum=a=>a.reduce((s,f)=>s+(f.utestaende||0),0);
+  const tot90=sum(over90)||0;
+  const linje=(navn,farge,arr,hint)=>{const s=sum(arr),pct=tot90?s/tot90*100:0;return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${navn} <span style="color:#9ca3af;font-size:11px">(${arr.length} fakturaer)</span></span><b>${fF(s)}</b></div><div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${pct.toFixed(1)}%;background:${farge}"></div></div>${hint?`<div style="font-size:11px;color:#9ca3af;margin-top:2px">${hint}</div>`:''}</div>`;};
+  deler.push(kort('🔴 Over 90 dager – hva står fast?',`Åpne fakturaer forfalt over 90 dager akkurat nå: ${fF(tot90)}. Fordelt på status i Fakturaoppfølging.`,
+    linje('I aktiv oppfølging','#dc2626',grp.aktiv,'Her kan dere fortsatt gjøre noe.')+linje('Sendt til inkasso','#6b7280',grp.inkasso,'Ligger hos inkasso/namsmann.')+linje('Bestridt','#7c3aed',grp.bestridt,'')+
+    (grp.inkasso.length===0&&over90.length?`<div style="font-size:11px;color:#b45309;margin-top:6px">Ingen er satt til «Sendt til inkasso» ennå. Sett status i Fakturaoppfølging på saker som er hos inkasso eller namsmann, så blir tallene riktige.</div>`:'')));
+
+  // --- 4) Betalingstid per måned ---
+  const betalt=fo.filter(f=>f.betaltDato&&f.forfallsdato).map(f=>({f,dager:agDagerMellom(f.forfallsdato,f.betaltDato),mnd:String(f.betaltDato).slice(0,7)})).filter(x=>x.dager!=null);
+  const perMnd=new Map();betalt.forEach(x=>{if(!perMnd.has(x.mnd))perMnd.set(x.mnd,[]);perMnd.get(x.mnd).push(x);});
+  const mnder=[...perMnd.keys()].sort().slice(-6);
+  const mndNavn=m=>{const[y,mm]=m.split('-');return new Date(+y,+mm-1,1).toLocaleDateString('nb-NO',{month:'short',year:'2-digit'});};
+  const betTabell=mnder.length?`<div class="tbl-wrap" style="margin:0"><table><thead><tr><th>Betalt i</th><th class="tr">Antall</th><th class="tr">Snitt etter forfall</th><th class="tr">Betalt etter forfall</th><th class="tr">Over 30 d etter</th></tr></thead><tbody>
+    ${mnder.map(m=>{const a=perMnd.get(m),snitt=a.reduce((s,x)=>s+x.dager,0)/a.length,etter=a.filter(x=>x.dager>0).length,o30=a.filter(x=>x.dager>30).length;
+      return `<tr><td>${mndNavn(m)}</td><td class="tr">${a.length}</td><td class="tr" style="color:${snitt>0?'#dc2626':'#1baf7a'};font-weight:600">${snitt>0?Math.round(snitt)+' d':Math.abs(Math.round(snitt))+' d før'}</td><td class="tr">${Math.round(etter/a.length*100)} %</td><td class="tr">${Math.round(o30/a.length*100)} %</td></tr>`;}).join('')}
+    </tbody></table></div>`:'<div class="empty">Ingen betalte fakturaer registrert ennå.</div>';
+  deler.push(kort('⏱️ Hvor fort betaler kundene?','Dager fra forfall til betalt, per måned. Registreres fra 10.09.2026, så de første månedene er usikre. Lavere er bedre.',betTabell));
+
+  // --- 5) Før/etter KBD CC-oppfølging (kun admin) ---
+  if(userRole==='admin'){
+    const logg=(typeof fakturaoppfolgingLogg!=='undefined'?fakturaoppfolgingLogg:[]).filter(l=>l.kilde!=='Automatisk'&&l.dato);
+    const til=typeof foInnst!=='undefined'?String(foInnst.nyeSakerTil||'').toLowerCase():'';
+    const mottaker=til?(typeof brukere!=='undefined'?brukere:[]).find(b=>String(b.epost||'').toLowerCase()===til):null;
+    const erMottaker=l=>mottaker&&[mottaker.navn,mottaker.epost].some(x=>x&&String(l.skrevetAv||'').toLowerCase()===String(x).toLowerCase());
+    const mLogg=logg.filter(erMottaker);
+    const startLogg=(mLogg.length?mLogg:logg).slice().sort((a,b)=>new Date(a.dato)-new Date(b.dato))[0];
+    let innhold;
+    if(!startLogg){
+      innhold='<div class="empty">Starter når det første loggføres i Fakturaoppfølging.</div>';
+    }else{
+      const start=new Date(startLogg.dato);start.setHours(0,0,0,0);
+      const ser=aging.filter(e=>e.date).map(e=>({d:parseLD(e.date),o30:(e.d31_60||0)+(e.d61_90||0)+(e.d90plus||0),o90:e.d90plus||0,tot:AGING_KEYS.reduce((s,k)=>s+(e[k]||0),0)})).filter(x=>x.d).sort((a,b)=>a.d-b.d);
+      const for_=ser.filter(x=>x.d<start).slice(-12),etter=ser.filter(x=>x.d>=start);
+      const snitt=(a,k)=>a.length?a.reduce((s,x)=>s+x[k],0)/a.length:null;
+      const andel=a=>{const t=snitt(a,'tot');return t?snitt(a,'o90')/t*100:null;};
+      const rad=(navn,f,e,fmt)=>{const diff=(f!=null&&e!=null&&f!==0)?(e-f)/Math.abs(f)*100:null;return `<tr><td>${navn}</td><td class="tr">${f==null?'—':fmt(f)}</td><td class="tr">${e==null?'—':fmt(e)}</td><td class="tr" style="color:${diff==null?'#9ca3af':diff<=0?'#1baf7a':'#dc2626'}">${diff==null?'—':(diff<=0?'▼':'▲')+Math.abs(diff).toFixed(1)+' %'}</td></tr>`;};
+      const uker=Math.max(1,(Date.now()-start)/(7*86400000));
+      const etterStart=logg.filter(l=>new Date(l.dato)>=start);
+      const perType={};etterStart.forEach(l=>{perType[l.type||'Annet']=(perType[l.type||'Annet']||0)+1;});
+      // Betalt innen 14 dager etter første manuelle kontakt (KBD CC)
+      const forsteKontakt=new Map();etterStart.forEach(l=>{const p=forsteKontakt.get(l.fakturanr);if(!p||new Date(l.dato)<p)forsteKontakt.set(l.fakturanr,new Date(l.dato));});
+      const kontaktet=fo.filter(f=>forsteKontakt.has(f.fakturanr));
+      const betaltInnen14=kontaktet.filter(f=>{if(!f.betaltDato)return false;const d=(parseLD(f.betaltDato)-forsteKontakt.get(f.fakturanr))/86400000;return d>=-1&&d<=14;});
+      innhold=`<div style="font-size:12px;color:#374151;margin-bottom:10px">Start: <b>${start.toLocaleDateString('nb-NO')}</b> (første logg i KBD CC${mLogg.length?` av ${agEsc(mottaker.navn)}`:''}). Sammenligner snittet av de 12 ukene før med ukene etter (${etter.length} uke${etter.length===1?'':'r'} så langt).</div>
+        <div class="tbl-wrap" style="margin:0 0 12px"><table><thead><tr><th>Ukesnitt</th><th class="tr">Før</th><th class="tr">Etter</th><th class="tr">Endring</th></tr></thead><tbody>
+          ${rad('Forfalt totalt',snitt(for_,'tot'),snitt(etter,'tot'),fF)}
+          ${rad('Forfalt over 30 dager',snitt(for_,'o30'),snitt(etter,'o30'),fF)}
+          ${rad('Over 90 dager',snitt(for_,'o90'),snitt(etter,'o90'),fF)}
+          ${rad('Andel over 90 dager',andel(for_),andel(etter),v=>v.toFixed(1)+' %')}
+        </tbody></table></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+          <div class="kpi" style="margin:0"><div class="kpi-lbl">Henvendelser i KBD CC</div><div style="font-size:22px;font-weight:700">${etterStart.length}</div><div class="kpi-sub">${(etterStart.length/uker).toFixed(1)} per uke · ${Object.entries(perType).map(([t,n])=>`${t} ${n}`).join(', ')||'—'}</div></div>
+          <div class="kpi" style="margin:0"><div class="kpi-lbl">Betalt innen 14 dager etter kontakt</div><div style="font-size:22px;font-weight:700;color:#1baf7a">${betaltInnen14.length} av ${kontaktet.length}</div><div class="kpi-sub">${fF(betaltInnen14.reduce((s,f)=>s+(f.belop||0),0))} innbetalt</div></div>
+          <div class="kpi" style="margin:0"><div class="kpi-lbl">Mirrow-kostnad i perioden</div><div style="font-size:22px;font-weight:700">${fF(21000*uker/4.345)}</div><div class="kpi-sub">ca. 21 000 kr/mnd</div></div>
+        </div>`;
+    }
+    deler.push(kort('📊 Før og etter oppfølging i KBD CC','Kun synlig for administrator. Grunnlag for å vurdere Mirrow-avtalen.',innhold,'grid-column:1/-1'));
+  }
+
+  wrap.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px;margin:18px 0">${deler.join('')}</div>`;
+}
+
 function renderAging(){
   // KPI cards
   const kpiEl=document.getElementById('aging-kpis');
@@ -14036,13 +14161,20 @@ function renderAging(){
         <span class="fpill-dot" style="background:${on?c:'#d0d5dd'}"></span>
         <span style="color:${on?c:'#9ca3af'};font-weight:600">${AGING_LABELS[i]}</span>
       </button>`;
-    }).join('');
+    }).join('')+
+    // v1.48.212: periodevalg for grafen
+    `<span class="filter-lbl" style="margin-left:14px">Periode:</span>`+
+    [['3','3 mnd'],['6','6 mnd'],['12','12 mnd'],['alle','Alt']].map(([v,t])=>`<button class="fpill" style="${agingPeriode===v?'border-color:#1A3A6B':''}" onclick="setAgingPeriode('${v}')"><span style="font-weight:600;color:${agingPeriode===v?'#1A3A6B':'#9ca3af'}">${t}</span></button>`).join('');
 
   // Chart
   dC('aging');
   const ctx=document.getElementById('chart-aging');
+  const sortedAlle=sorted;
+  { const sorted=sortedAlle.filter(agingIPeriode); // v1.48.212: grafen følger valgt periode
   if(sorted.length&&ctx){
     const trendData=sorted.map(e=>activeKeys.reduce((s,k)=>s+(e[k]||0),0));
+    // v1.48.212: «Forfalt over 30 dager» som egen stiplet linje (1–30 svinger med faktureringskjøringene)
+    const over30Data=sorted.map(e=>(e.d31_60||0)+(e.d61_90||0)+(e.d90plus||0));
     charts['aging']=new Chart(ctx,{type:'bar',data:{
       labels:sorted.map(e=>fDateShort(e.date)),
       datasets:[
@@ -14050,7 +14182,8 @@ function renderAging(){
           const i=AGING_KEYS.indexOf(k);
           return{label:AGING_LABELS[i],data:sorted.map(e=>e[k]||0),backgroundColor:AGING_COLORS[i],stack:'a',borderRadius:idx===activeKeys.length-1?2:0};
         }),
-        {label:'Trend (total)',data:trendData,type:'line',borderColor:'#1A3A6B',backgroundColor:'transparent',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.4,stack:undefined,order:0}
+        {label:'Trend (total)',data:trendData,type:'line',borderColor:'#1A3A6B',backgroundColor:'transparent',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.4,stack:undefined,order:0},
+        {label:'Forfalt over 30 dager',data:over30Data,type:'line',borderColor:'#dc2626',borderDash:[6,4],backgroundColor:'transparent',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.3,stack:undefined,order:0}
       ]
     },options:{...bOpts,scales:{...bOpts.scales,x:{...bOpts.scales.x,ticks:{...bOpts.scales.x.ticks,autoSkip:false,maxRotation:60,minRotation:45}}},plugins:{...bOpts.plugins,tooltip:{
       backgroundColor:'#fff',titleColor:'#111',bodyColor:'#374151',borderColor:'#e5e7eb',borderWidth:1,padding:10,
@@ -14061,10 +14194,18 @@ function renderAging(){
     }}}});
   }
 
+  } // slutt periode-blokk
+  renderAgingAnalyse(); // v1.48.212
+
   // Table
   const tbody=document.getElementById('aging-body');
   if(tbody) tbody.innerHTML=sorted.length?[...sorted].reverse().map(e=>{
     const tot=AGING_KEYS.reduce((s,k)=>s+(e[k]||0),0);
+    // v1.48.211: «Endring»-kolonnen hadde overskrift men ingen celle (tabellen
+    // ble forskjøvet). Endring i total mot forrige registrering.
+    const iSort=sorted.indexOf(e),forrige=iSort>0?sorted[iSort-1]:null;
+    const forrigeTot=forrige?AGING_KEYS.reduce((s,k)=>s+(forrige[k]||0),0):null;
+    const endr=forrigeTot>0?((tot-forrigeTot)/forrigeTot*100):null;
     const pct=tot>0?((e.d90plus||0)/tot*100).toFixed(0):0;
     return`<tr>
       <td style="font-weight:500">${fDateShort(e.date)}</td>
@@ -14074,15 +14215,17 @@ function renderAging(){
       <td class="tr" style="color:${AGING_COLORS[3]};font-weight:600">${fF(e.d90plus||0)}</td>
       <td class="tr" style="font-weight:600">${fF(tot)}</td>
       <td class="tr" style="color:${Number(pct)>25?'#dc2626':'#6b7280'}">${pct}%</td>
+      <td class="tr" style="color:${endr==null?'#9ca3af':endr>=0?'#dc2626':'#1baf7a'}">${endr==null?'—':(endr>=0?'▲':'▼')+Math.abs(endr).toFixed(1)+'%'}</td>
       <td class="muted">${e.note||''}</td>
-      <td><div class="action-btns">
+      <td>${userRole==='admin'?`<div class="action-btns">
         <button class="btn-icon del" onclick="delAging('${e.id}')">✕</button>
-      </div></td>
+      </div>`:''}</td>
     </tr>`;
-  }).join(''):`<tr><td colspan="9" class="empty">Ingen registreringer ennå — legg til første saldo over</td></tr>`;
+  }).join(''):`<tr><td colspan="10" class="empty">Ingen registreringer ennå. Tallene kommer automatisk fra Visma hver mandag.</td></tr>`;
 }
 
 function delAging(id){
+  if(userRole!=='admin'){alert('Kun administrator kan slette rader.');return;} // v1.48.211
   if(!confirm('Slette denne raden?'))return;
   const ae=aging.find(a=>a.id===id);
   aging=aging.filter(a=>a.id!==id);
