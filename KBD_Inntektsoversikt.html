@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.222 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.223 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11029,6 +11029,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.223',dato:'07.10.2026',punkter:[
+    'Fakturaoppfølging: ny knapp «Ikke inkasso» ved inkasso-varselet, for saker som er trukket fra Amili eller aldri ble sendt. Velg grunn, så forsvinner varselet og grunnen lagres i loggen.'
+  ]},
   {versjon:'v1.48.222',dato:'07.10.2026',punkter:[
     'Fakturaoppfølging: klikk på kundens e-postadresse lager nå et utkast med faktura-PDF-ene vedlagt (filen åpnes i Outlook). Du ser over og trykker Send selv. Kopi til mirrow@kbd.as som før.'
   ]},
@@ -13783,7 +13786,54 @@ function foEpostSvar(key){
 const FO_INKASSO_RE=/inkasso|namsmann|utlegg|forliksr/i;
 let foInkassoFilter=false;
 const foNotatApen=new Set();
-function foNevnerInkasso(f){return !f.betaltDato&&f.status!=='Sendt til inkasso'&&!!f.notatImportert&&FO_INKASSO_RE.test(f.notatImportert);}
+function foNevnerInkasso(f){return !f.betaltDato&&f.status!=='Sendt til inkasso'&&!!f.notatImportert&&FO_INKASSO_RE.test(f.notatImportert)&&!foInkassoAvvist().has(f.fakturanr);}
+// v1.48.223: «Ikke inkasso» — fjerner inkasso-varselet for en faktura (f.eks.
+// trukket fra Amili). Lagres som logglinje med prefikset FO_IKKE_INKASSO (ingen
+// ny SharePoint-kolonne), så det også blir sporbart hvem som gjorde det og hvorfor.
+const FO_IKKE_INKASSO='[Ikke inkasso]';
+let foAvvistCache={arr:null,n:-1,set:new Set()};
+function foInkassoAvvist(){
+  if(foAvvistCache.arr!==fakturaoppfolgingLogg||foAvvistCache.n!==fakturaoppfolgingLogg.length){
+    foAvvistCache={arr:fakturaoppfolgingLogg,n:fakturaoppfolgingLogg.length,set:new Set(fakturaoppfolgingLogg.filter(l=>String(l.kommentar||'').startsWith(FO_IKKE_INKASSO)).map(l=>l.fakturanr))};
+  }
+  return foAvvistCache.set;
+}
+function foAvvisInkasso(key){
+  const fs=foFsForKey(key).filter(foNevnerInkasso);
+  if(!fs.length)return;
+  document.getElementById('fo-avvis-dialog')?.remove();
+  const el=document.createElement('div');el.id='fo-avvis-dialog';
+  el.style.cssText='position:fixed;inset:0;z-index:2000;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  const valg=['Trukket fra inkasso/Amili','Ikke sendt til inkasso (notatet var bare en plan)','Avtale med kunden'];
+  el.innerHTML=`<div style="background:#fff;border-radius:12px;border-top:4px solid #f59e0b;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:460px;font-size:14px;color:#111">
+    <div style="font-weight:700;font-size:16px;margin-bottom:6px">Ikke inkasso</div>
+    <div style="color:#4b5563;margin-bottom:12px;line-height:1.45">${String(fs[0].kundenavn).replace(/</g,'&lt;')} · ${fs.length===1?'faktura '+fs[0].fakturanr:fs.length+' fakturaer'}. Inkasso-varselet fjernes, og grunnen lagres i loggen.</div>
+    ${valg.map((v,i)=>`<label style="display:flex;gap:8px;align-items:center;margin-bottom:6px;cursor:pointer"><input type="radio" name="fo-avvis-grunn" value="${v}" ${i===0?'checked':''}/> ${v}</label>`).join('')}
+    <input id="fo-avvis-tekst" type="text" placeholder="Utdyp (valgfritt)" style="width:100%;margin:6px 0 14px;padding:8px 10px;border:1px solid #d0d5dd;border-radius:6px;font-size:14px;font-family:inherit"/>
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn-sm" style="padding:8px 16px;font-size:14px" id="fo-avvis-avbryt">Avbryt</button><button class="prim" id="fo-avvis-ok">Fjern varselet</button></div></div>`;
+  document.body.appendChild(el);
+  const lukk=()=>el.remove();
+  el.querySelector('#fo-avvis-avbryt').onclick=lukk;
+  el.addEventListener('keydown',e=>{if(e.key==='Escape')lukk();});
+  el.querySelector('#fo-avvis-ok').onclick=()=>{
+    const grunn=el.querySelector('input[name="fo-avvis-grunn"]:checked')?.value||'';
+    const ekstra=el.querySelector('#fo-avvis-tekst').value.trim();
+    lukk();
+    const kommentar=`${FO_IKKE_INKASSO} ${grunn}${ekstra?': '+ekstra:''}.`;
+    const skrevetAv=currentUser?.name||currentUser?.username||'Ukjent';
+    const naa=new Date().toISOString();
+    const oppg=[];
+    fs.forEach(f=>{
+      const rad={id:`temp${uid()}`,fakturanr:f.fakturanr,skrevetAv,type:'Annet',kilde:'KBD CC',dato:naa,kommentar};
+      fakturaoppfolgingLogg.push(rad);
+      oppg.push(()=>spCreate('FakturaoppfolgingLogg',{Fakturanummer:f.fakturanr,SkrevetAv:skrevetAv,HenvendelseType:'Annet',Kilde:'KBD CC',Dato:naa,Kommentar:kommentar}).then(r=>{rad.id=`sp${r.id}`;rad.spId=r.id;}));
+    });
+    renderFakturaoppfolging();
+    setSPStatus('⏳ Lagrer…');
+    foKjorPorsjonsvis(oppg).then(()=>{setSPStatus('✅ Inkasso-varsel fjernet');setTimeout(()=>setSPStatus(''),3000);})
+      .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+  };
+}
 function foSistKontakt(fs){
   const nr=new Set(fs.map(f=>f.fakturanr));
   const kand=[...fakturaoppfolgingLogg.filter(l=>nr.has(l.fakturanr)&&l.dato),...fs.flatMap(f=>foSmsForFaktura(f.fakturanr)).filter(l=>l.dato)];
@@ -14171,7 +14221,7 @@ function renderFoDetaljPanel(r){
   const inkFs=fs.filter(foNevnerInkasso);
   const inkassoHtml=inkFs.length?`<div style="margin-bottom:12px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
       <span>⚠️ Visma-notatet nevner inkasso/namsmann${flere?` (faktura ${inkFs.map(f=>f.fakturanr).join(', ')})`:''}, men status er ikke «Sendt til inkasso».</span>
-      <button class="btn-sm" onclick="foSettInkasso('${key}')">Sett «Sendt til inkasso»</button></div>`:'';
+      <span style="display:flex;gap:8px"><button class="btn-sm" onclick="foAvvisInkasso('${key}')" title="Fjern varselet, f.eks. hvis saken er trukket fra Amili">Ikke inkasso</button><button class="btn-sm" onclick="foSettInkasso('${key}')">Sett «Sendt til inkasso»</button></span></div>`:'';
   const sistK=foSistKontakt(fs);
 
   const fakturaListe=flere?`
