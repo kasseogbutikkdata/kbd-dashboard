@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.226 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.227 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11316,6 +11316,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.227',dato:'07.10.2026',punkter:[
+    'Lisens- og servicekontroll og Kundeanalyse: når du åpner en rad, blir du stående der i listen. Før hoppet listen til toppen, og du måtte rulle ned for å finne raden igjen.',
+    'Lisens- og servicekontroll: detaljene viser nå også kontraktlinjer som ikke er gjenkjent som lisens, bytteservice, Secure access, tips eller Softpay, for eksempel leie. Da ser du om en lisens ligger på kontrakten under et annet navn. Lisenslinjer som heter «programvare» eller «software» blir nå også gjenkjent som lisens.'
+  ]},
   {versjon:'v1.48.226',dato:'07.10.2026',punkter:[
     'Nytt under Transaksjonsavgift: «🔎 Lisens- og servicekontroll». Last opp en lisens- eller servicefaktura fra Verifone eller Nets. Hver terminal/BAX kontrolleres mot aktive kundekontrakter i Visma: om det finnes en kontrakt, om tjenesten er med, om antallet terminaler stemmer, og om marginen er under 20 %.',
     'Lisenskontroll: oversikt over antall OK, avvik og beløp i fare per år, filtre per status og detaljer per BAX. «+ Oppfølging» lager en oppfølging på kunden med deg som ansvarlig. «Unntak» godtar et avvik med en begrunnelse, slik at det ikke kommer opp igjen. Alle kontroller lagres i Historikk. Det opprettes ingen salgsordre.',
@@ -17107,6 +17111,19 @@ function setTaMetric(m){taMetric=m;renderTransavgiftRapport();}
 // (se Kunde360-oppsett-sjekkliste.md). Mangler listene, virker kontrollen
 // likevel — bare uten unntak/historikk. Oppfølging = vanlig KundeNotat
 // (openNyNotatModal) med den som kjører kontrollen som ansvarlig.
+// v1.48.227: tabellen ligger i en egen rulleboks (max-height 72vh). Når hele
+// innholdet tegnes på nytt (f.eks. ved klikk på en rad), ville boksen hoppet
+// til toppen. Denne hjelperen tar vare på rulleposisjonen og ruller den åpne
+// raden inn i synsfeltet.
+function bevarRulling(boksId,tegn,radSelektor){
+  const boksFor=document.getElementById(boksId);
+  const top=boksFor?boksFor.scrollTop:0;const sideY=window.scrollY;
+  tegn();
+  const etter=document.getElementById(boksId);
+  if(etter){etter.scrollTop=top;}
+  window.scrollTo(window.scrollX,sideY);
+  if(radSelektor&&etter){const r=etter.querySelector(radSelektor);if(r&&r.scrollIntoView)r.scrollIntoView({block:'nearest'});}
+}
 let lkData=null, lkLaster=false, lkFeil='', lkFilter='avvik', lkApen=null, lkVis='kontroll';
 let lkUnntak=[], lkHistorikk=[], lkListerLastet=false, lkListeFeil='';
 const LK_STATUS={
@@ -17168,7 +17185,7 @@ function renderLisensKontroll(){
       ? `<div class="hint" style="margin:0 0 4px">${escHtmlEpost(r._unntak.begrunnelse)}<br>${escHtmlEpost(r._unntak.opprettetAv)}${r._unntak.opprettetDato?' · '+new Date(r._unntak.opprettetDato).toLocaleDateString('nb-NO'):''}</div>${lkKanStyre()&&r._unntak.spId?knapp('Fjern unntak',`lkFjernUnntak(${r._unntak.spId})`):''}`
       : r.status==='OK'?'' : `${salgTilgang?knapp('+ Oppfølging',`lkOppfolging('${r.bax}')`,true):''}${lkKanStyre()&&!lkListeFeil?knapp('Unntak',`lkApneUnntak('${r.bax}')`):''}`;
     const apen=lkApen===r.bax;
-    return `<tr style="cursor:pointer${apen?';background:#f0f4ff':''}" onclick="lkApen=lkApen==='${r.bax}'?null:'${r.bax}';renderLisensKontroll()">
+    return `<tr data-lk-bax="${escHtmlEpost(r.bax)}" style="cursor:pointer${apen?';background:#f0f4ff':''}" onclick="lkToggle('${r.bax}')">
       <td>${chip(r._status)}</td>
       <td style="min-width:200px"><strong style="color:#1A3A6B">${apen?'▾ ':'▸ '}${escHtmlEpost(r.brukersted||'(uten navn)')}</strong>${r.orgnr?`<div class="muted" style="font-size:11px">orgnr ${escHtmlEpost(r.orgnr)}</div>`:''}</td>
       <td>${escHtmlEpost(r.bax)}</td>
@@ -17189,7 +17206,7 @@ function renderLisensKontroll(){
       ${kpi('Beløp i fare per år',lkKr(iFare),'kostnad uten dekning i kontrakt',iFare>0?'#b91c1c':'#111')}
     </div>
     <div class="filters" style="row-gap:8px">${pills}<span style="margin-left:auto"><button class="btn-sm" onclick="lkEksporterCsv()">⬇ CSV</button></span></div>
-    <div class="tbl-wrap" style="overflow:auto;max-height:72vh"><table>
+    <div class="tbl-wrap" id="lk-tabell-boks" style="overflow:auto;max-height:72vh"><table>
       <thead><tr>${['Status','Kunde / brukersted','BAX','Leverandør fakturerer','Kostnad/år','Kontrakt i Visma','Fakturert/år','Margin','I fare/år','Handling'].map((h,i)=>`<th style="position:sticky;top:0;z-index:1;white-space:nowrap${[4,6,7,8].includes(i)?';text-align:right':''}">${h}</th>`).join('')}</tr></thead>
       <tbody>${body||'<tr><td colspan="10" class="muted" style="text-align:center;padding:24px">Ingen rader med valgt filter.</td></tr>'}</tbody>
     </table></div>
@@ -17197,6 +17214,10 @@ function renderLisensKontroll(){
     <div class="hint" style="margin-top:6px">${d.leverandor==='Nets'?'Nets-beløp er månedlige og ganges med 12.':'Verifone-beløp er årlige (fra aktiveringsdato).'} Antall på kontrakten summeres over alle aktive kontrakter med samme BAX. Margin = (fakturert/år − kostnad/år) / fakturert/år, grense ${d.margingrense} %. Ekspedisjonsgebyr telles ikke.</div>`;
 }
 
+function lkToggle(bax){
+  lkApen=lkApen===bax?null:bax;
+  bevarRulling('lk-tabell-boks',renderLisensKontroll,lkApen?`tr[data-lk-bax="${CSS.escape(lkApen)}"] + tr`:null);
+}
 function lkDetaljHtml(r){
   const d=lkData;
   const statusTxt={OK:'<span style="color:#15803d;font-weight:700">✓</span>',MANGLER:'<span style="color:#b91c1c;font-weight:700">✗ mangler</span>',FOR_FAA:'<span style="color:#b91c1c;font-weight:700">✗ for få</span>',INGEN:'<span style="color:#b91c1c;font-weight:700">✗ ingen kontrakt</span>'};
@@ -17208,6 +17229,7 @@ function lkDetaljHtml(r){
       <table><thead><tr><th>Tjeneste</th><th class="tr">Lev. antall</th><th class="tr">Kostnad</th><th class="tr">Kontrakt antall</th><th class="tr">Fakturert</th><th></th><th>Kontraktvarer</th></tr></thead><tbody>${kat}</tbody></table></div>
     <div><div style="font-weight:600;color:#111;margin-bottom:6px">På fakturaen</div>
       <table><thead><tr><th>Produkt</th><th>Tekst</th><th class="tr">Antall</th><th class="tr">Beløp</th><th></th></tr></thead><tbody>${prod}</tbody></table>
+      ${(r.andreKontraktVarer||[]).length?`<div style="font-weight:600;color:#111;margin:12px 0 4px">Andre linjer på kontrakten (ikke gjenkjent)</div><div style="font-size:12px;color:#6b7280">${r.andreKontraktVarer.map(escHtmlEpost).join('<br>')}</div>`:''}
       <div style="font-weight:600;color:#111;margin:12px 0 4px">Kontrakter med BAX ${escHtmlEpost(r.bax)}</div>${kontr}</div>
   </div>`;
 }
@@ -17514,7 +17536,7 @@ function renderTaKundeanalyse(){
 
   const th=(felt,txt,hoyre)=>`<th style="cursor:pointer;white-space:nowrap;position:sticky;top:0;z-index:1${hoyre?';text-align:right':''}" onclick="taKaSettSort('${felt}')">${txt}${taKaSort.felt===felt?(taKaSort.synk?' ▼':' ▲'):''}</th>`;
   const merke=(t,farge)=>`<span style="display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:10px;margin:1px 3px 1px 0;background:${farge}1a;color:${farge}">${t}</span>`;
-  const body=rader.map(r=>`<tr style="cursor:pointer${taKaApen===r.kundenr?';background:#f0f4ff':''}" onclick="taKaToggle('${r.kundenr}')" title="Klikk for detaljer">
+  const body=rader.map(r=>`<tr data-ka-kundenr="${escHtmlEpost(r.kundenr)}" style="cursor:pointer${taKaApen===r.kundenr?';background:#f0f4ff':''}" onclick="taKaToggle('${r.kundenr}')" title="Klikk for detaljer">
       <td style="min-width:240px">${taKaApen===r.kundenr?'▾ ':'▸ '}${r.vkId?`<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${r.vkId}');return false" style="color:#1A3A6B;font-weight:600;text-decoration:none">${escHtmlEpost(r.navn)}</a>`:escHtmlEpost(r.navn)}<div style="font-size:11px;color:#9ca3af">${escHtmlEpost(r.kundenr)}</div></td>
       <td>${r.lev.map(l=>`<span class="fpill-dot" style="display:inline-block;background:${TA_LEV_FARGE[l]};margin-right:4px"></span>${l}`).join('<br>')}</td>
       <td class="tr" style="font-weight:700;color:#111">${taKaKr(r.grunnlag)}</td>
@@ -17543,7 +17565,7 @@ function renderTaKundeanalyse(){
   el.innerHTML=`${nokkeltall}
     <div style="font-size:12px;color:#6b7280;margin:2px 0 6px">Fordeling (${grunnTekst}) — klikk for å bruke som grense:</div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px">${kort}</div>
-    <div class="tbl-wrap" style="overflow:auto;max-height:72vh"><table>
+    <div class="tbl-wrap" id="ta-ka-tabell-boks" style="overflow:auto;max-height:72vh"><table>
       <thead><tr>${th('navn','Kunde')}<th style="position:sticky;top:0;z-index:1">Leverandør</th>${th('grunnlag',TA_KA_GRUNNLAG[taKaGrunnlag],1)}${th('siste','Siste mnd',1)}${th('snitt3','Snitt 3 mnd',1)}${th('snitt12','Snitt 12 mnd',1)}${th('endring','Endring',1)}${th('trans3','Trans./mnd',1)}${th('prisPerTrans','Pris/trans.',1)}${admin?th('margin','Margin',1):''}<th style="position:sticky;top:0;z-index:1">Siste 12 mnd</th><th style="position:sticky;top:0;z-index:1">Merker</th></tr></thead>
       <tbody>${body||`<tr><td colspan="12" class="muted" style="text-align:center;padding:24px">Ingen kunder over terskelen med valgte filtre.</td></tr>`}</tbody>
     </table></div>
@@ -17554,7 +17576,7 @@ function renderTaKundeanalyse(){
 
 // ===== Detaljvisning, kundekort-felt og logging (v1.48.204, 06.10.2026) =====
 let taKaApen=null; // kundenr med åpen detaljrad i Kundeanalyse
-function taKaToggle(kundenr){taKaApen=taKaApen===kundenr?null:kundenr;renderTaKundeanalyse();}
+function taKaToggle(kundenr){taKaApen=taKaApen===kundenr?null:kundenr;bevarRulling('ta-ka-tabell-boks',renderTaKundeanalyse,taKaApen?`tr[data-ka-kundenr="${CSS.escape(taKaApen)}"] + tr`:null);} // v1.48.227
 function taKaFinnKunde(kundenr){return taKaData?taKaData.kunder.find(k=>k.kundenr===kundenr):null;}
 function taKaLevListe(){return taKaLev==='Alle'?['Verifone','Nets']:[taKaLev];}
 function taKaKr2(v){return v==null?'—':v.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' kr';}
