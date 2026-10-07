@@ -2259,7 +2259,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <div class="fgrp" style="margin-bottom:10px"><label>Mobil</label><input type="tel" id="kp-mobil" placeholder="12345678"/></div>
         <div class="fgrp" style="margin-bottom:10px"><label>E-post</label><input type="email" id="kp-epost" placeholder="navn@firma.no"/></div>
       </div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Notat</label><textarea id="kp-notat" rows="2" placeholder="F.eks. treffes best før kl. 10"></textarea></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Notat</label><textarea id="kp-notat" rows="2" maxlength="255" placeholder="F.eks. treffes best før kl. 10 (maks 255 tegn)"></textarea></div>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer;margin-bottom:6px"><input type="checkbox" id="kp-hoved" style="width:15px;height:15px"/> ⭐ Hovedkontakt <span class="muted">(hentes automatisk til onboarding)</span></label>
       <label id="kp-tidligere-wrap" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer;margin-bottom:4px"><input type="checkbox" id="kp-tidligere" style="width:15px;height:15px"/> Tidligere ansatt <span class="muted">(skjules, men slettes ikke)</span></label>
       <div class="modal-footer" style="display:flex;gap:8px">
@@ -7459,7 +7459,7 @@ async function lagreKontakt(){
   const vilHoved=g('kp-hoved').checked&&!tidligere;
   const eks=kpModal.id&&kpModal.id!=='base'?kontaktPersoner.find(x=>x.id===kpModal.id):null;
   const varHoved=eks?(hovedkontaktFor(k)?.id===eks.id):false;
-  const felter={Title:navn,KundeNr:String(k.vismaNummer||''),KundeNavn:k.navn||'',Rolle:g('kp-rolle').value.trim(),Mobil:g('kp-mobil').value.trim(),Epost:epost,Notat:g('kp-notat').value.trim(),Hovedkontakt:vilHoved,TidligereAnsatt:tidligere};
+  const felter={Title:navn,KundeNr:String(k.vismaNummer||''),KundeNavn:k.navn||'',Rolle:g('kp-rolle').value.trim(),Mobil:g('kp-mobil').value.trim(),Epost:epost,Notat:g('kp-notat').value.trim().slice(0,255),Hovedkontakt:vilHoved,TidligereAnsatt:tidligere};
   g('kp-lagre').disabled=true;setSPStatus('⏳ Lagrer kontakt…');
   try{
     if(vilHoved)await kpFjernAndreFlagg(k,eks?.id);
