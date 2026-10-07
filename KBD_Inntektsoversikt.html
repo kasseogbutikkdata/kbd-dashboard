@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.225 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.226 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -813,6 +813,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <div class="nav-sub-sub-item" id="vsub-historikk" onclick="visTransaksjonsavgiftHistorikk('verifone')">📋 Historikk</div>
         <div class="nav-sub-item" id="tasub-nets" onclick="showTab('nets',document.getElementById('tab-transaksjonsavgift'))">🧾 Nets trans.avgift</div>
         <div class="nav-sub-sub-item" id="ntsub-historikk" onclick="visTransaksjonsavgiftHistorikk('nets')">📋 Historikk</div>
+        <div class="nav-sub-item" id="tasub-lisenskontroll" onclick="showTab('lisenskontroll',document.getElementById('tab-transaksjonsavgift'))">🔎 Lisens- og servicekontroll</div>
       </div>
       <div class="nav-item" id="tab-susoftrma" onclick="showTab('susoftrma',this)">
         <span class="nav-item-icon">🔧</span>Susoft RMA
@@ -1590,6 +1591,38 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
          - "Navn (fra Nets)" i stedet for "Brukersted (fra Verifone)" i
            Må avklares-tabellen (Nets sitt "Varemottaker: ... Navn"-felt).
          - Kaller /api/parse_invoice_nets og /api/create_sales_orders_nets. -->
+    <!-- LISENS- OG SERVICEKONTROLL (v1.48.226, 07.10.2026) — se lisens_kontroll.py
+         i kbd-verifone-func og renderLisensKontroll(). Kun kontroll, ingen ordre. -->
+    <div id="tp-lisenskontroll" class="tp">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+          <div><div class="card-title">🔎 Lisens- og servicekontroll</div>
+          <div class="hint">Kontrollerer at hver terminal på leverandørens lisens-/servicefaktura har en aktiv kundekontrakt i Visma med riktig tjeneste, antall og margin. Det opprettes ingen salgsordre. Verifone og Nets nå, Softpay senere.</div></div>
+          <span style="display:flex;gap:6px"><button class="btn-sm" onclick="lkVis='kontroll';renderLisensKontroll()">🔎 Kontroll</button><button class="btn-sm" onclick="lkVis='historikk';renderLisensKontroll()">📋 Historikk</button></span>
+        </div>
+        <div id="lk-liste-feil" class="hint" style="color:#b45309;margin-top:6px"></div>
+        <div id="lk-vis-kontroll">
+          <label style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px dashed #c7d2e5;border-radius:10px;padding:14px 16px;margin-top:12px;background:#fafbfe;cursor:pointer">
+            <span style="font-size:24px">📄</span>
+            <span style="flex:1;min-width:220px"><strong id="lk-filnavn">Velg lisens-/servicefaktura (PDF)</strong><br><span id="lk-fil-meta" class="hint" style="margin:0"></span></span>
+            <span class="btn-sm">Last opp</span>
+            <input type="file" accept="application/pdf,.pdf" style="display:none" onchange="lkLastOpp(this.files[0]);this.value=''">
+          </label>
+        </div>
+      </div>
+      <div id="lk-innhold"></div>
+      <div id="lk-vis-historikk" style="display:none"><div id="lk-historikk-innhold"></div></div>
+    </div>
+    <div class="modal-overlay" id="lk-unntak-modal" onclick="if(event.target===this)lkLukkUnntak()">
+      <div class="modal" style="max-width:480px">
+        <h3 id="lk-unntak-tittel" style="margin-bottom:10px">Godta unntak</h3>
+        <label style="font-size:12px;color:#6b7280">Begrunnelse (påkrevd)</label>
+        <textarea id="lk-unntak-begrunnelse" rows="3" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:13px;padding:8px;border:1px solid #d1d5db;border-radius:6px"></textarea>
+        <label style="font-size:12px;color:#6b7280;display:block;margin-top:10px">Gjelder</label>
+        <select id="lk-unntak-gjelder" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:13px"><option value="alle">Alle fremtidige fakturaer for denne BAX-en</option><option value="denne">Bare denne fakturaen</option></select>
+        <div class="modal-footer" style="margin-top:14px"><button class="btn-sm" onclick="lkLukkUnntak()">Avbryt</button><button class="btn-sm" style="background:#1A3A6B;color:#fff;border-color:#1A3A6B" onclick="lkLagreUnntak()">Godta unntak</button></div>
+      </div>
+    </div>
     <div id="tp-nets" class="tp">
     <div class="hdr">
       <div class="hdr-left">
@@ -11283,6 +11316,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.226',dato:'07.10.2026',punkter:[
+    'Nytt under Transaksjonsavgift: «🔎 Lisens- og servicekontroll». Last opp en lisens- eller servicefaktura fra Verifone eller Nets. Hver terminal/BAX kontrolleres mot aktive kundekontrakter i Visma: om det finnes en kontrakt, om tjenesten er med, om antallet terminaler stemmer, og om marginen er under 20 %.',
+    'Lisenskontroll: oversikt over antall OK, avvik og beløp i fare per år, filtre per status og detaljer per BAX. «+ Oppfølging» lager en oppfølging på kunden med deg som ansvarlig. «Unntak» godtar et avvik med en begrunnelse, slik at det ikke kommer opp igjen. Alle kontroller lagres i Historikk. Det opprettes ingen salgsordre.',
+    'Softpay kommer senere, når koblingen mellom Tenant-ID og kunde er på plass.'
+  ]},
   {versjon:'v1.48.225',dato:'07.10.2026',punkter:[
     'Skjemaet for kontaktpersoner har fått et ryddigere utseende: like felter, tydelig markering av feltet du skriver i, og egne valg for ⭐ Hovedkontakt og Tidligere ansatt.'
   ]},
@@ -14984,7 +15022,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=(name==='sammenligning'||name==='licmaaned')?'lisenser':(name==='kicksammenligning'||name==='kickmaaned')?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets')?'transaksjonsavgift':name==='purring'?'fakturaoppfolging':name;
+  const effectiveTab=(name==='sammenligning'||name==='licmaaned')?'lisenser':(name==='kicksammenligning'||name==='kickmaaned')?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets'||name==='lisenskontroll')?'transaksjonsavgift':name==='purring'?'fakturaoppfolging':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -14994,7 +15032,7 @@ function showTab(name,btn){
   toggleArbeidstidSub(name==='arbeidstid');
   toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
   toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk');
-  toggleTransaksjonsavgiftSub(name==='verifone'||name==='nets');
+  toggleTransaksjonsavgiftSub(name==='verifone'||name==='nets'||name==='lisenskontroll');
   toggleSilentOrderingSub(name==='silentordering');
   toggleFakturaoppfolgingSub(name==='fakturaoppfolging'||name==='purring');
   if(name==='sammenligning'){setLisenserSubActive('sammenligning');renderLicSammenligning();}
@@ -15024,6 +15062,7 @@ function showTab(name,btn){
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
   if(name==='verifone'){renderVerifone();showVerifoneView('ny');setTransaksjonsavgiftSubActive('verifone');}
   if(name==='nets'){renderNets();showNetsView('ny');setTransaksjonsavgiftSubActive('nets');}
+  if(name==='lisenskontroll'){setTransaksjonsavgiftSubActive('lisenskontroll');renderLisensKontroll();} // v1.48.226
   if(name==='susoftrma'){renderSusoftRma();}
   if(name==='onboarding'){renderOnboarding();}
   if(name==='silentordering'){renderSilentOrdering();showSilentOrderingView('oversikt');}
@@ -17058,6 +17097,226 @@ function toggleTaLevFilter(lev){
   renderTransavgiftRapport();
 }
 function setTaMetric(m){taMetric=m;renderTransavgiftRapport();}
+
+// ===== LISENS- OG SERVICEKONTROLL (v1.48.226, 07.10.2026) =====
+// Kontrollerer at hver terminal/BAX på leverandørens lisens-/servicefaktura
+// (Verifone/Nets) har aktiv kundekontrakt i Visma med riktig tjeneste, antall
+// og margin. Backend: POST /api/lisens_kontroll (kbd-verifone-func,
+// lisens_kontroll.py + lisens_parser.py) — KUN lesing. Unntak og historikk
+// lagres i SharePoint-listene LisensKontrollUnntak / LisensKontrollHistorikk
+// (se Kunde360-oppsett-sjekkliste.md). Mangler listene, virker kontrollen
+// likevel — bare uten unntak/historikk. Oppfølging = vanlig KundeNotat
+// (openNyNotatModal) med den som kjører kontrollen som ansvarlig.
+let lkData=null, lkLaster=false, lkFeil='', lkFilter='avvik', lkApen=null, lkVis='kontroll';
+let lkUnntak=[], lkHistorikk=[], lkListerLastet=false, lkListeFeil='';
+const LK_STATUS={
+  INGEN_KONTRAKT:{t:'🔴 Ingen kontrakt',bg:'#fee2e2',fg:'#991b1b'},
+  MANGLER_TJENESTE:{t:'🟠 Mangler tjeneste',bg:'#ffedd5',fg:'#9a3412'},
+  FOR_FAA:{t:'🟠 For få terminaler',bg:'#ffedd5',fg:'#9a3412'},
+  LAV_MARGIN:{t:'🟡 Lav margin',bg:'#fef9c3',fg:'#854d0e'},
+  UKJENT:{t:'⚪ Kontrakt ikke lest',bg:'#f3f4f6',fg:'#4b5563'},
+  OK:{t:'✅ OK',bg:'#dcfce7',fg:'#166534'},
+  UNNTAK:{t:'Unntak',bg:'#dbeafe',fg:'#1e40af'},
+};
+const LK_AVVIK=['INGEN_KONTRAKT','MANGLER_TJENESTE','FOR_FAA','LAV_MARGIN','UKJENT'];
+function lkKr(v){return v==null?'—':Math.round(v).toLocaleString('nb-NO')+' kr';}
+function lkKanStyre(){return userRole==='admin'||userRole==='editor';}
+
+async function lkLastLister(){
+  if(lkListerLastet)return;
+  try{
+    const [u,h]=await Promise.all([spGetItems('LisensKontrollUnntak'),spGetItems('LisensKontrollHistorikk')]);
+    lkUnntak=u.map(i=>({spId:i.id,bax:String(i.fields.Title||'').trim(),leverandor:i.fields.Leverandor||'',begrunnelse:i.fields.Begrunnelse||'',fakturanr:String(i.fields.Fakturanr||'').trim(),opprettetAv:i.fields.OpprettetAv||'',opprettetDato:i.fields.OpprettetDato||''}));
+    lkHistorikk=h.map(i=>({spId:i.id,tittel:i.fields.Title||'',leverandor:i.fields.Leverandor||'',fakturanr:i.fields.Fakturanr||'',fakturadato:i.fields.Fakturadato||'',dato:i.fields.Dato||'',kontrollert:+i.fields.AntallKontrollert||0,ok:+i.fields.AntallOk||0,avvik:+i.fields.AntallAvvik||0,iFare:+i.fields.BelopIFare||0,kjortAv:i.fields.KjortAv||''}));
+    lkListeFeil='';
+  }catch(e){
+    lkListeFeil='SharePoint-listene LisensKontrollUnntak/LisensKontrollHistorikk finnes ikke ennå (eller mangler tilgang) — kontrollen virker, men uten unntak og historikk.';
+    console.warn('Lisenskontroll: lister ikke lastet',e);
+  }
+  lkListerLastet=true;
+}
+
+function renderLisensKontroll(){
+  const el=document.getElementById('lk-innhold');if(!el)return;
+  if(!lkListerLastet){lkLastLister().then(renderLisensKontroll);}
+  document.getElementById('lk-liste-feil').textContent=lkListeFeil;
+  document.getElementById('lk-vis-kontroll').style.display=lkVis==='kontroll'?'':'none';
+  document.getElementById('lk-vis-historikk').style.display=lkVis==='historikk'?'':'none';
+  if(lkVis==='historikk'){lkRenderHistorikk();return;}
+  if(lkLaster){el.innerHTML='<div class="hint" style="padding:20px 4px">Leser fakturaen og henter kontrakter og kontraktlinjer fra Visma … (kan ta opptil et minutt for Nets)</div>';return;}
+  if(lkFeil){el.innerHTML=`<div style="background:#fef2f2;color:#991b1b;border-radius:8px;padding:14px 16px;font-size:13px">${escHtmlEpost(lkFeil)}</div>`;return;}
+  if(!lkData){el.innerHTML='<div class="hint" style="padding:12px 4px">Last opp en lisens-/servicefaktura fra Verifone eller Nets for å starte kontrollen.</div>';return;}
+  const d=lkData;
+  const unntakFor=r=>lkUnntak.find(u=>u.bax===r.bax&&(!u.leverandor||u.leverandor===d.leverandor)&&(!u.fakturanr||u.fakturanr===d.fakturanr));
+  d.rader.forEach(r=>{r._unntak=unntakFor(r)||null;r._status=r._unntak&&r.status!=='OK'?'UNNTAK':r.status;});
+  const tell=s=>d.rader.filter(r=>r._status===s).length;
+  const avvik=d.rader.filter(r=>LK_AVVIK.includes(r._status));
+  const iFare=avvik.reduce((t,r)=>t+(r.iFareAar||0),0);
+  const ant=d.rader.length,ok=tell('OK');
+  const kpi=(l,v,s,farge)=>`<div style="flex:1 1 150px;background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.07)"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">${l}</div><div style="font-size:20px;font-weight:700;color:${farge||'#111'};margin-top:2px">${v}</div><div style="font-size:11px;color:#9ca3af">${s}</div></div>`;
+  const filtre=[['avvik',`Avvik (${avvik.length})`],['INGEN_KONTRAKT',`🔴 Ingen kontrakt (${tell('INGEN_KONTRAKT')})`],['MANGLER_TJENESTE',`🟠 Mangler tjeneste (${tell('MANGLER_TJENESTE')})`],['FOR_FAA',`🟠 For få terminaler (${tell('FOR_FAA')})`],['LAV_MARGIN',`🟡 Lav margin (${tell('LAV_MARGIN')})`],['OK',`✅ OK (${ok})`],['UNNTAK',`Unntak (${tell('UNNTAK')})`],['alle',`Alle (${ant})`]];
+  if(tell('UKJENT'))filtre.splice(5,0,['UKJENT',`⚪ Kontrakt ikke lest (${tell('UKJENT')})`]);
+  const pills=filtre.map(([v,t])=>`<button class="fpill${lkFilter===v?' f-on':' f-off'}" style="${lkFilter===v?'border-color:#1A3A6B':''}" onclick="lkFilter='${v}';lkApen=null;renderLisensKontroll()"><span style="font-weight:600">${t}</span></button>`).join('');
+  const rader=d.rader.filter(r=>lkFilter==='alle'?true:lkFilter==='avvik'?LK_AVVIK.includes(r._status):r._status===lkFilter);
+  const chip=s=>{const x=LK_STATUS[s]||LK_STATUS.OK;return `<span style="display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;white-space:nowrap;background:${x.bg};color:${x.fg}">${x.t}</span>`;};
+  const knapp=(txt,klikk,primar)=>`<button class="btn-sm" style="${primar?'background:#1A3A6B;color:#fff;border-color:#1A3A6B;':''}margin:1px" onclick="event.stopPropagation();${klikk}">${txt}</button>`;
+  const body=rader.map(r=>{
+    const aktive=r.kontrakter.filter(k=>k.status==='Active'||k.status==='Aktiv');
+    const kontraktTxt=aktive.length?aktive.map(k=>`${escHtmlEpost(k.id)} · ${escHtmlEpost(k.kundenavn)}`).join('<br>'):`<span style="color:#9ca3af">Ingen aktiv kontrakt med BAX ${escHtmlEpost(r.bax)}${r.kontrakter.length?` (${r.kontrakter.length} avsluttet)`:''}</span>`;
+    const prod=[...new Set(r.produkter.map(p=>p.tekst))].map(escHtmlEpost).join(' · ');
+    const handl=r._status==='UNNTAK'
+      ? `<div class="hint" style="margin:0 0 4px">${escHtmlEpost(r._unntak.begrunnelse)}<br>${escHtmlEpost(r._unntak.opprettetAv)}${r._unntak.opprettetDato?' · '+new Date(r._unntak.opprettetDato).toLocaleDateString('nb-NO'):''}</div>${lkKanStyre()&&r._unntak.spId?knapp('Fjern unntak',`lkFjernUnntak(${r._unntak.spId})`):''}`
+      : r.status==='OK'?'' : `${salgTilgang?knapp('+ Oppfølging',`lkOppfolging('${r.bax}')`,true):''}${lkKanStyre()&&!lkListeFeil?knapp('Unntak',`lkApneUnntak('${r.bax}')`):''}`;
+    const apen=lkApen===r.bax;
+    return `<tr style="cursor:pointer${apen?';background:#f0f4ff':''}" onclick="lkApen=lkApen==='${r.bax}'?null:'${r.bax}';renderLisensKontroll()">
+      <td>${chip(r._status)}</td>
+      <td style="min-width:200px"><strong style="color:#1A3A6B">${apen?'▾ ':'▸ '}${escHtmlEpost(r.brukersted||'(uten navn)')}</strong>${r.orgnr?`<div class="muted" style="font-size:11px">orgnr ${escHtmlEpost(r.orgnr)}</div>`:''}</td>
+      <td>${escHtmlEpost(r.bax)}</td>
+      <td style="font-size:12.5px">${prod}</td>
+      <td class="tr">${lkKr(r.kostnadAar)}</td>
+      <td style="font-size:12.5px">${kontraktTxt}</td>
+      <td class="tr">${r.fakturertAar?lkKr(r.fakturertAar):'—'}</td>
+      <td class="tr">${r.margin==null?'—':`<span style="color:${r.margin<d.margingrense?'#b91c1c':'#374151'}">${Math.round(r.margin)} %</span>`}</td>
+      <td class="tr" style="color:${r.iFareAar>0&&LK_AVVIK.includes(r._status)?'#b91c1c':'#9ca3af'}">${r.iFareAar>0?lkKr(r.iFareAar):'—'}</td>
+      <td style="min-width:130px">${handl}</td></tr>${apen?`<tr><td colspan="10" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${lkDetaljHtml(r)}</td></tr>`:''}`;
+  }).join('');
+  const info=d.info||[];
+  el.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0">
+      ${kpi('Kontrollert',ant,d.leverandor==='Nets'?'varemottakere/BAX':'BAX')}
+      ${kpi('✅ OK',ok,ant?Math.round(ok/ant*100)+' %':'')}
+      ${kpi('Avvik',avvik.length,`${tell('INGEN_KONTRAKT')} uten kontrakt · ${avvik.length-tell('INGEN_KONTRAKT')} andre`,avvik.length?'#b91c1c':'#111')}
+      ${kpi('Godtatte unntak',tell('UNNTAK'),'vises ikke som avvik')}
+      ${kpi('Beløp i fare per år',lkKr(iFare),'kostnad uten dekning i kontrakt',iFare>0?'#b91c1c':'#111')}
+    </div>
+    <div class="filters" style="row-gap:8px">${pills}<span style="margin-left:auto"><button class="btn-sm" onclick="lkEksporterCsv()">⬇ CSV</button></span></div>
+    <div class="tbl-wrap" style="overflow:auto;max-height:72vh"><table>
+      <thead><tr>${['Status','Kunde / brukersted','BAX','Leverandør fakturerer','Kostnad/år','Kontrakt i Visma','Fakturert/år','Margin','I fare/år','Handling'].map((h,i)=>`<th style="position:sticky;top:0;z-index:1;white-space:nowrap${[4,6,7,8].includes(i)?';text-align:right':''}">${h}</th>`).join('')}</tr></thead>
+      <tbody>${body||'<tr><td colspan="10" class="muted" style="text-align:center;padding:24px">Ingen rader med valgt filter.</td></tr>'}</tbody>
+    </table></div>
+    ${info.length?`<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Ikke vurdert (${info.length} linjer: engangskjøp, linjer uten BAX og ukjente produkter)</summary><div class="tbl-wrap" style="margin-top:6px"><table><thead><tr><th>Grunn</th><th>Brukersted</th><th>BAX</th><th>Produkt</th><th class="tr">Beløp</th></tr></thead><tbody>${info.map(i=>`<tr><td>${escHtmlEpost(i.grunn)}</td><td>${escHtmlEpost(i.brukersted||'')}</td><td>${escHtmlEpost(i.bax||'')}</td><td>${escHtmlEpost(i.kode+' '+i.tekst)}</td><td class="tr">${vfKr(i.belop)}</td></tr>`).join('')}</tbody></table></div></details>`:''}
+    <div class="hint" style="margin-top:6px">${d.leverandor==='Nets'?'Nets-beløp er månedlige og ganges med 12.':'Verifone-beløp er årlige (fra aktiveringsdato).'} Antall på kontrakten summeres over alle aktive kontrakter med samme BAX. Margin = (fakturert/år − kostnad/år) / fakturert/år, grense ${d.margingrense} %. Ekspedisjonsgebyr telles ikke.</div>`;
+}
+
+function lkDetaljHtml(r){
+  const d=lkData;
+  const statusTxt={OK:'<span style="color:#15803d;font-weight:700">✓</span>',MANGLER:'<span style="color:#b91c1c;font-weight:700">✗ mangler</span>',FOR_FAA:'<span style="color:#b91c1c;font-weight:700">✗ for få</span>',INGEN:'<span style="color:#b91c1c;font-weight:700">✗ ingen kontrakt</span>'};
+  const kat=r.kategorier.map(k=>`<tr><td>${escHtmlEpost(k.navn)}</td><td class="tr">${k.leverandorAntall}</td><td class="tr">${lkKr(k.kostnadAar)}</td><td class="tr">${k.kontraktAntall}</td><td class="tr">${k.kontraktAar?lkKr(k.kontraktAar):'—'}</td><td>${statusTxt[k.status]||''}</td><td style="font-size:11.5px;color:#6b7280">${k.kontraktVarer.map(escHtmlEpost).join('<br>')}</td></tr>`).join('');
+  const prod=r.produkter.map(p=>`<tr><td>${escHtmlEpost(p.kode)}</td><td>${escHtmlEpost(p.tekst)}</td><td class="tr">${p.antall}</td><td class="tr">${vfKr(p.belop)}${d.perAar?'':' /mnd'}</td><td style="font-size:11.5px;color:#6b7280">${escHtmlEpost([p.terminal?'SN '+p.terminal:'',p.aktivert?'aktivert '+p.aktivert:''].filter(Boolean).join(' · '))}</td></tr>`).join('');
+  const kontr=r.kontrakter.map(k=>{const vk=vismaKunder.find(x=>samKundenr(x.vismaNummer,k.kundenr));return `<div style="font-size:12.5px;margin:3px 0">${escHtmlEpost(k.id)} [${escHtmlEpost(k.status)}] · ${escHtmlEpost(k.kundenr)} ${vk?`<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${vk.id}');return false" style="color:#1A3A6B">${escHtmlEpost(k.kundenavn)}</a>`:escHtmlEpost(k.kundenavn)}<div class="muted" style="font-size:11px">${escHtmlEpost(k.beskrivelse)}</div></div>`;}).join('')||'<div class="hint">Ingen kontrakter med denne BAX-en i Visma. Sjekk om kontrakten mangler «Bax: '+escHtmlEpost(r.bax)+'» i beskrivelsen.</div>';
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;padding:14px 16px" onclick="event.stopPropagation()">
+    <div><div style="font-weight:600;color:#111;margin-bottom:6px">Tjeneste for tjeneste (per år)</div>
+      <table><thead><tr><th>Tjeneste</th><th class="tr">Lev. antall</th><th class="tr">Kostnad</th><th class="tr">Kontrakt antall</th><th class="tr">Fakturert</th><th></th><th>Kontraktvarer</th></tr></thead><tbody>${kat}</tbody></table></div>
+    <div><div style="font-weight:600;color:#111;margin-bottom:6px">På fakturaen</div>
+      <table><thead><tr><th>Produkt</th><th>Tekst</th><th class="tr">Antall</th><th class="tr">Beløp</th><th></th></tr></thead><tbody>${prod}</tbody></table>
+      <div style="font-weight:600;color:#111;margin:12px 0 4px">Kontrakter med BAX ${escHtmlEpost(r.bax)}</div>${kontr}</div>
+  </div>`;
+}
+
+async function lkLastOpp(file){
+  if(!file)return;
+  lkLaster=true;lkFeil='';lkData=null;lkApen=null;lkFilter='avvik';lkVis='kontroll';
+  document.getElementById('lk-filnavn').textContent=file.name;
+  document.getElementById('lk-fil-meta').textContent='Kontrollerer …';
+  renderLisensKontroll();
+  try{
+    const fd=new FormData();fd.append('faktura',file);fd.append('margingrense','20');
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/lisens_kontroll'),{method:'POST',headers:{Authorization:`Bearer ${token}`},body:fd});
+    const tekst=await resp.text();let data=null;try{data=JSON.parse(tekst);}catch(_){}
+    if(!resp.ok||!data||!Array.isArray(data.rader))throw new Error((data&&data.error)||`Feil fra server (${resp.status})`);
+    lkData=data;
+    document.getElementById('lk-fil-meta').textContent=`${data.leverandor} · faktura ${data.fakturanr} · ${data.fakturadato} · ${data.rader.length} BAX · kostnad ${lkKr(data.kostnadAarTotalt)} per år`;
+    await lkLastLister();
+    lkLoggHistorikk();
+  }catch(err){lkFeil='Kontrollen feilet: '+err.message;document.getElementById('lk-fil-meta').textContent='';}
+  lkLaster=false;renderLisensKontroll();
+}
+
+async function lkLoggHistorikk(){
+  if(!lkData||lkListeFeil)return;
+  const d=lkData;
+  const avvik=d.rader.filter(r=>LK_AVVIK.includes(r._status||r.status));
+  const felter={Title:`${d.leverandor} ${d.fakturanr}`,Leverandor:d.leverandor,Fakturanr:String(d.fakturanr||''),Fakturadato:d.fakturadato||'',Dato:new Date().toISOString(),
+    AntallKontrollert:d.rader.length,AntallOk:d.rader.filter(r=>r.status==='OK').length,AntallAvvik:avvik.length,
+    BelopIFare:Math.round(avvik.reduce((t,r)=>t+(r.iFareAar||0),0)),KjortAv:currentUser?.name||currentUser?.username||''};
+  try{
+    const eks=lkHistorikk.find(h=>h.tittel===felter.Title);
+    if(eks&&eks.spId){await spUpdate('LisensKontrollHistorikk',eks.spId,felter);Object.assign(eks,{dato:felter.Dato,kontrollert:felter.AntallKontrollert,ok:felter.AntallOk,avvik:felter.AntallAvvik,iFare:felter.BelopIFare,kjortAv:felter.KjortAv});}
+    else{const c=await spCreate('LisensKontrollHistorikk',felter);lkHistorikk.push({spId:c.id,tittel:felter.Title,leverandor:felter.Leverandor,fakturanr:felter.Fakturanr,fakturadato:felter.Fakturadato,dato:felter.Dato,kontrollert:felter.AntallKontrollert,ok:felter.AntallOk,avvik:felter.AntallAvvik,iFare:felter.BelopIFare,kjortAv:felter.KjortAv});}
+  }catch(e){console.warn('Lisenskontroll: historikk ikke lagret',e);vfShowToast('⚠ Kontrollen ble ikke lagret i historikken.',6000);}
+}
+
+function lkRenderHistorikk(){
+  const el=document.getElementById('lk-historikk-innhold');if(!el)return;
+  const rader=[...lkHistorikk].sort((a,b)=>new Date(b.dato||0)-new Date(a.dato||0));
+  el.innerHTML=rader.length?`<div class="tbl-wrap"><table><thead><tr><th>Kjørt</th><th>Leverandør</th><th>Faktura</th><th>Fakturadato</th><th class="tr">Kontrollert</th><th class="tr">OK</th><th class="tr">Avvik</th><th class="tr">I fare/år</th><th>Kjørt av</th></tr></thead><tbody>${rader.map(h=>`<tr><td>${h.dato?new Date(h.dato).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'}):'—'}</td><td>${escHtmlEpost(h.leverandor)}</td><td>${escHtmlEpost(h.fakturanr)}</td><td>${escHtmlEpost(h.fakturadato)}</td><td class="tr">${h.kontrollert}</td><td class="tr">${h.ok}</td><td class="tr" style="color:${h.avvik?'#b91c1c':'#374151'}">${h.avvik}</td><td class="tr">${lkKr(h.iFare)}</td><td>${escHtmlEpost(h.kjortAv)}</td></tr>`).join('')}</tbody></table></div>`
+    :`<div class="hint" style="padding:12px 4px">${lkListeFeil||'Ingen kontroller kjørt ennå.'}</div>`;
+}
+
+// Oppfølging: vanlig KundeNotat (type Oppfølging), ansvarlig = innlogget
+// bruker (standard i skjemaet), frist om 14 dager. Kunde = aktiv kontrakt,
+// ellers Visma-kunde med samme orgnr (Nets).
+function lkOppfolging(bax){
+  const d=lkData;const r=d&&d.rader.find(x=>x.bax===bax);if(!r)return;
+  const k=r.kontrakter.find(x=>x.status==='Active'||x.status==='Aktiv')||r.kontrakter[0];
+  let vk=k?vismaKunder.find(x=>samKundenr(x.vismaNummer,k.kundenr)):null;
+  if(!vk&&r.orgnr)vk=vismaKunder.find(x=>normOrgNr(x.orgNr)===normOrgNr(r.orgnr));
+  const tittelMap={INGEN_KONTRAKT:'ingen aktiv kontrakt',MANGLER_TJENESTE:'tjeneste mangler på kontrakt',FOR_FAA:'for få terminaler på kontrakt',LAV_MARGIN:'lav margin',UKJENT:'kontrakt ikke lest'};
+  const kat=r.kategorier.filter(c=>c.status!=='OK').map(c=>`${c.navn}: leverandør ${c.leverandorAntall}, kontrakt ${c.kontraktAntall}`).join('; ');
+  const tekst=`${d.leverandor}-faktura ${d.fakturanr} (${d.fakturadato}): BAX ${r.bax} ${r.brukersted}${r.orgnr?' (orgnr '+r.orgnr+')':''}.\n`+
+    `Leverandøren fakturerer: ${[...new Set(r.produkter.map(p=>p.tekst))].join(', ')}. Kostnad ${lkKr(r.kostnadAar)}/år, fakturert ${r.fakturertAar?lkKr(r.fakturertAar):'0 kr'}/år${r.margin!=null?' ('+Math.round(r.margin)+' % margin)':''}.\n`+
+    (kat?`Avvik: ${kat}.\n`:'')+(r.iFareAar?`I fare: ${lkKr(r.iFareAar)}/år.\n`:'')+
+    `Kontrakt(er): ${r.kontrakter.length?r.kontrakter.map(x=>x.id+' ['+x.status+']').join(', '):'ingen med denne BAX-en'}.`;
+  if(!vk){
+    try{navigator.clipboard&&navigator.clipboard.writeText(tekst);}catch(_){}
+    vfShowToast('Fant ikke kunden i Visma-synken (ingen kontrakt/orgnr). Teksten er kopiert — lag oppfølgingen fra riktig kundekort.',8000);
+    return;
+  }
+  openNyNotatModal(vk.vismaNummer,vk.navn);
+  document.getElementById('n-type').value='Oppfølging';
+  updateNotatFormFields();
+  document.getElementById('n-tittel').value=`Lisenskontroll ${d.leverandor}: ${tittelMap[r.status]||'avvik'}`;
+  rtSettInnhold(tekst);
+  const frist=new Date();frist.setDate(frist.getDate()+14);frist.setHours(9,0,0,0);
+  if(notatDatePicker)notatDatePicker.setDate(frist);else document.getElementById('n-forfallsdato').value=toLocalDatetimeInputValue(frist.toISOString());
+}
+
+let lkUnntakBax=null;
+function lkApneUnntak(bax){
+  const r=lkData&&lkData.rader.find(x=>x.bax===bax);if(!r)return;
+  lkUnntakBax=bax;
+  document.getElementById('lk-unntak-tittel').textContent=`Godta unntak · ${r.brukersted} (${lkData.leverandor} BAX ${bax})`;
+  document.getElementById('lk-unntak-begrunnelse').value='';
+  document.getElementById('lk-unntak-gjelder').value='alle';
+  document.getElementById('lk-unntak-modal').classList.add('open');
+}
+function lkLukkUnntak(){lkUnntakBax=null;document.getElementById('lk-unntak-modal').classList.remove('open');}
+async function lkLagreUnntak(){
+  const begr=document.getElementById('lk-unntak-begrunnelse').value.trim();
+  if(!begr){vfShowToast('Skriv en begrunnelse.');return;}
+  const gjelder=document.getElementById('lk-unntak-gjelder').value;
+  const felter={Title:lkUnntakBax,Leverandor:lkData.leverandor,Begrunnelse:begr,Fakturanr:gjelder==='denne'?String(lkData.fakturanr||''):'',OpprettetAv:currentUser?.name||currentUser?.username||'',OpprettetDato:new Date().toISOString()};
+  try{
+    const c=await spCreate('LisensKontrollUnntak',felter);
+    lkUnntak.push({spId:c.id,bax:felter.Title,leverandor:felter.Leverandor,begrunnelse:begr,fakturanr:felter.Fakturanr,opprettetAv:felter.OpprettetAv,opprettetDato:felter.OpprettetDato});
+    lkLukkUnntak();renderLisensKontroll();vfShowToast('Unntak lagret.');
+  }catch(e){vfShowToast('Kunne ikke lagre unntaket: '+e.message,8000);}
+}
+async function lkFjernUnntak(spId){
+  try{await spDelete('LisensKontrollUnntak',spId);lkUnntak=lkUnntak.filter(u=>u.spId!==spId);renderLisensKontroll();vfShowToast('Unntak fjernet.');}
+  catch(e){vfShowToast('Kunne ikke fjerne unntaket: '+e.message,8000);}
+}
+
+function lkEksporterCsv(){
+  if(!lkData)return;
+  const tall=v=>v==null?'':String(Math.round(v*100)/100).replace('.',',');
+  const hode=['Status','Brukersted','BAX','Orgnr','Leverandør fakturerer','Kostnad/år','Kontrakter','Fakturert/år','Margin %','I fare/år','Unntak'];
+  const linjer=lkData.rader.map(r=>[(LK_STATUS[r._status||r.status]||{}).t||r.status,r.brukersted,r.bax,r.orgnr,[...new Set(r.produkter.map(p=>p.tekst))].join(', '),tall(r.kostnadAar),r.kontrakter.map(k=>k.id+' '+k.kundenavn+' ['+k.status+']').join(' | '),tall(r.fakturertAar),tall(r.margin),tall(r.iFareAar),r._unntak?r._unntak.begrunnelse:''].map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(';'));
+  const blob=new Blob(['﻿'+[hode.join(';'),...linjer].join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`lisenskontroll-${lkData.leverandor}-${lkData.fakturanr}.csv`;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
 
 // ===== TRANS.AVGIFT — KUNDEANALYSE (v1.48.201, 06.10.2026; transaksjonsmåned fra v1.48.203) =====
 // Fase 1 av «kontakt kunder med høye trans.avgifter»: KUN visning, ingen
