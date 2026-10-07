@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.216 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.217 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11029,6 +11029,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.217',dato:'07.10.2026',punkter:[
+    'Fakturaoppfølging: fakturaer der Visma-notatet nevner inkasso eller namsmann, men som ikke står som «Sendt til inkasso», merkes med ⚠️. Sett riktig status med ett klikk i kunden, eller rydd alle på en gang (administrator).',
+    'Historikken fra Visma er kortet ned til de 3 siste linjene, med «Vis alle». Like notater på flere fakturaer vises bare én gang, og inkasso-ord er uthevet.',
+    'Ny «Sist kontakt» med dato og type (telefon, e-post eller SMS) på hver rad og i loggpanelet.'
+  ]},
   {versjon:'v1.48.216',dato:'07.10.2026',punkter:[
     'Fakturaoppfølging: klikk hvor som helst på en rad for å åpne kunden med alle fakturaene og loggen. Klikk igjen for å lukke. Telefon og e-post virker som før.'
   ]},
@@ -13453,7 +13458,7 @@ function foLagreVisningsvalg(){
   try{localStorage.setItem('kbdcc_fo_visning',foVisning);localStorage.setItem('kbdcc_fo_grupper',foGrupper?'1':'0');}catch(e){}
 }
 function setFoVisning(v){
-  foVisning=v;foApenRad=null;
+  foVisning=v;foApenRad=null;foInkassoFilter=false;
   if(v==='arbeidsliste'){foSort={col:'score',dir:'desc'};}
   foLagreVisningsvalg();renderFakturaoppfolging();
 }
@@ -13694,6 +13699,74 @@ function foEpostSvar(key){
     .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
 }
 
+// ===== v1.48.217 (07.10.2026): inkasso-hint, kortere Visma-historikk, sist kontakt =====
+// 1) Visma-notater som nevner inkasso/namsmann/utlegg/forliksråd, på fakturaer
+//    som IKKE har status «Sendt til inkasso», markeres med ⚠️ og kan settes
+//    med ett klikk (per kunde) eller samlet (admin, med bekreftelse).
+// 2) Visma-notatene vises sammenslått (like notater på flere fakturaer én gang)
+//    og kortet ned til de 3 siste linjene, med «Vis alle».
+// 3) «Sist kontakt» = siste manuelle logg (KBD CC) eller purring-SMS.
+const FO_INKASSO_RE=/inkasso|namsmann|utlegg|forliksr/i;
+let foInkassoFilter=false;
+const foNotatApen=new Set();
+function foNevnerInkasso(f){return !f.betaltDato&&f.status!=='Sendt til inkasso'&&!!f.notatImportert&&FO_INKASSO_RE.test(f.notatImportert);}
+function foSistKontakt(fs){
+  const nr=new Set(fs.map(f=>f.fakturanr));
+  const kand=[...fakturaoppfolgingLogg.filter(l=>nr.has(l.fakturanr)&&l.dato),...fs.flatMap(f=>foSmsForFaktura(f.fakturanr)).filter(l=>l.dato)];
+  return kand.sort((a,b)=>new Date(b.dato)-new Date(a.dato))[0]||null;
+}
+function foKontaktIkon(type){return type==='SMS'?'📱':type==='Telefon'?'📞':type==='E-post'?'✉️':'📝';}
+function foMarkerInkasso(tekst){
+  return String(tekst||'').replace(/</g,'&lt;').replace(/(inkasso\w*|namsmann\w*|utlegg\w*|forliksr\w*)/gi,'<mark style="background:#fde68a;padding:0 2px;border-radius:2px">$1</mark>');
+}
+function foToggleNotat(key){if(foNotatApen.has(key))foNotatApen.delete(key);else foNotatApen.add(key);renderFakturaoppfolging();}
+function setFoInkassoFilter(v){foInkassoFilter=!!v;foApenRad=null;if(v){foVisning='alle';foGrupper=true;foKunForfalte=false;const kf=document.getElementById('fo-kun-forfalte');if(kf)kf.checked=false;}renderFakturaoppfolging();}
+
+// Kjører SharePoint-kall i små porsjoner så Graph ikke struper ved mange fakturaer.
+async function foKjorPorsjonsvis(oppgaver,str=4){
+  for(let i=0;i<oppgaver.length;i+=str){await Promise.all(oppgaver.slice(i,i+str).map(fn=>fn()));}
+}
+function foInkassoOppgaver(fakturaer){
+  const skrevetAv=currentUser?.name||currentUser?.username||'Ukjent';
+  const naa=new Date().toISOString();
+  const kommentar='Status satt til «Sendt til inkasso» (Visma-notatet nevner inkasso/namsmann).';
+  const oppg=[];
+  fakturaer.forEach(f=>{
+    f.status='Sendt til inkasso';
+    const rad={id:`temp${uid()}`,fakturanr:f.fakturanr,skrevetAv,type:'Annet',kilde:'KBD CC',dato:naa,kommentar};
+    fakturaoppfolgingLogg.push(rad);
+    if(f.spId)oppg.push(()=>spUpdate('Fakturaoppfolging',f.spId,{Status:'Sendt til inkasso'}));
+    oppg.push(()=>spCreate('FakturaoppfolgingLogg',{Fakturanummer:f.fakturanr,SkrevetAv:skrevetAv,HenvendelseType:'Annet',Kilde:'KBD CC',Dato:naa,Kommentar:kommentar}).then(r=>{rad.id=`sp${r.id}`;rad.spId=r.id;}));
+  });
+  return oppg;
+}
+// Én kunde/faktura: setter bare fakturaene der notatet nevner inkasso.
+function foSettInkasso(key){
+  const fs=foFsForKey(key).filter(foNevnerInkasso);
+  if(!fs.length)return;
+  const oppg=foInkassoOppgaver(fs);
+  renderFakturaoppfolging();
+  setSPStatus('⏳ Lagrer…');
+  foKjorPorsjonsvis(oppg).then(()=>{setSPStatus('✅ Satt til «Sendt til inkasso»');setTimeout(()=>setSPStatus(''),3000);})
+    .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+}
+// Admin: alle på én gang, med bekreftelse.
+function foRyddInkassoAlle(){
+  if(userRole!=='admin'){alert('Kun administrator kan gjøre dette.');return;}
+  const fs=fakturaoppfolging.filter(foNevnerInkasso);
+  if(!fs.length){alert('Ingen fakturaer å rydde.');return;}
+  const kunder=[...new Set(fs.map(f=>f.kundenavn))];
+  const sum=fs.reduce((s,f)=>s+(f.utestaende||0),0);
+  const liste=kunder.slice(0,15).map(k=>'• '+k).join('\n')+(kunder.length>15?`\n… og ${kunder.length-15} til`:'');
+  if(!confirm(`Sette ${fs.length} fakturaer hos ${kunder.length} kunder (${fF(sum)}) til «Sendt til inkasso»?\n\n${liste}\n\nSjekk gjerne lista med «Vis dem» først: et notat kan nevne inkasso uten at saken er sendt dit. Hver faktura får en logglinje.`))return;
+  const oppg=foInkassoOppgaver(fs);
+  foInkassoFilter=false;
+  renderFakturaoppfolging();
+  setSPStatus(`⏳ Lagrer ${fs.length} fakturaer…`);
+  foKjorPorsjonsvis(oppg).then(()=>{setSPStatus(`✅ ${fs.length} fakturaer satt til «Sendt til inkasso»`);setTimeout(()=>setSPStatus(''),4000);})
+    .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Noe av lagringen til SharePoint feilet (last siden på nytt for å se hva som ble lagret):\n'+e.message);});
+}
+
 function foKeyId(key){return String(key).replace(/[^A-Za-z0-9_-]/g,'_');}
 function foFsForKey(key){
   const nr=new Set(foPanelMap[key]||(key.startsWith('K:')?[]:[key]));
@@ -13741,7 +13814,8 @@ function renderFakturaoppfolging(){
   // Felles filtre (aldersgruppe, status, søk)
   const fellesFilter=f=>(foBucket==='alle'||foInBucket(f,foBucket))
     &&(foStatusFilter==='alle'||f.status===foStatusFilter)
-    &&(!foSearch||f.fakturanr.toLowerCase().includes(foSearch)||f.kundenavn.toLowerCase().includes(foSearch)||String(f.kundenr).toLowerCase().includes(foSearch));
+    &&(!foSearch||f.fakturanr.toLowerCase().includes(foSearch)||f.kundenavn.toLowerCase().includes(foSearch)||String(f.kundenr).toLowerCase().includes(foSearch))
+    &&(!foInkassoFilter||foNevnerInkasso(f)); // v1.48.217
 
   let visRader; // rad-objekter (gruppe eller faktura)
   if(arb){
@@ -13791,6 +13865,13 @@ function renderFakturaoppfolging(){
           </select>`:''}
         </div>
         <div style="display:flex;gap:10px;align-items:center">${teller}${tannhjul}</div>
+        ${(()=>{ // v1.48.217: inkasso-rydding
+          const ink=fakturaoppfolging.filter(foNevnerInkasso);
+          if(foInkassoFilter)return `<div style="width:100%;margin-top:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">⚠️ Viser bare fakturaer der Visma-notatet nevner inkasso/namsmann (${ink.length}). <button class="btn-sm" onclick="setFoInkassoFilter(false)">✕ Fjern filter</button>${userRole==='admin'&&ink.length?'<button class="btn-sm" onclick="foRyddInkassoAlle()">Sett alle til «Sendt til inkasso»</button>':''}</div>`;
+          if(!ink.length)return '';
+          const kunder=new Set(ink.map(f=>f.kundenr)).size;
+          return `<div style="width:100%;margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;display:flex;gap:10px;align-items:center;flex-wrap:wrap">⚠️ <span><b>${ink.length}</b> fakturaer hos <b>${kunder}</b> kunder (${fF(ink.reduce((s,f)=>s+(f.utestaende||0),0))}) har Visma-notat som nevner inkasso/namsmann, men står ikke som «Sendt til inkasso».</span> <button class="btn-sm" onclick="setFoInkassoFilter(true)">Vis dem</button>${userRole==='admin'?'<button class="btn-sm" onclick="foRyddInkassoAlle()">Sett alle til «Sendt til inkasso»</button>':''}</div>`;
+        })()}
         ${regel}${innst}
       </div>`;
   }
@@ -13859,7 +13940,7 @@ function renderFakturaoppfolging(){
         <td class="tr">${fF(r.utestaende)}</td>
         <td>${fDateShort(r.forfallsdato)}${flere?'<div style="font-size:10px;color:#9ca3af">eldste</div>':''}${r.dager>0?`<div style="color:#dc2626;font-size:11px">${r.dager} dager forfalt</div>`:''}${r.betaltDato?`<div style="color:#1baf7a;font-size:11px">✓ Betalt ${fDateShort(r.betaltDato)}</div>`:''}</td>
         <td class="tr">${r.score>0?Math.round(r.score).toLocaleString('nb-NO'):'—'}</td>
-        <td>${statuser.map(foStatusBadge).join(' ')}${sisteSms?`<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Automatisk purring-SMS (fra Purring-SMS-loggen)">📱 SMS sendt ${sisteSms.dato?fDateShort(sisteSms.dato):''}</div>`:''}</td>
+        <td>${statuser.map(foStatusBadge).join(' ')}${(()=>{const sk=foSistKontakt(r.fs);return sk?`<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Siste kontakt (logg i KBD CC eller purring-SMS)">${foKontaktIkon(sk.type)} Sist kontakt ${fDateShort(sk.dato)}</div>`:'';})()}${r.fs.some(foNevnerInkasso)?'<div style="font-size:11px;color:#b45309;margin-top:2px" title="Visma-notatet nevner inkasso/namsmann">⚠️ Inkasso i Visma-notat</div>':''}</td>
         <td><span${nesteForfalt?' style="color:#dc2626;font-weight:600"':''}>${r.nesteOppfolging?fDateShort(r.nesteOppfolging):'—'}</span>${r.eier?`<div style="font-size:11px;color:${r.eierType==='mine'?'#1A3A6B':'#9ca3af'}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g,'')}">👤 ${String(r.eier).split(' ')[0].replace(/</g,'&lt;')}</div>`:''}</td>
         <td><button class="btn-sm" onclick="event.stopPropagation();toggleFoDetalj('${r.key.replace(/'/g,"\\'")}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
       </tr>`];
@@ -13893,12 +13974,27 @@ function renderFoDetaljPanel(r){
       <div style="font-size:13px;white-space:pre-wrap">${(l.kommentar||'').replace(/</g,'&lt;')}</div>
     </div>`).join(''):'<div class="empty" style="padding:10px 0">Ingen loggførte henvendelser ennå.</div>';
 
+  // v1.48.217: like notater på flere fakturaer vises én gang, kortet ned til de 3 siste linjene.
   const medNotat=fs.filter(f=>f.notatImportert&&f.notatImportert.trim());
+  const notatGrupper=new Map();
+  medNotat.forEach(f=>{const t=f.notatImportert.trim();if(!notatGrupper.has(t))notatGrupper.set(t,[]);notatGrupper.get(t).push(f.fakturanr);});
+  const alleLinjer=[];
+  notatGrupper.forEach((nrListe,t)=>{
+    if(flere)alleLinjer.push(`<b>${nrListe.length===fs.length?'Alle fakturaene':'Faktura '+nrListe.join(', ')}:</b>`);
+    t.split(/\r?\n/).filter(x=>x.trim()).forEach(x=>alleLinjer.push(foMarkerInkasso(x)));
+  });
+  const notatApen=foNotatApen.has(r.key);
+  const visLinjer=(notatApen||alleLinjer.length<=4)?alleLinjer:alleLinjer.slice(-3);
   const notatHtml=medNotat.length?`
     <div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px">Notater fra Visma</div>
-      <div style="font-size:12px;white-space:pre-wrap;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;max-height:160px;overflow:auto">${medNotat.map(f=>(flere?`<b>${f.fakturanr}:</b> `:'')+f.notatImportert.replace(/</g,'&lt;')).join('\n\n')}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:12px;font-weight:600;color:#6b7280">Historikk fra Visma (før KBD CC)</span>${alleLinjer.length>4?`<button class="btn-sm" style="padding:2px 8px;font-size:11px" onclick="foToggleNotat('${key}')">${notatApen?'Vis bare de siste':'Vis alle ('+alleLinjer.length+' linjer)'}</button>`:''}</div>
+      <div style="font-size:12px;white-space:pre-wrap;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;${notatApen?'max-height:260px;overflow:auto':''}">${!notatApen&&alleLinjer.length>4?'<span style="color:#9ca3af">…</span>\n':''}${visLinjer.join('\n')}</div>
     </div>`:'';
+  const inkFs=fs.filter(foNevnerInkasso);
+  const inkassoHtml=inkFs.length?`<div style="margin-bottom:12px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+      <span>⚠️ Visma-notatet nevner inkasso/namsmann${flere?` (faktura ${inkFs.map(f=>f.fakturanr).join(', ')})`:''}, men status er ikke «Sendt til inkasso».</span>
+      <button class="btn-sm" onclick="foSettInkasso('${key}')">Sett «Sendt til inkasso»</button></div>`:'';
+  const sistK=foSistKontakt(fs);
 
   const fakturaListe=flere?`
     <div style="margin-bottom:14px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;overflow:auto">
@@ -13912,11 +14008,12 @@ function renderFoDetaljPanel(r){
   const hk=(akt,txt,tittel)=>`<button class="btn-sm" onclick="foHurtig('${key}','${akt}')" title="${tittel}">${txt}</button>`;
 
   return `<div style="padding:14px 16px">
-      ${fakturaListe}${notatHtml}
+      ${inkassoHtml}${fakturaListe}${notatHtml}
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
         <div style="font-size:12px;font-weight:600;color:#6b7280">Oppfølgingslogg</div>
         <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;white-space:nowrap">
           ${foStatusBadge(fellesStatus)}
+          <span>Sist kontakt: ${sistK?foKontaktIkon(sistK.type)+' '+fDateShort(sistK.dato)+' ('+sistK.type+')':'—'}</span>
           <span>Neste: ${r.nesteOppfolging?fDateShort(r.nesteOppfolging):'—'}</span>
         </div>
       </div>
