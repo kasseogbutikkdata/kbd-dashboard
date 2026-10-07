@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.221 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.222 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11029,6 +11029,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.222',dato:'07.10.2026',punkter:[
+    'Fakturaoppfølging: klikk på kundens e-postadresse lager nå et utkast med faktura-PDF-ene vedlagt (filen åpnes i Outlook). Du ser over og trykker Send selv. Kopi til mirrow@kbd.as som før.'
+  ]},
   {versjon:'v1.48.221',dato:'07.10.2026',punkter:[
     'Fakturaoppfølging: Amili saksnr legges nå inn per faktura, siden Amili har én sak per faktura. Vinduet viser alle kundens fakturaer med beløp, et felt for saksnr og «Til inkasso» for hver.',
     'Ny knapp «🏛️ Inkasso / Amili saksnr» i kunden, så du kan legge inn eller endre saksnummer når som helst.'
@@ -13656,20 +13659,77 @@ function foFellesStatus(fs){
 // ----- Kontakt: klikkbar telefon og e-post -----
 function foTelHref(t){return 'tel:'+String(t||'').replace(/[^\d+]/g,'');}
 const FO_SVAR_EPOST='mirrow@kbd.as';
-function foMailHref(rad){
-  const fs=rad.fs;
+// v1.48.222: felles innhold for mailto og .eml-utkast.
+// Fakturaer som er «Sendt til inkasso» tas ikke med i e-posten (kunden skal
+// betale dem til Amili), med mindre alle er det.
+function foEpostFakturaer(rad){const a=rad.fs.filter(f=>f.status!=='Sendt til inkasso');return a.length?a:rad.fs;}
+function foMailInnhold(rad,vedlegg){
+  const fs=foEpostFakturaer(rad);
   const emne=fs.length===1?`Faktura ${fs[0].fakturanr} fra Kasse og Butikkdata AS`:`Ubetalte fakturaer fra Kasse og Butikkdata AS`;
   const linjer=fs.map(f=>`- Faktura ${f.fakturanr}: ${fF(f.utestaende||0)}, forfall ${fDateShort(f.forfallsdato)}`).join('\n');
   const navn=(rad.kontaktNavn||'').split(' ')[0];
   const avsender=(typeof currentUser!=='undefined'&&currentUser&&(currentUser.name||currentUser.username))||'';
   const tekst=`Hei${navn?' '+navn:''},\n\nVi ser at ${fs.length===1?'denne fakturaen':'disse fakturaene'} ikke er registrert betalt hos oss:\n\n${linjer}\n\nKan du sjekke dette? Si gjerne ifra om noe er uklart, eller om betaling allerede er sendt. Svar gjerne til ${FO_SVAR_EPOST}.\n\nMed vennlig hilsen\n${avsender?avsender+'\n':''}Kasse og Butikkdata AS`;
+  const medVedlegg=vedlegg?tekst.replace(`${linjer}\n\n`,`${linjer}\n\n${fs.length===1?'Fakturaen':'Fakturaene'} ligger vedlagt.\n\n`):tekst;
+  return{til:rad.kontaktEpost||'',emne,tekst:medVedlegg};
+}
+function foMailHref(rad){
+  const m=foMailInnhold(rad,false);
   // v1.48.208: svar skal gå til fellesadressen mirrow@kbd.as — den settes på
   // kopi (mailto kan ikke sette Reply-To pålitelig) og nevnes i teksten.
-  return `mailto:${encodeURIComponent(rad.kontaktEpost||'')}?cc=${encodeURIComponent(FO_SVAR_EPOST)}&subject=${encodeURIComponent(emne)}&body=${encodeURIComponent(tekst)}`;
+  return `mailto:${encodeURIComponent(m.til)}?cc=${encodeURIComponent(FO_SVAR_EPOST)}&subject=${encodeURIComponent(m.emne)}&body=${encodeURIComponent(m.tekst)}`;
+}
+// v1.48.222: klikk på e-postadressen lager et Outlook-utkast (.eml med
+// «X-Unsent: 1») med faktura-PDF-ene vedlagt (mailto: kan ikke ha vedlegg).
+// PDF-ene hentes fra /api/faktura_pdf (faktura_pdf.py). Ingenting sendes —
+// brukeren ser over og trykker Send i Outlook. Feiler PDF-hentingen, åpnes
+// vanlig mailto uten vedlegg. Spørsmålet «Sendte du e-posten?» kommer som før.
+function foB64Bytes(buf){
+  const u=new Uint8Array(buf);let bin='';
+  for(let i=0;i<u.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));
+  return btoa(bin);
+}
+function foB64Tekst(t){return foB64Bytes(new TextEncoder().encode(t).buffer);}
+function foBryt76(b64){return b64.replace(/.{1,76}/g,'$&\r\n').trimEnd();}
+function foLagEml(m,vedlegg){
+  const grense='----=_KBDCC_'+Date.now().toString(36)+uid();
+  const hode=[`To: ${m.til}`,`Cc: ${FO_SVAR_EPOST}`,`Reply-To: ${FO_SVAR_EPOST}`,`Subject: =?UTF-8?B?${foB64Tekst(m.emne)}?=`,'X-Unsent: 1','MIME-Version: 1.0',`Content-Type: multipart/mixed; boundary="${grense}"`];
+  const deler=[`--${grense}`,'Content-Type: text/plain; charset="utf-8"','Content-Transfer-Encoding: base64','',foBryt76(foB64Tekst(m.tekst.replace(/\n/g,'\r\n')))];
+  vedlegg.forEach(v=>{deler.push(`--${grense}`,`Content-Type: application/pdf; name="${v.navn}"`,'Content-Transfer-Encoding: base64',`Content-Disposition: attachment; filename="${v.navn}"`,'',foBryt76(foB64Bytes(v.data)));});
+  deler.push(`--${grense}--`,'');
+  return hode.join('\r\n')+'\r\n\r\n'+deler.join('\r\n');
+}
+async function foEpostMedVedlegg(key,lenke){
+  const fs=foFsForKey(key);if(!fs.length)return;
+  const rad=fs.length>1?foGruppeObj(fs[0].kundenr,fs):foFakturaObj(fs[0]);
+  const m=foMailInnhold(rad,true);
+  const gammelTekst=lenke?lenke.innerHTML:'';
+  if(lenke)lenke.innerHTML='⏳ Henter faktura-PDF…';
+  try{
+    const token=await vfGetApiToken();
+    const vedlegg=[];
+    for(const f of foEpostFakturaer(rad)){
+      const resp=await fetch(vfApiUrl(`/api/faktura_pdf?nr=${encodeURIComponent(f.fakturanr)}`),{headers:{'Authorization':`Bearer ${token}`}});
+      if(!resp.ok){const d=await resp.json().catch(()=>({}));throw new Error(`Faktura ${f.fakturanr}: ${d.error||'HTTP '+resp.status}`);}
+      vedlegg.push({navn:`Faktura_${f.fakturanr}.pdf`,data:await resp.arrayBuffer()});
+    }
+    const blob=new Blob([foLagEml(m,vedlegg)],{type:'message/rfc822'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;
+    a.download=`Purring_${String(rad.kundenavn||rad.fs[0].fakturanr).replace(/[^A-Za-z0-9ÆØÅæøå_-]+/g,'_').slice(0,40)}.eml`;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){
+    alert(`⚠️ Klarte ikke legge ved faktura-PDF (${e.message}).\n\nE-posten åpnes uten vedlegg i stedet.`);
+    window.location.href=foMailHref(rad);
+  }finally{
+    if(lenke)lenke.innerHTML=gammelTekst;
+  }
+  foEpostKlikk(key);
 }
 function foKontaktHtml(rad){
   const esc=s=>String(s||'').replace(/</g,'&lt;');
-  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon?`<div><a href="${foTelHref(rad.kontaktTelefon)}" onclick="event.stopPropagation()" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>`:''}${rad.kontaktEpost?`<div><a href="${foMailHref(rad)}" onclick="event.stopPropagation();foEpostKlikk('${String(rad.key).replace(/'/g,"\\'")}')" style="color:#2563eb;text-decoration:none" title="Skriv e-post med ferdig tekst">✉️ ${esc(rad.kontaktEpost)}</a></div>`:''}`;
+  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon?`<div><a href="${foTelHref(rad.kontaktTelefon)}" onclick="event.stopPropagation()" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>`:''}${rad.kontaktEpost?`<div><a href="${foMailHref(rad)}" onclick="event.stopPropagation();event.preventDefault();foEpostMedVedlegg('${String(rad.key).replace(/'/g,"\\'")}',this)" style="color:#2563eb;text-decoration:none" title="Lager e-post i Outlook med faktura-PDF vedlagt">✉️ ${esc(rad.kontaktEpost)}</a></div>`:''}`;
 }
 
 // v1.48.213: etter klikk på e-postadressen spør KBD CC om e-posten ble sendt.
