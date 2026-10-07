@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.220 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.221 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11029,6 +11029,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.221',dato:'07.10.2026',punkter:[
+    'Fakturaoppfølging: Amili saksnr legges nå inn per faktura, siden Amili har én sak per faktura. Vinduet viser alle kundens fakturaer med beløp, et felt for saksnr og «Til inkasso» for hver.',
+    'Ny knapp «🏛️ Inkasso / Amili saksnr» i kunden, så du kan legge inn eller endre saksnummer når som helst.'
+  ]},
   {versjon:'v1.48.220',dato:'07.10.2026',punkter:[
     'Fakturaoppfølging: Amili saksnr legges nå inn i et eget vindu som blir stående mens du kopierer fra Amili (nettleserens innebygde vindu lukket seg). Vinduet har lenke til Amili, og du kan lime inn f.eks. «Sak 3578829».'
   ]},
@@ -13740,34 +13744,93 @@ async function foKjorPorsjonsvis(oppgaver,str=4){
 // på Fakturaoppfolging, Én linje med tekst). Lenke til portal.amili.no/cases/<nr>.
 function foAmiliLenke(nr){const n=String(nr||'').replace(/[^0-9]/g,'');return n?`<a href="https://portal.amili.no/cases/${n}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#7c3aed;text-decoration:none" title="Åpne saken i Amili">🏛️ Amili ${n} ↗</a>`:'';}
 function foGyldigAmili(v){return v===''||/^\d{3,12}$/.test(v);}
-// v1.48.220: egen dialog i stedet for prompt() — nettleserens prompt lukkes når
-// man bytter fane/vindu for å kopiere saksnr fra Amili. Denne står til man
-// trykker Lagre/Avbryt, tåler lim inn («Sak 3578829» → 3578829) og har lenke til Amili.
-function foSporAmili(tittel){
+// v1.48.221: ett Amili saksnr PER FAKTURA (Amili har én sak per faktura, se
+// Tangentoppen Landhandel: 033467 → 3167845, 039912 → 3307896). Dialogen viser
+// én linje per faktura med beløp (lett å matche mot «Utestående» i Amili),
+// felt for saksnr og avkrysning «Til inkasso». Står til Lagre/Avbryt, så man
+// kan bytte vindu og kopiere fra Amili. Tåler lim inn («Sak 3578829» → 3578829).
+// Returnerer [{f, saksnr, inkasso}] eller null (avbrutt).
+function foAmiliDialog(fs,tittel,forhaand){
   return new Promise(resolve=>{
     document.getElementById('fo-amili-dialog')?.remove();
     const el=document.createElement('div');el.id='fo-amili-dialog';
     el.style.cssText='position:fixed;inset:0;z-index:2000;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;padding:16px';
-    el.innerHTML=`<div style="background:#fff;border-radius:12px;border-top:4px solid #7c3aed;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:440px;font-size:14px;color:#111">
-      <div style="font-weight:700;font-size:16px;margin-bottom:6px">🏛️ Sendt til inkasso</div>
+    const rader=fs.map((f,i)=>{
+      const erInk=f.status==='Sendt til inkasso';
+      const kryss=erInk||(forhaand?forhaand(f):false);
+      return `<tr>
+        <td style="padding:6px 8px 6px 0;white-space:nowrap"><b>${f.fakturanr}</b><div style="font-size:11px;color:#6b7280">forfall ${fDateShort(f.forfallsdato)}</div></td>
+        <td class="tr" style="padding:6px 8px;white-space:nowrap">${fF(f.utestaende||0)}</td>
+        <td style="padding:6px 8px"><input data-i="${i}" class="fo-amili-inp" type="text" inputmode="numeric" placeholder="saksnr" autocomplete="off" value="${f.inkassoSaksnr||''}" style="width:130px;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:14px;font-family:inherit"/></td>
+        <td style="padding:6px 0 6px 8px;white-space:nowrap"><label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:${erInk?'default':'pointer'}"><input data-i="${i}" class="fo-amili-kryss" type="checkbox" ${kryss?'checked':''} ${erInk?'disabled title="Står allerede som «Sendt til inkasso»"':''}/>Til inkasso</label></td>
+      </tr>`;}).join('');
+    el.innerHTML=`<div style="background:#fff;border-radius:12px;border-top:4px solid #7c3aed;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:560px;max-height:90vh;overflow:auto;font-size:14px;color:#111">
+      <div style="font-weight:700;font-size:16px;margin-bottom:6px">🏛️ Inkasso og Amili saksnr</div>
       <div style="color:#4b5563;margin-bottom:12px;line-height:1.45">${String(tittel||'').replace(/</g,'&lt;')}</div>
-      <label style="font-size:12px;font-weight:600;color:#374151">Amili saksnr (valgfritt)</label>
-      <input id="fo-amili-dialog-input" type="text" inputmode="numeric" placeholder="f.eks. 3578829" autocomplete="off" style="width:100%;margin:4px 0 4px;padding:8px 10px;border:1px solid #d0d5dd;border-radius:6px;font-size:15px;font-family:inherit"/>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span id="fo-amili-dialog-feil" style="font-size:12px;color:#dc2626"></span><a href="https://portal.amili.no/cases" target="_blank" rel="noopener" style="font-size:12px;color:#7c3aed;text-decoration:none">Åpne Amili ↗</a></div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse"><thead><tr style="color:#6b7280;font-size:11px;text-align:left"><th style="padding:0 8px 4px 0">Faktura</th><th class="tr" style="padding:0 8px 4px">Utestående</th><th style="padding:0 8px 4px">Amili saksnr</th><th style="padding:0 0 4px 8px"></th></tr></thead><tbody>${rader}</tbody></table>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 14px"><span id="fo-amili-dialog-feil" style="font-size:12px;color:#dc2626"></span><span style="font-size:12px;color:#6b7280">Tomt felt = ikke i Amili ennå · <a href="https://portal.amili.no/cases" target="_blank" rel="noopener" style="color:#7c3aed;text-decoration:none">Åpne Amili ↗</a></span></div>
       <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn-sm" style="padding:8px 16px;font-size:14px" id="fo-amili-dialog-avbryt">Avbryt</button><button class="prim" id="fo-amili-dialog-ok">Lagre</button></div></div>`;
     document.body.appendChild(el);
-    const inp=el.querySelector('#fo-amili-dialog-input'),feil=el.querySelector('#fo-amili-dialog-feil');
+    const inps=[...el.querySelectorAll('.fo-amili-inp')],kryss=[...el.querySelectorAll('.fo-amili-kryss')],feil=el.querySelector('#fo-amili-dialog-feil');
+    // Skriver man inn et saksnr, krysses «Til inkasso» av automatisk.
+    inps.forEach((inp,i)=>inp.addEventListener('input',()=>{if(inp.value.replace(/\D/g,'')&&!kryss[i].disabled)kryss[i].checked=true;}));
     const ferdig=v=>{el.remove();resolve(v);};
     const ok=()=>{
-      const raa=inp.value.trim(),t=raa.replace(/\D/g,'');
-      if(raa&&(!t||!foGyldigAmili(t))){feil.textContent='Fant ikke et gyldig saksnr (3–12 sifre).';inp.focus();return;}
-      ferdig(t);
+      const ut=[];
+      for(let i=0;i<fs.length;i++){
+        const raa=inps[i].value.trim(),t=raa.replace(/\D/g,'');
+        if(raa&&(!t||!foGyldigAmili(t))){feil.textContent=`Faktura ${fs[i].fakturanr}: fant ikke et gyldig saksnr (3–12 sifre).`;inps[i].focus();return;}
+        ut.push({f:fs[i],saksnr:t,inkasso:kryss[i].checked});
+      }
+      ferdig(ut);
     };
     el.querySelector('#fo-amili-dialog-ok').onclick=ok;
     el.querySelector('#fo-amili-dialog-avbryt').onclick=()=>ferdig(null);
-    inp.addEventListener('keydown',e=>{if(e.key==='Enter')ok();if(e.key==='Escape')ferdig(null);});
-    setTimeout(()=>inp.focus(),30);
+    el.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type==='text')ok();if(e.key==='Escape')ferdig(null);});
+    setTimeout(()=>(inps.find(x=>!x.value)||inps[0])?.focus(),30);
   });
+}
+// Lagrer valgene fra dialogen: status «Sendt til inkasso» for avkryssede, og
+// InkassoSaksnr der det er endret. Én logglinje per faktura som endres.
+function foLagreAmiliValg(valg){
+  const skrevetAv=currentUser?.name||currentUser?.username||'Ukjent';
+  const naa=new Date().toISOString();
+  const oppg=[];let antall=0;
+  valg.forEach(({f,saksnr,inkasso})=>{
+    const felt={},deler=[];
+    if(inkasso&&f.status!=='Sendt til inkasso'){f.status='Sendt til inkasso';felt.Status='Sendt til inkasso';deler.push('Status satt til «Sendt til inkasso».');}
+    if(saksnr!==(f.inkassoSaksnr||'')){
+      deler.push(saksnr?`Amili saksnr ${saksnr}.`:`Amili saksnr fjernet (var ${f.inkassoSaksnr}).`);
+      f.inkassoSaksnr=saksnr;felt.InkassoSaksnr=saksnr||null;
+    }
+    if(!deler.length)return;
+    antall++;
+    const kommentar=deler.join(' ');
+    const rad={id:`temp${uid()}`,fakturanr:f.fakturanr,skrevetAv,type:'Annet',kilde:'KBD CC',dato:naa,kommentar};
+    fakturaoppfolgingLogg.push(rad);
+    if(f.spId)oppg.push(()=>spUpdate('Fakturaoppfolging',f.spId,felt));
+    oppg.push(()=>spCreate('FakturaoppfolgingLogg',{Fakturanummer:f.fakturanr,SkrevetAv:skrevetAv,HenvendelseType:'Annet',Kilde:'KBD CC',Dato:naa,Kommentar:kommentar}).then(r=>{rad.id=`sp${r.id}`;rad.spId=r.id;}));
+  });
+  if(!antall){return;}
+  renderFakturaoppfolging();
+  setSPStatus('⏳ Lagrer…');
+  foKjorPorsjonsvis(oppg).then(()=>{setSPStatus(`✅ Lagret (${antall} faktura${antall===1?'':'er'})`);setTimeout(()=>setSPStatus(''),3000);})
+    .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
+}
+// Fra inkasso-varselet: alle kundens åpne fakturaer vises, de der Visma-notatet
+// nevner inkasso er forhåndskrysset.
+async function foSettInkasso(key){
+  const fs=foFsForKey(key).filter(f=>!f.betaltDato);
+  if(!fs.some(foNevnerInkasso))return;
+  const valg=await foAmiliDialog(fs,`${fs[0].kundenavn} · kryss av fakturaene som er sendt til inkasso, og legg inn saksnummeret fra Amili for hver.`,foNevnerInkasso);
+  if(valg)foLagreAmiliValg(valg);
+}
+// Fra knappen «🏛️ Inkasso / Amili» i panelet: rediger når som helst.
+async function foRedigerAmili(key){
+  const fs=foFsForKey(key).filter(f=>!f.betaltDato||f.inkassoSaksnr);
+  if(!fs.length)return;
+  const valg=await foAmiliDialog(fs,`${fs[0].kundenavn} · legg inn eller endre saksnummer fra Amili per faktura.`,null);
+  if(valg)foLagreAmiliValg(valg);
 }
 
 function foInkassoOppgaver(fakturaer,saksnr=''){
@@ -13783,18 +13846,6 @@ function foInkassoOppgaver(fakturaer,saksnr=''){
     oppg.push(()=>spCreate('FakturaoppfolgingLogg',{Fakturanummer:f.fakturanr,SkrevetAv:skrevetAv,HenvendelseType:'Annet',Kilde:'KBD CC',Dato:naa,Kommentar:kommentar}).then(r=>{rad.id=`sp${r.id}`;rad.spId=r.id;}));
   });
   return oppg;
-}
-// Én kunde/faktura: setter bare fakturaene der notatet nevner inkasso.
-async function foSettInkasso(key){
-  const fs=foFsForKey(key).filter(foNevnerInkasso);
-  if(!fs.length)return;
-  const saksnr=await foSporAmili(`${fs[0].kundenavn} · ${fs.length===1?'faktura '+fs[0].fakturanr:fs.length+' fakturaer ('+fs.map(f=>f.fakturanr).join(', ')+')'} settes til «Sendt til inkasso».`);
-  if(saksnr===null)return;
-  const oppg=foInkassoOppgaver(fs,saksnr);
-  renderFakturaoppfolging();
-  setSPStatus('⏳ Lagrer…');
-  foKjorPorsjonsvis(oppg).then(()=>{setSPStatus('✅ Satt til «Sendt til inkasso»');setTimeout(()=>setSPStatus(''),3000);})
-    .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);});
 }
 // Admin: alle på én gang, med bekreftelse.
 function foRyddInkassoAlle(){
@@ -14089,6 +14140,7 @@ function renderFoDetaljPanel(r){
         <span style="font-size:12px;color:#6b7280;font-weight:600">📄 Faktura-PDF:</span>
         ${fs.map(f=>`<button class="btn-sm" onclick="foLastNedPdf('${String(f.fakturanr).replace(/'/g,'')}',this)" title="Last ned fakturaen fra Visma som PDF">${f.fakturanr}</button>`).join('')}
         <span style="font-size:11px;color:#9ca3af">Lastes ned, så du kan legge den ved e-posten.</span>
+        <button class="btn-sm" style="margin-left:auto" onclick="foRedigerAmili('${key}')" title="Sett «Sendt til inkasso» og Amili saksnr per faktura">🏛️ Inkasso / Amili saksnr</button>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
         <span style="font-size:12px;color:#6b7280;font-weight:600">Hurtigvalg:</span>
@@ -14105,7 +14157,7 @@ function renderFoDetaljPanel(r){
       <div class="fg" style="grid-template-columns:170px 170px auto 1fr;align-items:end">
         <div class="fgrp"><label>Status</label><select id="fo-statusvalg-${id}" onchange="const w=document.getElementById('fo-amili-wrap-${id}');if(w)w.style.display=this.value==='Sendt til inkasso'?'':'none'">${FO_STATUSER.map(s=>`<option${s===fellesStatus?' selected':''}>${s}</option>`).join('')}</select></div>
         <div class="fgrp"><label>Neste oppfølging</label><input type="date" id="fo-neste-${id}" value="${nesteVerdi}"/></div>
-        <div class="fgrp" id="fo-amili-wrap-${id}" style="${fellesStatus==='Sendt til inkasso'?'':'display:none'}"><label>Amili saksnr</label><input type="text" inputmode="numeric" id="fo-amili-${id}" value="${(fs.find(f=>f.inkassoSaksnr)||{}).inkassoSaksnr||''}" placeholder="f.eks. 3578829" style="width:140px"/></div>
+        ${flere?'':`<div class="fgrp" id="fo-amili-wrap-${id}" style="${fellesStatus==='Sendt til inkasso'?'':'display:none'}"><label>Amili saksnr</label><input type="text" inputmode="numeric" id="fo-amili-${id}" value="${(fs.find(f=>f.inkassoSaksnr)||{}).inkassoSaksnr||''}" placeholder="f.eks. 3578829" style="width:140px"/></div>`}
         <div style="text-align:right"><span id="fo-hint-${id}" style="font-size:12px;color:#d97706;margin-right:10px"></span><button class="prim" onclick="lagreFoOppfolging('${key}')">💾 Lagre</button></div>
       </div>
     </div>`;
@@ -14171,7 +14223,7 @@ function lagreFoOppfolging(key,opts={}){
   const amili=(nyStatus==='Sendt til inkasso'&&amiliEl)?amiliEl.value.replace(/\D/g,''):''; // v1.48.220: tåler «Sak 3578829»
   if(!foGyldigAmili(amili)){alert('Amili saksnr må være bare tall, f.eks. 3578829.');amiliEl?.focus();return;}
   const visteAmili=(fs.find(f=>f.inkassoSaksnr)||{}).inkassoSaksnr||'';
-  const amiliEndret=nyStatus==='Sendt til inkasso'&&amili!==visteAmili;
+  const amiliEndret=!!amiliEl&&nyStatus==='Sendt til inkasso'&&amili!==visteAmili; // v1.48.221: bare enkeltfaktura har feltet
   if(amiliEndret&&amili&&!kommentar)kommentar=`Sendt til inkasso, Amili saksnr ${amili}.`;
   if(!kommentar&&!statusEndret&&!nesteEndret&&!amiliEndret){alert('Ingen endringer å lagre.');return;}
   if(nyStatus==='Lovet betaling'&&!nesteRaw){alert('Velg datoen kunden har lovet å betale (Neste oppfølging).');nesteEl?.focus();return;}
