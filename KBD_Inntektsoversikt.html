@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.224 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.225 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2247,22 +2247,41 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
        💤-lista. Datoen lagres som Forfallsdato (ingen ny kolonne), fasen som
        Fase='Utsatt'. Når datoen passerer, vises saken som forfalt. -->
   <!-- KONTAKTPERSONER (v1.48.224) — ny/rediger kontakt + velg ny hovedkontakt. Se renderKontakterHTML(). -->
-  <style>.kp-stjerne{background:none;border:0;font-size:17px;color:#9ca3af;cursor:pointer;padding:0 2px;line-height:1}.kp-stjerne:hover{color:#f59e0b}</style>
+  <style>.kp-stjerne{background:none;border:0;font-size:17px;color:#9ca3af;cursor:pointer;padding:0 2px;line-height:1}.kp-stjerne:hover{color:#f59e0b}
+  /* v1.48.225: penere kontaktskjema — like felter (tel/textarea fikk ikke globale input-stiler), fokusring, valg-kort for ⭐/tidligere ansatt */
+  #kontakt-modal .modal{max-width:480px;padding:22px 24px}
+  #kontakt-modal .kp-hode{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  #kontakt-modal .kp-avatar{width:42px;height:42px;border-radius:50%;background:#eef2ff;color:#1A3A6B;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  #kontakt-modal h3{margin:0;font-size:17px}
+  #kontakt-modal .kp-kunde{font-size:12.5px;color:#6b7280;margin-top:2px}
+  #kontakt-modal .fgrp{margin-bottom:12px}
+  #kontakt-modal .fgrp label{font-size:12.5px;font-weight:600;color:#374151}
+  #kontakt-modal .fgrp input,#kontakt-modal .fgrp textarea{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d0d5dd;border-radius:8px;font-size:14px;font-family:inherit;color:#111;background:#fff;transition:border-color .15s,box-shadow .15s}
+  #kontakt-modal .fgrp textarea{resize:vertical;min-height:62px;line-height:1.4}
+  #kontakt-modal .fgrp input:focus,#kontakt-modal .fgrp textarea:focus{outline:none;border-color:#1A3A6B;box-shadow:0 0 0 3px rgba(26,58,107,.12)}
+  #kontakt-modal .fgrp input::placeholder,#kontakt-modal .fgrp textarea::placeholder{color:#9ca3af}
+  #kontakt-modal .kp-to{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  #kontakt-modal .kp-valg{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;margin-bottom:8px;font-size:13.5px;color:#111;background:#fafafa}
+  #kontakt-modal .kp-valg:hover{border-color:#c7d2fe;background:#f8faff}
+  #kontakt-modal .kp-valg input{width:16px;height:16px;margin-top:2px;accent-color:#1A3A6B;flex-shrink:0}
+  #kontakt-modal .kp-valg small{display:block;color:#6b7280;font-size:12px;font-weight:400;margin-top:1px}
+  #kontakt-modal .kp-teller{font-size:11.5px;color:#9ca3af;text-align:right;margin-top:2px}
+  @media (max-width:520px){#kontakt-modal .kp-to{grid-template-columns:1fr;gap:0}}
+  </style>
   <div class="modal-overlay" id="kontakt-modal" onclick="if(event.target===this)lukkKontaktModal()">
-    <div class="modal" style="max-width:460px">
-      <h3 id="kp-tittel" style="margin-bottom:2px">👤 Ny kontaktperson</h3>
-      <div class="muted" id="kp-kunde" style="margin-bottom:14px"></div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Navn *</label><input type="text" id="kp-navn" placeholder="Fornavn Etternavn"/></div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Rolle / tittel</label><input type="text" id="kp-rolle" list="kp-roller" placeholder="F.eks. Daglig leder, IT / teknisk"/>
+    <div class="modal">
+      <div class="kp-hode"><div class="kp-avatar">👤</div><div><h3 id="kp-tittel">Ny kontaktperson</h3><div class="kp-kunde" id="kp-kunde"></div></div></div>
+      <div class="fgrp"><label for="kp-navn">Navn *</label><input type="text" id="kp-navn" placeholder="Fornavn Etternavn" autocomplete="off"/></div>
+      <div class="fgrp"><label for="kp-rolle">Rolle / tittel</label><input type="text" id="kp-rolle" list="kp-roller" placeholder="Velg eller skriv, f.eks. Daglig leder" autocomplete="off"/>
         <datalist id="kp-roller"><option>Daglig leder</option><option>Innehaver</option><option>Butikksjef</option><option>IT / teknisk</option><option>Økonomi / faktura</option><option>Kontaktperson</option></datalist></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fgrp" style="margin-bottom:10px"><label>Mobil</label><input type="tel" id="kp-mobil" placeholder="12345678"/></div>
-        <div class="fgrp" style="margin-bottom:10px"><label>E-post</label><input type="email" id="kp-epost" placeholder="navn@firma.no"/></div>
+      <div class="kp-to">
+        <div class="fgrp"><label for="kp-mobil">Mobil</label><input type="tel" id="kp-mobil" placeholder="12345678" autocomplete="off"/></div>
+        <div class="fgrp"><label for="kp-epost">E-post</label><input type="email" id="kp-epost" placeholder="navn@firma.no" autocomplete="off"/></div>
       </div>
-      <div class="fgrp" style="margin-bottom:10px"><label>Notat</label><textarea id="kp-notat" rows="2" maxlength="255" placeholder="F.eks. treffes best før kl. 10 (maks 255 tegn)"></textarea></div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer;margin-bottom:6px"><input type="checkbox" id="kp-hoved" style="width:15px;height:15px"/> ⭐ Hovedkontakt <span class="muted">(hentes automatisk til onboarding)</span></label>
-      <label id="kp-tidligere-wrap" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer;margin-bottom:4px"><input type="checkbox" id="kp-tidligere" style="width:15px;height:15px"/> Tidligere ansatt <span class="muted">(skjules, men slettes ikke)</span></label>
-      <div class="modal-footer" style="display:flex;gap:8px">
+      <div class="fgrp"><label for="kp-notat">Notat</label><textarea id="kp-notat" rows="2" maxlength="255" placeholder="F.eks. treffes best før kl. 10" oninput="document.getElementById('kp-notat-teller').textContent=this.value.length+' / 255'"></textarea><div class="kp-teller" id="kp-notat-teller">0 / 255</div></div>
+      <label class="kp-valg"><input type="checkbox" id="kp-hoved"/><span>⭐ Hovedkontakt<small>Hentes automatisk til onboarding. Kun én per kunde.</small></span></label>
+      <label class="kp-valg" id="kp-tidligere-wrap"><input type="checkbox" id="kp-tidligere"/><span>Tidligere ansatt<small>Skjules fra lista, men slettes ikke.</small></span></label>
+      <div class="modal-footer" style="display:flex;gap:8px;align-items:center;margin-top:14px">
         <button class="btn-sm" id="kp-slett" style="color:#d03b3b;margin-right:auto" onclick="slettKontakt()">🗑 Slett</button>
         <button class="btn-sm" onclick="lukkKontaktModal()">Avbryt</button>
         <button class="prim" id="kp-lagre" onclick="lagreKontakt()">Lagre</button>
@@ -7430,12 +7449,13 @@ function apneKontaktModal(kNr,id){
   const c=id==='base'?kontaktBase(k):(id?kontaktPersoner.find(x=>x.id===id):null);
   const ny=!id||id==='base';
   const g=x=>document.getElementById(x);
-  g('kp-tittel').textContent=ny?(id==='base'?'👤 Lagre som egen kontakt':'👤 Ny kontaktperson'):'👤 Rediger kontaktperson';
+  g('kp-tittel').textContent=ny?(id==='base'?'Lagre som egen kontakt':'Ny kontaktperson'):'Rediger kontaktperson';
   g('kp-kunde').textContent=k.navn||'';
   g('kp-navn').value=c?.navn||'';g('kp-rolle').value=c?.rolle||'';g('kp-mobil').value=c?.mobil||'';g('kp-epost').value=c?.epost||'';g('kp-notat').value=c?.notat||'';
   const hk=hovedkontaktFor(k);
   g('kp-hoved').checked=c?!!(hk&&(hk===c||hk.id===c.id)):!hk;
   g('kp-tidligere').checked=!!c?.tidligere;
+  g('kp-notat-teller').textContent=(g('kp-notat').value.length)+' / 255';
   g('kp-tidligere-wrap').style.display=ny?'none':'';
   g('kp-slett').style.display=ny?'none':'';
   g('kp-lagre').disabled=false;
@@ -11263,6 +11283,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.225',dato:'07.10.2026',punkter:[
+    'Skjemaet for kontaktpersoner har fått et ryddigere utseende: like felter, tydelig markering av feltet du skriver i, og egne valg for ⭐ Hovedkontakt og Tidligere ansatt.'
+  ]},
   {versjon:'v1.48.224',dato:'07.10.2026',punkter:[
     'Kundekortet har fått «👥 Kontaktpersoner»: legg inn flere kontakter per kunde (navn, rolle, mobil, e-post, notat), med ring, SMS og e-post per person.',
     '⭐ Hovedkontakt: har kunden bare én kontakt, er den automatisk hovedkontakt. Med flere kontakter klikker du på ⭐ for å velge. Kontaktpersonen fra Visma vises også i lista.',
