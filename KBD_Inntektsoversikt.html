@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.217 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.218 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11029,6 +11029,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.218',dato:'07.10.2026',punkter:[
+    'Fakturaoppfølging: ny «📄 Faktura-PDF» i loggpanelet. Klikk på fakturanummeret for å laste ned fakturaen fra Visma som PDF, så du kan legge den ved e-posten til kunden.'
+  ]},
   {versjon:'v1.48.217',dato:'07.10.2026',punkter:[
     'Fakturaoppfølging: fakturaer der Visma-notatet nevner inkasso eller namsmann, men som ikke står som «Sendt til inkasso», merkes med ⚠️. Sett riktig status med ett klikk i kunden, eller rydd alle på en gang (administrator).',
     'Historikken fra Visma er kortet ned til de 3 siste linjene, med «Vis alle». Like notater på flere fakturaer vises bare én gang, og inkasso-ord er uthevet.',
@@ -13767,6 +13770,27 @@ function foRyddInkassoAlle(){
     .catch(e=>{setSPStatus('❌ '+e.message,false);alert('⚠️ Noe av lagringen til SharePoint feilet (last siden på nytt for å se hva som ble lagret):\n'+e.message);});
 }
 
+// v1.48.218: faktura-PDF fra Visma via kbd-verifone-func (/api/faktura_pdf,
+// se faktura_pdf.py). Lastes ned som Faktura_<nr>.pdf, så den kan dras inn i
+// e-posten (mailto: kan ikke legge ved filer). Ingenting logges.
+async function foLastNedPdf(nr,knapp){
+  const tekst=knapp?knapp.innerHTML:'';
+  if(knapp){knapp.disabled=true;knapp.innerHTML='⏳ Henter…';}
+  try{
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl(`/api/faktura_pdf?nr=${encodeURIComponent(nr)}`),{headers:{'Authorization':`Bearer ${token}`}});
+    if(!resp.ok){const d=await resp.json().catch(()=>({}));throw new Error(d.error||`HTTP ${resp.status}`);}
+    const blob=await resp.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=`Faktura_${nr}.pdf`;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){
+    alert(`⚠️ Klarte ikke hente faktura ${nr} som PDF:\n${e.message}`);
+  }finally{
+    if(knapp){knapp.disabled=false;knapp.innerHTML=tekst;}
+  }
+}
+
 function foKeyId(key){return String(key).replace(/[^A-Za-z0-9_-]/g,'_');}
 function foFsForKey(key){
   const nr=new Set(foPanelMap[key]||(key.startsWith('K:')?[]:[key]));
@@ -14018,6 +14042,11 @@ function renderFoDetaljPanel(r){
         </div>
       </div>
       <div style="max-height:220px;overflow:auto;margin-bottom:12px">${historikkHtml}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+        <span style="font-size:12px;color:#6b7280;font-weight:600">📄 Faktura-PDF:</span>
+        ${fs.map(f=>`<button class="btn-sm" onclick="foLastNedPdf('${String(f.fakturanr).replace(/'/g,'')}',this)" title="Last ned fakturaen fra Visma som PDF">${f.fakturanr}</button>`).join('')}
+        <span style="font-size:11px;color:#9ca3af">Lastes ned, så du kan legge den ved e-posten.</span>
+      </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
         <span style="font-size:12px;color:#6b7280;font-weight:600">Hurtigvalg:</span>
         ${hk('ingensvar','📞 Ingen svar','Lagrer «Ringt – ingen svar» og ny oppfølging om 3 virkedager')}
