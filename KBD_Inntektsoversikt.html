@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.223 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.224 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2246,6 +2246,38 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
        igjen senere». Saken forblir ÅPEN, men tas ut av pipelinereserven og
        💤-lista. Datoen lagres som Forfallsdato (ingen ny kolonne), fasen som
        Fase='Utsatt'. Når datoen passerer, vises saken som forfalt. -->
+  <!-- KONTAKTPERSONER (v1.48.224) — ny/rediger kontakt + velg ny hovedkontakt. Se renderKontakterHTML(). -->
+  <style>.kp-stjerne{background:none;border:0;font-size:17px;color:#9ca3af;cursor:pointer;padding:0 2px;line-height:1}.kp-stjerne:hover{color:#f59e0b}</style>
+  <div class="modal-overlay" id="kontakt-modal" onclick="if(event.target===this)lukkKontaktModal()">
+    <div class="modal" style="max-width:460px">
+      <h3 id="kp-tittel" style="margin-bottom:2px">👤 Ny kontaktperson</h3>
+      <div class="muted" id="kp-kunde" style="margin-bottom:14px"></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Navn *</label><input type="text" id="kp-navn" placeholder="Fornavn Etternavn"/></div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Rolle / tittel</label><input type="text" id="kp-rolle" list="kp-roller" placeholder="F.eks. Daglig leder, IT / teknisk"/>
+        <datalist id="kp-roller"><option>Daglig leder</option><option>Innehaver</option><option>Butikksjef</option><option>IT / teknisk</option><option>Økonomi / faktura</option><option>Kontaktperson</option></datalist></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fgrp" style="margin-bottom:10px"><label>Mobil</label><input type="tel" id="kp-mobil" placeholder="12345678"/></div>
+        <div class="fgrp" style="margin-bottom:10px"><label>E-post</label><input type="email" id="kp-epost" placeholder="navn@firma.no"/></div>
+      </div>
+      <div class="fgrp" style="margin-bottom:10px"><label>Notat</label><textarea id="kp-notat" rows="2" placeholder="F.eks. treffes best før kl. 10"></textarea></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer;margin-bottom:6px"><input type="checkbox" id="kp-hoved" style="width:15px;height:15px"/> ⭐ Hovedkontakt <span class="muted">(hentes automatisk til onboarding)</span></label>
+      <label id="kp-tidligere-wrap" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer;margin-bottom:4px"><input type="checkbox" id="kp-tidligere" style="width:15px;height:15px"/> Tidligere ansatt <span class="muted">(skjules, men slettes ikke)</span></label>
+      <div class="modal-footer" style="display:flex;gap:8px">
+        <button class="btn-sm" id="kp-slett" style="color:#d03b3b;margin-right:auto" onclick="slettKontakt()">🗑 Slett</button>
+        <button class="btn-sm" onclick="lukkKontaktModal()">Avbryt</button>
+        <button class="prim" id="kp-lagre" onclick="lagreKontakt()">Lagre</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="hovedkontakt-modal">
+    <div class="modal" style="max-width:420px">
+      <h3 style="margin-bottom:6px">⭐ Hvem er ny hovedkontakt?</h3>
+      <div class="muted" style="margin-bottom:10px">Hovedkontakten hentes automatisk til onboarding.</div>
+      <div id="kph-liste"></div>
+      <div class="modal-footer"><button class="prim" onclick="bekreftHovedkontaktValg()">Lagre</button></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="utsett-modal" onclick="if(event.target===this)lukkUtsettModal()">
     <div class="modal" style="max-width:420px">
       <h3 style="margin-bottom:6px">⏸ Utsett salgsmulighet</h3>
@@ -3284,6 +3316,7 @@ let notatDatePicker=null; // flatpickr-instans for #n-forfallsdato, satt opp i i
 // applyAccessControl() basert på tilgang.salg for vanlige brukere, alltid true
 // for admin. kundeNotater = alle rader fra SharePoint-listen "KundeNotater".
 let salgTilgang=false,kundeNotater=[];
+let kontaktPersoner=[],kontaktListeFinnes=true; // v1.48.224 — se KONTAKTPERSONER-seksjonen
 // fakturaoppfolging/fakturaoppfolgingLogg = arbeidsliste for oppfølging av
 // forfalte fakturaer (lagt til 10.09.2026), se undermenypunktet
 // "Fakturaoppfølging" under Aldersfordelt (renderFakturaoppfolging()).
@@ -3776,6 +3809,10 @@ function spGetItemsLoggetFeil(liste){
 
 // ===== SHAREPOINT DATA LAYER =====
 async function loadDataFromSP(){
+  // v1.48.224: Kontaktpersoner hentes parallelt med resten. Finnes ikke lista
+  // ennå (opprettes manuelt i SharePoint, se sjekklisten), skjules «＋ Ny
+  // kontakt» og kortet viser bare Visma-/prospektkontakten som før.
+  const kpLoven=spGetItems('Kontaktpersoner').then(r=>{kontaktListeFinnes=true;return r;}).catch(e=>{console.warn('Kontaktpersoner-lista kunne ikke leses (finnes den i SharePoint?):',e);kontaktListeFinnes=false;return[];});
   const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems,sosKundeItems,nhItems,jsItems,foItems,folItems]=await Promise.all([
     spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[]),spGetItems('SOSSaker').catch(()=>[]),spGetItems('SOSInnstillinger').catch(()=>[]),spGetItems('SOSKunder').catch(()=>[]),
     // NetsHistorikk (lagt til 09.09.2026) — se vhItems/vfHistorikk over for samme mønster.
@@ -3863,6 +3900,7 @@ async function loadDataFromSP(){
   // kommer da rett og slett tilbake som undefined fra Graph, og ||null/!=null
   // -sjekkene under gir da bare null/tom streng, helt ufarlig.
   kundeNotater=knItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaKundeNummer:i.fields.VismaKundeNummer||'',kundeNavn:i.fields.KundeNavn||'',type:i.fields.NotatType||'Notat',tittel:i.fields.Title||'',innhold:i.fields.Innhold0||'',status:i.fields.Status||'Åpen',forfallsdato:i.fields.Forfallsdato||'',opprettetAv:i.fields.Innhold||'',opprettetAvEpost:i.fields.OpprettetAvEpost||'',opprettetDato:i.fields.OpprettetDato||'',varsleEpost:i.fields.VarsleEpost===true,varsleDashbord:i.fields.VarsleDashbord===true,varselSendt:i.fields.VarselSendt===true,varsleAlle:i.fields.VarsleAlle===true,tilbudSum:i.fields.TilbudSum!=null?Number(i.fields.TilbudSum):null,sannsynlighet:i.fields.Sannsynlighet!=null?Number(i.fields.Sannsynlighet):null,tilbudUtfall:i.fields.TilbudUtfall||'',tilbudLukketDato:i.fields.TilbudLukketDato||'',tilbudArsak:i.fields.TilbudArsak||'',tilbudArsakDetalj:i.fields.TilbudArsakDetalj||'',fase:i.fields.Fase||'',leadKilde:normLeadKilde(i.fields.LeadKilde),leadKildeDetalj:i.fields.LeadKildeDetalj||'',sistAktivitet:i.fields.SistAktivitet||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  kontaktPersoner=(await kpLoven).map(mapKontaktperson); // v1.48.224
   // Idebank = ideer/funksjonsønsker for selve dashbordet, se Idébank-fanen og
   // Idebank-oppsett-sjekkliste.md. FORESLÅTTE interne feltnavn, ikke bekreftet
   // mot et faktisk SharePoint-site ennå — sjekk via Graph Explorer før bruk
@@ -7229,7 +7267,7 @@ function renderKundeKort(k){
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
               ${seProffKnappHtml(k.orgNr,k.navn)}
               <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(hovedkontaktFor(k)?.mobil)}',${k.saldoForfalt||0})">📱 Send SMS</button>`:''}
               ${onbKundekortKnappHtml(k)}
             </div>
           </div>
@@ -7241,15 +7279,14 @@ function renderKundeKort(k){
 
       ${renderKundeNotaterHTML(k)}
 
+      ${renderKontakterHTML(k)}
+
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
-          <p class="sec-title">Kontaktinfo (Visma)</p>
+          <p class="sec-title">Adresse (Visma)</p>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
               <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
-              <tr><td class="muted">Kontaktperson</td><td>${k.kontaktNavn||'—'}</td></tr>
-              <tr><td class="muted">E-post</td><td>${k.kontaktEpost||'—'}</td></tr>
-              <tr><td class="muted">Telefon</td><td>${k.kontaktTelefon||'—'}</td></tr>
               <tr><td class="muted">Sist oppdatert i Visma</td><td>${k.sistOppdatertVisma?new Date(k.sistOppdatertVisma).toLocaleDateString('nb-NO'):'—'}</td></tr>
             </tbody></table>
           </div>
@@ -7307,6 +7344,202 @@ function renderKundeKort(k){
   try{taK360Fyll(k);}catch(e){console.warn('Transaksjonsavgift-feltet kunne ikke vises:',e);} // v1.48.204
 }
 
+// ===== KONTAKTPERSONER (v1.48.224, 07.10.2026) =====
+// Thomas: «i gammelt CRM kunne vi lagre flere kontakter … mulighet for å
+// merke hovedkontakt som blir med videre til onboarding?». Egen SharePoint-
+// liste «Kontaktpersoner» (én rad pr. person, se Kunde360-oppsett-sjekkliste
+// .md), IKKE felter på VismaKunder — den lista skrives av nattsynken fra Visma
+// og ville overskrevet det vi legger inn her. Kobles til kunden via KundeNr
+// (Visma-nummer eller LEAD-…) og samKundenr(), så kontakter lagt inn på et
+// prospekt følger med når det blir Visma-kunde (samme alias som sakene).
+// «Basiskontakten» = kontaktpersonen fra Visma (KontaktpersonNavn osv. på
+// VismaKunder) eller fra prospektet (Nyetableringer). Den vises i lista,
+// merket med kilde, men redigeres ikke her (Visma eier den) — «✏️» lager en
+// egen kopi i Kontaktpersoner. Skjules når en egen kontakt har samme navn,
+// mobil eller e-post (unngår dobbeltvisning).
+// HOVEDKONTAKT-regel (Thomas 07.10.2026): én kontakt = automatisk hoved.
+// Ellers: kontakten med Hovedkontakt=Ja; finnes ingen, basiskontakten; ellers
+// den eldste aktive. Settes en hovedkontakt til «Tidligere ansatt», går ⭐
+// automatisk videre hvis det bare er én igjen — ellers spørres brukeren.
+// Onboarding henter hovedkontakten automatisk (hovedkontaktFor()).
+const KONTAKT_ROLLER=['Daglig leder','Innehaver','Butikksjef','IT / teknisk','Økonomi / faktura','Kontaktperson'];
+function mapKontaktperson(i){const f=i.fields||{};return{id:`sp${i.id}`,spId:i.id,kundeNr:String(f.KundeNr||'').trim(),kundeNavn:f.KundeNavn||'',navn:f.Title||'',rolle:f.Rolle||'',mobil:f.Mobil||'',epost:f.Epost||'',notat:f.Notat||'',hoved:f.Hovedkontakt===true,tidligere:f.TidligereAnsatt===true,opprettetAv:f.OpprettetAv||'',opprettetDato:f.OpprettetDato||i.createdDateTime||''};}
+function kpTlf(t){const d=normTlf(t);return d.length>8?d.slice(-8):d;}
+function kpLik(a,b){
+  const n=x=>String(x||'').trim().toLowerCase();
+  return (n(a.navn)&&n(a.navn)===n(b.navn))||(kpTlf(a.mobil)&&kpTlf(a.mobil)===kpTlf(b.mobil))||(n(a.epost)&&n(a.epost)===n(b.epost));
+}
+function kontakterForKunde(k){
+  if(!k)return[];
+  return kontaktPersoner.filter(c=>samKundenr(c.kundeNr,k.vismaNummer)).sort((a,b)=>new Date(a.opprettetDato||0)-new Date(b.opprettetDato||0));
+}
+function kontaktBase(k){
+  if(!k||!(k.kontaktNavn||k.kontaktTelefon||k.kontaktEpost))return null;
+  const b={id:'base',base:true,navn:k.kontaktNavn||'',rolle:'',mobil:k.kontaktTelefon||'',epost:k.kontaktEpost||'',kilde:k.erProspekt?'registrert på prospektet':'fra Visma'};
+  return kontakterForKunde(k).some(c=>kpLik(c,b))?null:b;
+}
+function hovedkontaktFor(k){
+  if(!k)return null;
+  const aktive=kontakterForKunde(k).filter(c=>!c.tidligere);
+  return aktive.find(c=>c.hoved)||kontaktBase(k)||aktive[0]||null;
+}
+function kpFinnKunde(kNr){return [...vismaKunder,...hentProspektKunder()].find(x=>samKundenr(x.vismaNummer,kNr))||(k360Valgt&&samKundenr(k360Valgt.vismaNummer,kNr)?k360Valgt:null);}
+function kpOppfrisk(){if(k360Valgt)renderKundeKort(k360Valgt);}
+function kpEsc(s){return escHtmlEpost(s);}
+function kpJs(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+function renderKontakterHTML(k){
+  const egne=kontakterForKunde(k);
+  const aktive=egne.filter(c=>!c.tidligere),tidligere=egne.filter(c=>c.tidligere);
+  const base=kontaktBase(k);
+  const hk=hovedkontaktFor(k);
+  const rader=[...(base?[base]:[]),...aktive].sort((a,b)=>(b===hk||(hk&&b.id===hk.id))-(a===hk||(hk&&a.id===hk.id))); // ⭐ øverst
+  const kNr=kpJs(k.vismaNummer);
+  const rad=c=>{
+    const erHoved=hk&&(c===hk||(c.id&&c.id===hk.id));
+    const tlf=normTlf(c.mobil);
+    const stjerne=erHoved?`<span title="Hovedkontakt — hentes automatisk til onboarding" style="font-size:16px">⭐</span>`
+      :(salgTilgang&&kontaktListeFinnes&&!c.tidligere?`<button class="kp-stjerne" title="Gjør til hovedkontakt" onclick="settHovedkontakt('${kNr}','${c.id}')">☆</button>`:'');
+    return `<tr style="${c.tidligere?'opacity:.6':''}">
+      <td style="width:34px;text-align:center">${c.tidligere?'':stjerne}</td>
+      <td><strong>${kpEsc(c.navn)||'<span class="muted">(uten navn)</span>'}</strong>${c.base?` <span class="muted" style="font-size:11.5px">· ${kpEsc(c.kilde)}</span>`:''}${c.notat?`<div class="muted" style="font-size:12px;white-space:pre-wrap">${kpEsc(c.notat)}</div>`:''}</td>
+      <td>${kpEsc(c.rolle)||'<span class="muted">—</span>'}</td>
+      <td>${tlf?`<a href="tel:${tlf}" style="color:#2563eb;text-decoration:none">📞 ${kpEsc(c.mobil)}</a>`:'<span class="muted">—</span>'}</td>
+      <td>${c.epost?`<a href="mailto:${kpEsc(c.epost)}" style="color:#2563eb;text-decoration:none">✉️ ${kpEsc(c.epost)}</a>`:'<span class="muted">—</span>'}</td>
+      <td style="white-space:nowrap;text-align:right">
+        ${salgTilgang&&tlf?`<button class="btn-sm" title="Send SMS" onclick="openSmsModal('${kpJs(k.navn)}','${tlf}',${k.saldoForfalt||0})">📱</button>`:''}
+        ${salgTilgang&&kontaktListeFinnes?`<button class="btn-sm" title="${c.base?'Lag en egen kontakt av denne (rolle, notat osv.)':'Rediger'}" onclick="apneKontaktModal('${kNr}','${c.id}')">✏️</button>`:''}
+      </td></tr>`;
+  };
+  const tomTekst=kontaktListeFinnes?'Ingen kontaktpersoner registrert ennå.':'Lista «Kontaktpersoner» finnes ikke i SharePoint ennå (se Kunde360-oppsett-sjekkliste).';
+  return `<div style="margin:6px 0 20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+      <p class="sec-title" style="margin-bottom:0">👥 Kontaktpersoner (${rader.length})</p>
+      ${salgTilgang&&kontaktListeFinnes?`<button class="btn-sm" onclick="apneKontaktModal('${kNr}','')">＋ Ny kontakt</button>`:''}
+    </div>
+    ${rader.length?`<div class="tbl-wrap" style="margin-bottom:0"><table><thead><tr><th></th><th>Navn</th><th>Rolle</th><th>Mobil</th><th>E-post</th><th></th></tr></thead><tbody>${rader.map(rad).join('')}</tbody></table></div>`:`<div class="k360-tom-boks">${tomTekst}</div>`}
+    ${tidligere.length?`<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px;color:#6b7280">Tidligere ansatte (${tidligere.length})</summary><div class="tbl-wrap" style="margin:6px 0 0"><table><tbody>${tidligere.map(rad).join('')}</tbody></table></div></details>`:''}
+  </div>`;
+}
+
+let kpModal={kNr:'',id:''};
+function apneKontaktModal(kNr,id){
+  if(!salgTilgang)return;
+  const k=kpFinnKunde(kNr);if(!k)return;
+  kpModal={kNr,id:id||''};
+  const c=id==='base'?kontaktBase(k):(id?kontaktPersoner.find(x=>x.id===id):null);
+  const ny=!id||id==='base';
+  const g=x=>document.getElementById(x);
+  g('kp-tittel').textContent=ny?(id==='base'?'👤 Lagre som egen kontakt':'👤 Ny kontaktperson'):'👤 Rediger kontaktperson';
+  g('kp-kunde').textContent=k.navn||'';
+  g('kp-navn').value=c?.navn||'';g('kp-rolle').value=c?.rolle||'';g('kp-mobil').value=c?.mobil||'';g('kp-epost').value=c?.epost||'';g('kp-notat').value=c?.notat||'';
+  const hk=hovedkontaktFor(k);
+  g('kp-hoved').checked=c?!!(hk&&(hk===c||hk.id===c.id)):!hk;
+  g('kp-tidligere').checked=!!c?.tidligere;
+  g('kp-tidligere-wrap').style.display=ny?'none':'';
+  g('kp-slett').style.display=ny?'none':'';
+  g('kp-lagre').disabled=false;
+  g('kontakt-modal').classList.add('open');
+  setTimeout(()=>g('kp-navn').focus(),50);
+}
+function lukkKontaktModal(){document.getElementById('kontakt-modal').classList.remove('open');}
+async function kpSettFlagg(c,verdi){c.hoved=verdi;await spUpdate('Kontaktpersoner',c.spId,{Hovedkontakt:verdi});}
+// Fjerner hoved-flagget fra alle andre kontakter på kunden (kun én ⭐).
+async function kpFjernAndreFlagg(k,unntakId){
+  for(const c of kontakterForKunde(k).filter(x=>x.hoved&&x.id!==unntakId))await kpSettFlagg(c,false);
+}
+async function lagreKontakt(){
+  const g=x=>document.getElementById(x);
+  const k=kpFinnKunde(kpModal.kNr);if(!k)return;
+  const navn=g('kp-navn').value.trim();
+  if(!navn){alert('Skriv navnet på kontaktpersonen.');g('kp-navn').focus();return;}
+  const epost=g('kp-epost').value.trim();
+  if(epost&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(epost)){alert('E-postadressen ser ikke gyldig ut.');return;}
+  const tidligere=g('kp-tidligere').checked;
+  const vilHoved=g('kp-hoved').checked&&!tidligere;
+  const eks=kpModal.id&&kpModal.id!=='base'?kontaktPersoner.find(x=>x.id===kpModal.id):null;
+  const varHoved=eks?(hovedkontaktFor(k)?.id===eks.id):false;
+  const felter={Title:navn,KundeNr:String(k.vismaNummer||''),KundeNavn:k.navn||'',Rolle:g('kp-rolle').value.trim(),Mobil:g('kp-mobil').value.trim(),Epost:epost,Notat:g('kp-notat').value.trim(),Hovedkontakt:vilHoved,TidligereAnsatt:tidligere};
+  g('kp-lagre').disabled=true;setSPStatus('⏳ Lagrer kontakt…');
+  try{
+    if(vilHoved)await kpFjernAndreFlagg(k,eks?.id);
+    if(eks){
+      await spUpdate('Kontaktpersoner',eks.spId,felter);
+      Object.assign(eks,{navn,rolle:felter.Rolle,mobil:felter.Mobil,epost,notat:felter.Notat,hoved:vilHoved,tidligere});
+    }else{
+      // Ny kontakt uten noen hovedkontakt fra før = automatisk hoved (Thomas: «bare én = hovedkontakt»).
+      if(!vilHoved&&!hovedkontaktFor(k))felter.Hovedkontakt=true;
+      Object.assign(felter,{OpprettetAv:currentUser?.name||currentUser?.username||'',OpprettetDato:new Date().toISOString()});
+      const r=await spCreate('Kontaktpersoner',felter);
+      kontaktPersoner.push(mapKontaktperson({id:r.id,fields:felter}));
+    }
+    lukkKontaktModal();
+    setSPStatus('✅ Kontakt lagret');setTimeout(()=>setSPStatus(''),3000);
+    kpOppfrisk();
+    if(varHoved&&!vilHoved)await kpEtterfolger(k);
+  }catch(e){
+    g('kp-lagre').disabled=false;setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Kontaktpersonen ble ikke lagret:\n'+e.message);
+  }
+}
+async function slettKontakt(){
+  const k=kpFinnKunde(kpModal.kNr);const c=kontaktPersoner.find(x=>x.id===kpModal.id);if(!k||!c)return;
+  if(!confirm(`Slette ${c.navn} permanent?\n\nHar personen sluttet, bruk heller «Tidligere ansatt» — da beholdes historikken.`))return;
+  const varHoved=hovedkontaktFor(k)?.id===c.id;
+  try{
+    await spDelete('Kontaktpersoner',c.spId);
+    kontaktPersoner=kontaktPersoner.filter(x=>x!==c);
+    lukkKontaktModal();kpOppfrisk();
+    if(varHoved)await kpEtterfolger(k);
+  }catch(e){alert('⚠️ Kunne ikke slette:\n'+e.message);}
+}
+// Etter at hovedkontakten er borte: én igjen → den blir automatisk ⭐;
+// flere → spør hvem; ingen/basiskontakt → basiskontakten (ingen lagring).
+async function kpEtterfolger(k){
+  const aktive=kontakterForKunde(k).filter(c=>!c.tidligere);
+  if(aktive.some(c=>c.hoved))return;
+  const base=kontaktBase(k);
+  const kandidater=[...(base?[base]:[]),...aktive];
+  if(kandidater.length===0)return;
+  if(kandidater.length===1){
+    if(!kandidater[0].base){try{await kpSettFlagg(kandidater[0],true);}catch(e){console.warn(e);}}
+    kpOppfrisk();return;
+  }
+  const g=x=>document.getElementById(x);
+  g('kph-liste').innerHTML=kandidater.map((c,i)=>`<label style="display:flex;gap:8px;align-items:center;padding:7px 4px;cursor:pointer;font-size:14px"><input type="radio" name="kph-valg" value="${c.id}" ${i===0?'checked':''}/> <span><strong>${kpEsc(c.navn)||'(uten navn)'}</strong>${c.rolle?' · '+kpEsc(c.rolle):''}${c.base?` <span class="muted">· ${kpEsc(c.kilde)}</span>`:''}</span></label>`).join('');
+  kpModal.kNr=k.vismaNummer;
+  g('hovedkontakt-modal').classList.add('open');
+}
+async function bekreftHovedkontaktValg(){
+  const id=document.querySelector('input[name="kph-valg"]:checked')?.value;
+  document.getElementById('hovedkontakt-modal').classList.remove('open');
+  if(id)await settHovedkontakt(kpModal.kNr,id);
+}
+async function settHovedkontakt(kNr,id){
+  const k=kpFinnKunde(kNr);if(!k||!salgTilgang)return;
+  setSPStatus('⏳ Lagrer…');
+  try{
+    if(id==='base'){await kpFjernAndreFlagg(k,null);}
+    else{const c=kontaktPersoner.find(x=>x.id===id);if(!c)return;await kpFjernAndreFlagg(k,c.id);await kpSettFlagg(c,true);}
+    setSPStatus('✅ Hovedkontakt satt');setTimeout(()=>setSPStatus(''),3000);
+  }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Hovedkontakt ble ikke lagret:\n'+e.message);}
+  kpOppfrisk();
+}
+// Kontakten fra «➕ Nytt lead» / «Ny kunde» blir første kontaktperson.
+// Feiler det (f.eks. lista finnes ikke ennå), stoppes IKKE lead-lagringen —
+// kontakten ligger uansett i Nyetableringer-feltene som før.
+async function kontaktFraRegistrering(kNr,kundeNavn,kontakt){
+  const navn=(kontakt?.KontaktpersonNavn||'').trim(),mobil=(kontakt?.KontaktTelefon||'').trim(),epost=(kontakt?.KontaktEpost||'').trim();
+  if(!navn&&!mobil&&!epost)return;
+  if(!kontaktListeFinnes)return;
+  const ny={navn:navn||epost||mobil,mobil,epost};
+  if(kontaktPersoner.some(c=>samKundenr(c.kundeNr,kNr)&&kpLik(c,ny)))return;
+  const harHoved=kontaktPersoner.some(c=>samKundenr(c.kundeNr,kNr)&&c.hoved&&!c.tidligere);
+  const felter={Title:ny.navn,KundeNr:kNr,KundeNavn:kundeNavn||'',Rolle:'',Mobil:mobil,Epost:epost,Notat:'',Hovedkontakt:!harHoved,TidligereAnsatt:false,OpprettetAv:currentUser?.name||currentUser?.username||'',OpprettetDato:new Date().toISOString()};
+  try{const r=await spCreate('Kontaktpersoner',felter);kontaktPersoner.push(mapKontaktperson({id:r.id,fields:felter}));}
+  catch(e){console.warn('Kontaktperson fra registrering ble ikke lagret (lagres fortsatt på prospektet):',e);}
+}
+
 // Forenklet kundekort for et selskap overført fra «🏢 Nyetableringer» (se
 // hentProspektKunder()) — samme kundekort-visning som en ekte Visma-kunde,
 // men uten omsetning/avtaler/Visma-kontaktinfo som rett og slett ikke finnes
@@ -7322,7 +7555,7 @@ function renderProspektKundeKort(k){
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
               ${seProffKnappHtml(k.orgNr,k.navn)}
               <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn||'').replace(/'/g,"\\'")}')">🔍 Gule Sider</button>
-              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(k.kontaktTelefon)}',0)">📱 Send SMS</button>`:''}
+              ${salgTilgang?`<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn||'').replace(/'/g,"\\'")}','${normTlf(hovedkontaktFor(k)?.mobil)}',0)">📱 Send SMS</button>`:''}
               ${onbKundekortKnappHtml(k)}
             </div>
           </div>
@@ -7330,12 +7563,14 @@ function renderProspektKundeKort(k){
         </div>
       </div>
 
+      ${renderKontakterHTML(k)}
+
       <div class="hint" style="margin-bottom:16px">${k.manueltOpprettet?'Opprettet manuelt (f.eks. en kunde som tok kontakt selv) — ikke hentet fra Nyetableringer/Brønnøysund.':'Overført fra «🏢 Nyetableringer» under Kunde 360.'} Viser derfor ikke omsetning, avtaler eller Visma-kontaktinfo — det finnes ikke ennå. Den dagen selskapet faktisk blir Visma-kunde, dukker et ordinært kundekort opp ved neste nattlige synk, og notatene under kan flyttes manuelt over til riktig Visma-kundenummer.</div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div>
           <p class="sec-title">Kontaktinfo</p>
-          <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktperson/e-post/telefon legges inn manuelt etter hvert som dere får det fra selskapet.</div>
+          <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet?'Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig.':'Adressen er hentet fra Brønnøysundregisteret.'} Kontaktpersoner legges inn i «👥 Kontaktpersoner» over.</div>
           <div class="tbl-wrap" style="margin-bottom:0">
             <table><tbody>
               ${!k.orgNr&&salgTilgang?`<tr><td class="muted" style="width:160px">Org.nr</td><td>
@@ -7344,11 +7579,7 @@ function renderProspektKundeKort(k){
                 <span class="hint" style="margin:0">Legg inn når selskapet har fått org.nr</span></div>
                 <div id="prospekt-orgnr-forhand" style="margin-top:8px"></div></td></tr>`:''}
               <tr><td class="muted" style="width:160px">Adresse${k.manueltOpprettet?'':' (Brreg)'}</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
-              <tr><td class="muted">Kontaktperson</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-navn" value="${(k.kontaktNavn||'').replace(/"/g,'&quot;')}" placeholder="Navn" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktNavn||'—')}</td></tr>
-              <tr><td class="muted">E-post</td><td>${salgTilgang?`<input type="email" id="prospekt-kontakt-epost" value="${(k.kontaktEpost||'').replace(/"/g,'&quot;')}" placeholder="navn@firma.no" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktEpost||'—')}</td></tr>
-              <tr><td class="muted">Telefon</td><td>${salgTilgang?`<input type="text" id="prospekt-kontakt-telefon" value="${(k.kontaktTelefon||'').replace(/"/g,'&quot;')}" placeholder="12345678" style="width:100%;max-width:280px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"/>`:(k.kontaktTelefon||'—')}</td></tr>
             </tbody></table>
-            ${salgTilgang?`<div style="padding:10px 14px;border-top:1px solid #f3f4f6"><button class="btn-sm" onclick="lagreProspektKontaktinfo('${k.nyetableringId}')">💾 Lagre kontaktinfo</button></div>`:''}
           </div>
         </div>
         <div>
@@ -7584,6 +7815,7 @@ async function lagreNyKunde(){
     const r=await spCreate('Nyetableringer',felter);
     const nyRad={id:`sp${r.id}`,spId:r.id,orgNr:orgnr,tittel:navn,naeringskode:'',naeringsBeskrivelse:'',selskapsform:'',selskapsformBeskrivelse:'',kommune:'',adresse:felter.Adresse,postnummer:felter.Postnummer,poststed:felter.Poststed,registreringsDato:'',status:'Overført',kontaktNavn:felter.KontaktpersonNavn,kontaktEpost:felter.KontaktEpost,kontaktTelefon:felter.KontaktTelefon,prioritetScore:null,prioritetBegrunnelse:'',logg:[]};
     nyetableringer.push(nyRad);
+    await kontaktFraRegistrering(prospektKundenummer(nyRad),navn,felter); // v1.48.224
     setSPStatus('✅ Opprettet');setTimeout(()=>setSPStatus(''),3000);
     closeNyKundeModal();
     const kunde=hentProspektKunder().find(k=>k.nyetableringId===nyRad.id);
@@ -8849,6 +9081,7 @@ async function opprettLeadKunde(v){
       await spUpdate('Nyetableringer',n.spId,felter);
       n.status='Overført';
     }
+    await kontaktFraRegistrering(prospektKundenummer(n),n.tittel||v.navn,kontakt); // v1.48.224
     return{kNr:prospektKundenummer(n),navn:n.tittel||v.navn};
   }
   // brreg / manuell — samme felter og mekanisme som lagreNyKunde().
@@ -8863,6 +9096,7 @@ async function opprettLeadKunde(v){
   const r=await spCreate('Nyetableringer',felter);
   const nyRad={id:`sp${r.id}`,spId:r.id,orgNr:orgnr,tittel:v.navn,naeringskode:'',naeringsBeskrivelse:'',selskapsform:'',selskapsformBeskrivelse:'',kommune:'',adresse:felter.Adresse,postnummer:felter.Postnummer,poststed:felter.Poststed,registreringsDato:'',status:'Overført',kontaktNavn:kontakt.KontaktpersonNavn,kontaktEpost:kontakt.KontaktEpost,kontaktTelefon:kontakt.KontaktTelefon,prioritetScore:null,prioritetBegrunnelse:'',logg:[]};
   nyetableringer.push(nyRad);
+  await kontaktFraRegistrering(prospektKundenummer(nyRad),v.navn,kontakt); // v1.48.224
   return{kNr:prospektKundenummer(nyRad),navn:v.navn};
 }
 
@@ -11029,6 +11263,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.224',dato:'07.10.2026',punkter:[
+    'Kundekortet har fått «👥 Kontaktpersoner»: legg inn flere kontakter per kunde (navn, rolle, mobil, e-post, notat), med ring, SMS og e-post per person.',
+    '⭐ Hovedkontakt: har kunden bare én kontakt, er den automatisk hovedkontakt. Med flere kontakter klikker du på ⭐ for å velge. Kontaktpersonen fra Visma vises også i lista.',
+    '«Tidligere ansatt» skjuler en kontakt uten å slette den. Var det hovedkontakten, går ⭐ videre til neste kontakt, eller du blir spurt om hvem hvis det er flere.',
+    'Kontakten du skriver inn på «➕ Nytt lead» eller «Ny kunde» lagres nå som første kontaktperson, og onboarding henter hovedkontakten automatisk.'
+  ]},
   {versjon:'v1.48.223',dato:'07.10.2026',punkter:[
     'Fakturaoppfølging: ny knapp «Ikke inkasso» ved inkasso-varselet, for saker som er trukket fra Amili eller aldri ble sendt. Velg grunn, så forsvinner varselet og grunnen lagres i loggen.'
   ]},
@@ -19101,9 +19341,11 @@ function apneOnbStart(ctx={}){
   renderOnbStartSalgssak();
   document.getElementById('onbs-sok').value=(kunde?.navn||sak?.kundeNavn||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
   document.getElementById('onbs-sonr').value='';
-  document.getElementById('onbs-kontakt').value=kunde?.kontaktNavn||'';
-  document.getElementById('onbs-telefon').value=kunde?.kontaktTelefon||'';
-  document.getElementById('onbs-epost').value=kunde?.kontaktEpost||'';
+  // v1.48.224: hovedkontakten (Kontaktpersoner, ellers Visma-/prospektkontakten) fylles inn automatisk.
+  {const hk=hovedkontaktFor(kunde);
+  document.getElementById('onbs-kontakt').value=hk?.navn||'';
+  document.getElementById('onbs-telefon').value=hk?.mobil||'';
+  document.getElementById('onbs-epost').value=hk?.epost||'';}
   document.getElementById('onbs-dato').value='';
   document.getElementById('onbs-notat').value='';
   {const pr=document.getElementById('onbs-prioritert');if(pr)pr.checked=false;}
@@ -19168,9 +19410,10 @@ function onbStartSettKunde(k){
   document.getElementById('onbs-kunde').value=k.navn;
   document.getElementById('onbs-kunde-forslag').style.display='none';
   document.getElementById('onbs-kunde-info').textContent=onbKundeInfoTekst(k);
-  if(!document.getElementById('onbs-kontakt').value)document.getElementById('onbs-kontakt').value=k.kontaktNavn||'';
-  if(!document.getElementById('onbs-telefon').value)document.getElementById('onbs-telefon').value=k.kontaktTelefon||'';
-  if(!document.getElementById('onbs-epost').value)document.getElementById('onbs-epost').value=k.kontaktEpost||'';
+  {const hk=hovedkontaktFor(k); // v1.48.224
+  if(!document.getElementById('onbs-kontakt').value)document.getElementById('onbs-kontakt').value=hk?.navn||'';
+  if(!document.getElementById('onbs-telefon').value)document.getElementById('onbs-telefon').value=hk?.mobil||'';
+  if(!document.getElementById('onbs-epost').value)document.getElementById('onbs-epost').value=hk?.epost||'';}
   document.getElementById('onbs-sok').value=(k.navn||'').replace(/\s+(AS|ASA|ANS|DA|ENK)$/i,'');
   renderOnbStartSalgssak();
   onbSokSalgsordre();

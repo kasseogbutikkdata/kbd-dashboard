@@ -4,7 +4,7 @@
 // Strategi: nettverk først for selve siden (nye versjoner kommer med en gang
 // man er på nett), cache som reserve uten nett. Graph/SharePoint-data og
 // innlogging caches ALDRI her.
-const CACHE='kbd-cc-mobil-v2';
+const CACHE='kbd-cc-mobil-v3';
 const SKALL=['mobil.html','mobil.webmanifest','mobil-ikon-192.png','mobil-ikon-180.png','mobil-logo-hvit.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SKALL)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n.startsWith('kbd-cc-mobil-')&&n!==CACHE).map(n=>caches.delete(n)))).then(()=>self.clients.claim()));});

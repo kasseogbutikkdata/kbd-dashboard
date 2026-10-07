@@ -131,7 +131,7 @@ a{color:var(--bla)}
 <script>
 'use strict';
 // ===================== KONFIGURASJON (samme som dashbordet) =====================
-const MOBIL_VERSJON='1.0';
+const MOBIL_VERSJON='1.1';
 const CLIENT_ID="b0ff1861-62de-4ecc-8a13-fd463cb5af45";
 const TENANT_ID="c5f9c7ae-f91d-40e1-bbac-303409fa7a8d";
 const SP_SITE="kbd1.sharepoint.com:/sites/KBDDashboard";
@@ -160,7 +160,7 @@ const SAK_FIL_BILDE=/^image\/(png|jpe?g|gif|webp|bmp|heic|heif)$/i;
 
 // ===================== TILSTAND =====================
 let msalI=null,konto=null,siteId=null,rolle=null,salgTilgang=false;
-let vismaKunder=[],nyetableringer=[],kundeNotater=[],brukere=[];
+let vismaKunder=[],nyetableringer=[],kundeNotater=[],brukere=[],kontaktPersoner=[],kontaktListeFinnes=true;
 let sistLastet=null,lasterData=false;
 const bildeCache={};
 
@@ -333,15 +333,17 @@ function mapVisma(i){const f=i.fields||{};return{vismaNummer:String(f.VismaNumme
 function mapNye(i){const f=i.fields||{};return{id:`sp${i.id}`,spId:i.id,orgNr:f.OrgNr||'',tittel:f.Title||'',kommune:f.Kommune||'',adresse:f.Adresse||'',postnummer:f.Postnummer||'',poststed:f.Poststed||'',registreringsDato:f.RegistreringsDato||'',status:f.Status||'Ikke kontaktet',kontaktNavn:f.KontaktpersonNavn||'',kontaktEpost:f.KontaktEpost||'',kontaktTelefon:f.KontaktTelefon||''};}
 async function lastData(){
   lasterData=true;
-  const [vk,kn,ny,br]=await Promise.all([
+  const [vk,kn,ny,br,kp]=await Promise.all([
     spItems('VismaKunder','VismaNummer,Title,OrgNr,Status,Adresse,Postnr,Sted,KontaktpersonNavn,KontaktEpost,KontaktTelefon,SaldoForfalt').catch(()=>[]),
     spItems('KundeNotater'),
     spItems('Nyetableringer','OrgNr,Title,Kommune,Adresse,Postnummer,Poststed,RegistreringsDato,Status,KontaktpersonNavn,KontaktEpost,KontaktTelefon').catch(()=>[]),
-    spItems('Brukere').catch(()=>[])
+    spItems('Brukere').catch(()=>[]),
+    spItems('Kontaktpersoner').then(r=>{kontaktListeFinnes=true;return r;}).catch(()=>{kontaktListeFinnes=false;return[];})
   ]);
   vismaKunder=vk.map(mapVisma);
   kundeNotater=kn.map(mapNotat);
   nyetableringer=ny.map(mapNye);
+  kontaktPersoner=kp.map(mapKontakt);
   brukere=br.map(i=>{let t={};try{t=JSON.parse(i.fields.Tilgang||'{}');}catch{}return{navn:i.fields.Title||'',epost:i.fields.Epost||'',azureId:i.fields.AzureId||'',tilgang:t};});
   if(rolle==='admin')salgTilgang=true;
   else{const me=brukere.find(b=>(b.epost||'').toLowerCase()===brukerEpost().toLowerCase()||b.azureId===konto?.localAccountId);salgTilgang=me?.tilgang?.salg===true;}
@@ -481,13 +483,106 @@ function hjemSok(){
 }
 
 // ===================== KUNDE =====================
+// ===================== KONTAKTPERSONER (mobil v1.1 = dashbord v1.48.224) =====================
+// Samme liste og samme regler som dashbordet (se KONTAKTPERSONER-seksjonen i
+// KBD_Inntektsoversikt.html): egen liste «Kontaktpersoner», koblet på KundeNr
+// via samKnr(). Basiskontakten (Visma/prospekt) vises merket med kilde.
+// Hovedkontakt: Hovedkontakt=Ja → ellers basiskontakten → ellers eldste aktive.
+function mapKontakt(i){const f=i.fields||{};return{id:`sp${i.id}`,spId:i.id,kundeNr:String(f.KundeNr||'').trim(),kundeNavn:f.KundeNavn||'',navn:f.Title||'',rolle:f.Rolle||'',mobil:f.Mobil||'',epost:f.Epost||'',notat:f.Notat||'',hoved:f.Hovedkontakt===true,tidligere:f.TidligereAnsatt===true,opprettetDato:f.OpprettetDato||i.createdDateTime||''};}
+function kpTlf(t){const d=String(t||'').replace(/[^0-9]/g,'');return d.length>8?d.slice(-8):d;}
+function kpLik(a,b){const n=x=>String(x||'').trim().toLowerCase();return (n(a.navn)&&n(a.navn)===n(b.navn))||(kpTlf(a.mobil)&&kpTlf(a.mobil)===kpTlf(b.mobil))||(n(a.epost)&&n(a.epost)===n(b.epost));}
+function kontakterForKunde(k){return k?kontaktPersoner.filter(c=>samKnr(c.kundeNr,k.vismaNummer)).sort((a,b)=>new Date(a.opprettetDato||0)-new Date(b.opprettetDato||0)):[];}
+function kontaktBase(k){
+  if(!k||!(k.kontaktNavn||k.kontaktTelefon||k.kontaktEpost))return null;
+  const b={id:'base',base:true,navn:k.kontaktNavn||'',rolle:'',mobil:k.kontaktTelefon||'',epost:k.kontaktEpost||'',kilde:k.erProspekt?'registrert på prospektet':'fra Visma'};
+  return kontakterForKunde(k).some(c=>kpLik(c,b))?null:b;
+}
+function hovedkontaktFor(k){const a=kontakterForKunde(k).filter(c=>!c.tidligere);return a.find(c=>c.hoved)||kontaktBase(k)||a[0]||null;}
+function erHk(k,c){const h=hovedkontaktFor(k);return !!(h&&(h===c||(h.id===c.id&&c.id!=='base')||(c.base&&h.base)));}
 function kontaktKnapper(k){
-  const tlf=telLenke(k.kontaktTelefon);
+  const h=hovedkontaktFor(k)||{};const tlf=telLenke(h.mobil);
   return `<div class="kontaktknapper">
     ${tlf?`<a href="tel:${tlf}"><b>📞</b>Ring</a><a href="sms:${tlf}"><b>💬</b>SMS</a>`:'<span><b>📞</b>Ingen tlf</span><span><b>💬</b>SMS</span>'}
-    ${k.kontaktEpost?`<a href="mailto:${esc(k.kontaktEpost)}"><b>✉️</b>E-post</a>`:'<span><b>✉️</b>E-post</span>'}
+    ${h.epost?`<a href="mailto:${esc(h.epost)}"><b>✉️</b>E-post</a>`:'<span><b>✉️</b>E-post</span>'}
   </div>`;
 }
+function kontaktListeHtml(k){
+  const egne=kontakterForKunde(k);const base=kontaktBase(k);
+  const aktive=[...(base?[base]:[]),...egne.filter(c=>!c.tidligere)].sort((a,b)=>erHk(k,b)-erHk(k,a));
+  const tidl=egne.filter(c=>c.tidligere);
+  const kort=c=>{const tlf=telLenke(c.mobil);const hk=erHk(k,c)&&!c.tidligere;
+    return `<div class="kort" style="padding:10px 12px${c.tidligere?';opacity:.6':''}">
+      <div class="rad"><div style="flex:1;min-width:0" ${salgTilgang&&kontaktListeFinnes?`onclick="apneKontaktArk('${esc(k.vismaNummer)}','${c.id}')"`:''}>
+        <div style="font-weight:650">${hk?'⭐ ':''}${esc(c.navn)||'(uten navn)'}</div>
+        <div class="liten">${[c.rolle,c.base?c.kilde:'',c.tidligere?'tidligere ansatt':''].filter(Boolean).map(esc).join(' · ')||'&nbsp;'}</div>
+        ${c.notat?`<div class="liten" style="white-space:pre-wrap">${esc(c.notat)}</div>`:''}
+      </div>
+      ${tlf?`<a class="brikke" href="tel:${tlf}" aria-label="Ring">📞</a><a class="brikke" href="sms:${tlf}" aria-label="SMS">💬</a>`:''}
+      ${c.epost?`<a class="brikke" href="mailto:${esc(c.epost)}" aria-label="E-post">✉️</a>`:''}</div></div>`;};
+  return `<div class="seksjon"><h2>👥 Kontaktpersoner</h2><span class="teller">${aktive.length}</span>${salgTilgang&&kontaktListeFinnes?`<button class="brikke" onclick="apneKontaktArk('${esc(k.vismaNummer)}','')">＋ Ny</button>`:''}</div>
+    ${aktive.map(kort).join('')||`<div class="tom">${kontaktListeFinnes?'Ingen kontaktpersoner ennå.':'Kontaktpersoner-lista finnes ikke i SharePoint ennå.'}</div>`}
+    ${tidl.length?`<details><summary class="liten" style="margin:4px 0 8px">Tidligere ansatte (${tidl.length})</summary>${tidl.map(kort).join('')}</details>`:''}`;
+}
+async function kpFlagg(c,v){c.hoved=v;await spUpdate('Kontaktpersoner',c.spId,{Hovedkontakt:v});}
+async function kpFjernAndre(k,unntak){for(const c of kontakterForKunde(k).filter(x=>x.hoved&&x.id!==unntak))await kpFlagg(c,false);}
+function apneKontaktArk(kNr,id){
+  const k=finnKunde(kNr);if(!k)return;
+  const c=id==='base'?kontaktBase(k):(id?kontaktPersoner.find(x=>x.id===id):null);
+  const ny=!id||id==='base';const hk=hovedkontaktFor(k);
+  const hovedNa=c?erHk(k,c):!hk;
+  ark(`<h3>${ny?(id==='base'?'👤 Lagre som egen kontakt':'👤 Ny kontaktperson'):'👤 Rediger kontakt'}</h3>
+    <div class="felt"><label>Navn <span class="oblig">*</span></label><input id="kp-navn" value="${esc(c?.navn||'')}" autocomplete="name"></div>
+    <div class="felt"><label>Rolle / tittel</label><input id="kp-rolle" list="kp-roller" value="${esc(c?.rolle||'')}" placeholder="F.eks. Daglig leder"><datalist id="kp-roller">${['Daglig leder','Innehaver','Butikksjef','IT / teknisk','Økonomi / faktura','Kontaktperson'].map(r=>`<option>${r}</option>`).join('')}</datalist></div>
+    <div class="knapperad"><div class="felt"><label>Mobil</label><input id="kp-mobil" type="tel" inputmode="tel" value="${esc(c?.mobil||'')}"></div><div class="felt"><label>E-post</label><input id="kp-epost" type="email" inputmode="email" value="${esc(c?.epost||'')}"></div></div>
+    <div class="felt"><label>Notat</label><input id="kp-notat" value="${esc(c?.notat||'')}"></div>
+    <label class="felt" style="display:flex;gap:8px;align-items:center;font-size:15px"><input type="checkbox" id="kp-hoved" ${hovedNa?'checked':''} style="width:20px;height:20px"> ⭐ Hovedkontakt</label>
+    ${ny?'':`<label class="felt" style="display:flex;gap:8px;align-items:center;font-size:15px"><input type="checkbox" id="kp-tidligere" ${c?.tidligere?'checked':''} style="width:20px;height:20px"> Tidligere ansatt</label>`}
+    <div class="knapperad"><button class="knapp sekundar" onclick="lukkArk()">Avbryt</button><button class="knapp" id="kp-ok">Lagre</button></div>`);
+  $('kp-ok').onclick=()=>lagreKontaktMobil(k,c&&!c.base?c:null);
+}
+async function lagreKontaktMobil(k,eks){
+  const navn=($('kp-navn').value||'').trim();if(!navn){toast('Skriv navnet',true);return;}
+  const epost=($('kp-epost').value||'').trim();if(epost&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(epost)){toast('E-postadressen ser ikke gyldig ut',true);return;}
+  const tidligere=!!$('kp-tidligere')?.checked;const vilHoved=$('kp-hoved').checked&&!tidligere;
+  const varHoved=eks?erHk(k,eks):false;
+  const felter={Title:navn,KundeNr:k.vismaNummer,KundeNavn:k.navn||'',Rolle:($('kp-rolle').value||'').trim(),Mobil:($('kp-mobil').value||'').trim(),Epost:epost,Notat:($('kp-notat').value||'').trim(),Hovedkontakt:vilHoved,TidligereAnsatt:tidligere};
+  $('kp-ok').disabled=true;
+  try{
+    if(vilHoved)await kpFjernAndre(k,eks?.id);
+    if(eks){await spUpdate('Kontaktpersoner',eks.spId,felter);Object.assign(eks,{navn,rolle:felter.Rolle,mobil:felter.Mobil,epost,notat:felter.Notat,hoved:vilHoved,tidligere});}
+    else{
+      if(!vilHoved&&!hovedkontaktFor(k))felter.Hovedkontakt=true;
+      Object.assign(felter,{OpprettetAv:brukerNavn(),OpprettetDato:new Date().toISOString()});
+      const r=await spCreate('Kontaktpersoner',felter);kontaktPersoner.push(mapKontakt({id:r.id,fields:felter}));
+    }
+    lukkArk();toast('✅ Kontakt lagret');
+    if(varHoved&&!vilHoved)await kpEtterfolgerMobil(k);
+    tegn();
+  }catch(e){$('kp-ok').disabled=false;toast('❌ Ikke lagret: '+e.message,true);}
+}
+async function kpEtterfolgerMobil(k){
+  const aktive=kontakterForKunde(k).filter(c=>!c.tidligere);if(aktive.some(c=>c.hoved))return;
+  const base=kontaktBase(k);const kand=[...(base?[base]:[]),...aktive];
+  if(kand.length<=1){if(kand[0]&&!kand[0].base){try{await kpFlagg(kand[0],true);}catch(e){}}return;}
+  await new Promise(res=>{
+    ark(`<h3>⭐ Hvem er ny hovedkontakt?</h3><p class="liten" style="margin-top:-6px">Hentes automatisk til onboarding.</p>
+      ${kand.map((c,i)=>`<label class="kort" style="display:flex;gap:10px;align-items:center"><input type="radio" name="kph" value="${c.id}" ${i?'':'checked'} style="width:20px;height:20px"><span><b>${esc(c.navn)}</b>${c.rolle?' · '+esc(c.rolle):''}${c.base?` <span class="liten">· ${esc(c.kilde)}</span>`:''}</span></label>`).join('')}
+      <button class="knapp bred" id="kph-ok">Lagre</button>`);
+    $('kph-ok').onclick=async()=>{const id=document.querySelector('input[name="kph"]:checked')?.value;lukkArk();
+      try{if(id==='base')await kpFjernAndre(k,null);else{const c=kontaktPersoner.find(x=>x.id===id);if(c){await kpFjernAndre(k,c.id);await kpFlagg(c,true);}}}catch(e){toast('❌ '+e.message,true);}
+      res();};
+  });
+}
+async function kontaktFraRegistrering(kNr,kundeNavn,kontakt){
+  const navn=(kontakt.KontaktpersonNavn||'').trim(),mobil=(kontakt.KontaktTelefon||'').trim(),epost=(kontakt.KontaktEpost||'').trim();
+  if((!navn&&!mobil&&!epost)||!kontaktListeFinnes)return;
+  const ny={navn:navn||epost||mobil,mobil,epost};
+  if(kontaktPersoner.some(c=>samKnr(c.kundeNr,kNr)&&kpLik(c,ny)))return;
+  const harHoved=kontaktPersoner.some(c=>samKnr(c.kundeNr,kNr)&&c.hoved&&!c.tidligere);
+  const felter={Title:ny.navn,KundeNr:kNr,KundeNavn:kundeNavn||'',Rolle:'',Mobil:mobil,Epost:epost,Notat:'',Hovedkontakt:!harHoved,TidligereAnsatt:false,OpprettetAv:brukerNavn(),OpprettetDato:new Date().toISOString()};
+  try{const r=await spCreate('Kontaktpersoner',felter);kontaktPersoner.push(mapKontakt({id:r.id,fields:felter}));}catch(e){console.warn('Kontaktperson ble ikke lagret',e);}
+}
+
 function tegnKunde(kNr){
   const k=finnKunde(kNr);
   if(!k){$('rot').innerHTML=topp('Kunde',tilbakeKnapp)+'<div class="innhold"><div class="tom">Fant ikke kunden. Prøv ⟳ Oppdater på forsiden.</div></div>';return;}
@@ -498,9 +593,10 @@ function tegnKunde(kNr){
     <div class="kort">
       <div class="meta" style="margin-top:0">${k.erProspekt?`<span class="merke idag">${esc(k.status)}</span>`:`<span class="merke">Kundenr ${esc(k.vismaNummer)}</span>`}${k.orgNr?`<span>Org.nr ${esc(k.orgNr)}</span>`:''}${k.saldoForfalt>0?`<span class="merke forfalt">Forfalt ${fmtKr(k.saldoForfalt)}</span>`:''}</div>
       ${adr?`<div style="margin-top:8px;font-size:14.5px">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(adr)}" target="_blank" rel="noopener">${esc(adr)}</a></div>`:''}
-      ${k.kontaktNavn||k.kontaktTelefon?`<div style="margin-top:6px;font-size:14.5px">👤 ${esc(k.kontaktNavn||'Kontakt')}${k.kontaktTelefon?' · '+esc(k.kontaktTelefon):''}</div>`:''}
+      ${(()=>{const h=hovedkontaktFor(k);return h?`<div style="margin-top:6px;font-size:14.5px">⭐ ${esc(h.navn||'Kontakt')}${h.rolle?' · '+esc(h.rolle):''}${h.mobil?' · '+esc(h.mobil):''}</div>`:'';})()}
       ${kontaktKnapper(k)}
     </div>
+    ${kontaktListeHtml(k)}
     ${salgTilgang?`<button class="knapp bred" style="margin-top:4px" onclick="gå('#/nytt/${encodeURIComponent(k.vismaNummer)}')">➕ Ny salgsmulighet på kunden</button>`:''}
     <div class="seksjon"><h2>Åpne saker</h2><span class="teller">${apne.length}</span></div>
     ${apne.map(n=>sakKort(n,false)).join('')||'<div class="tom">Ingen åpne saker.</div>'}
@@ -882,6 +978,7 @@ async function opprettLeadKunde(v){
       await spUpdate('Nyetableringer',n.spId,felter);
       n.status='Overført';_alias.sig='';
     }
+    await kontaktFraRegistrering(prospektKundenummer(n),n.tittel||v.navn,kontakt);
     return{kNr:prospektKundenummer(n),navn:n.tittel||v.navn};
   }
   const orgnr=normOrgNr(v.orgNr);
@@ -890,6 +987,7 @@ async function opprettLeadKunde(v){
   const r=await spCreate('Nyetableringer',felter);
   const rad={id:`sp${r.id}`,spId:r.id,orgNr:orgnr,tittel:v.navn,kommune:'',adresse:felter.Adresse,postnummer:felter.Postnummer,poststed:felter.Poststed,registreringsDato:'',status:'Overført',kontaktNavn:kontakt.KontaktpersonNavn,kontaktEpost:kontakt.KontaktEpost,kontaktTelefon:kontakt.KontaktTelefon};
   nyetableringer.push(rad);_alias.sig='';
+  await kontaktFraRegistrering(prospektKundenummer(rad),v.navn,kontakt);
   return{kNr:prospektKundenummer(rad),navn:v.navn};
 }
 function notatFelter(n){
