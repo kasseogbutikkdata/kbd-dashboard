@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.215 · Oppdatert: 6. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.216 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11029,6 +11029,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.216',dato:'07.10.2026',punkter:[
+    'Fakturaoppfølging: klikk hvor som helst på en rad for å åpne kunden med alle fakturaene og loggen. Klikk igjen for å lukke. Telefon og e-post virker som før.'
+  ]},
   {versjon:'v1.48.215',dato:'06.10.2026',punkter:[
     'Fakturaoppfølging: spørsmålet «Sendte du e-posten?» vises nå midt på skjermen i stedet for nede i hjørnet.'
   ]},
@@ -13647,7 +13650,7 @@ function foMailHref(rad){
 }
 function foKontaktHtml(rad){
   const esc=s=>String(s||'').replace(/</g,'&lt;');
-  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon?`<div><a href="${foTelHref(rad.kontaktTelefon)}" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>`:''}${rad.kontaktEpost?`<div><a href="${foMailHref(rad)}" onclick="foEpostKlikk('${String(rad.key).replace(/'/g,"\\'")}')" style="color:#2563eb;text-decoration:none" title="Skriv e-post med ferdig tekst">✉️ ${esc(rad.kontaktEpost)}</a></div>`:''}`;
+  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon?`<div><a href="${foTelHref(rad.kontaktTelefon)}" onclick="event.stopPropagation()" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>`:''}${rad.kontaktEpost?`<div><a href="${foMailHref(rad)}" onclick="event.stopPropagation();foEpostKlikk('${String(rad.key).replace(/'/g,"\\'")}')" style="color:#2563eb;text-decoration:none" title="Skriv e-post med ferdig tekst">✉️ ${esc(rad.kontaktEpost)}</a></div>`:''}`;
 }
 
 // v1.48.213: etter klikk på e-postadressen spør KBD CC om e-posten ble sendt.
@@ -13844,7 +13847,9 @@ function renderFakturaoppfolging(){
       const sisteSms=smsFs.map(f=>foSisteSms(f.fakturanr)).filter(Boolean).sort((a,b)=>new Date(b.dato||0)-new Date(a.dato||0))[0];
       const statuser=[...new Set(r.fs.map(f=>f.status))];
       const nesteForfalt=r.nesteOppfolging&&parseLD(r.nesteOppfolging)<=foIdag();
-      const radStil=apen?' style="background:#eef2ff"':'';
+      // v1.48.216: hele raden åpner/lukker loggpanelet (ikke bare Logg-knappen).
+      // Lenker (tel/mailto) og knappen stopper klikket så det ikke dobbelttelles.
+      const radStil=` style="cursor:pointer${apen?';background:#eef2ff':''}" onclick="toggleFoDetalj('${r.key.replace(/'/g,"\\'")}')"${apen?'':` onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''"`}`;
       const forsteCelleStil=apen?' style="border-left:3px solid #1A3A6B"':'';
       const rows=[`<tr${radStil}>
         <td${forsteCelleStil}>${r.kundenavn}<div style="font-size:11px;color:#9ca3af">Kundenr ${r.kundenr}</div></td>
@@ -13856,7 +13861,7 @@ function renderFakturaoppfolging(){
         <td class="tr">${r.score>0?Math.round(r.score).toLocaleString('nb-NO'):'—'}</td>
         <td>${statuser.map(foStatusBadge).join(' ')}${sisteSms?`<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Automatisk purring-SMS (fra Purring-SMS-loggen)">📱 SMS sendt ${sisteSms.dato?fDateShort(sisteSms.dato):''}</div>`:''}</td>
         <td><span${nesteForfalt?' style="color:#dc2626;font-weight:600"':''}>${r.nesteOppfolging?fDateShort(r.nesteOppfolging):'—'}</span>${r.eier?`<div style="font-size:11px;color:${r.eierType==='mine'?'#1A3A6B':'#9ca3af'}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g,'')}">👤 ${String(r.eier).split(' ')[0].replace(/</g,'&lt;')}</div>`:''}</td>
-        <td><button class="btn-sm" onclick="toggleFoDetalj('${r.key.replace(/'/g,"\\'")}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
+        <td><button class="btn-sm" onclick="event.stopPropagation();toggleFoDetalj('${r.key.replace(/'/g,"\\'")}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
       </tr>`];
       if(apen){
         rows.push(`<tr style="background:#eef2ff"><td colspan="10" style="border-left:3px solid #1A3A6B;padding:0">${renderFoDetaljPanel(r)}</td></tr>`);
