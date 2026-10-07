@@ -669,7 +669,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.218 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.219 · Oppdatert: 7. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3793,7 +3793,7 @@ async function loadDataFromSP(){
   lic=licItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',quarter:i.fields.Quarter||'',product:i.fields.Product||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   kick=kickItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',source:i.fields.Source||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   aging=agItems.map(i=>({id:`sp${i.id}`,spId:i.id,date:i.fields.Dato||'',d1_30:parseFloat(i.fields.D1_30)||0,d31_60:parseFloat(i.fields.D31_60)||0,d61_90:parseFloat(i.fields.D61_90)||0,d90plus:parseFloat(i.fields.D90plus)||0,note:i.fields.Note||''}));
-  fakturaoppfolging=foItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturanr:i.fields.Title||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',status:i.fields.Status||'Ikke kontaktet',belop:parseFloat(i.fields.Belop)||0,utestaende:parseFloat(i.fields.UtestaendeBelop)||0,forfallsdato:i.fields.FakturaForfallsdato||'',betaltDato:i.fields.BetaltDato||'',nesteOppfolging:i.fields.NesteOppfolging||'',notatImportert:i.fields.VismaNotatImportert||'',sistSynket:i.fields.SistSynket||''}));
+  fakturaoppfolging=foItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturanr:i.fields.Title||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',status:i.fields.Status||'Ikke kontaktet',belop:parseFloat(i.fields.Belop)||0,utestaende:parseFloat(i.fields.UtestaendeBelop)||0,forfallsdato:i.fields.FakturaForfallsdato||'',betaltDato:i.fields.BetaltDato||'',nesteOppfolging:i.fields.NesteOppfolging||'',notatImportert:i.fields.VismaNotatImportert||'',sistSynket:i.fields.SistSynket||'',inkassoSaksnr:i.fields.InkassoSaksnr||''}));
   fakturaoppfolgingLogg=folItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturanr:i.fields.Fakturanummer||'',skrevetAv:i.fields.SkrevetAv||'',type:i.fields.HenvendelseType||'',kilde:i.fields.Kilde||'',dato:i.fields.Dato||'',kommentar:i.fields.Kommentar||''}));
   foLastInnstillinger(); // v1.48.207: terskler for arbeidslisten (feiler stille hvis lista mangler)
   omsetning=omsItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
@@ -11029,6 +11029,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.219',dato:'07.10.2026',punkter:[
+    'Fakturaoppfølging: når status er «Sendt til inkasso», kan du legge inn saksnummeret fra Amili. Det vises som lenke «🏛️ Amili 3578829 ↗» som åpner saken i Amili-portalen.',
+    '«Sett «Sendt til inkasso»» spør om Amili saksnr (valgfritt).'
+  ]},
   {versjon:'v1.48.218',dato:'07.10.2026',punkter:[
     'Fakturaoppfølging: ny «📄 Faktura-PDF» i loggpanelet. Klikk på fakturanummeret for å laste ned fakturaen fra Visma som PDF, så du kan legge den ved e-posten til kunden.'
   ]},
@@ -13729,16 +13733,28 @@ function setFoInkassoFilter(v){foInkassoFilter=!!v;foApenRad=null;if(v){foVisnin
 async function foKjorPorsjonsvis(oppgaver,str=4){
   for(let i=0;i<oppgaver.length;i+=str){await Promise.all(oppgaver.slice(i,i+str).map(fn=>fn()));}
 }
-function foInkassoOppgaver(fakturaer){
+// v1.48.219: Amili-saksnr på fakturaer sendt til inkasso (kolonnen InkassoSaksnr
+// på Fakturaoppfolging, Én linje med tekst). Lenke til portal.amili.no/cases/<nr>.
+function foAmiliLenke(nr){const n=String(nr||'').replace(/[^0-9]/g,'');return n?`<a href="https://portal.amili.no/cases/${n}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#7c3aed;text-decoration:none" title="Åpne saken i Amili">🏛️ Amili ${n} ↗</a>`:'';}
+function foGyldigAmili(v){return v===''||/^\d{3,12}$/.test(v);}
+function foSporAmili(){
+  const v=prompt('Amili saksnr (valgfritt, la stå tomt hvis du ikke har det ennå):','');
+  if(v===null)return null; // avbrutt
+  const t=v.trim();
+  if(!foGyldigAmili(t)){alert('Saksnr må være bare tall, f.eks. 3578829.');return null;}
+  return t;
+}
+
+function foInkassoOppgaver(fakturaer,saksnr=''){
   const skrevetAv=currentUser?.name||currentUser?.username||'Ukjent';
   const naa=new Date().toISOString();
-  const kommentar='Status satt til «Sendt til inkasso» (Visma-notatet nevner inkasso/namsmann).';
+  const kommentar='Status satt til «Sendt til inkasso» (Visma-notatet nevner inkasso/namsmann).'+(saksnr?` Amili saksnr ${saksnr}.`:'');
   const oppg=[];
   fakturaer.forEach(f=>{
-    f.status='Sendt til inkasso';
+    f.status='Sendt til inkasso';if(saksnr)f.inkassoSaksnr=saksnr;
     const rad={id:`temp${uid()}`,fakturanr:f.fakturanr,skrevetAv,type:'Annet',kilde:'KBD CC',dato:naa,kommentar};
     fakturaoppfolgingLogg.push(rad);
-    if(f.spId)oppg.push(()=>spUpdate('Fakturaoppfolging',f.spId,{Status:'Sendt til inkasso'}));
+    if(f.spId)oppg.push(()=>spUpdate('Fakturaoppfolging',f.spId,saksnr?{Status:'Sendt til inkasso',InkassoSaksnr:saksnr}:{Status:'Sendt til inkasso'}));
     oppg.push(()=>spCreate('FakturaoppfolgingLogg',{Fakturanummer:f.fakturanr,SkrevetAv:skrevetAv,HenvendelseType:'Annet',Kilde:'KBD CC',Dato:naa,Kommentar:kommentar}).then(r=>{rad.id=`sp${r.id}`;rad.spId=r.id;}));
   });
   return oppg;
@@ -13747,7 +13763,8 @@ function foInkassoOppgaver(fakturaer){
 function foSettInkasso(key){
   const fs=foFsForKey(key).filter(foNevnerInkasso);
   if(!fs.length)return;
-  const oppg=foInkassoOppgaver(fs);
+  const saksnr=foSporAmili();if(saksnr===null)return;
+  const oppg=foInkassoOppgaver(fs,saksnr);
   renderFakturaoppfolging();
   setSPStatus('⏳ Lagrer…');
   foKjorPorsjonsvis(oppg).then(()=>{setSPStatus('✅ Satt til «Sendt til inkasso»');setTimeout(()=>setSPStatus(''),3000);})
@@ -13964,7 +13981,7 @@ function renderFakturaoppfolging(){
         <td class="tr">${fF(r.utestaende)}</td>
         <td>${fDateShort(r.forfallsdato)}${flere?'<div style="font-size:10px;color:#9ca3af">eldste</div>':''}${r.dager>0?`<div style="color:#dc2626;font-size:11px">${r.dager} dager forfalt</div>`:''}${r.betaltDato?`<div style="color:#1baf7a;font-size:11px">✓ Betalt ${fDateShort(r.betaltDato)}</div>`:''}</td>
         <td class="tr">${r.score>0?Math.round(r.score).toLocaleString('nb-NO'):'—'}</td>
-        <td>${statuser.map(foStatusBadge).join(' ')}${(()=>{const sk=foSistKontakt(r.fs);return sk?`<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Siste kontakt (logg i KBD CC eller purring-SMS)">${foKontaktIkon(sk.type)} Sist kontakt ${fDateShort(sk.dato)}</div>`:'';})()}${r.fs.some(foNevnerInkasso)?'<div style="font-size:11px;color:#b45309;margin-top:2px" title="Visma-notatet nevner inkasso/namsmann">⚠️ Inkasso i Visma-notat</div>':''}</td>
+        <td>${statuser.map(foStatusBadge).join(' ')}${(()=>{const sk=foSistKontakt(r.fs);return sk?`<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Siste kontakt (logg i KBD CC eller purring-SMS)">${foKontaktIkon(sk.type)} Sist kontakt ${fDateShort(sk.dato)}</div>`:'';})()}${r.fs.some(foNevnerInkasso)?'<div style="font-size:11px;color:#b45309;margin-top:2px" title="Visma-notatet nevner inkasso/namsmann">⚠️ Inkasso i Visma-notat</div>':''}${[...new Set(r.fs.map(f=>f.inkassoSaksnr).filter(Boolean))].map(n=>`<div style="font-size:11px;margin-top:2px">${foAmiliLenke(n)}</div>`).join('')}</td>
         <td><span${nesteForfalt?' style="color:#dc2626;font-weight:600"':''}>${r.nesteOppfolging?fDateShort(r.nesteOppfolging):'—'}</span>${r.eier?`<div style="font-size:11px;color:${r.eierType==='mine'?'#1A3A6B':'#9ca3af'}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g,'')}">👤 ${String(r.eier).split(' ')[0].replace(/</g,'&lt;')}</div>`:''}</td>
         <td><button class="btn-sm" onclick="event.stopPropagation();toggleFoDetalj('${r.key.replace(/'/g,"\\'")}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
       </tr>`];
@@ -14023,7 +14040,7 @@ function renderFoDetaljPanel(r){
   const fakturaListe=flere?`
     <div style="margin-bottom:14px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;overflow:auto">
       <table style="width:100%;font-size:12px"><thead><tr><th>Faktura</th><th class="tr">Beløp</th><th class="tr">Utestående</th><th>Forfall</th><th>Status</th><th>Neste</th></tr></thead><tbody>
-      ${fs.map(f=>`<tr><td>${f.fakturanr}</td><td class="tr">${fF(f.belop||0)}</td><td class="tr">${fF(f.utestaende||0)}</td><td>${fDateShort(f.forfallsdato)}${foDagerForfalt(f)>0?` <span style="color:#dc2626">(${foDagerForfalt(f)} d)</span>`:''}</td><td>${foStatusBadge(f.status)}</td><td>${f.nesteOppfolging?fDateShort(f.nesteOppfolging):'—'}</td></tr>`).join('')}
+      ${fs.map(f=>`<tr><td>${f.fakturanr}</td><td class="tr">${fF(f.belop||0)}</td><td class="tr">${fF(f.utestaende||0)}</td><td>${fDateShort(f.forfallsdato)}${foDagerForfalt(f)>0?` <span style="color:#dc2626">(${foDagerForfalt(f)} d)</span>`:''}</td><td>${foStatusBadge(f.status)}${f.inkassoSaksnr?' '+foAmiliLenke(f.inkassoSaksnr):''}</td><td>${f.nesteOppfolging?fDateShort(f.nesteOppfolging):'—'}</td></tr>`).join('')}
       </tbody></table>
     </div>`:'';
 
@@ -14059,9 +14076,10 @@ function renderFoDetaljPanel(r){
         <div class="fgrp"><label>Type</label><select id="fo-type-${id}"><option>Telefon</option><option>E-post</option><option>SMS</option><option>Annet</option></select></div>
         <div class="fgrp"><label>Kommentar${flere?` <span style="font-weight:400;color:#6b7280">(lagres på alle ${fs.length} fakturaene)</span>`:''}</label><textarea id="fo-kommentar-${id}" rows="2" style="width:100%;font-family:inherit;font-size:14px;padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;resize:vertical"></textarea></div>
       </div>
-      <div class="fg" style="grid-template-columns:170px 170px 1fr;align-items:end">
-        <div class="fgrp"><label>Status</label><select id="fo-statusvalg-${id}">${FO_STATUSER.map(s=>`<option${s===fellesStatus?' selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="fg" style="grid-template-columns:170px 170px auto 1fr;align-items:end">
+        <div class="fgrp"><label>Status</label><select id="fo-statusvalg-${id}" onchange="const w=document.getElementById('fo-amili-wrap-${id}');if(w)w.style.display=this.value==='Sendt til inkasso'?'':'none'">${FO_STATUSER.map(s=>`<option${s===fellesStatus?' selected':''}>${s}</option>`).join('')}</select></div>
         <div class="fgrp"><label>Neste oppfølging</label><input type="date" id="fo-neste-${id}" value="${nesteVerdi}"/></div>
+        <div class="fgrp" id="fo-amili-wrap-${id}" style="${fellesStatus==='Sendt til inkasso'?'':'display:none'}"><label>Amili saksnr</label><input type="text" inputmode="numeric" id="fo-amili-${id}" value="${(fs.find(f=>f.inkassoSaksnr)||{}).inkassoSaksnr||''}" placeholder="f.eks. 3578829" style="width:140px"/></div>
         <div style="text-align:right"><span id="fo-hint-${id}" style="font-size:12px;color:#d97706;margin-right:10px"></span><button class="prim" onclick="lagreFoOppfolging('${key}')">💾 Lagre</button></div>
       </div>
     </div>`;
@@ -14111,7 +14129,7 @@ function lagreFoOppfolging(key,opts={}){
   const kommentarEl=document.getElementById(`fo-kommentar-${id}`);
   const statusEl=document.getElementById(`fo-statusvalg-${id}`);
   const nesteEl=document.getElementById(`fo-neste-${id}`);
-  const kommentar=(kommentarEl?.value||'').trim();
+  let kommentar=(kommentarEl?.value||'').trim();
   const fellesStatus=foFellesStatus(fs);
   const nyStatus=statusEl?statusEl.value:fellesStatus;
   const nesteRaw=nesteEl?nesteEl.value:'';
@@ -14122,7 +14140,14 @@ function lagreFoOppfolging(key,opts={}){
   const statusEndret=opts.tving||nyStatus!==fellesStatus;
   const nesteEndret=opts.tving||nesteRaw!==visteNesteRaw;
 
-  if(!kommentar&&!statusEndret&&!nesteEndret){alert('Ingen endringer å lagre.');return;}
+  // v1.48.219: Amili saksnr (bare når status er «Sendt til inkasso»)
+  const amiliEl=document.getElementById(`fo-amili-${id}`);
+  const amili=(nyStatus==='Sendt til inkasso'&&amiliEl)?amiliEl.value.trim():'';
+  if(!foGyldigAmili(amili)){alert('Amili saksnr må være bare tall, f.eks. 3578829.');amiliEl?.focus();return;}
+  const visteAmili=(fs.find(f=>f.inkassoSaksnr)||{}).inkassoSaksnr||'';
+  const amiliEndret=nyStatus==='Sendt til inkasso'&&amili!==visteAmili;
+  if(amiliEndret&&amili&&!kommentar)kommentar=`Sendt til inkasso, Amili saksnr ${amili}.`;
+  if(!kommentar&&!statusEndret&&!nesteEndret&&!amiliEndret){alert('Ingen endringer å lagre.');return;}
   if(nyStatus==='Lovet betaling'&&!nesteRaw){alert('Velg datoen kunden har lovet å betale (Neste oppfølging).');nesteEl?.focus();return;}
 
   setSPStatus('⏳ Lagrer…');
@@ -14139,6 +14164,7 @@ function lagreFoOppfolging(key,opts={}){
     const felt={};
     if(statusEndret&&f.status!==nyStatus){f.status=nyStatus;felt.Status=nyStatus;}
     if(nesteEndret&&(f.nesteOppfolging||'')!==nesteISO){f.nesteOppfolging=nesteISO;felt.NesteOppfolging=nesteISO||null;}
+    if(amiliEndret&&(f.inkassoSaksnr||'')!==amili){f.inkassoSaksnr=amili;felt.InkassoSaksnr=amili||null;}
     if(Object.keys(felt).length&&f.spId)oppgaver.push(spUpdate('Fakturaoppfolging',f.spId,felt));
   });
 
