@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.239 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.240 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11386,6 +11386,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.240',dato:'08.10.2026',punkter:[
+    'Lisenskontroll: kolonneoverskriftene i avvikslisten og i hele kontrollresultatet kan sorteres. Klikk på en overskrift for å sortere, og klikk igjen for å snu rekkefølgen (▲/▼). Tall sorteres størst først, tekst A–Å. «Siste notat» sorteres på datoen for siste notat.'
+  ]},
   {versjon:'v1.48.239',dato:'08.10.2026',punkter:[
     'Lisenskontroll, «+ Oppfølging»: skjemaet viser øverst hvilken kunde oppfølgingen lagres på, og hvordan kunden er funnet (kontrakten med BAX-en, eller samme organisasjonsnummer når kontrakt mangler). Er kunden bare funnet via orgnr, får du beskjed om å sjekke at det er riktig kunde. Tittelen har nå med brukersted og BAX, så det er tydelig på kundekortet og i varsel-e-posten hvilket brukersted det gjelder.'
   ]},
@@ -17717,6 +17720,7 @@ function lkRenderResultat(){ // v1.48.238: hele kontrollresultatet (tidligere re
   if(tell('UKJENT'))filtre.splice(5,0,['UKJENT',`⚪ Kontrakt ikke lest (${tell('UKJENT')})`]);
   const pills=filtre.map(([v,t])=>`<button class="fpill${lkFilter===v?' f-on':' f-off'}" style="${lkFilter===v?'border-color:#1A3A6B':''}" onclick="lkFilter='${v}';lkApen=null;renderLisensKontroll()"><span style="font-weight:600">${t}</span></button>`).join('');
   const rader=d.rader.filter(r=>lkFilter==='alle'?true:lkFilter==='avvik'?LK_AVVIK.includes(r._status):r._status===lkFilter);
+  if(lkResSort.felt)lkSorter(rader,LK_RES_SORT[lkResSort.felt],lkResSort.synk);
   const chip=s=>{const x=LK_STATUS[s]||LK_STATUS.OK;return `<span style="display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;white-space:nowrap;background:${x.bg};color:${x.fg}">${x.t}</span>`;};
   const knapp=(txt,klikk,primar)=>`<button class="btn-sm" style="${primar?'background:#1A3A6B;color:#fff;border-color:#1A3A6B;':''}margin:1px" onclick="event.stopPropagation();${klikk}">${txt}</button>`;
   const body=rader.map(r=>{
@@ -17749,7 +17753,7 @@ function lkRenderResultat(){ // v1.48.238: hele kontrollresultatet (tidligere re
     </div>
     <div class="filters" style="row-gap:8px">${pills}<span style="margin-left:auto"><button class="btn-sm" onclick="lkEksporterCsv()">⬇ CSV</button></span></div>
     <div class="tbl-wrap" id="lk-tabell-boks" style="overflow:auto;max-height:72vh"><table>
-      <thead><tr>${['Status','Kunde / brukersted','BAX','Leverandør fakturerer','Kostnad/år','Kontrakt i Visma','Fakturert/år','Margin','I fare/år','Handling'].map((h,i)=>`<th style="position:sticky;top:0;z-index:1;white-space:nowrap${[4,6,7,8].includes(i)?';text-align:right':''}">${h}</th>`).join('')}</tr></thead>
+      <thead><tr>${[['Status','status'],['Kunde / brukersted','navn'],['BAX','bax'],['Leverandør fakturerer','lev'],['Kostnad/år','kostnad',1],['Kontrakt i Visma','kontrakt'],['Fakturert/år','fakturert',1],['Margin','margin',1],['I fare/år','fare',1]].map(([h,f,hoyre])=>lkSortTh(h,f,lkResSort,'lkResSorter',hoyre)).join('')}<th style="position:sticky;top:0;z-index:1;white-space:nowrap">Handling</th></tr></thead>
       <tbody>${body||'<tr><td colspan="10" class="muted" style="text-align:center;padding:24px">Ingen rader med valgt filter.</td></tr>'}</tbody>
     </table></div>
     ${info.length?`<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Ikke vurdert (${info.length} linjer: engangskjøp, linjer uten BAX og ukjente produkter)</summary><div class="tbl-wrap" style="margin-top:6px"><table><thead><tr><th>Grunn</th><th>Brukersted</th><th>BAX</th><th>Produkt</th><th class="tr">Beløp</th></tr></thead><tbody>${info.map(i=>`<tr><td>${escHtmlEpost(i.grunn)}</td><td>${escHtmlEpost(i.brukersted||'')}</td><td>${escHtmlEpost(i.bax||'')}</td><td>${escHtmlEpost(i.kode+' '+i.tekst)}</td><td class="tr">${vfKr(i.belop)}</td></tr>`).join('')}</tbody></table></div></details>`:''}
@@ -17908,6 +17912,7 @@ function lkAvvikHtml(){
   const pills=Object.entries(LK_AV_FILTRE).map(([k,[t,fn]])=>`<button class="fpill${lkAvFilter===k?' f-on':' f-off'}" style="${lkAvFilter===k?'border-color:#1A3A6B':''}" onclick="lkAvFilter='${k}';lkAvApen=null;renderLisensKontroll()"><span style="font-weight:600">${t} (${grunn.filter(fn).length})</span></button>`).join('');
   const rekke={NY:0,ARBEID:1,KUNDE:2,SOFTPAY:3,GODTATT:4,LOST:5};
   const vis=grunn.filter(LK_AV_FILTRE[lkAvFilter]?LK_AV_FILTRE[lkAvFilter][1]:()=>true).sort((a,b)=>(rekke[a.status]??9)-(rekke[b.status]??9)||(b.belop||0)-(a.belop||0)||a.brukersted.localeCompare(b.brukersted,'nb'));
+  if(lkAvSort.felt)lkSorter(vis,LK_AV_SORT[lkAvSort.felt],lkAvSort.synk);
   const body=vis.map(a=>{
     const apen=lkAvApen===a.key;const ty=LK_AV_TYPE[a.avvikstype]||[a.avvikstype||'—','#374151'];
     const sn=(a.logg||[])[0];
@@ -17933,7 +17938,7 @@ function lkAvvikHtml(){
       <input type="search" placeholder="Søk navn, BAX, orgnr …" value="${escHtmlEpost(lkAvSok)}" oninput="lkAvSok=this.value;lkAvSokSnart()" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font:inherit;font-size:12.5px;width:190px">
       <button class="btn-sm" onclick="lkAvEksporterCsv()">⬇ CSV</button></span></div>
     <div class="tbl-wrap" id="lk-avvik-boks" style="overflow:auto;max-height:72vh"><table>
-      <thead><tr>${['Status','Kunde / brukersted','BAX','Avvik','I fare/år','Ansvarlig','Siste notat','Sett på faktura'].map((h,i)=>`<th style="position:sticky;top:0;z-index:1;white-space:nowrap${i===4?';text-align:right':''}">${h}</th>`).join('')}</tr></thead>
+      <thead><tr>${[['Status','status'],['Kunde / brukersted','navn'],['BAX','bax'],['Avvik','avvik'],['I fare/år','belop',1],['Ansvarlig','ansvarlig'],['Siste notat','notat'],['Sett på faktura','sett']].map(([h,f,hoyre])=>lkSortTh(h,f,lkAvSort,'lkAvSorter',hoyre)).join('')}</tr></thead>
       <tbody>${body||'<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Ingen avvik med valgt filter 🎉</td></tr>'}</tbody>
     </table></div>
     <div class="hint" style="margin-top:6px">Avvik som ikke kommer igjen på neste faktura, settes automatisk til «✅ Løst». For Nets gjelder det også BAX som ikke lenger er på fakturaen. «👍 Godtatt» betyr at avviket er i orden, og det kommer ikke opp som åpent igjen.</div>`;
@@ -18037,6 +18042,44 @@ function renderLisensKontroll(){
   el.innerHTML=(lkFeil?`<div style="background:#fef2f2;color:#991b1b;border-radius:8px;padding:14px 16px;font-size:13px;margin-top:12px">${escHtmlEpost(lkFeil)}</div>`:'')+lkAvvikHtml();
 }
 
+// v1.48.240: sorterbare kolonner (avviksliste og hele kontrollresultatet).
+// Første klikk: tall størst først, tekst A–Å; nytt klikk snur. Tomme verdier
+// havner alltid nederst.
+let lkAvSort={felt:null,synk:false}, lkResSort={felt:null,synk:false};
+const LK_SORT_NUM=new Set(['belop','notat','kostnad','fakturert','margin','fare','sett']);
+function lkLoggTid(t){const m=/(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/.exec(String(t||''));return m?new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0)).getTime():null;}
+const LK_AV_SORT={
+  status:a=>({NY:0,ARBEID:1,KUNDE:2,SOFTPAY:3,GODTATT:4,LOST:5})[a.status]??9,
+  navn:a=>a.brukersted||'',bax:a=>Number(a.bax)||null,avvik:a=>(LK_AV_TYPE[a.avvikstype]||[a.avvikstype||''])[0],
+  belop:a=>a.belop||0,ansvarlig:a=>a.ansvarlig||null,notat:a=>lkLoggTid((a.logg||[])[0]?.d),sett:a=>a.sistDato?Date.parse(a.sistDato):null,
+};
+const LK_RES_SORT={
+  status:r=>({INGEN_KONTRAKT:0,MANGLER_TJENESTE:1,FOR_FAA:2,LAV_MARGIN:3,UKJENT:4,UNNTAK:5,OK:6})[r._status||r.status]??9,
+  navn:r=>r.brukersted||'',bax:r=>Number(r.bax)||null,lev:r=>[...new Set(r.produkter.map(p=>p.tekst))].join(' · '),
+  kostnad:r=>r.kostnadAar||0,kontrakt:r=>{const k=r.kontrakter.find(x=>x.status==='Active'||x.status==='Aktiv');return k?k.kundenavn||k.id:null;},
+  fakturert:r=>r.fakturertAar||null,margin:r=>r.margin,fare:r=>r.iFareAar||0,
+};
+function lkSorter(liste,fn,synk){
+  if(!fn)return liste;
+  return liste.sort((a,b)=>{
+    const x=fn(a),y=fn(b);
+    const xt=x==null||x==='',yt=y==null||y==='';
+    if(xt||yt)return xt&&yt?0:xt?1:-1;
+    const c=typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'nb',{numeric:true});
+    return synk?-c:c;
+  });
+}
+function lkSortTh(navn,felt,sortObj,fn,hoyre){
+  const on=sortObj.felt===felt;
+  const pil=on?(sortObj.synk?' ▼':' ▲'):' <span style="opacity:.35">↕</span>';
+  return `<th onclick="${fn}('${felt}')" title="Klikk for å sortere" style="position:sticky;top:0;z-index:1;white-space:nowrap;cursor:pointer;user-select:none${hoyre?';text-align:right':''}${on?';color:#1A3A6B':''}">${navn}${pil}</th>`;
+}
+function lkNySort(sortObj,felt){
+  if(sortObj.felt===felt)sortObj.synk=!sortObj.synk;
+  else{sortObj.felt=felt;sortObj.synk=LK_SORT_NUM.has(felt);}
+}
+function lkAvSorter(felt){lkNySort(lkAvSort,felt);lkAvApen=null;renderLisensKontroll();}
+function lkResSorter(felt){lkNySort(lkResSort,felt);lkApen=null;renderLisensKontroll();}
 function lkToggle(bax){
   lkApen=lkApen===bax?null:bax;
   bevarRulling('lk-tabell-boks',renderLisensKontroll,lkApen?`tr[data-lk-bax="${CSS.escape(lkApen)}"] + tr`:null);
