@@ -471,6 +471,13 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .onb-chip.på{background:#ecfdf5;border-color:#6ee7b7;color:#065f46;font-weight:600}
 .onb-logg{font-size:12.5px;padding:6px 0;border-bottom:1px solid #f3f4f6}
 .onbm-fase{border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:10px;background:#fafbfc}
+.onb-pm-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;border-radius:20px;padding:3px 10px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;max-width:100%}
+.onb-pm-chip.forfalt{border-color:#fca5a5;background:#fee2e2;color:#b91c1c}
+.onb-pm-chip .tekst{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:420px}
+.onb-pm-chip button{background:none;border:0;cursor:pointer;font-size:11.5px;color:inherit;padding:0 2px;opacity:.8}
+.onb-pm-chip button:hover{opacity:1;text-decoration:underline}
+#onb-pm-modal input[type=text],#onb-pm-modal input[type=date]{padding:7px 10px;border:1px solid #d0d5dd;border-radius:8px;font-size:13px;font-family:inherit}
+#onb-pm-modal .valg .btn-sm.on{background:#1A3A6B;color:#fff;border-color:#1A3A6B}
 .onb-nr{font-size:12px;font-weight:700;color:#1A3A6B;background:#e8eef8;padding:2px 9px;border-radius:20px;font-family:ui-monospace,Consolas,monospace}
 #onb-info-modal input[type=text],#onb-info-modal input[type=email],#onb-info-modal textarea,#onbm-innhold .onbm-info input,#onbm-innhold .onbm-info textarea{width:100%;padding:7px 10px;border:1px solid #d0d5dd;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box}
 .onbm-oppg{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px 0;border-bottom:1px dashed #e5e7eb}
@@ -691,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.229 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.230 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2236,6 +2243,28 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <h3>⚙️ Onboarding – mal og varer</h3>
       <div id="onbm-innhold"></div>
       <div class="modal-footer"><button class="btn-sm" onclick="lukkOnbMal()">Avbryt</button><button class="prim" onclick="lagreOnbMal()">Lagre</button></div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING: ny påminnelse (v1.48.230) -->
+  <div class="modal-overlay" id="onb-pm-modal" onclick="if(event.target===this)lukkOnbPm()">
+    <div class="modal" style="max-width:460px">
+      <h3>📅 Ny påminnelse</h3>
+      <div class="fgrp"><label>Hva skal følges opp?</label>
+        <div style="display:flex;gap:6px;align-items:center"><input type="text" id="onbpm-tekst" style="flex:1" maxlength="300" placeholder="F.eks. Ring Agnete – sjekke om skanneren virker" onkeydown="if(event.key==='Enter')lagreOnbPm()"/><span id="onbpm-tale"></span></div></div>
+      <div class="fgrp" style="margin-top:10px"><label>Når?</label>
+        <div class="valg" style="display:flex;gap:5px;flex-wrap:wrap">
+          <button type="button" class="btn-sm" onclick="onbPmVelgDager(1,this)">I morgen</button>
+          <button type="button" class="btn-sm" onclick="onbPmVelgDager(3,this)">3 dager</button>
+          <button type="button" class="btn-sm" onclick="onbPmVelgDager(7,this)">1 uke</button>
+          <button type="button" class="btn-sm" onclick="onbPmVelgDager(14,this)">2 uker</button>
+          <button type="button" class="btn-sm" onclick="onbPmVelgDager(30,this)">1 mnd</button>
+          <input type="date" id="onbpm-dato" onchange="onbPmDatoEndret()"/>
+        </div>
+        <div class="muted" id="onbpm-dato-tekst" style="margin-top:4px"></div></div>
+      <div class="muted" id="onbpm-mottaker" style="margin-top:10px;font-size:12.5px"></div>
+      <div id="onbpm-feil" class="onb-advarsel" style="display:none"></div>
+      <div class="modal-footer"><button class="btn-sm" onclick="lukkOnbPm()">Avbryt</button><button class="prim" onclick="lagreOnbPm()">Lagre påminnelse</button></div>
     </div>
   </div>
 
@@ -11346,6 +11375,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.230',dato:'08.10.2026',punkter:[
+    'Onboarding: ny knapp «📅 Påminnelse» i toppen av saken. Skriv hva som skal følges opp (eller diktér med 🎤) og velg i morgen, 3 dager, 1 uke, 2 uker, 1 mnd eller en dato (havner datoen på en helg, flyttes den til mandag). Åpne påminnelser vises som merker under kundenavnet (rødt når datoen er nådd) med +1d, +1u og ✓ utført.',
+    'Varselet går bare til den som er ansvarlig for onboardingen: Teams-melding i «Arbeidsflyter» om morgenen på datoen, og i bjella i dashbordet til påminnelsen er utført. I oversikten får saken merket «📅 I dag» eller «📅 Forfalt».'
+  ]},
   {versjon:'v1.48.229',dato:'08.10.2026',punkter:[
     'Menyen «Transaksjonsavgift» heter nå «🧾 Leverandørfakturaer» og har tre punkter: Verifone trans.avgift, Nets trans.avgift og Lisenskontroll. Historikk er ikke lenger egne menypunkter, men en fane øverst på hver side («Behandle faktura» / «Historikk»). Siden husker hvilken fane du sto på.',
     'Opprett salgsordre-utkast (Verifone og Nets): et statuskort viser hvor mange salgsordre som er sendt, hvilken porsjon som jobbes med og omtrent hvor lang tid som gjenstår. Kortet minner deg på å ikke lukke siden. Til slutt viser det et resultat i grønt, oransje eller rødt som blir stående.',
@@ -18999,6 +19032,7 @@ function onbNormData(d){
   d.kasser=Array.isArray(d.kasser)?d.kasser:[];
   d.utstyr=Array.isArray(d.utstyr)?d.utstyr:[];
   d.logg=Array.isArray(d.logg)?d.logg:[];
+  d.paaminnelser=Array.isArray(d.paaminnelser)?d.paaminnelser:[]; // v1.48.230
   d.datoer=d.datoer||{};
   d.skjemaer=d.skjemaer||{};
   d.skjemaer.varer=d.skjemaer.varer||{status:'mangler'};
@@ -19130,6 +19164,9 @@ function hentMineOnboardingVarsler(){
   const ut=[];const naa=Date.now();
   onboardinger.forEach(o=>{
     if(o.status==='Ny'&&onbTilgang)ut.push({o,tekst:'Ny onboarding venter på å bli tatt',nokkel:`onb-ny|${o.spId}`});
+    if((o.status==='Pågår'||o.status==='Ferdig')&&onbErMin(o)){ // v1.48.230: påminnelser
+      onbPmApne(o).filter(p=>p.dato<=onbIDag()).forEach(p=>ut.push({o,tekst:`📅 ${p.dato<onbIDag()?'Forfalt '+onbPmDatoKort(p.dato):'I dag'}: ${p.tekst}`,nokkel:`onb-pm|${o.spId}|${p.id}|${p.dato}`}));
+    }
     if(o.status==='Pågår'&&onbErMin(o)){
       const sett=onbUtstyrSett(o);const fi=onbAktivFaseIndeks(o);
       [['levering','Planlagt levering',1],['installasjon','Installasjon',2]].forEach(([k,navn,faseIdx])=>{
@@ -19190,6 +19227,7 @@ function renderOnboarding(){
           ${o.data.salgsordrer.some(s=>s.type==='Ikano')?'<span style="font-size:11px;color:#7c3aed;background:#f3e8ff;padding:2px 8px;border-radius:20px">Ikano</span>':''}
           ${onbVareskjemaMangler(o)&&(o.status==='Ny'||o.status==='Pågår')?'<span style="font-size:11px;color:#b91c1c;background:#fee2e2;padding:2px 8px;border-radius:20px">📦 Vareskjema mangler</span>':''}
           ${inaktiv?`<span class="ks-inaktiv" title="Ingen fremdrift på ${inaktiv} dager">💤 ${inaktiv} d</span>`:''}
+          ${onbPmListeMerke(o)}
         </div>
         <div class="sos-sak-card-stats">
           <span>👤 ${o.ansvarlig?onbEsc(o.ansvarlig):'<em>ikke tatt</em>'}</span>
@@ -19260,10 +19298,12 @@ function renderOnboardingDetalj(o){
           ${(kan||onbKanStarte())&&(o.status==='Ny'||o.status==='Pågår')?`<button class="btn-sm${onbErPrioritert(o)?' onb-pri-pa':''}" onclick="onbTogglePrioritert('${o.id}')" title="${onbErPrioritert(o)?'Fjern prioritering':'Marker som prioritert sak'}">🚩 ${onbErPrioritert(o)?'Prioritert':'Prioriter'}</button>`:(onbErPrioritert(o)?'<span class="onb-pri">🚩 Prioritert</span>':'')}
           <span style="font-size:12px;font-weight:700;color:${sf.c};background:${sf.bg};padding:3px 10px;border-radius:20px">${o.status==='Ny'?'📥 Ny':o.status}</span>
           ${kunde?kbdNyFaneKnapp('kunde='+encodeURIComponent(kunde.vismaNummer),'🧑‍💼 Kundekort'):''}
+          ${onbKanPaaminne(o)?`<button class="btn-sm" onclick="apneOnbPm('${o.id}')" title="Sett en påminnelse – varsel til ansvarlig i Teams og bjella på datoen">📅 Påminnelse</button>`:''}
         </div>
         <div class="muted" style="margin-top:4px;font-size:12.5px;color:#4b5563">
           Visma-nr ${onbEsc(o.vismaKundeNummer||'—')}${kunde?.orgNr?` · Org.nr ${onbEsc(kunde.orgNr)}`:''} · Selger ${onbEsc(o.selger||'—')} · Startet ${onbDato(o.data.opprettet)}${o.data.ikanoAvtalenr?` · Ikano avtalenr. ${onbEsc(o.data.ikanoAvtalenr)}`:''}
         </div>
+        ${onbPmChipsHtml(o)}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
         <div style="font-size:13px;color:#374151">Ansvarlig: ${ansvarligHtml}</div>
@@ -20224,6 +20264,90 @@ async function lagreOnbMal(){
   }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Malen ble ikke lagret:\n'+e.message);}
 }
 
+// ===== PÅMINNELSER PÅ ONBOARDINGEN (v1.48.230, 08.10.2026) =====
+// Thomas: «Oppfølging / påminnelse når vi snakker med kunden og blir enige om å
+// følge opp noe om x dager/uker». Én knapp «📅 Påminnelse» i toppen. Lagres i
+// o.data.paaminnelser [{id,tekst,dato:'YYYY-MM-DD',opprettetAv,opprettet,
+// utfort,utfortAv,utfortDato}] (ingen nye SharePoint-kolonner; flettes trygt
+// per id ved samtidig redigering). Varsel går KUN til den som er ANSVARLIG for
+// onboardingen: Teams-kort på datoen (backend sjekk_onboarding_datoer, 06:45
+// UTC) og bjella i dashbordet fra datoen og til den er utført. Ingen e-post.
+function onbIDag(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function onbDatoPlus(dager){const d=new Date();d.setDate(d.getDate()+dager);const u=d.getDay();if(u===6)d.setDate(d.getDate()+2);else if(u===0)d.setDate(d.getDate()+1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function onbPmDatoKort(iso){const [y,m,d]=String(iso).split('-');return `${+d}.${+m}`;}
+function onbPmDatoLang(iso){const d=new Date(iso+'T12:00:00');return isNaN(d)?iso:d.toLocaleDateString('nb-NO',{weekday:'long',day:'numeric',month:'long'});}
+function onbPmApne(o){return (o.data.paaminnelser||[]).filter(p=>!p.utfort&&p.dato).sort((a,b)=>a.dato.localeCompare(b.dato));}
+function onbKanPaaminne(o){return (onbTilgang||salgTilgang)&&o.status!=='Avbrutt';}
+function onbPmChipsHtml(o){
+  const apne=onbPmApne(o);if(!apne.length)return '';
+  const iDag=onbIDag();const kan=onbKanPaaminne(o);
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${apne.map(p=>{
+    const forfalt=p.dato<=iDag;
+    return `<span class="onb-pm-chip${forfalt?' forfalt':''}" title="${onbEsc(p.tekst)} – satt av ${onbEsc(p.opprettetAv||'')} ${onbDato(p.opprettet)}">${forfalt?(p.dato<iDag?'⚠️':'📅 I dag'):'📅'} ${p.dato===iDag?'':onbPmDatoKort(p.dato)+' ·'} <span class="tekst">${onbEsc(p.tekst)}</span>${kan?`<button onclick="onbPmUtsett('${o.id}','${p.id}',1)" title="Utsett 1 dag">+1d</button><button onclick="onbPmUtsett('${o.id}','${p.id}',7)" title="Utsett 1 uke">+1u</button><button onclick="onbPmUtfort('${o.id}','${p.id}')" title="Merk som utført">✓</button>`:''}</span>`;
+  }).join('')}</div>`;
+}
+function onbPmListeMerke(o){
+  if(o.status==='Avbrutt')return '';
+  const apne=onbPmApne(o);if(!apne.length)return '';
+  const iDag=onbIDag();const f=apne[0];
+  if(f.dato<iDag)return `<span class="onb-pm-chip forfalt" title="${onbEsc(f.tekst)}">📅 Forfalt: <span class="tekst" style="max-width:220px">${onbEsc(f.tekst)}</span></span>`;
+  if(f.dato===iDag)return `<span class="onb-pm-chip forfalt" title="${onbEsc(f.tekst)}">📅 I dag: <span class="tekst" style="max-width:220px">${onbEsc(f.tekst)}</span></span>`;
+  return `<span class="onb-pm-chip" title="${onbEsc(f.tekst)}">📅 ${onbPmDatoKort(f.dato)}</span>`;
+}
+let onbPmId=null;
+function apneOnbPm(id){
+  const o=onbFind(id);if(!o)return;onbPmId=id;
+  document.getElementById('onbpm-tekst').value='';
+  document.getElementById('onbpm-tale').innerHTML=taleKnappHtml('onbpm-tekst');
+  document.getElementById('onbpm-feil').style.display='none';
+  document.querySelectorAll('#onb-pm-modal .valg .btn-sm').forEach(b=>b.classList.remove('on'));
+  onbPmSettDato(onbDatoPlus(3));
+  document.querySelectorAll('#onb-pm-modal .valg .btn-sm')[1]?.classList.add('on');
+  document.getElementById('onbpm-mottaker').innerHTML=o.ansvarlig
+    ?`🔔 Varsel går til <strong>${onbEsc(o.ansvarlig)}</strong> (ansvarlig) i Teams og i bjella på datoen.`
+    :'🔔 Saken er ikke tatt ennå. Varselet går til den som er ansvarlig på datoen.';
+  document.getElementById('onb-pm-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('onbpm-tekst')?.focus(),50);
+}
+function lukkOnbPm(){if(typeof taleStopp==='function')taleStopp();document.getElementById('onb-pm-modal').classList.remove('open');onbPmId=null;}
+function onbPmSettDato(iso){
+  document.getElementById('onbpm-dato').value=iso;
+  document.getElementById('onbpm-dato-tekst').textContent=iso?`= ${onbPmDatoLang(iso)}`:'';
+}
+function onbPmVelgDager(n,btn){
+  document.querySelectorAll('#onb-pm-modal .valg .btn-sm').forEach(b=>b.classList.remove('on'));btn?.classList.add('on');
+  onbPmSettDato(onbDatoPlus(n));
+}
+function onbPmDatoEndret(){
+  document.querySelectorAll('#onb-pm-modal .valg .btn-sm').forEach(b=>b.classList.remove('on'));
+  onbPmSettDato(document.getElementById('onbpm-dato').value);
+}
+function lagreOnbPm(){
+  const o=onbFind(onbPmId);if(!o)return;
+  const feil=document.getElementById('onbpm-feil');const vis=t=>{feil.textContent=t;feil.style.display='block';};
+  const tekst=document.getElementById('onbpm-tekst').value.trim();
+  const dato=document.getElementById('onbpm-dato').value;
+  if(!tekst){vis('Skriv hva som skal følges opp.');return;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dato)){vis('Velg en dato.');return;}
+  if(dato<onbIDag()){vis('Datoen har allerede passert.');return;}
+  o.data.paaminnelser.push({id:'pm'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),tekst,dato,opprettetAv:onbMeg(),opprettet:new Date().toISOString(),utfort:false});
+  onbLogg(o,`📅 Påminnelse ${onbPmDatoKort(dato)}: ${tekst}`);
+  lukkOnbPm();onbEtterEndring(o);
+  vfShowToast(`Påminnelse satt til ${onbPmDatoLang(dato)}`);
+}
+function onbPmUtfort(id,pmId){
+  const o=onbFind(id);const p=o?.data.paaminnelser.find(x=>x.id===pmId);if(!p)return;
+  p.utfort=true;p.utfortAv=onbMeg();p.utfortDato=new Date().toISOString();
+  onbLogg(o,`✓ Påminnelse utført: ${p.tekst}`);onbEtterEndring(o);
+}
+function onbPmUtsett(id,pmId,dager){
+  const o=onbFind(id);const p=o?.data.paaminnelser.find(x=>x.id===pmId);if(!p)return;
+  const fra=p.dato>onbIDag()?p.dato:onbIDag();
+  const d=new Date(fra+'T12:00:00');d.setDate(d.getDate()+dager);if(d.getDay()===6)d.setDate(d.getDate()+2);else if(d.getDay()===0)d.setDate(d.getDate()+1);
+  p.dato=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  onbLogg(o,`📅 Påminnelse utsatt til ${onbPmDatoKort(p.dato)}: ${p.tekst}`);onbEtterEndring(o);
+}
+
 // ===== INFO-E-POST TIL KUNDEN (v1.48.189, 05.10.2026) =====
 // Erstatter info-e-posten fra Pureservice. Sendes fra teknisk@kbd.as (delt
 // postboks) via kbd-verifone-func (/api/onboarding_send_info) med kopi til
@@ -20520,7 +20644,7 @@ async function onbLastNedInfoPdf(){
 // ===== INIT =====
 initNotatDatePicker();
 initAuth();
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeSmsGruppeModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();if(typeof lukkOnbKlar==='function'&&document.getElementById('onb-klar-modal')?.classList.contains('open'))lukkOnbKlar();if(typeof lukkOnbInfo==='function'&&document.getElementById('onb-info-modal')?.classList.contains('open'))lukkOnbInfo();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeConfirm();closeClear();closeImport();closeUtleieModal();closeReturModal();closeEnhetModal();closeResModal();closeKonverterModal();closeNotatModal();closeSmsModal();closeSmsMalModal();closeSmsGruppeModal();closeIdeModal();closeVarselMeny();closeKunngjoringMeny();closeKunngjoringModal();closeKunngjoringVisning();if(typeof lukkOnbPm==='function'&&document.getElementById('onb-pm-modal')?.classList.contains('open'))lukkOnbPm();if(typeof lukkOnbKlar==='function'&&document.getElementById('onb-klar-modal')?.classList.contains('open'))lukkOnbKlar();if(typeof lukkOnbInfo==='function'&&document.getElementById('onb-info-modal')?.classList.contains('open'))lukkOnbInfo();/* NB: kunngjoring-popup-modal (påtrengende) lukkes med vilje IKKE av Escape — kun via lukkKunngjoringPopup()-knappen */}});
 
 
 /* ===== Verifone trans.avgift (vf-namespace) ===== */
