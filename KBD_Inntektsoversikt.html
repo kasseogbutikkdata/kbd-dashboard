@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.236 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.237 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11379,6 +11379,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.237',dato:'08.10.2026',punkter:[
+    'Ikke avstemt i Visma: ny knapp «🔄 Synk nå» (ikke for lesere). Den starter synken mot Visma med en gang i stedet for å vente på neste planlagte kjøring, og henter lista på nytt etter rundt ett minutt. Krever ny publisering av kbd-verifone-func og innstillingen KUNDE360_MASTER_KEY.'
+  ]},
   {versjon:'v1.48.236',dato:'08.10.2026',punkter:[
     'Ikke avstemt i Visma: kommentaren er nå en logg. Det som er lagret vises som «📋 Logg (lagret)» med dato, nyeste øverst, og kan ikke redigeres. Feltet under er for nytt notat, som lagres med dato og navn. Statusendringer logges automatisk.'
   ]},
@@ -14001,7 +14004,7 @@ function renderIkkeAvstemt(){
   const sumK=vis.reduce((s,r)=>s+r.kreditt,0),sumI=vis.reduce((s,r)=>s+r.innbetalt,0);
   if(barEl)barEl.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${iaVisningsknapper()}</div>
-      <div style="display:flex;gap:8px;align-items:center"><span style="font-size:13px;color:#6b7280">${vis.length} ${vis.length===1?'kunde':'kunder'} · kreditt ${fF(sumK)} · innbetalt ${fF(sumI)}</span><button class="btn-sm" onclick="iaEksporter()" title="Last ned som Excel (begge fanene)">📥 Excel</button></div>
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-size:13px;color:#6b7280">${vis.length} ${vis.length===1?'kunde':'kunder'} · kreditt ${fF(sumK)} · innbetalt ${fF(sumI)}</span>${userRole!=='reader'?`<button class="btn-sm" id="ia-synk-knapp" onclick="iaSynkNaa(this)" title="Henter kreditnotaer og innbetalinger fra Visma på nytt (FakturaoppfolgingSync). Tar rundt ett minutt.">🔄 Synk nå</button>`:''}<button class="btn-sm" onclick="iaEksporter()" title="Last ned som Excel (begge fanene)">📥 Excel</button></div>
       <div style="width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">${fane('fakturaer','Har åpne fakturaer',medF.length)}${fane('kreditt','Bare kreditt',bareK.length)}
         <select onchange="setIaStatusFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px"><option value="alle">Alle statuser</option>${IA_STATUSER.map(s=>`<option${iaStatusFilter===s?' selected':''}>${s}</option>`).join('')}<option value="venter"${iaStatusFilter==='venter'?' selected':''}>⏰ Ikke svart på ${IA_SVAR_DAGER}+ dager (${[...iaKundeMap.values()].filter(iaVenterSvar).length})</option></select></div>
       <div style="font-size:11px;color:#6b7280;margin-top:6px;width:100%">Kreditnotaer og innbetalinger som står åpne i Visma, dvs. ikke koblet mot en faktura. Fakturaene til disse kundene kan derfor se ubetalte ut uten å være det. Kunder her holdes <b>utenfor arbeidslisten og purring-SMS</b> til status er «Avklart» eller posten er avstemt i Visma (da forsvinner raden av seg selv ved neste synk).</div>
@@ -14076,6 +14079,41 @@ async function iaLagre(kundenr,knapp){
     gammel.forEach(g=>{g.d.status=g.status;g.d.kommentar=g.kommentar;});
     iaByggMap();renderFakturaoppfolging();
     setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);
+  }
+}
+// v1.48.237: «🔄 Synk nå» starter FakturaoppfolgingSync via /api/synk_naa
+// (kbd-verifone-func → admin-endepunktet til kbd-kunde360-func, se
+// synk_trigger.py). Etter ~75 s hentes IkkeAvstemt-lista på nytt.
+let iaSynkPagar=false;
+async function iaSynkNaa(knapp){
+  if(iaSynkPagar)return;
+  iaSynkPagar=true;
+  const settTekst=t=>{const k=document.getElementById('ia-synk-knapp')||knapp;if(k){k.innerHTML=t;k.disabled=true;}};
+  settTekst('⏳ Starter…');
+  try{
+    const token=await vfGetApiToken();
+    const resp=await fetch(vfApiUrl('/api/synk_naa?jobb=FakturaoppfolgingSync'),{method:'POST',headers:{'Authorization':`Bearer ${token}`}});
+    const d=await resp.json().catch(()=>({}));
+    if(!resp.ok)throw new Error(d.error||'HTTP '+resp.status);
+    const forAntall=[...iaKundeMap.values()].length;
+    let igjen=75;
+    const tikk=setInterval(()=>{igjen-=5;settTekst(`⏳ Synker… ${Math.max(igjen,0)} s`);},5000);
+    settTekst(`⏳ Synker… ${igjen} s`);
+    setSPStatus('🔄 '+(d.melding||'Synk startet.'));
+    await new Promise(res=>setTimeout(res,75000));
+    clearInterval(tikk);
+    settTekst('⏳ Henter…');
+    ikkeAvstemt=(await spGetItems('IkkeAvstemt')).map(mapIkkeAvstemt);iaByggMap();
+    const etter=[...iaKundeMap.values()].length;
+    const diff=forAntall-etter;
+    setSPStatus(`✅ Synket. ${etter} kunder på lista${diff>0?` (${diff} færre enn før)`:diff<0?` (${-diff} nye)`:''}. Oppdater siden (Ctrl+F5) for nye fakturabeløp.`);
+    setTimeout(()=>setSPStatus(''),10000);
+  }catch(e){
+    setSPStatus('❌ '+e.message,false);
+    alert('⚠️ Klarte ikke starte synken:\n'+e.message+'\n\nDu kan kjøre FakturaoppfolgingSync fra Azure Portal i stedet.');
+  }finally{
+    iaSynkPagar=false;
+    renderFakturaoppfolging();
   }
 }
 function iaEksporter(){
