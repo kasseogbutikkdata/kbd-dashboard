@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.232 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.233 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11379,6 +11379,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.233',dato:'08.10.2026',punkter:[
+    'Fakturaoppfølging: filterlinja (søk, aldersgrupper, status) står på én rad igjen. Ble loddrett i v1.48.232.'
+  ]},
   {versjon:'v1.48.232',dato:'08.10.2026',punkter:[
     'Fakturaoppfølging: ny visning «🧮 Ikke avstemt i Visma». Viser kunder med kreditnota eller innbetaling som står åpen i Visma uten å være koblet mot en faktura, med åpne fakturaer, kreditt, netto og mulig match på likt beløp. Fanene «Har åpne fakturaer» og «Bare kreditt», klikk på raden for dokumentene, status («Ikke sett», «Sendt regnskapsfører», «Avklart») og kommentar per kunde, og 📥 Excel-eksport.',
     'Disse kundene holdes utenfor arbeidslisten og purring-SMS til status er «Avklart» eller posten er avstemt i Visma (da forsvinner raden av seg selv ved neste synk). I «Alle fakturaer» får de merket «⚠️ Ikke avstemt i Visma».',
@@ -14606,7 +14609,8 @@ function renderFakturaoppfolging(){
   foOppdaterNavBadge(); // v1.48.209
   // v1.48.232: egen visning for poster som ikke er avstemt i Visma.
   const iaVis=foVisning==='ikkeavstemt';
-  ['fo-bucket-filters','fo-status-filter','fo-bucket-sum'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=iaVis?'none':'';});
+  // v1.48.233: fo-bucket-filters har inline display:flex — må settes tilbake til flex, ikke '' (ga loddrett filterlinje i v1.48.232).
+  [['fo-bucket-filters','flex'],['fo-status-filter',''],['fo-bucket-sum','']].forEach(([id,vis])=>{const el=document.getElementById(id);if(el)el.style.display=iaVis?'none':vis;});
   if(iaVis){['fo-lbl-kunforfalte','fo-lbl-visbetalte'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});renderIkkeAvstemt();return;}
   const arb=foVisning==='arbeidsliste';
   // «Vis kun forfalte»/«Vis også betalte» gir bare mening i «Alle fakturaer».
