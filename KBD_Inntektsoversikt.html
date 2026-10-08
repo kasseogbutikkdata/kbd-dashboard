@@ -621,6 +621,13 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .jobb-steg li.ferdig{color:#15803d}
 .jobb-steg li.aktiv{color:#111;font-weight:600}
 .jobb-varsel{margin-top:8px;color:#b45309;font-size:12.5px}
+.jobb-bar{height:8px;background:#dbe3f5;border-radius:6px;overflow:hidden;margin-top:8px;max-width:520px}
+.jobb-bar>div{height:100%;background:#1A3A6B;border-radius:6px;transition:width .4s}
+.jobb-kort.jobb-ok{background:#ecfdf5;border-color:#a7f3d0;border-left-color:#15803d}
+.jobb-kort.jobb-delvis{background:#fff7ed;border-color:#fed7aa;border-left-color:#c2410c}
+.jobb-kort.jobb-feil{background:#fef2f2;border-color:#fecaca;border-left-color:#b91c1c}
+.side-faner{margin:0 0 18px}
+.side-faner .tab{font-weight:600}
 .lk-oppsummering{border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
 .lk-oppsummering .lk-setning{font-size:14px;line-height:1.45;flex:1 1 420px}
 .lk-oppsummering .lk-gjor{font-size:13px;margin-top:6px}
@@ -684,7 +691,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.228 · Oppdatert: 7. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.229 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -814,21 +821,18 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            vf-/nt-JS-en og all funksjonalitet for øvrig er UENDRET, dette er
            en ren meny-omorganisering. -->
       <div class="nav-item" id="tab-transaksjonsavgift" onclick="showTab('verifone',document.getElementById('tab-transaksjonsavgift'));toggleTransaksjonsavgiftSub(true)">
-        <span class="nav-item-icon">🧾</span>Transaksjonsavgift
+        <span class="nav-item-icon">🧾</span>Leverandørfakturaer
       </div>
+      <!-- v1.48.229 (08.10.2026): menyen het «Transaksjonsavgift» og hadde
+           Historikk som egne underpunkter (nav-sub-sub-item vsub-/ntsub-historikk)
+           under hver leverandør. Nå: tre punkter, og Historikk er faner øverst
+           på hver side (vf-fane-*/nt-fane-*/lk-fane-*). Id-ene tab-transaksjonsavgift,
+           transaksjonsavgift-sub-nav og tasub-* er beholdt, så showTab() og
+           direktelenker virker som før. -->
       <div class="nav-sub" id="transaksjonsavgift-sub-nav">
-        <div class="nav-sub-item active" id="tasub-verifone" onclick="showTab('verifone',document.getElementById('tab-transaksjonsavgift'))">🧾 Verifone trans.avgift</div>
-        <!-- "📤 Ny faktura"-underpunktet fjernet 09.09.2026 (Thomas' ønske) —
-             overflødig ved siden av selve leverandør-raden over, som allerede
-             går til nøyaktig samme visning (showVerifoneView('ny') kalles
-             automatisk fra showTab(), se linjen "if(name==='verifone'){...
-             showVerifoneView('ny');...}"). "Historikk" er nå eneste
-             underpunkt, siden det er det ENESTE som faktisk skiller seg fra
-             leverandør-radens standardvisning. -->
-        <div class="nav-sub-sub-item" id="vsub-historikk" onclick="visTransaksjonsavgiftHistorikk('verifone')">📋 Historikk</div>
-        <div class="nav-sub-item" id="tasub-nets" onclick="showTab('nets',document.getElementById('tab-transaksjonsavgift'))">🧾 Nets trans.avgift</div>
-        <div class="nav-sub-sub-item" id="ntsub-historikk" onclick="visTransaksjonsavgiftHistorikk('nets')">📋 Historikk</div>
-        <div class="nav-sub-item" id="tasub-lisenskontroll" onclick="showTab('lisenskontroll',document.getElementById('tab-transaksjonsavgift'))">🔎 Lisens- og servicekontroll</div>
+        <div class="nav-sub-item active" id="tasub-verifone" onclick="showTab('verifone',document.getElementById('tab-transaksjonsavgift'))">💳 Verifone trans.avgift</div>
+        <div class="nav-sub-item" id="tasub-nets" onclick="showTab('nets',document.getElementById('tab-transaksjonsavgift'))">💳 Nets trans.avgift</div>
+        <div class="nav-sub-item" id="tasub-lisenskontroll" onclick="showTab('lisenskontroll',document.getElementById('tab-transaksjonsavgift'))">🔎 Lisenskontroll</div>
       </div>
       <div class="nav-item" id="tab-susoftrma" onclick="showTab('susoftrma',this)">
         <span class="nav-item-icon">🔧</span>Susoft RMA
@@ -864,7 +868,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            Brukertilgang, inkl. Veronika (Mirrow), inntil Thomas velger hvem
            som skal ha tilgang. -->
       <div class="nav-item" id="tab-fakturaoppfolging" onclick="showTab('fakturaoppfolging',this);toggleFakturaoppfolgingSub(true)">
-        <span class="nav-item-icon">🧾</span>Fakturaoppfølging<span id="fo-nav-badge" style="display:none;margin-left:auto;font-size:11px;font-weight:700;background:#dc2626;color:#fff;border-radius:20px;padding:1px 7px"></span>
+        <span class="nav-item-icon">📨</span>Fakturaoppfølging<span id="fo-nav-badge" style="display:none;margin-left:auto;font-size:11px;font-weight:700;background:#dc2626;color:#fff;border-radius:20px;padding:1px 7px"></span>
       </div>
       <div class="nav-sub" id="fakturaoppfolging-sub-nav">
         <div class="nav-sub-item" id="fosub-purring" onclick="showTab('purring',document.getElementById('tab-fakturaoppfolging'));setFakturaoppfolgingSubActive('purring')">🔔 Purring-SMS</div>
@@ -1474,6 +1478,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </div>
     </div>
 
+    <div class="tabs side-faner"><button class="tab active" id="vf-fane-ny" onclick="showVerifoneView('ny')">📄 Behandle faktura</button><button class="tab" id="vf-fane-historikk" onclick="showVerifoneView('historikk')">📋 Historikk</button></div>
     <div id="verifone-ny">
     <div class="vf-steps">
       <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Faktura lastet opp</div></div>
@@ -1558,6 +1563,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </div>
     </div>
 
+    <div id="vf-approve-jobb"></div>
     <div class="vf-approve-bar">
       <div class="vf-approve-sum">
         <b id="vf-approve-total">—</b> klar for salgsordre-utkast i Visma.net
@@ -1610,23 +1616,28 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
     <!-- LISENS- OG SERVICEKONTROLL (v1.48.226, 07.10.2026) — se lisens_kontroll.py
          i kbd-verifone-func og renderLisensKontroll(). Kun kontroll, ingen ordre. -->
     <div id="tp-lisenskontroll" class="tp">
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
-          <div><div class="card-title">🔎 Lisens- og servicekontroll</div>
-          <div class="hint">Kontrollerer at hver terminal på leverandørens lisens-/servicefaktura har en aktiv kundekontrakt i Visma med riktig tjeneste, antall og margin. Det opprettes ingen salgsordre. Verifone og Nets nå, Softpay senere.</div></div>
-          <span style="display:flex;gap:6px"><button class="btn-sm" onclick="lkVis='kontroll';renderLisensKontroll()">🔎 Kontroll</button><button class="btn-sm" onclick="lkVis='historikk';renderLisensKontroll()">📋 Historikk</button></span>
+    <div class="hdr">
+      <div class="hdr-left">
+        <div class="hdr-bar"></div>
+        <div>
+          <div class="hdr-title">Lisens- og servicekontroll</div>
+          <div class="hdr-sub">Kontrollerer at hver terminal på leverandørens lisens-/servicefaktura har en aktiv kundekontrakt i Visma med riktig tjeneste, antall og margin. Det opprettes ingen salgsordre. Verifone og Nets nå, Softpay senere.</div>
         </div>
-        <div id="lk-liste-feil" class="hint" style="color:#b45309;margin-top:6px"></div>
-        <div id="lk-vis-kontroll">
-          <label id="lk-opplasting" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px dashed #c7d2e5;border-radius:10px;padding:14px 16px;margin-top:12px;background:#fafbfe;cursor:pointer">
+      </div>
+    </div>
+    <div class="tabs side-faner"><button class="tab active" id="lk-fane-kontroll" onclick="lkVis='kontroll';renderLisensKontroll()">📄 Behandle faktura</button><button class="tab" id="lk-fane-historikk" onclick="lkVis='historikk';renderLisensKontroll()">📋 Historikk</button></div>
+      <div id="lk-liste-feil" class="hint" style="color:#b45309;margin:0 0 6px"></div>
+      <div id="lk-vis-kontroll">
+        <div class="card">
+          <label id="lk-opplasting" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px dashed #c7d2e5;border-radius:10px;padding:14px 16px;background:#fafbfe;cursor:pointer">
             <span style="font-size:24px">📄</span>
             <span style="flex:1;min-width:220px"><strong id="lk-filnavn">Velg lisens-/servicefaktura (PDF)</strong><br><span id="lk-fil-meta" class="hint" style="margin:0"></span></span>
             <span class="btn-sm" id="lk-opplast-knapp">Last opp</span>
             <input type="file" id="lk-fil-input" accept="application/pdf,.pdf" style="display:none" onchange="lkLastOpp(this.files[0]);this.value=''">
           </label>
         </div>
+        <div id="lk-innhold"></div>
       </div>
-      <div id="lk-innhold"></div>
       <div id="lk-vis-historikk" style="display:none"><div id="lk-historikk-innhold"></div></div>
     </div>
     <div class="modal-overlay" id="lk-unntak-modal" onclick="if(event.target===this)lkLukkUnntak()">
@@ -1650,6 +1661,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </div>
     </div>
 
+    <div class="tabs side-faner"><button class="tab active" id="nt-fane-ny" onclick="showNetsView('ny')">📄 Behandle faktura</button><button class="tab" id="nt-fane-historikk" onclick="showNetsView('historikk')">📋 Historikk</button></div>
     <div id="nets-ny">
     <div class="vf-steps">
       <div class="vf-step done"><div class="vf-step-num">✓</div><div class="vf-step-txt">Faktura lastet opp</div></div>
@@ -1734,6 +1746,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </div>
     </div>
 
+    <div id="nt-approve-jobb"></div>
     <div class="vf-approve-bar">
       <div class="vf-approve-sum">
         <b id="nt-approve-total">—</b> klar for salgsordre-utkast i Visma.net
@@ -11333,6 +11346,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.229',dato:'08.10.2026',punkter:[
+    'Menyen «Transaksjonsavgift» heter nå «🧾 Leverandørfakturaer» og har tre punkter: Verifone trans.avgift, Nets trans.avgift og Lisenskontroll. Historikk er ikke lenger egne menypunkter, men en fane øverst på hver side («Behandle faktura» / «Historikk»). Siden husker hvilken fane du sto på.',
+    'Opprett salgsordre-utkast (Verifone og Nets): et statuskort viser hvor mange salgsordre som er sendt, hvilken porsjon som jobbes med og omtrent hvor lang tid som gjenstår. Kortet minner deg på å ikke lukke siden. Til slutt viser det et resultat i grønt, oransje eller rødt som blir stående.',
+    'Lisenskontroll: Historikk-fanen viser nå bare historikken. Før lå kontrollresultatet også under.'
+  ]},
   {versjon:'v1.48.228',dato:'07.10.2026',punkter:[
     'Lisens- og servicekontroll: detaljene for en BAX er enklere å lese. Øverst står det i én setning hva avviket er, og hva du bør gjøre, med knappene for Oppfølging og Unntak rett ved siden av. Tabellen viser «Leverandøren tar betalt for» og «Kontrakten dekker» side om side. Like linjer fra fakturaen er slått sammen. Finnes det ingen kontrakt, foreslås en mulig kunde med samme organisasjonsnummer.',
     'Tydeligere status mens noe jobber: lisenskontrollen, Kundeanalysen og opplasting av Verifone- og Nets-fakturaer viser nå et kort med stegene, en klokke som teller og en melding om det tar lenger tid enn vanlig. Opplastingsknappen er låst så lenge jobben pågår.'
@@ -15085,8 +15103,8 @@ function showTab(name,btn){
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
   if(name==='purring'){setFakturaoppfolgingSubActive('purring');renderPurringInnstillinger();renderPurringKandidater();renderPurringLogg();}
   if(name==='idebank'){renderIdeBank();renderVersjonslogg();}
-  if(name==='verifone'){renderVerifone();showVerifoneView('ny');setTransaksjonsavgiftSubActive('verifone');}
-  if(name==='nets'){renderNets();showNetsView('ny');setTransaksjonsavgiftSubActive('nets');}
+  if(name==='verifone'){renderVerifone();showVerifoneView(taSideFane.verifone);setTransaksjonsavgiftSubActive('verifone');} // v1.48.229: husker fanen
+  if(name==='nets'){renderNets();showNetsView(taSideFane.nets);setTransaksjonsavgiftSubActive('nets');}
   if(name==='lisenskontroll'){setTransaksjonsavgiftSubActive('lisenskontroll');renderLisensKontroll();} // v1.48.226
   if(name==='susoftrma'){renderSusoftRma();}
   if(name==='onboarding'){renderOnboarding();}
@@ -15116,7 +15134,15 @@ function setTransaksjonsavgiftSubActive(leverandor){
   if(btn)btn.classList.add('active');
 }
 
+// v1.48.229: Historikk er en fane på siden (vf-fane-*/nt-fane-*), ikke et
+// menypunkt. taSideFane husker valgt fane per leverandør i økten.
+const taSideFane={verifone:'ny',nets:'ny'};
+function taSettFane(pre,view){
+  document.getElementById(pre+'-fane-ny')?.classList.toggle('active',view==='ny');
+  document.getElementById(pre+'-fane-historikk')?.classList.toggle('active',view==='historikk');
+}
 function showVerifoneView(view,btn){
+  taSideFane.verifone=view==='historikk'?'historikk':'ny';taSettFane('vf',taSideFane.verifone);
   const nyEl=document.getElementById('verifone-ny');
   const histEl=document.getElementById('verifone-historikk');
   if(nyEl)nyEl.style.display=view==='ny'?'':'none';
@@ -15132,6 +15158,7 @@ function showVerifoneView(view,btn){
 }
 
 function showNetsView(view,btn){
+  taSideFane.nets=view==='historikk'?'historikk':'ny';taSettFane('nt',taSideFane.nets);
   const nyEl=document.getElementById('nets-ny');
   const histEl=document.getElementById('nets-historikk');
   if(nyEl)nyEl.style.display=view==='ny'?'':'none';
@@ -17134,11 +17161,22 @@ function setTaMetric(m){taMetric=m;renderTransavgiftRapport();}
 // tegnes inn i alle elementer med data-jobb="<nøkkel>", slik at det overlever
 // at innholdet rundt tegnes på nytt.
 const JOBB={};
-function jobbStart(nokkel,tittel,steg,mal){
+// v1.48.229: opts.utenTidsvarsel (for jobber som går i flere korte kall, f.eks.
+// salgsordre i porsjoner — da gjelder ikke 230 s-grensen for hele jobben),
+// jobbFremdrift() for ekte fremdrift (n av tot, med anslått tid igjen) og
+// jobbFerdig() som bytter kortet til et grønt/oransje/rødt resultat som blir stående.
+function jobbStart(nokkel,tittel,steg,mal,opts){
   jobbStopp(nokkel);
-  JOBB[nokkel]={tittel,steg:steg||[],start:Date.now(),tilleggstekst:'',timer:setInterval(()=>jobbOppdater(nokkel),500)};
+  JOBB[nokkel]={tittel,steg:steg||[],start:Date.now(),tilleggstekst:'',fremdrift:null,opts:opts||{},timer:setInterval(()=>jobbOppdater(nokkel),500)};
   if(mal){const el=document.getElementById(mal);if(el)el.innerHTML=jobbStatusHtml(nokkel);}
   jobbOppdater(nokkel);
+}
+function jobbFremdrift(nokkel,n,tot,tekst){if(JOBB[nokkel]){JOBB[nokkel].fremdrift={n,tot,tekst:tekst||''};jobbOppdater(nokkel);}}
+function jobbFerdig(nokkel,type,html){
+  const j=JOBB[nokkel];if(!j)return 0;
+  clearInterval(j.timer);delete JOBB[nokkel];
+  document.querySelectorAll(`[data-jobb="${nokkel}"]`).forEach(e=>{e.className='jobb-kort jobb-'+type;e.setAttribute('data-jobb-ferdig',nokkel);e.removeAttribute('data-jobb');e.innerHTML=`<div style="font-size:20px;line-height:1">${type==='ok'?'✅':type==='delvis'?'⚠️':'⛔'}</div><div style="flex:1">${html}</div>`;});
+  return Math.round((Date.now()-j.start)/1000);
 }
 function jobbTekst(nokkel,tekst){if(JOBB[nokkel]){JOBB[nokkel].tilleggstekst=tekst||'';jobbOppdater(nokkel);}}
 function jobbStopp(nokkel){
@@ -17153,9 +17191,16 @@ function jobbInnhold(nokkel){
   const sek=Math.floor((Date.now()-j.start)/1000);
   let aktiv=0;j.steg.forEach((st,i)=>{if(sek>=(st.sek||0))aktiv=i;});
   const liste=j.steg.map((st,i)=>`<li class="${i<aktiv?'ferdig':i===aktiv?'aktiv':''}">${i<aktiv?'✓':i===aktiv?'⟳':'○'} ${escHtmlEpost(st.t)}${i===aktiv?' …':''}</li>`).join('');
-  const varsel=sek>=200?'⚠️ Nærmer seg tidsgrensen. Azure stopper kall etter ca. 4 minutter. Får du feil, prøv igjen om litt.'
+  const f=j.fremdrift;
+  let bar='';
+  if(f&&f.tot){
+    const pst=Math.min(100,Math.round(f.n/f.tot*100));
+    const igjen=f.n>0&&f.n<f.tot?Math.round(sek/f.n*(f.tot-f.n)):null;
+    bar=`<div style="margin-top:6px"><strong>${f.n} av ${f.tot}</strong> (${pst} %)${f.tekst?' · '+escHtmlEpost(f.tekst):''}${igjen!=null?` · ca. ${jobbKlokke(igjen)} igjen`:''}</div><div class="jobb-bar"><div style="width:${pst}%"></div></div>`;
+  }
+  const varsel=j.opts&&j.opts.utenTidsvarsel?'':sek>=200?'⚠️ Nærmer seg tidsgrensen. Azure stopper kall etter ca. 4 minutter. Får du feil, prøv igjen om litt.'
     :sek>=90?'Dette tar lenger tid enn vanlig. Visma kan være treg akkurat nå. La siden stå åpen.':'';
-  return `<div class="jobb-spinner"></div><div style="flex:1"><div><span class="jobb-tittel">${escHtmlEpost(j.tittel)}</span><span class="jobb-tid">${jobbKlokke(sek)}</span></div>${j.tilleggstekst?`<div class="hint" style="margin:2px 0 0">${escHtmlEpost(j.tilleggstekst)}</div>`:''}${liste?`<ul class="jobb-steg">${liste}</ul>`:''}${varsel?`<div class="jobb-varsel">${varsel}</div>`:''}</div>`;
+  return `<div class="jobb-spinner"></div><div style="flex:1"><div><span class="jobb-tittel">${escHtmlEpost(j.tittel)}</span><span class="jobb-tid">${jobbKlokke(sek)}</span></div>${j.tilleggstekst?`<div class="hint" style="margin:2px 0 0">${escHtmlEpost(j.tilleggstekst)}</div>`:''}${bar}${liste?`<ul class="jobb-steg">${liste}</ul>`:''}${varsel?`<div class="jobb-varsel">${varsel}</div>`:''}</div>`;
 }
 function jobbStatusHtml(nokkel){return JOBB[nokkel]?`<div class="jobb-kort" data-jobb="${nokkel}" role="status" aria-live="polite">${jobbInnhold(nokkel)}</div>`:'';}
 function jobbOppdater(nokkel){
@@ -17221,6 +17266,8 @@ function renderLisensKontroll(){
   document.getElementById('lk-liste-feil').textContent=lkListeFeil;
   document.getElementById('lk-vis-kontroll').style.display=lkVis==='kontroll'?'':'none';
   document.getElementById('lk-vis-historikk').style.display=lkVis==='historikk'?'':'none';
+  document.getElementById('lk-fane-kontroll')?.classList.toggle('active',lkVis!=='historikk');
+  document.getElementById('lk-fane-historikk')?.classList.toggle('active',lkVis==='historikk');
   if(lkVis==='historikk'){lkRenderHistorikk();return;}
   if(lkLaster){el.innerHTML=jobbStatusHtml('lk');return;}
   if(lkFeil){el.innerHTML=`<div style="background:#fef2f2;color:#991b1b;border-radius:8px;padding:14px 16px;font-size:13px">${escHtmlEpost(lkFeil)}</div>`;return;}
@@ -20548,6 +20595,7 @@ async function vfLastOppFaktura(file){
     {t:'Slår opp kundene i Visma.net', sek:4},
     {t:'Matcher transaksjonslinjene mot kunder', sek:15}], 'vf-jobb');
   jobbTekst('vf-opplast', file.name);
+  const vfGammeltResultat = document.getElementById('vf-approve-jobb'); if (vfGammeltResultat) vfGammeltResultat.innerHTML = '';
 
   const formData = new FormData();
   formData.append('faktura', file);
@@ -20945,6 +20993,7 @@ async function ntLastOppFaktura(file){
     {t:'Slår opp kundene i Visma.net', sek:4},
     {t:'Matcher transaksjonslinjene mot kunder', sek:15}], 'nt-jobb');
   jobbTekst('nt-opplast', file.name);
+  const ntGammeltResultat = document.getElementById('nt-approve-jobb'); if (ntGammeltResultat) ntGammeltResultat.innerHTML = '';
 
   const formData = new FormData();
   formData.append('faktura', file);
@@ -21328,8 +21377,14 @@ async function taApprove(k){
   btn.disabled = true;
   if (pendingEl) pendingEl.textContent = '';
 
+  // v1.48.229: statuskort med ekte fremdrift (porsjoner à TA_PORSJON_STR)
+  const jn = k.btnId, antPors = Math.ceil(rader.length / TA_PORSJON_STR);
+  jobbStart(jn, 'Oppretter salgsordre-utkast i Visma.net', [], k.btnId.replace(/-btn$/, '-jobb'), {utenTidsvarsel:true});
+  jobbTekst(jn, `⚠️ Ikke lukk eller last siden på nytt før dette er ferdig. Sendes i ${antPors} porsjon${antPors===1?'':'er'} à ${TA_PORSJON_STR}.`);
+  jobbFremdrift(jn, 0, rader.length, `porsjon 1 av ${antPors}`);
   const res = await taOpprettPorsjonsvis(k.sti, rader, k.referanse,
-    (n, tot) => { btn.textContent = `Oppretter utkast… ${n} av ${tot}`; });
+    (n, tot) => { btn.textContent = `Oppretter utkast… ${n} av ${tot}`;
+      jobbFremdrift(jn, n, tot, n < tot ? `porsjon ${Math.floor(n / TA_PORSJON_STR) + 1} av ${antPors}` : 'lagrer i Historikk …'); });
 
   res.sendt.forEach((r, i) => { if (res.resultater[i] && res.resultater[i].status === 'ok') k.sendt.add(taRadNokkel(r)); });
   if (res.stoppet) res.stoppet.porsjon.forEach(r => k.sendt.add(taRadNokkel(r)));
@@ -21341,6 +21396,8 @@ async function taApprove(k){
   const feilet = res.resultater.filter(r => r.status === 'feil');
   if (feilet.length) console.warn('Salgsordre som feilet:', feilet);
   const loggTekst = logget ? '' : ' ⚠ Kjøringen ble IKKE lagret i Historikk — si fra til Thomas.';
+  const loggKort = logget ? (res.sendt.length ? ' Kjøringen er lagret i Historikk.' : '') : ' <strong>⚠ Kjøringen ble IKKE lagret i Historikk — si fra til Thomas.</strong>';
+  const tidBrukt = () => { const j = JOBB[jn]; return j ? jobbKlokke(Math.round((Date.now() - j.start) / 1000)) : ''; };
 
   if (res.stoppet){
     const usikreBax = res.stoppet.porsjon.map(taRadBax).join(', ');
@@ -21348,14 +21405,17 @@ async function taApprove(k){
     if (pendingEl) pendingEl.textContent =
       `Stoppet: ${res.stoppet.melding}. ${res.stoppet.porsjon.length} salgsordre kan være laget eller ikke — sjekk BAX ${usikreBax} i Visma.net. ` +
       (res.stoppet.gjenstaar.length ? `Trykk knappen igjen for å sende de ${res.stoppet.gjenstaar.length} som gjenstår.` : '');
+    jobbFerdig(jn, 'feil', `<strong>Stoppet etter ${ok} av ${rader.length} salgsordre (${tidBrukt()}).</strong> ${escHtmlEpost(res.stoppet.melding)}.<br>${res.stoppet.porsjon.length} salgsordre kan være laget eller ikke. Sjekk BAX ${escHtmlEpost(usikreBax)} i Visma.net.${res.stoppet.gjenstaar.length ? ` Trykk knappen igjen for å sende de ${res.stoppet.gjenstaar.length} som gjenstår.` : ''}${loggKort}`);
     tilbakestillKnapp();
     vfShowToast(`${ok} opprettet før stopp — se melding over knappen.${loggTekst}`, 10000);
     return;
   }
   if (feilet.length === 0){
+    jobbFerdig(jn, logget ? 'ok' : 'delvis', `<strong>${ok} salgsordre-utkast er opprettet i Visma.net</strong> (${tidBrukt()}).${loggKort} Gå til Visma.net for gjennomgang.`);
     btn.textContent = '✓ Opprettet — se Visma.net for gjennomgang';
     vfShowToast(`${ok} salgsordre-utkast opprettet i Visma.net.${loggTekst}`, logget ? 3200 : 10000);
   } else {
+    jobbFerdig(jn, 'delvis', `<strong>${ok} opprettet, ${feilet.length} feilet</strong> (${tidBrukt()}). Kundenr ${escHtmlEpost(feilet.map(f => f.kundenr).join(', '))}. Trykk knappen igjen for å prøve bare disse på nytt.${loggKort}`);
     tilbakestillKnapp();
     if (pendingEl) pendingEl.textContent = `${feilet.length} salgsordre feilet (kundenr ${feilet.map(f => f.kundenr).join(', ')}). Trykk knappen igjen for å prøve bare disse på nytt.`;
     vfShowToast(`${ok} opprettet, ${feilet.length} feilet — se melding over knappen.${loggTekst}`, 10000);
