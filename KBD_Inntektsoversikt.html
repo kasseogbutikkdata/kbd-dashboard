@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.230 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.231 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11375,6 +11375,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.231',dato:'08.10.2026',punkter:[
+    'Onboarding: loggen (med kommentarfeltet) er flyttet til toppen av høyre kolonne, over Salgssak.'
+  ]},
   {versjon:'v1.48.230',dato:'08.10.2026',punkter:[
     'Onboarding: ny knapp «📅 Påminnelse» i toppen av saken. Skriv hva som skal følges opp (eller diktér med 🎤) og velg i morgen, 3 dager, 1 uke, 2 uker, 1 mnd eller en dato (havner datoen på en helg, flyttes den til mandag). Åpne påminnelser vises som merker under kundenavnet (rødt når datoen er nådd) med +1d, +1u og ✓ utført.',
     'Varselet går bare til den som er ansvarlig for onboardingen: Teams-melding i «Arbeidsflyter» om morgenen på datoen, og i bjella i dashbordet til påminnelsen er utført. I oversikten får saken merket «📅 I dag» eller «📅 Forfalt».'
@@ -19332,6 +19335,7 @@ function renderOnboardingDetalj(o){
       ${onbKasseKort(o,kan)}
     </div>
     <div>
+      ${onbLoggKort(o)}
       ${onbSalgssakKort(o)}
       ${onbInfoKort(o,kan)}
       ${onbOppfolgingKort(o,kan)}
@@ -19340,7 +19344,6 @@ function renderOnboardingDetalj(o){
       ${onbAdresseKort(o,kan,kunde)}
       ${onbDatoKort(o,kan)}
       ${onbUtstyrKort(o,kan,sett)}
-      ${onbLoggKort(o)}
     </div>
   </div>`;
 }
@@ -19690,7 +19693,7 @@ function onbSettUtstyr(id,u,på){
 
 function onbLoggKort(o){
   const l=o.data.logg.slice().reverse();
-  return `<div class="card card-public" style="margin-top:16px"><div class="card-title">🕑 Logg</div>
+  return `<div class="card card-public" style="margin-bottom:16px"><div class="card-title">🕑 Logg</div>
     ${(onbTilgang||salgTilgang)?`<div style="display:flex;gap:6px;margin-bottom:10px"><input id="onb-kommentar" placeholder="Skriv en kommentar…" style="flex:1;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter')onbKommentar('${o.id}')"/>${taleKnappHtml('onb-kommentar')}<button class="btn-sm" onclick="onbKommentar('${o.id}')">Legg til</button></div>`:''}
     <div style="max-height:320px;overflow:auto">${l.map(x=>`<div class="onb-logg"><span class="onb-meta">${onbDato(x.dato)} ${new Date(x.dato).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})} · ${onbEsc(x.forfatter||'')}</span><div>${onbEsc(x.tekst)}</div></div>`).join('')||'<div class="muted">Ingen hendelser.</div>'}</div></div>`;
 }
