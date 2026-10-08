@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.234 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.236 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11379,6 +11379,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.236',dato:'08.10.2026',punkter:[
+    'Ikke avstemt i Visma: kommentaren er nå en logg. Det som er lagret vises som «📋 Logg (lagret)» med dato, nyeste øverst, og kan ikke redigeres. Feltet under er for nytt notat, som lagres med dato og navn. Statusendringer logges automatisk.'
+  ]},
+  {versjon:'v1.48.235',dato:'08.10.2026',punkter:[
+    'Ikke avstemt i Visma: «💾 Lagre» viser «✓ Allerede lagret» når status og kommentar ikke er endret (før skjedde det ingenting synlig). Status «Sendt kunde» lagres allerede når du svarer «Ja» etter saldobekreftelsen.'
+  ]},
   {versjon:'v1.48.234',dato:'08.10.2026',punkter:[
     'Ikke avstemt i Visma: ny knapp «✉️ Saldobekreftelse til kunden» i den åpne kunderaden. Lager et Outlook-utkast fra og med svar til firmapost@kbd.as med åpne fakturaer, ubrukte kreditnotaer, innbetalinger som ikke er koblet, og netto. Spør om det stemmer med kundens bokføring, og om utbetaling eller trekk fra neste faktura når kunden har penger til gode. Faktura-PDF-ene legges ved. Går til økonomikontakten, ellers hovedkontakten.',
     'Ny status «Sendt kunde» (settes når du bekrefter at e-posten er sendt, med dato i kommentaren). Etter 14 dager uten endring merkes kunden «⏰ ikke svart», og statusfilteret har eget valg for dem.'
@@ -14024,10 +14030,11 @@ function renderIkkeAvstemt(){
         const fRader=r.fs.map(f=>`<tr><td>📄 Faktura</td><td>${iaEsc(f.fakturanr)}</td><td>forfall ${fDateShort(f.forfallsdato)}</td><td class="tr">${fF(f.belop||0)}</td><td class="tr">${fF(f.utestaende||0)}</td><td></td></tr>`).join('');
         rows.push(`<tr style="background:#fffbeb"><td colspan="9" style="border-left:3px solid #f59e0b;padding:12px 14px">
           <table style="width:100%;font-size:13px;margin-bottom:12px"><thead><tr style="color:#6b7280;font-size:11px"><th>Type</th><th>Dokumentnr</th><th>Dato</th><th class="tr">Beløp</th><th class="tr">Ubrukt / utestående</th><th></th></tr></thead><tbody>${docRader}${fRader}</tbody></table>
+          ${iaLoggHtml(r.kommentar)}
           <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
             <div class="fgrp" style="margin:0"><label>Status</label><select id="ia-status" ${kanRedigere?'':'disabled'}>${IA_STATUSER.map(s=>`<option${r.status===s?' selected':''}>${s}</option>`).join('')}</select></div>
-            <div class="fgrp" style="margin:0;flex:1;min-width:260px"><label>Kommentar (f.eks. hva regnskapsfører skal gjøre)</label><textarea id="ia-kommentar" rows="2" style="width:100%" ${kanRedigere?'':'disabled'}>${iaEsc(r.kommentar)}</textarea></div>
-            ${kanRedigere?`<button class="prim" onclick="iaLagre('${k}')">💾 Lagre</button>`:''}
+            ${kanRedigere?`<div class="fgrp" style="margin:0;flex:1;min-width:260px"><label>Nytt notat (lagres med dato og navn, f.eks. hva regnskapsfører skal gjøre)</label><textarea id="ia-kommentar" rows="2" style="width:100%" placeholder="Skriv et notat…"></textarea></div>`:''}
+            ${kanRedigere?`<button class="prim" onclick="iaLagre('${k}',this)">💾 Lagre</button>`:''}
             ${r.fs.length?`<button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button>`:''}
             ${kanRedigere&&r.docs.some(d=>d.type!=='Refusjon')?`<button class="${iaBareIntern(r)?'btn-sm':'prim'}" style="${iaBareIntern(r)?'':'background:#f59e0b;border-color:#f59e0b'}" onclick="iaSendSaldo('${k}',this)" title="Lager et Outlook-utkast fra ${IA_FRA_EPOST} med saldo og faktura-PDF. Ingenting sendes før du trykker Send i Outlook.">✉️ Saldobekreftelse til kunden</button>`:''}
           </div>
@@ -14038,18 +14045,32 @@ function renderIkkeAvstemt(){
       return rows.join('');
     }).join('')}</tbody></table></div>`;
 }
-async function iaLagre(kundenr){
+// v1.48.236: kommentaren er en logg. Linjene vises som historikk (kan ikke
+// redigeres), og «Lagre» legger til en ny linje «dd.mm.åå: tekst (Fornavn)».
+// Statusendring logges også. Samme samlede tekst skrives på alle kundens dokumenter.
+function iaLoggHtml(kommentar){
+  const linjer=String(kommentar||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!linjer.length)return '<div style="font-size:12px;color:#9ca3af;margin-bottom:10px">Ingen logg ennå.</div>';
+  return `<div style="margin-bottom:12px"><div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">📋 Logg (lagret)</div><div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:6px 10px">${linjer.slice().reverse().map(l=>{const m=/^(\d{2}\.\d{2}\.\d{2,4}):\s*(.*)$/.exec(l);return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #fef3c7;display:flex;gap:8px"><span style="color:#92400e;font-weight:600;white-space:nowrap">${m?'✓ '+iaEsc(m[1]):'✓'}</span><span style="color:#374151">${iaEsc(m?m[2]:l)}</span></div>`;}).join('')}</div></div>`;
+}
+async function iaLagre(kundenr,knapp){
   const k=iaKundeMap.get(kundenr);if(!k)return;
   const status=document.getElementById('ia-status')?.value||'Ikke sett';
-  const kommentar=(document.getElementById('ia-kommentar')?.value||'').trim();
-  const endret=k.docs.filter(d=>d.status!==status||d.kommentar!==kommentar);
-  if(!endret.length)return;
-  const gammel=endret.map(d=>({d,status:d.status,kommentar:d.kommentar}));
-  endret.forEach(d=>{d.status=status;d.kommentar=kommentar;});
+  const nytt=(document.getElementById('ia-kommentar')?.value||'').trim().replace(/\s*\n\s*/g,' ');
+  const statusEndret=k.docs.some(d=>d.status!==status);
+  if(!nytt&&!statusEndret){if(knapp){const t=knapp.innerHTML;knapp.innerHTML='✓ Ingen endringer';knapp.disabled=true;setTimeout(()=>{knapp.innerHTML=t;knapp.disabled=false;},2000);}return;}
+  const dato=fDateShort(new Date().toISOString());
+  const hvem=((currentUser&&(currentUser.name||currentUser.username))||'').split(' ')[0];
+  const nye=[];
+  if(statusEndret)nye.push(`${dato}: Status satt til «${status}»${hvem?' ('+hvem+')':''}.`);
+  if(nytt)nye.push(`${dato}: ${nytt}${hvem?' ('+hvem+')':''}`);
+  const kommentar=[k.kommentar,...nye].filter(Boolean).join('\n');
+  const gammel=k.docs.map(d=>({d,status:d.status,kommentar:d.kommentar}));
+  k.docs.forEach(d=>{d.status=status;d.kommentar=kommentar;});
   iaByggMap();renderFakturaoppfolging();
   setSPStatus('⏳ Lagrer…');
   try{
-    await foKjorPorsjonsvis(endret.map(d=>()=>spUpdate('IkkeAvstemt',d.spId,{OppfolgingStatus:status,Kommentar:kommentar||null})));
+    await foKjorPorsjonsvis(k.docs.map(d=>()=>spUpdate('IkkeAvstemt',d.spId,{OppfolgingStatus:status,Kommentar:kommentar})));
     setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
   }catch(e){
     gammel.forEach(g=>{g.d.status=g.status;g.d.kommentar=g.kommentar;});
