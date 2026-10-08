@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.231 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.232 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3434,6 +3434,7 @@ let kontaktPersoner=[],kontaktListeFinnes=true; // v1.48.224 — se KONTAKTPERSO
 // Fylles fra SharePoint-listene Fakturaoppfolging/FakturaoppfolgingLogg i
 // loadDataFromSP() — samme mønster som kundeNotater over.
 let fakturaoppfolging=[],fakturaoppfolgingLogg=[];
+let ikkeAvstemt=[],iaListeFinnes=true,iaKundeMap=new Map(); // v1.48.232 — se IKKE AVSTEMT I VISMA
 let foSort={col:'score',dir:'desc'},foVisBetalte=false,foKunForfalte=true,foSearch='',foStatusFilter='alle',foApenRad=null,foBucket='alle';
 const FO_STATUSER=['Ikke kontaktet','Kontaktet','Lovet betaling','Sendt til inkasso','Bestridt'];
 // forsteTilgangssjekkGjort: styrer om applyAccessControl() skal tvinge brukeren
@@ -3923,6 +3924,8 @@ async function loadDataFromSP(){
   // v1.48.224: Kontaktpersoner hentes parallelt med resten. Finnes ikke lista
   // ennå (opprettes manuelt i SharePoint, se sjekklisten), skjules «＋ Ny
   // kontakt» og kortet viser bare Visma-/prospektkontakten som før.
+  // v1.48.232: IkkeAvstemt (kreditnotaer/innbetalinger som ikke er koblet i Visma).
+  const iaLoven=spGetItems('IkkeAvstemt').then(r=>{iaListeFinnes=true;return r;}).catch(e=>{console.warn('IkkeAvstemt-lista kunne ikke leses (finnes den i SharePoint?):',e);iaListeFinnes=false;return[];});
   const kpLoven=spGetItems('Kontaktpersoner').then(r=>{kontaktListeFinnes=true;return r;}).catch(e=>{console.warn('Kontaktpersoner-lista kunne ikke leses (finnes den i SharePoint?):',e);kontaktListeFinnes=false;return[];});
   const[licItems,kickItems,prodItems,srcItems,agItems,omsItems,vkItems,vcItems,knItems,ideItems,kgItems,nyeItems,smItems,suItems,sgItems,spuItems,spiItems,spkItems,spsItems,vhItems,srmaItems,fhoItems,srmaiItems,sosSakItems,sosInnstItems,sosKundeItems,nhItems,jsItems,foItems,folItems]=await Promise.all([
     spGetItems('Lisenser'),spGetItems('Kickback'),spGetItems('Produkter'),spGetItems('Kilder'),spGetItems('Aldersfordelt'),spGetItems('Omsetning').catch(()=>[]),spGetItems('VismaKunder').catch(()=>[]),spGetItems('VismaKontrakter').catch(()=>[]),spGetItems('KundeNotater').catch(()=>[]),spGetItems('Idebank').catch(()=>[]),spGetItems('Kunngjoringer').catch(()=>[]),spGetItems('Nyetableringer').catch(()=>[]),spGetItemsLoggetFeil('SmsMaler'),spGetItems('SmsUtsendelser').catch(e=>{console.error('Feil ved lasting av SharePoint-lista "SmsUtsendelser" for innlogget bruker — sjekk om brukeren faktisk har lesetilgang til denne lista (kan avvike fra tilgang til andre lister på samme site):',e);smsUtsendelserLastingFeilet=true;return[];}),spGetItemsLoggetFeil('SmsGrupper'),spGetItemsLoggetFeil('SmsPlanlagteUtsendelser'),spGetItemsLoggetFeil('SmsPurringInnstillinger'),spGetItemsLoggetFeil('SmsPurringKandidater'),spGetItemsLoggetFeil('SmsPurringSendt'),spGetItems('VerifoneHistorikk').catch(()=>[]),spGetItems('SusoftRma').catch(()=>[]),spGetItems('Forhandleromrader').catch(()=>[]),spGetItems('SusoftRmaInnstillinger').catch(()=>[]),spGetItems('SOSSaker').catch(()=>[]),spGetItems('SOSInnstillinger').catch(()=>[]),spGetItems('SOSKunder').catch(()=>[]),
@@ -3943,6 +3946,7 @@ async function loadDataFromSP(){
   aging=agItems.map(i=>({id:`sp${i.id}`,spId:i.id,date:i.fields.Dato||'',d1_30:parseFloat(i.fields.D1_30)||0,d31_60:parseFloat(i.fields.D31_60)||0,d61_90:parseFloat(i.fields.D61_90)||0,d90plus:parseFloat(i.fields.D90plus)||0,note:i.fields.Note||''}));
   fakturaoppfolging=foItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturanr:i.fields.Title||'',kundenr:i.fields.Kundenr||'',kundenavn:i.fields.Kundenavn||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',status:i.fields.Status||'Ikke kontaktet',belop:parseFloat(i.fields.Belop)||0,utestaende:parseFloat(i.fields.UtestaendeBelop)||0,forfallsdato:i.fields.FakturaForfallsdato||'',betaltDato:i.fields.BetaltDato||'',nesteOppfolging:i.fields.NesteOppfolging||'',notatImportert:i.fields.VismaNotatImportert||'',sistSynket:i.fields.SistSynket||'',inkassoSaksnr:i.fields.InkassoSaksnr||''}));
   fakturaoppfolgingLogg=folItems.map(i=>({id:`sp${i.id}`,spId:i.id,fakturanr:i.fields.Fakturanummer||'',skrevetAv:i.fields.SkrevetAv||'',type:i.fields.HenvendelseType||'',kilde:i.fields.Kilde||'',dato:i.fields.Dato||'',kommentar:i.fields.Kommentar||''}));
+  ikkeAvstemt=(await iaLoven).map(mapIkkeAvstemt);iaByggMap(); // v1.48.232
   foLastInnstillinger(); // v1.48.207: terskler for arbeidslisten (feiler stille hvis lista mangler)
   omsetning=omsItems.map(i=>({id:`sp${i.id}`,spId:i.id,year:parseInt(i.fields.Year)||0,period:i.fields.Period||'',amount:parseFloat(i.fields.Amount)||0,note:i.fields.Note||''}));
   // MERK 08.09.2026: sos*-feltene som tidligere lå direkte på vismaKunder-
@@ -11375,6 +11379,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.232',dato:'08.10.2026',punkter:[
+    'Fakturaoppfølging: ny visning «🧮 Ikke avstemt i Visma». Viser kunder med kreditnota eller innbetaling som står åpen i Visma uten å være koblet mot en faktura, med åpne fakturaer, kreditt, netto og mulig match på likt beløp. Fanene «Har åpne fakturaer» og «Bare kreditt», klikk på raden for dokumentene, status («Ikke sett», «Sendt regnskapsfører», «Avklart») og kommentar per kunde, og 📥 Excel-eksport.',
+    'Disse kundene holdes utenfor arbeidslisten og purring-SMS til status er «Avklart» eller posten er avstemt i Visma (da forsvinner raden av seg selv ved neste synk). I «Alle fakturaer» får de merket «⚠️ Ikke avstemt i Visma».',
+    'Purre-e-post går nå til kontaktperson med rolle økonomi/regnskap/faktura hvis kunden har det (Kontaktpersoner), ellers hovedkontakten, ellers kontakten fra Visma.'
+  ]},
   {versjon:'v1.48.231',dato:'08.10.2026',punkter:[
     'Onboarding: loggen (med kommentarfeltet) er flyttet til toppen av høyre kolonne, over Salgssak.'
   ]},
@@ -13850,7 +13859,7 @@ let foVisning='arbeidsliste',foGrupper=true,foVisInnst=false,foEierFilter='alle'
 let foInnst={minBelop:500,minDager:7,nyeSakerTil:''},foInnstSpId=null;
 let foPanelMap={}; // key -> [fakturanr] for åpne/viste rader (settes i render)
 try{
-  const v=localStorage.getItem('kbdcc_fo_visning');if(v==='alle'||v==='arbeidsliste')foVisning=v;
+  const v=localStorage.getItem('kbdcc_fo_visning');if(v==='alle'||v==='arbeidsliste'||v==='ikkeavstemt')foVisning=v;
   const g=localStorage.getItem('kbdcc_fo_grupper');if(g==='0')foGrupper=false;
 }catch(e){}
 
@@ -13898,6 +13907,183 @@ async function lagreFoInnstillinger(){
   }
 }
 
+// ===== IKKE AVSTEMT I VISMA (v1.48.232, 08.10.2026) =====
+// Kreditnotaer og innbetalinger/refusjoner som står åpne (ikke koblet mot
+// faktura) i Visma. Lista «IkkeAvstemt» fylles av FakturaoppfolgingSync
+// (kbd-kunde360-func): nye dokumenter legges til med status «Ikke sett», og
+// dokumenter som forsvinner fra Visma får «Avstemt» satt (vises ikke her).
+// Status og kommentar settes per kunde (skrives på alle kundens dokumenter).
+// Kunder med minst ett uavstemt dokument som ikke er «Avklart» holdes utenfor
+// arbeidslisten (foArbeidsGrunnlag) og purring-SMS (purring_sms.py, samme regel).
+const IA_STATUSER=['Ikke sett','Sendt regnskapsfører','Avklart'];
+let iaFane='fakturaer',iaApen=null,iaStatusFilter='alle';
+function mapIkkeAvstemt(i){const f=i.fields||{};return{id:`sp${i.id}`,spId:i.id,title:f.Title||'',type:f.Dokumenttype||'',dokumentnr:f.Dokumentnr||'',kundenr:String(f.Kundenr||'').trim(),kundenavn:f.Kundenavn||'',belop:parseFloat(f.Belop)||0,ubrukt:parseFloat(f.Ubrukt)||0,dato:f.Dato||'',sistSynket:f.SistSynket||'',avstemt:f.Avstemt||'',status:f.OppfolgingStatus||'Ikke sett',kommentar:f.Kommentar||''};}
+// kundenr -> {kundenr, kundenavn, docs, status, kommentar}. Bygges ved lasting og lagring.
+function iaByggMap(){
+  iaKundeMap=new Map();
+  ikkeAvstemt.filter(d=>!d.avstemt&&d.kundenr).forEach(d=>{
+    if(!iaKundeMap.has(d.kundenr))iaKundeMap.set(d.kundenr,{kundenr:d.kundenr,kundenavn:d.kundenavn,docs:[]});
+    iaKundeMap.get(d.kundenr).docs.push(d);
+  });
+  iaKundeMap.forEach(k=>{
+    const st=k.docs.map(d=>d.status||'Ikke sett');
+    // Et nytt dokument («Ikke sett») etter at kunden er avklart, flagger kunden på nytt.
+    k.status=st.includes('Ikke sett')?'Ikke sett':st.includes('Sendt regnskapsfører')?'Sendt regnskapsfører':st.every(s=>s==='Avklart')?'Avklart':st[0];
+    k.kommentar=(k.docs.find(d=>d.kommentar)||{}).kommentar||'';
+  });
+}
+// true = kunden holdes utenfor arbeidslisten/purring (ikke avklart).
+function foIkkeAvstemt(kundenr){const k=iaKundeMap.get(String(kundenr||'').trim());return !!(k&&k.status!=='Avklart');}
+function iaEsc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function iaJs(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function iaTypeIkon(t){return t==='Kreditnota'?'🧾':t==='Refusjon'?'↩️':'💳';}
+function iaStatusBadge(s){
+  const c=s==='Avklart'?['#dcfce7','#166534']:s==='Sendt regnskapsfører'?['#e0e7ff','#3730a3']:['#fef3c7','#92400e'];
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${c[0]};color:${c[1]};white-space:nowrap">${iaEsc(s)}</span>`;
+}
+// Rad per kunde med summer og mulig match.
+function iaKundeRader(){
+  return [...iaKundeMap.values()].map(k=>{
+    const fs=fakturaoppfolging.filter(f=>!f.betaltDato&&String(f.kundenr||'').trim()===k.kundenr);
+    const kreditt=k.docs.filter(d=>d.type==='Kreditnota').reduce((s,d)=>s+d.ubrukt,0);
+    const innbetalt=k.docs.filter(d=>d.type==='Innbetaling').reduce((s,d)=>s+d.ubrukt,0);
+    const refusjon=k.docs.filter(d=>d.type==='Refusjon').reduce((s,d)=>s+d.ubrukt,0);
+    const fakturaer=fs.reduce((s,f)=>s+(f.utestaende||0),0);
+    const datoer=[...k.docs.map(d=>d.dato),...fs.map(f=>f.forfallsdato)].filter(Boolean).sort((a,b)=>parseLD(a)-parseLD(b));
+    // Mulig match: kreditnota/innbetaling med samme beløp som en åpen faktura.
+    const brukt=new Set(),match=[];
+    k.docs.filter(d=>d.type!=='Refusjon').forEach(d=>{
+      const f=fs.find(f=>!brukt.has(f.fakturanr)&&Math.abs((f.utestaende||0)-d.ubrukt)<0.5);
+      if(f){brukt.add(f.fakturanr);match.push({d,f});}
+    });
+    const dekkerAlt=fs.length>0&&(kreditt+innbetalt)>=fakturaer-0.5;
+    return{...k,kundenavn:k.kundenavn||(fs[0]&&fs[0].kundenavn)||'',fs,kreditt,innbetalt,refusjon,fakturaer,netto:fakturaer-kreditt-innbetalt,eldste:datoer[0]||'',match,dekkerAlt};
+  });
+}
+function setIaFane(v){iaFane=v;iaApen=null;renderFakturaoppfolging();}
+function setIaStatusFilter(v){iaStatusFilter=v;iaApen=null;renderFakturaoppfolging();}
+function toggleIaRad(k){iaApen=iaApen===k?null:k;renderFakturaoppfolging();}
+function iaGaTilFakturaer(kundenr){
+  foVisning='alle';foApenRad=null;foSearch=String(kundenr).toLowerCase();foKunForfalte=false;
+  const s=document.getElementById('fo-search');if(s)s.value=kundenr;
+  const kf=document.getElementById('fo-kun-forfalte');if(kf)kf.checked=false;
+  foLagreVisningsvalg();renderFakturaoppfolging();
+}
+function iaFiltrerte(){
+  return iaKundeRader().filter(r=>(iaStatusFilter==='alle'||r.status===iaStatusFilter)
+    &&(!foSearch||r.kundenavn.toLowerCase().includes(foSearch)||r.kundenr.toLowerCase().includes(foSearch)||r.docs.some(d=>d.dokumentnr.toLowerCase().includes(foSearch))));
+}
+function iaVisningsknapper(){
+  const knapp=(v,txt)=>`<button class="btn-sm" onclick="setFoVisning('${v}')" style="${foVisning===v?'background:#1A3A6B;color:#fff;border-color:#1A3A6B;font-weight:600':''}">${txt}</button>`;
+  const n=[...iaKundeMap.values()].filter(k=>k.status!=='Avklart').length;
+  return knapp('arbeidsliste','📋 Min arbeidsliste')+knapp('alle','🧾 Alle fakturaer')+knapp('ikkeavstemt',`🧮 Ikke avstemt i Visma${n?` <span style="background:#f59e0b;color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:2px">${n}</span>`:''}`);
+}
+function renderIkkeAvstemt(){
+  const barEl=document.getElementById('fo-visning-bar'),target=document.getElementById('fo-tabell');
+  const alle=iaFiltrerte();
+  const medF=alle.filter(r=>r.fs.length),bareK=alle.filter(r=>!r.fs.length);
+  const vis=(iaFane==='kreditt'?bareK:medF).sort((a,b)=>iaFane==='kreditt'?(b.kreditt+b.innbetalt+b.refusjon)-(a.kreditt+a.innbetalt+a.refusjon):(b.kreditt+b.innbetalt)-(a.kreditt+a.innbetalt));
+  const fane=(v,txt,n)=>`<button class="btn-sm" onclick="setIaFane('${v}')" style="${iaFane===v?'background:#fef3c7;border-color:#f59e0b;font-weight:600;color:#92400e':''}">${txt} (${n})</button>`;
+  const sumK=vis.reduce((s,r)=>s+r.kreditt,0),sumI=vis.reduce((s,r)=>s+r.innbetalt,0);
+  if(barEl)barEl.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${iaVisningsknapper()}</div>
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-size:13px;color:#6b7280">${vis.length} ${vis.length===1?'kunde':'kunder'} · kreditt ${fF(sumK)} · innbetalt ${fF(sumI)}</span><button class="btn-sm" onclick="iaEksporter()" title="Last ned som Excel (begge fanene)">📥 Excel</button></div>
+      <div style="width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">${fane('fakturaer','Har åpne fakturaer',medF.length)}${fane('kreditt','Bare kreditt',bareK.length)}
+        <select onchange="setIaStatusFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px"><option value="alle">Alle statuser</option>${IA_STATUSER.map(s=>`<option${iaStatusFilter===s?' selected':''}>${s}</option>`).join('')}</select></div>
+      <div style="font-size:11px;color:#6b7280;margin-top:6px;width:100%">Kreditnotaer og innbetalinger som står åpne i Visma, dvs. ikke koblet mot en faktura. Fakturaene til disse kundene kan derfor se ubetalte ut uten å være det. Kunder her holdes <b>utenfor arbeidslisten og purring-SMS</b> til status er «Avklart» eller posten er avstemt i Visma (da forsvinner raden av seg selv ved neste synk).</div>
+    </div>`;
+  if(!target)return;
+  if(!iaListeFinnes){target.innerHTML='<div class="empty">SharePoint-lista «IkkeAvstemt» finnes ikke ennå (se Liste 35 i Kunde360-oppsett-sjekkliste.md).</div>';return;}
+  if(!vis.length){target.innerHTML=`<div class="empty">${iaKundeMap.size?'Ingen kunder matcher valgte filtre.':'🎉 Alt er avstemt i Visma (eller synken har ikke kjørt ennå).'}</div>`;return;}
+  const kanRedigere=userRole!=='reader';
+  target.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+      <th>Kunde</th><th class="tr">Åpne fakturaer</th><th class="tr">Kreditnota</th><th class="tr">Innbetalt, ikke koblet</th><th class="tr">Netto</th><th>Eldste</th><th>Mulig match</th><th>Status</th><th></th>
+    </tr></thead><tbody>${vis.map(r=>{
+      const apen=iaApen===r.kundenr,k=iaJs(r.kundenr);
+      const matchTxt=r.dekkerAlt?`<span style="color:#166534;font-weight:600">✓ Dekker alle fakturaene</span>`:r.match.length?r.match.map(m=>`<div style="font-size:12px">${iaTypeIkon(m.d.type)} ${iaEsc(m.d.dokumentnr)} ↔ faktura ${iaEsc(m.f.fakturanr)}</div>`).join(''):'<span style="color:#9ca3af">—</span>';
+      const rows=[`<tr style="cursor:pointer${apen?';background:#fffbeb':''}" onclick="toggleIaRad('${k}')">
+        <td${apen?' style="border-left:3px solid #f59e0b"':''}>${iaEsc(r.kundenavn)}<div style="font-size:11px;color:#9ca3af">Kundenr ${iaEsc(r.kundenr)} · ${r.docs.length} dok.</div></td>
+        <td class="tr">${r.fs.length?`${fF(r.fakturaer)}<div style="font-size:11px;color:#9ca3af">${r.fs.length} stk</div>`:'—'}</td>
+        <td class="tr">${r.kreditt?fF(r.kreditt):'—'}</td>
+        <td class="tr">${r.innbetalt?fF(r.innbetalt):'—'}${r.refusjon?`<div style="font-size:11px;color:#6b7280" title="Refusjon som ikke er koblet. Ikke med i netto.">↩️ refusjon ${fF(r.refusjon)}</div>`:''}</td>
+        <td class="tr" style="font-weight:600;color:${r.netto<-0.5?'#2563eb':r.netto>0.5?'#111':'#166534'}">${fF(r.netto)}</td>
+        <td>${fDateShort(r.eldste)}</td>
+        <td>${matchTxt}</td>
+        <td>${iaStatusBadge(r.status)}${r.kommentar?` <span title="${iaEsc(r.kommentar)}">💬</span>`:''}</td>
+        <td><button class="btn-sm" onclick="event.stopPropagation();toggleIaRad('${k}')">${apen?'▲':'▼'}</button></td></tr>`];
+      if(apen){
+        const docRader=r.docs.slice().sort((a,b)=>(parseLD(a.dato)||0)-(parseLD(b.dato)||0)).map(d=>{const m=r.match.find(x=>x.d===d);return `<tr><td>${iaTypeIkon(d.type)} ${iaEsc(d.type)}</td><td>${iaEsc(d.dokumentnr)}</td><td>${fDateShort(d.dato)}</td><td class="tr">${fF(d.belop)}</td><td class="tr">${fF(d.ubrukt)}</td><td style="font-size:12px;color:#166534">${m?'↔ faktura '+iaEsc(m.f.fakturanr):''}</td></tr>`;}).join('');
+        const fRader=r.fs.map(f=>`<tr><td>📄 Faktura</td><td>${iaEsc(f.fakturanr)}</td><td>forfall ${fDateShort(f.forfallsdato)}</td><td class="tr">${fF(f.belop||0)}</td><td class="tr">${fF(f.utestaende||0)}</td><td></td></tr>`).join('');
+        rows.push(`<tr style="background:#fffbeb"><td colspan="9" style="border-left:3px solid #f59e0b;padding:12px 14px">
+          <table style="width:100%;font-size:13px;margin-bottom:12px"><thead><tr style="color:#6b7280;font-size:11px"><th>Type</th><th>Dokumentnr</th><th>Dato</th><th class="tr">Beløp</th><th class="tr">Ubrukt / utestående</th><th></th></tr></thead><tbody>${docRader}${fRader}</tbody></table>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+            <div class="fgrp" style="margin:0"><label>Status</label><select id="ia-status" ${kanRedigere?'':'disabled'}>${IA_STATUSER.map(s=>`<option${r.status===s?' selected':''}>${s}</option>`).join('')}</select></div>
+            <div class="fgrp" style="margin:0;flex:1;min-width:260px"><label>Kommentar (f.eks. hva regnskapsfører skal gjøre)</label><textarea id="ia-kommentar" rows="2" style="width:100%" ${kanRedigere?'':'disabled'}>${iaEsc(r.kommentar)}</textarea></div>
+            ${kanRedigere?`<button class="prim" onclick="iaLagre('${k}')">💾 Lagre</button>`:''}
+            ${r.fs.length?`<button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button>`:''}
+          </div>
+          <div style="font-size:11px;color:#6b7280;margin-top:6px">«Avklart» = kunden kommer tilbake på arbeidslisten og purring-SMS selv om posten fortsatt står åpen i Visma. Selve koblingen må gjøres i Visma.</div>
+        </td></tr>`);
+      }
+      return rows.join('');
+    }).join('')}</tbody></table></div>`;
+}
+async function iaLagre(kundenr){
+  const k=iaKundeMap.get(kundenr);if(!k)return;
+  const status=document.getElementById('ia-status')?.value||'Ikke sett';
+  const kommentar=(document.getElementById('ia-kommentar')?.value||'').trim();
+  const endret=k.docs.filter(d=>d.status!==status||d.kommentar!==kommentar);
+  if(!endret.length)return;
+  const gammel=endret.map(d=>({d,status:d.status,kommentar:d.kommentar}));
+  endret.forEach(d=>{d.status=status;d.kommentar=kommentar;});
+  iaByggMap();renderFakturaoppfolging();
+  setSPStatus('⏳ Lagrer…');
+  try{
+    await foKjorPorsjonsvis(endret.map(d=>()=>spUpdate('IkkeAvstemt',d.spId,{OppfolgingStatus:status,Kommentar:kommentar||null})));
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+  }catch(e){
+    gammel.forEach(g=>{g.d.status=g.status;g.d.kommentar=g.kommentar;});
+    iaByggMap();renderFakturaoppfolging();
+    setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);
+  }
+}
+function iaEksporter(){
+  if(typeof XLSX==='undefined'){alert('Excel-biblioteket er ikke lastet.');return;}
+  const rader=iaFiltrerte();
+  const kunder=rader.map(r=>({'Kundenr':r.kundenr,'Kunde':r.kundenavn,'Har åpne fakturaer':r.fs.length?'Ja':'Nei','Antall fakturaer':r.fs.length,'Åpne fakturaer':r.fakturaer,'Kreditnota':r.kreditt,'Innbetalt ikke koblet':r.innbetalt,'Refusjon':r.refusjon,'Netto':r.netto,'Eldste':fDateShort(r.eldste),'Mulig match':r.dekkerAlt?'Dekker alle fakturaene':r.match.map(m=>`${m.d.dokumentnr} = faktura ${m.f.fakturanr}`).join(', '),'Status':r.status,'Kommentar':r.kommentar}));
+  const dok=[];
+  rader.forEach(r=>{
+    r.docs.forEach(d=>dok.push({'Kundenr':r.kundenr,'Kunde':r.kundenavn,'Type':d.type,'Dokumentnr':d.dokumentnr,'Dato':fDateShort(d.dato),'Beløp':d.belop,'Ubrukt / utestående':d.ubrukt}));
+    r.fs.forEach(f=>dok.push({'Kundenr':r.kundenr,'Kunde':r.kundenavn,'Type':'Faktura','Dokumentnr':f.fakturanr,'Dato':fDateShort(f.forfallsdato),'Beløp':f.belop||0,'Ubrukt / utestående':f.utestaende||0}));
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(kunder),'Per kunde');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(dok),'Dokumenter');
+  const d=new Date();
+  XLSX.writeFile(wb,`Ikke_avstemt_Visma_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.xlsx`);
+}
+
+// ----- Purre-e-post til økonomikontakt (v1.48.232) -----
+// Har kunden en aktiv kontaktperson med rolle økonomi/regnskap/faktura i
+// Kontaktpersoner, går e-posten dit. Ellers hovedkontakten (⭐), ellers
+// kontakten fra Visma som før.
+const FO_OKONOMI_ROLLE=/økonomi|okonomi|regnskap|faktura|bokfør|bokfor|lønn|account|finance/i;
+function foPurreKontakt(rad){
+  try{
+    if(typeof kpFinnKunde==='function'&&typeof kontakterForKunde==='function'){
+      const k=kpFinnKunde(rad.kundenr);
+      if(k){
+        const aktive=kontakterForKunde(k).filter(c=>!c.tidligere&&c.epost);
+        const ok=aktive.find(c=>FO_OKONOMI_ROLLE.test(c.rolle||''));
+        if(ok)return{navn:ok.navn,epost:ok.epost,kilde:`økonomikontakt${ok.rolle?' ('+ok.rolle+')':''}`};
+        const hk=hovedkontaktFor(k);
+        if(hk&&hk.epost&&!hk.base)return{navn:hk.navn,epost:hk.epost,kilde:'hovedkontakt'};
+      }
+    }
+  }catch(e){console.warn('foPurreKontakt:',e);}
+  return{navn:rad.kontaktNavn||'',epost:rad.kontaktEpost||'',kilde:'fra Visma'};
+}
+
 function foIdag(){const d=new Date();d.setHours(0,0,0,0);return d;}
 function foNesteDato(f){return f.nesteOppfolging?parseLD(f.nesteOppfolging):null;}
 // Grunnlag for arbeidslista: åpen, forfalt, ikke sendt til inkasso, og ikke
@@ -13905,6 +14091,7 @@ function foNesteDato(f){return f.nesteOppfolging?parseLD(f.nesteOppfolging):null
 function foArbeidsGrunnlag(f){
   if(f.betaltDato)return false;
   if(f.status==='Sendt til inkasso')return false;
+  if(foIkkeAvstemt(f.kundenr))return false; // v1.48.232: uavstemt kreditt/innbetaling i Visma
   if(foDagerForfalt(f)<=0)return false;
   const n=foNesteDato(f);
   if(n&&n>foIdag())return false;
@@ -14050,11 +14237,12 @@ function foMailInnhold(rad,vedlegg){
   const fs=foEpostFakturaer(rad);
   const emne=fs.length===1?`Faktura ${fs[0].fakturanr} fra Kasse og Butikkdata AS`:`Ubetalte fakturaer fra Kasse og Butikkdata AS`;
   const linjer=fs.map(f=>`- Faktura ${f.fakturanr}: ${fF(f.utestaende||0)}, forfall ${fDateShort(f.forfallsdato)}`).join('\n');
-  const navn=(rad.kontaktNavn||'').split(' ')[0];
+  const pk=foPurreKontakt(rad); // v1.48.232: økonomikontakt > hovedkontakt > Visma
+  const navn=(pk.navn||'').split(' ')[0];
   const avsender=(typeof currentUser!=='undefined'&&currentUser&&(currentUser.name||currentUser.username))||'';
   const tekst=`Hei${navn?' '+navn:''},\n\nVi ser at ${fs.length===1?'denne fakturaen':'disse fakturaene'} ikke er registrert betalt hos oss:\n\n${linjer}\n\nKan du sjekke dette? Si gjerne ifra om noe er uklart, eller om betaling allerede er sendt. Svar gjerne til ${FO_SVAR_EPOST}.\n\nMed vennlig hilsen\n${avsender?avsender+'\n':''}Kasse og Butikkdata AS`;
   const medVedlegg=vedlegg?tekst.replace(`${linjer}\n\n`,`${linjer}\n\n${fs.length===1?'Fakturaen':'Fakturaene'} ligger vedlagt.\n\n`):tekst;
-  return{til:rad.kontaktEpost||'',emne,tekst:medVedlegg};
+  return{til:pk.epost||'',emne,tekst:medVedlegg};
 }
 function foMailHref(rad){
   const m=foMailInnhold(rad,false);
@@ -14111,8 +14299,9 @@ async function foEpostMedVedlegg(key,lenke){
   foEpostKlikk(key);
 }
 function foKontaktHtml(rad){
-  const esc=s=>String(s||'').replace(/</g,'&lt;');
-  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon?`<div><a href="${foTelHref(rad.kontaktTelefon)}" onclick="event.stopPropagation()" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>`:''}${rad.kontaktEpost?`<div><a href="${foMailHref(rad)}" onclick="event.stopPropagation();event.preventDefault();foEpostMedVedlegg('${String(rad.key).replace(/'/g,"\\'")}',this)" style="color:#2563eb;text-decoration:none" title="Lager e-post i Outlook med faktura-PDF vedlagt">✉️ ${esc(rad.kontaktEpost)}</a></div>`:''}`;
+  const esc=s=>String(s||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const pk=foPurreKontakt(rad);
+  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon?`<div><a href="${foTelHref(rad.kontaktTelefon)}" onclick="event.stopPropagation()" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>`:''}${pk.epost?`<div><a href="${foMailHref(rad)}" onclick="event.stopPropagation();event.preventDefault();foEpostMedVedlegg('${String(rad.key).replace(/'/g,"\\'")}',this)" style="color:#2563eb;text-decoration:none" title="Lager e-post i Outlook med faktura-PDF vedlagt (til ${esc(pk.kilde)})">✉️ ${esc(pk.epost)}</a>${pk.kilde!=='fra Visma'?`<div style="font-size:10px;color:#6b7280">${esc(pk.navn)} · ${esc(pk.kilde)}</div>`:''}</div>`:''}`;
 }
 
 // v1.48.213: etter klikk på e-postadressen spør KBD CC om e-posten ble sendt.
@@ -14415,6 +14604,10 @@ function renderFakturaoppfolging(){
     }).join('');
 
   foOppdaterNavBadge(); // v1.48.209
+  // v1.48.232: egen visning for poster som ikke er avstemt i Visma.
+  const iaVis=foVisning==='ikkeavstemt';
+  ['fo-bucket-filters','fo-status-filter','fo-bucket-sum'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=iaVis?'none':'';});
+  if(iaVis){['fo-lbl-kunforfalte','fo-lbl-visbetalte'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});renderIkkeAvstemt();return;}
   const arb=foVisning==='arbeidsliste';
   // «Vis kun forfalte»/«Vis også betalte» gir bare mening i «Alle fakturaer».
   ['fo-lbl-kunforfalte','fo-lbl-visbetalte'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=arb?'none':'flex';});
@@ -14453,7 +14646,7 @@ function renderFakturaoppfolging(){
     const teller=arb
       ?`<span style="font-size:14px;color:#111"><b style="font-size:18px;color:#dc2626">${visRader.length}</b> ${enhet} å følge opp i dag · ${fF(sumVis)}${foGrupper?` <span style="color:#6b7280;font-size:12px">(${antFakt} fakturaer)</span>`:''}</span>`
       :`<span style="font-size:13px;color:#6b7280">${visRader.length} ${enhet}${foGrupper?` (${antFakt} fakturaer)`:''} · ${fF(sumVis)}</span>`;
-    const regel=arb?`<div style="font-size:11px;color:#6b7280;margin-top:6px;width:100%">Listen viser ${foGrupper?'kunder med':'fakturaer med'} minst <b>${fF(foInnst.minBelop)}</b> utestående${foGrupper?' (samlet)':''} og minst <b>${foInnst.minDager} dager</b> forfalt, pluss alt med neste oppfølging i dag eller tidligere. Ikke med: neste oppfølging fram i tid, og «Sendt til inkasso». Mindre beløp tas av purring-SMS.</div>`:'';
+    const regel=arb?`<div style="font-size:11px;color:#6b7280;margin-top:6px;width:100%">Listen viser ${foGrupper?'kunder med':'fakturaer med'} minst <b>${fF(foInnst.minBelop)}</b> utestående${foGrupper?' (samlet)':''} og minst <b>${foInnst.minDager} dager</b> forfalt, pluss alt med neste oppfølging i dag eller tidligere. Ikke med: neste oppfølging fram i tid, «Sendt til inkasso» og kunder med kreditnota/innbetaling som ikke er avstemt i Visma (se 🧮). Mindre beløp tas av purring-SMS.</div>${(()=>{const n=[...iaKundeMap.values()].filter(k=>k.status!=='Avklart'&&fakturaoppfolging.some(f=>!f.betaltDato&&String(f.kundenr||'').trim()===k.kundenr&&foDagerForfalt(f)>0)).length;return n?`<div style="width:100%;margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;display:flex;gap:10px;align-items:center;flex-wrap:wrap">🧮 <span><b>${n}</b> ${n===1?'kunde':'kunder'} med forfalte fakturaer holdes utenfor fordi de har kreditnota/innbetaling som ikke er avstemt i Visma.</span> <button class="btn-sm" onclick="setFoVisning('ikkeavstemt')">Vis dem</button></div>`:'';})()}`:'';
     const tannhjul=userRole==='admin'?`<button class="btn-sm" onclick="foVisInnst=!foVisInnst;renderFakturaoppfolging()" title="Terskler for arbeidslisten">⚙️ Innstillinger</button>`:'';
     const innst=(userRole==='admin'&&foVisInnst)?`<div style="width:100%;margin-top:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">
         <div class="fgrp" style="margin:0"><label>Minstebeløp utestående (kr)</label><input type="number" min="0" step="50" id="fo-innst-belop" value="${foInnst.minBelop}" style="width:150px"/></div>
@@ -14464,7 +14657,7 @@ function renderFakturaoppfolging(){
       </div>`:'';
     barEl.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-          ${knapp('arbeidsliste','📋 Min arbeidsliste')}${knapp('alle','🧾 Alle fakturaer')}
+          ${iaVisningsknapper()}
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:8px"><input type="checkbox" ${foGrupper?'checked':''} onchange="setFoGrupper(this.checked)"/> Grupper per kunde</label>
           ${arb?`<select onchange="setFoEierFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px" title="Eier = den som sist skrev i loggen">
             <option value="alle"${foEierFilter==='alle'?' selected':''}>Alle på lista (${eierTall.alle})</option>
@@ -14548,7 +14741,7 @@ function renderFakturaoppfolging(){
         <td class="tr">${fF(r.utestaende)}</td>
         <td>${fDateShort(r.forfallsdato)}${flere?'<div style="font-size:10px;color:#9ca3af">eldste</div>':''}${r.dager>0?`<div style="color:#dc2626;font-size:11px">${r.dager} dager forfalt</div>`:''}${r.betaltDato?`<div style="color:#1baf7a;font-size:11px">✓ Betalt ${fDateShort(r.betaltDato)}</div>`:''}</td>
         <td class="tr">${r.score>0?Math.round(r.score).toLocaleString('nb-NO'):'—'}</td>
-        <td>${statuser.map(foStatusBadge).join(' ')}${(()=>{const sk=foSistKontakt(r.fs);return sk?`<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Siste kontakt (logg i KBD CC eller purring-SMS)">${foKontaktIkon(sk.type)} Sist kontakt ${fDateShort(sk.dato)}</div>`:'';})()}${r.fs.some(foNevnerInkasso)?'<div style="font-size:11px;color:#b45309;margin-top:2px" title="Visma-notatet nevner inkasso/namsmann">⚠️ Inkasso i Visma-notat</div>':''}${[...new Set(r.fs.map(f=>f.inkassoSaksnr).filter(Boolean))].map(n=>`<div style="font-size:11px;margin-top:2px">${foAmiliLenke(n)}</div>`).join('')}</td>
+        <td>${statuser.map(foStatusBadge).join(' ')}${(()=>{const sk=foSistKontakt(r.fs);return sk?`<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Siste kontakt (logg i KBD CC eller purring-SMS)">${foKontaktIkon(sk.type)} Sist kontakt ${fDateShort(sk.dato)}</div>`:'';})()}${r.fs.some(foNevnerInkasso)?'<div style="font-size:11px;color:#b45309;margin-top:2px" title="Visma-notatet nevner inkasso/namsmann">⚠️ Inkasso i Visma-notat</div>':''}${foIkkeAvstemt(r.kundenr)?`<div style="font-size:11px;color:#b45309;margin-top:2px;cursor:pointer" title="Kunden har kreditnota/innbetaling som ikke er koblet mot faktura i Visma. Klikk for å se." onclick="event.stopPropagation();iaApen='${String(r.kundenr).replace(/'/g,"\\'")}';setFoVisning('ikkeavstemt')">⚠️ Ikke avstemt i Visma</div>`:''}${[...new Set(r.fs.map(f=>f.inkassoSaksnr).filter(Boolean))].map(n=>`<div style="font-size:11px;margin-top:2px">${foAmiliLenke(n)}</div>`).join('')}</td>
         <td><span${nesteForfalt?' style="color:#dc2626;font-weight:600"':''}>${r.nesteOppfolging?fDateShort(r.nesteOppfolging):'—'}</span>${r.eier?`<div style="font-size:11px;color:${r.eierType==='mine'?'#1A3A6B':'#9ca3af'}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g,'')}">👤 ${String(r.eier).split(' ')[0].replace(/</g,'&lt;')}</div>`:''}</td>
         <td><button class="btn-sm" onclick="event.stopPropagation();toggleFoDetalj('${r.key.replace(/'/g,"\\'")}')">${apen?'▲ Lukk':'📝 Logg'}</button></td>
       </tr>`];
