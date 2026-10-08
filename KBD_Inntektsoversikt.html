@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.238 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.239 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2067,6 +2067,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
   <div class="modal-overlay" id="notat-modal" onclick="if(event.target===this)closeNotatModal()">
     <div class="modal" style="max-width:520px">
       <h3 id="notat-modal-title" style="margin-bottom:16px">Ny oppføring</h3>
+      <div id="n-lk-info" style="display:none;margin:-6px 0 14px;padding:9px 12px;border-radius:8px;font-size:13px;line-height:1.45"></div>
       <!-- NYTT LEAD (lagt til 29.09.2026, v1.48.142) — kunde-/firmavelger som
            KUN vises når modalen åpnes via «➕ Nytt lead» i Kundesaker
            (openNyttLeadModal()). Lar selgeren registrere et lead i ETT steg:
@@ -8934,6 +8935,7 @@ function fyllAnsvarligSelect(gjeldendeNavn){
 }
 
 function openNyNotatModal(kNr,navn){
+  if(typeof lkSkjulNotatInfo==='function')lkSkjulNotatInfo();
   taleVisStatiske();
   settLeadModus(false);
   fyllFaseOgKildeValg('Tilbud sendt','','');
@@ -8964,6 +8966,7 @@ function openNyNotatModal(kNr,navn){
 }
 
 function openRedigerNotat(id){
+  if(typeof lkSkjulNotatInfo==='function')lkSkjulNotatInfo();
   taleVisStatiske();
   const n=kundeNotater.find(x=>x.id===id);if(!n)return;
   settLeadModus(false);
@@ -8990,7 +8993,8 @@ function openRedigerNotat(id){
 }
 
 let notatLagretHook=null;
-function closeNotatModal(){notatLagretHook=null;if(taleAktiv&&taleAktiv.targetId==='n-innhold')taleStopp();document.getElementById('notat-modal').classList.remove('open');}
+function lkSkjulNotatInfo(){const e=document.getElementById('n-lk-info');if(e){e.style.display='none';e.innerHTML='';}}
+function closeNotatModal(){notatLagretHook=null;lkSkjulNotatInfo();if(taleAktiv&&taleAktiv.targetId==='n-innhold')taleStopp();document.getElementById('notat-modal').classList.remove('open');}
 
 // ===== NYTT LEAD I ETT STEG (lagt til 29.09.2026, v1.48.142) =====
 // Thomas' observasjon: for å registrere et nytt lead måtte man først
@@ -11382,6 +11386,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.239',dato:'08.10.2026',punkter:[
+    'Lisenskontroll, «+ Oppfølging»: skjemaet viser øverst hvilken kunde oppfølgingen lagres på, og hvordan kunden er funnet (kontrakten med BAX-en, eller samme organisasjonsnummer når kontrakt mangler). Er kunden bare funnet via orgnr, får du beskjed om å sjekke at det er riktig kunde. Tittelen har nå med brukersted og BAX, så det er tydelig på kundekortet og i varsel-e-posten hvilket brukersted det gjelder.'
+  ]},
   {versjon:'v1.48.238',dato:'08.10.2026',punkter:[
     'Lisens- og servicekontroll har fått en avviksliste som lagres. Avvikene ligger der når du kommer tilbake, også etter at siden er lastet på nytt, så du slipper å laste opp fakturaen igjen.',
     'Hvert avvik har status (Ny, Under arbeid, Venter på kunde, Løst, Godtatt), ansvarlig og en logg med notater, dato og navn. «🙋 Ta saken» setter deg som ansvarlig og status Under arbeid. Filteret «Mine» viser dine åpne avvik.',
@@ -18197,7 +18204,9 @@ function lkOppfolging(bax,rX,dX){
   const d=dX||lkData;const r=rX||(d&&d.rader.find(x=>x.bax===bax));if(!r)return false;
   const k=r.kontrakter.find(x=>x.status==='Active'||x.status==='Aktiv')||r.kontrakter[0];
   let vk=k?vismaKunder.find(x=>samKundenr(x.vismaNummer,k.kundenr)):null;
-  if(!vk&&r.orgnr)vk=vismaKunder.find(x=>normOrgNr(x.orgNr)===normOrgNr(r.orgnr));
+  let kilde=vk?((k.status==='Active'||k.status==='Aktiv')?'kontrakt':'avsluttet'):'';
+  let orgTreff=[];
+  if(!vk&&r.orgnr){orgTreff=vismaKunder.filter(x=>normOrgNr(x.orgNr)===normOrgNr(r.orgnr));vk=orgTreff[0]||null;if(vk)kilde='orgnr';}
   const tittelMap={INGEN_KONTRAKT:'ingen aktiv kontrakt',MANGLER_TJENESTE:'tjeneste mangler på kontrakt',FOR_FAA:'for få terminaler på kontrakt',LAV_MARGIN:'lav margin',UKJENT:'kontrakt ikke lest'};
   const kat=r.kategorier.filter(c=>c.status!=='OK').map(c=>`${c.navn}: leverandør ${c.leverandorAntall}, kontrakt ${c.kontraktAntall}`).join('; ');
   const tekst=`${d.leverandor}-faktura ${d.fakturanr} (${d.fakturadato}): BAX ${r.bax} ${r.brukersted}${r.orgnr?' (orgnr '+r.orgnr+')':''}.\n`+
@@ -18212,7 +18221,19 @@ function lkOppfolging(bax,rX,dX){
   openNyNotatModal(vk.vismaNummer,vk.navn);
   document.getElementById('n-type').value='Oppfølging';
   updateNotatFormFields();
-  document.getElementById('n-tittel').value=`Lisenskontroll ${d.leverandor}: ${tittelMap[r.status]||'avvik'}`;
+  document.getElementById('n-tittel').value=`Lisenskontroll ${d.leverandor}: ${tittelMap[r.status]||'avvik'} – ${r.brukersted||'(uten navn)'} (BAX ${r.bax})`;
+  // v1.48.239: vis hvilken kunde oppfølgingen lagres på, og hvordan kunden er funnet
+  const info=document.getElementById('n-lk-info');
+  if(info){
+    const kunde=`<strong>${escHtmlEpost(vk.navn)}</strong> (kundenr ${escHtmlEpost(vk.vismaNummer)})`;
+    const grunn=kilde==='kontrakt'?`fra aktiv kontrakt ${escHtmlEpost(k.id)} med BAX ${escHtmlEpost(r.bax)}.`
+      :kilde==='avsluttet'?`fra avsluttet kontrakt ${escHtmlEpost(k.id)} med BAX ${escHtmlEpost(r.bax)}. Sjekk at det fortsatt er riktig kunde.`
+      :`funnet via samme orgnr (${escHtmlEpost(r.orgnr)}), fordi BAX ${escHtmlEpost(r.bax)} (${escHtmlEpost(r.brukersted||'')}) ikke har noen kontrakt. <strong>Sjekk at dette er riktig kunde.</strong>${orgTreff.length>1?` Det finnes ${orgTreff.length} kunder med dette orgnr; den første er valgt.`:''}`;
+    const usikker=kilde!=='kontrakt';
+    info.style.background=usikker?'#fff7ed':'#f0f4ff';info.style.border='1px solid '+(usikker?'#fed7aa':'#c7d2fe');info.style.color=usikker?'#9a3412':'#1e3a8a';
+    info.innerHTML=`📌 Lagres på kundekortet til ${kunde}, ${grunn}`;
+    info.style.display='';
+  }
   rtSettInnhold(tekst);
   const frist=new Date();frist.setDate(frist.getDate()+14);frist.setHours(9,0,0,0);
   if(notatDatePicker)notatDatePicker.setDate(frist);else document.getElementById('n-forfallsdato').value=toLocalDatetimeInputValue(frist.toISOString());
