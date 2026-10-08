@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.240 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.241 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11386,6 +11386,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.241',dato:'08.10.2026',punkter:[
+    'Onboarding: nye onboardinger vises ikke lenger i bjella. De varsles fortsatt med telleren ved «Onboarding» i menyen og Teams-kortet i KBD Teknisk.'
+  ]},
   {versjon:'v1.48.240',dato:'08.10.2026',punkter:[
     'Lisenskontroll: kolonneoverskriftene i avvikslisten og i hele kontrollresultatet kan sorteres. Klikk på en overskrift for å sortere, og klikk igjen for å snu rekkefølgen (▲/▼). Tall sorteres størst først, tekst A–Å. «Siste notat» sorteres på datoen for siste notat.'
   ]},
@@ -19900,7 +19903,7 @@ function onbEsc(s){return escHtmlEpost(s);}
 function hentMineOnboardingVarsler(){
   const ut=[];const naa=Date.now();
   onboardinger.forEach(o=>{
-    if(o.status==='Ny'&&onbTilgang)ut.push({o,tekst:'Ny onboarding venter på å bli tatt',nokkel:`onb-ny|${o.spId}`});
+    // v1.48.241: nye onboardinger varsles ikke lenger i bjella (Thomas 08.10.2026) – teller i menyen og Teams-kortet i KBD Teknisk er nok.
     if((o.status==='Pågår'||o.status==='Ferdig')&&onbErMin(o)){ // v1.48.230: påminnelser
       onbPmApne(o).filter(p=>p.dato<=onbIDag()).forEach(p=>ut.push({o,tekst:`📅 ${p.dato<onbIDag()?'Forfalt '+onbPmDatoKort(p.dato):'I dag'}: ${p.tekst}`,nokkel:`onb-pm|${o.spId}|${p.id}|${p.dato}`}));
     }
