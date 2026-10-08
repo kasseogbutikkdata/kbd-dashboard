@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.233 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.234 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11379,6 +11379,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.234',dato:'08.10.2026',punkter:[
+    'Ikke avstemt i Visma: ny knapp «✉️ Saldobekreftelse til kunden» i den åpne kunderaden. Lager et Outlook-utkast fra og med svar til firmapost@kbd.as med åpne fakturaer, ubrukte kreditnotaer, innbetalinger som ikke er koblet, og netto. Spør om det stemmer med kundens bokføring, og om utbetaling eller trekk fra neste faktura når kunden har penger til gode. Faktura-PDF-ene legges ved. Går til økonomikontakten, ellers hovedkontakten.',
+    'Ny status «Sendt kunde» (settes når du bekrefter at e-posten er sendt, med dato i kommentaren). Etter 14 dager uten endring merkes kunden «⏰ ikke svart», og statusfilteret har eget valg for dem.'
+  ]},
   {versjon:'v1.48.233',dato:'08.10.2026',punkter:[
     'Fakturaoppfølging: filterlinja (søk, aldersgrupper, status) står på én rad igjen. Ble loddrett i v1.48.232.'
   ]},
@@ -13918,9 +13922,9 @@ async function lagreFoInnstillinger(){
 // Status og kommentar settes per kunde (skrives på alle kundens dokumenter).
 // Kunder med minst ett uavstemt dokument som ikke er «Avklart» holdes utenfor
 // arbeidslisten (foArbeidsGrunnlag) og purring-SMS (purring_sms.py, samme regel).
-const IA_STATUSER=['Ikke sett','Sendt regnskapsfører','Avklart'];
+const IA_STATUSER=['Ikke sett','Sendt kunde','Sendt regnskapsfører','Avklart']; // «Sendt kunde» v1.48.234
 let iaFane='fakturaer',iaApen=null,iaStatusFilter='alle';
-function mapIkkeAvstemt(i){const f=i.fields||{};return{id:`sp${i.id}`,spId:i.id,title:f.Title||'',type:f.Dokumenttype||'',dokumentnr:f.Dokumentnr||'',kundenr:String(f.Kundenr||'').trim(),kundenavn:f.Kundenavn||'',belop:parseFloat(f.Belop)||0,ubrukt:parseFloat(f.Ubrukt)||0,dato:f.Dato||'',sistSynket:f.SistSynket||'',avstemt:f.Avstemt||'',status:f.OppfolgingStatus||'Ikke sett',kommentar:f.Kommentar||''};}
+function mapIkkeAvstemt(i){const f=i.fields||{};return{id:`sp${i.id}`,spId:i.id,title:f.Title||'',type:f.Dokumenttype||'',dokumentnr:f.Dokumentnr||'',kundenr:String(f.Kundenr||'').trim(),kundenavn:f.Kundenavn||'',belop:parseFloat(f.Belop)||0,ubrukt:parseFloat(f.Ubrukt)||0,dato:f.Dato||'',sistSynket:f.SistSynket||'',avstemt:f.Avstemt||'',status:f.OppfolgingStatus||'Ikke sett',kommentar:f.Kommentar||'',sendtKunde:f.SendtKunde||''};}
 // kundenr -> {kundenr, kundenavn, docs, status, kommentar}. Bygges ved lasting og lagring.
 function iaByggMap(){
   iaKundeMap=new Map();
@@ -13931,7 +13935,8 @@ function iaByggMap(){
   iaKundeMap.forEach(k=>{
     const st=k.docs.map(d=>d.status||'Ikke sett');
     // Et nytt dokument («Ikke sett») etter at kunden er avklart, flagger kunden på nytt.
-    k.status=st.includes('Ikke sett')?'Ikke sett':st.includes('Sendt regnskapsfører')?'Sendt regnskapsfører':st.every(s=>s==='Avklart')?'Avklart':st[0];
+    k.status=st.includes('Ikke sett')?'Ikke sett':st.includes('Sendt kunde')?'Sendt kunde':st.includes('Sendt regnskapsfører')?'Sendt regnskapsfører':st.every(s=>s==='Avklart')?'Avklart':st[0];
+    k.sendtKunde=k.docs.map(d=>d.sendtKunde).filter(Boolean).sort().pop()||'';
     k.kommentar=(k.docs.find(d=>d.kommentar)||{}).kommentar||'';
   });
 }
@@ -13941,7 +13946,7 @@ function iaEsc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function iaJs(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function iaTypeIkon(t){return t==='Kreditnota'?'🧾':t==='Refusjon'?'↩️':'💳';}
 function iaStatusBadge(s){
-  const c=s==='Avklart'?['#dcfce7','#166534']:s==='Sendt regnskapsfører'?['#e0e7ff','#3730a3']:['#fef3c7','#92400e'];
+  const c=s==='Avklart'?['#dcfce7','#166534']:s==='Sendt regnskapsfører'?['#e0e7ff','#3730a3']:s==='Sendt kunde'?['#dbeafe','#1e40af']:['#fef3c7','#92400e'];
   return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${c[0]};color:${c[1]};white-space:nowrap">${iaEsc(s)}</span>`;
 }
 // Rad per kunde med summer og mulig match.
@@ -13973,7 +13978,7 @@ function iaGaTilFakturaer(kundenr){
   foLagreVisningsvalg();renderFakturaoppfolging();
 }
 function iaFiltrerte(){
-  return iaKundeRader().filter(r=>(iaStatusFilter==='alle'||r.status===iaStatusFilter)
+  return iaKundeRader().filter(r=>(iaStatusFilter==='alle'||(iaStatusFilter==='venter'?iaVenterSvar(r):r.status===iaStatusFilter))
     &&(!foSearch||r.kundenavn.toLowerCase().includes(foSearch)||r.kundenr.toLowerCase().includes(foSearch)||r.docs.some(d=>d.dokumentnr.toLowerCase().includes(foSearch))));
 }
 function iaVisningsknapper(){
@@ -13992,7 +13997,7 @@ function renderIkkeAvstemt(){
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${iaVisningsknapper()}</div>
       <div style="display:flex;gap:8px;align-items:center"><span style="font-size:13px;color:#6b7280">${vis.length} ${vis.length===1?'kunde':'kunder'} · kreditt ${fF(sumK)} · innbetalt ${fF(sumI)}</span><button class="btn-sm" onclick="iaEksporter()" title="Last ned som Excel (begge fanene)">📥 Excel</button></div>
       <div style="width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">${fane('fakturaer','Har åpne fakturaer',medF.length)}${fane('kreditt','Bare kreditt',bareK.length)}
-        <select onchange="setIaStatusFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px"><option value="alle">Alle statuser</option>${IA_STATUSER.map(s=>`<option${iaStatusFilter===s?' selected':''}>${s}</option>`).join('')}</select></div>
+        <select onchange="setIaStatusFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px"><option value="alle">Alle statuser</option>${IA_STATUSER.map(s=>`<option${iaStatusFilter===s?' selected':''}>${s}</option>`).join('')}<option value="venter"${iaStatusFilter==='venter'?' selected':''}>⏰ Ikke svart på ${IA_SVAR_DAGER}+ dager (${[...iaKundeMap.values()].filter(iaVenterSvar).length})</option></select></div>
       <div style="font-size:11px;color:#6b7280;margin-top:6px;width:100%">Kreditnotaer og innbetalinger som står åpne i Visma, dvs. ikke koblet mot en faktura. Fakturaene til disse kundene kan derfor se ubetalte ut uten å være det. Kunder her holdes <b>utenfor arbeidslisten og purring-SMS</b> til status er «Avklart» eller posten er avstemt i Visma (da forsvinner raden av seg selv ved neste synk).</div>
     </div>`;
   if(!target)return;
@@ -14012,7 +14017,7 @@ function renderIkkeAvstemt(){
         <td class="tr" style="font-weight:600;color:${r.netto<-0.5?'#2563eb':r.netto>0.5?'#111':'#166534'}">${fF(r.netto)}</td>
         <td>${fDateShort(r.eldste)}</td>
         <td>${matchTxt}</td>
-        <td>${iaStatusBadge(r.status)}${r.kommentar?` <span title="${iaEsc(r.kommentar)}">💬</span>`:''}</td>
+        <td>${iaStatusBadge(r.status)}${r.kommentar?` <span title="${iaEsc(r.kommentar)}">💬</span>`:''}${r.status==='Sendt kunde'&&r.sendtKunde?`<div style="font-size:11px;margin-top:2px;color:${iaVenterSvar(r)?'#dc2626;font-weight:600':'#6b7280'}">${iaVenterSvar(r)?'⏰ ikke svart, ':''}sendt ${fDateShort(r.sendtKunde)}</div>`:''}</td>
         <td><button class="btn-sm" onclick="event.stopPropagation();toggleIaRad('${k}')">${apen?'▲':'▼'}</button></td></tr>`];
       if(apen){
         const docRader=r.docs.slice().sort((a,b)=>(parseLD(a.dato)||0)-(parseLD(b.dato)||0)).map(d=>{const m=r.match.find(x=>x.d===d);return `<tr><td>${iaTypeIkon(d.type)} ${iaEsc(d.type)}</td><td>${iaEsc(d.dokumentnr)}</td><td>${fDateShort(d.dato)}</td><td class="tr">${fF(d.belop)}</td><td class="tr">${fF(d.ubrukt)}</td><td style="font-size:12px;color:#166534">${m?'↔ faktura '+iaEsc(m.f.fakturanr):''}</td></tr>`;}).join('');
@@ -14024,7 +14029,9 @@ function renderIkkeAvstemt(){
             <div class="fgrp" style="margin:0;flex:1;min-width:260px"><label>Kommentar (f.eks. hva regnskapsfører skal gjøre)</label><textarea id="ia-kommentar" rows="2" style="width:100%" ${kanRedigere?'':'disabled'}>${iaEsc(r.kommentar)}</textarea></div>
             ${kanRedigere?`<button class="prim" onclick="iaLagre('${k}')">💾 Lagre</button>`:''}
             ${r.fs.length?`<button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button>`:''}
+            ${kanRedigere&&r.docs.some(d=>d.type!=='Refusjon')?`<button class="${iaBareIntern(r)?'btn-sm':'prim'}" style="${iaBareIntern(r)?'':'background:#f59e0b;border-color:#f59e0b'}" onclick="iaSendSaldo('${k}',this)" title="Lager et Outlook-utkast fra ${IA_FRA_EPOST} med saldo og faktura-PDF. Ingenting sendes før du trykker Send i Outlook.">✉️ Saldobekreftelse til kunden</button>`:''}
           </div>
+          ${kanRedigere&&r.docs.some(d=>d.type!=='Refusjon')?(()=>{const mt=iaMottaker(r);return `<div style="font-size:11px;color:#6b7280;margin-top:6px">Saldobekreftelse går til ${mt.epost?`<b>${iaEsc(mt.epost)}</b> (${iaEsc(mt.navn?mt.navn+', ':'')}${iaEsc(mt.kilde)})`:'<span style="color:#b45309">ingen e-post funnet, fyll inn i Outlook</span>'}, fra og svar til ${IA_FRA_EPOST}.${iaBareIntern(r)?' <span style="color:#b45309">Innbetalingen dekker fakturaen nøyaktig, så dette ser ut som en intern kobling i Visma. Vurder å sende til regnskapsfører i stedet for kunden.</span>':''}${r.refusjon?' Refusjonen tas ikke med.':''}</div>`;})():''}
           <div style="font-size:11px;color:#6b7280;margin-top:6px">«Avklart» = kunden kommer tilbake på arbeidslisten og purring-SMS selv om posten fortsatt står åpen i Visma. Selve koblingen må gjøres i Visma.</div>
         </td></tr>`);
       }
@@ -14064,6 +14071,121 @@ function iaEksporter(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(dok),'Dokumenter');
   const d=new Date();
   XLSX.writeFile(wb,`Ikke_avstemt_Visma_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.xlsx`);
+}
+
+// ----- Saldobekreftelse til kunden (v1.48.234) -----
+// «✉️ Saldobekreftelse» i den åpne kunderaden lager et Outlook-utkast (.eml,
+// X-Unsent) fra og med svar til firmapost@kbd.as. Viser åpne fakturaer,
+// ubrukte kreditnotaer og innbetalinger som ikke er koblet, netto, og spør
+// om det stemmer med kundens bokføring. Har kunden penger til gode, spør den
+// om utbetaling (kontonr) eller trekk fra neste faktura. Refusjoner tas ikke
+// med. Faktura-PDF-ene legges ved (samme endepunkt som purre-e-posten).
+// Ingenting sendes herfra — brukeren trykker Send i Outlook og bekrefter
+// etterpå, da settes status «Sendt kunde» + SendtKunde-dato. Etter
+// IA_SVAR_DAGER dager uten at noe skjer, merkes kunden «⏰ ikke svart».
+const IA_FRA_EPOST='firmapost@kbd.as';
+const IA_SVAR_DAGER=14;
+function iaDagerSiden(iso){if(!iso)return null;const d=new Date(iso);return isNaN(d)?null:Math.floor((Date.now()-d.getTime())/864e5);}
+function iaVenterSvar(k){if(k.status!=='Sendt kunde')return false;const d=iaDagerSiden(k.sendtKunde);return d!==null&&d>=IA_SVAR_DAGER;}
+// Kunderaden fra iaKundeRader() -> mottaker (økonomikontakt > hovedkontakt > Visma).
+function iaMottaker(r){
+  const vk=(typeof vismaKunder!=='undefined'?vismaKunder:[]).find(x=>String(x.vismaNummer||'').trim()===r.kundenr);
+  const f0=r.fs[0]||{};
+  return foPurreKontakt({kundenr:r.kundenr,kontaktNavn:f0.kontaktNavn||(vk&&vk.kontaktNavn)||'',kontaktEpost:f0.kontaktEpost||(vk&&vk.kontaktEpost)||''});
+}
+// Bare en intern kobling? (innbetaling = faktura, netto 0, ingen kreditnota)
+function iaBareIntern(r){return r.fs.length>0&&Math.abs(r.netto)<0.5&&!r.kreditt&&r.match.length>0;}
+function iaSaldoTekst(r,mott,medVedlegg){
+  const dok=r.docs.filter(d=>d.type!=='Refusjon');
+  const kn=dok.filter(d=>d.type==='Kreditnota'),bet=dok.filter(d=>d.type==='Innbetaling');
+  const kr=v=>fF(v).replace(/ /g,' ');
+  const iDag=new Date().toLocaleDateString('nb-NO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const navn=(mott.navn||'').split(' ')[0];
+  const avsender=(typeof currentUser!=='undefined'&&currentUser&&(currentUser.name||currentUser.username))||'';
+  const netto=r.fakturaer-r.kreditt-r.innbetalt;
+  const deler=[];
+  if(r.fs.length)deler.push('Åpne fakturaer:\n'+r.fs.map(f=>`- Faktura ${f.fakturanr}, forfall ${fDateShort(f.forfallsdato)}: ${kr(f.utestaende||0)}`).join('\n'));
+  if(kn.length)deler.push('Kreditnotaer som ikke er brukt:\n'+kn.map(d=>`- Kreditnota ${d.dokumentnr}, ${fDateShort(d.dato)}: ${kr(d.ubrukt)}`).join('\n'));
+  if(bet.length)deler.push('Innbetalinger som ikke er koblet mot en faktura:\n'+bet.map(d=>`- Innbetaling ${fDateShort(d.dato)}: ${kr(d.ubrukt)}`).join('\n'));
+  const nettoLinje=netto<-0.5?`Netto har dere ${kr(-netto)} til gode hos oss.`:netto>0.5?`Netto utestående hos oss er ${kr(netto)}.`:'Netto går dette i null.';
+  const sporsmal=['Kan dere sjekke om dette stemmer med deres bokføring?'];
+  if(netto<-0.5)sporsmal.push('Ønsker dere beløpet utbetalt, eller skal vi trekke det fra neste faktura? Ved utbetaling trenger vi kontonummeret beløpet skal til.');
+  if(bet.length&&r.fs.length)sporsmal.push('Gjaldt noen av innbetalingene en bestemt faktura, si gjerne fra hvilken.');
+  const tekst=`Hei${navn?' '+navn:''},\n\nVi går gjennom kundereskontroen vår og ser at det står poster på kundekontoen deres (kundenr ${r.kundenr}) som ikke er avstemt mot hverandre. Dette er registrert hos oss per ${iDag}:\n\n${deler.join('\n\n')}\n\n${nettoLinje}\n\n${sporsmal.join(' ')}${medVedlegg?`\n\n${r.fs.length===1?'Fakturaen':'Fakturaene'} ligger vedlagt.`:''}\n\nSvar gjerne til ${IA_FRA_EPOST}.\n\nMed vennlig hilsen\n${avsender?avsender+'\n':''}Kasse og Butikkdata AS`;
+  return{til:mott.epost||'',emne:`Saldobekreftelse kundenr ${r.kundenr} – Kasse og Butikkdata AS`,tekst,netto};
+}
+function iaLagEml(m,vedlegg){
+  const grense='----=_KBDCC_'+Date.now().toString(36)+uid();
+  const hode=[`From: Kasse og Butikkdata AS <${IA_FRA_EPOST}>`,`To: ${m.til}`,`Reply-To: ${IA_FRA_EPOST}`,`Subject: =?UTF-8?B?${foB64Tekst(m.emne)}?=`,'X-Unsent: 1','MIME-Version: 1.0',`Content-Type: multipart/mixed; boundary="${grense}"`];
+  const deler=[`--${grense}`,'Content-Type: text/plain; charset="utf-8"','Content-Transfer-Encoding: base64','',foBryt76(foB64Tekst(m.tekst.replace(/\n/g,'\r\n')))];
+  vedlegg.forEach(v=>{deler.push(`--${grense}`,`Content-Type: application/pdf; name="${v.navn}"`,'Content-Transfer-Encoding: base64',`Content-Disposition: attachment; filename="${v.navn}"`,'',foBryt76(foB64Bytes(v.data)));});
+  deler.push(`--${grense}--`,'');
+  return hode.join('\r\n')+'\r\n\r\n'+deler.join('\r\n');
+}
+async function iaSendSaldo(kundenr,knapp){
+  const r=iaKundeRader().find(x=>x.kundenr===kundenr);if(!r)return;
+  const mott=iaMottaker(r);
+  const gammel=knapp?knapp.innerHTML:'';
+  if(knapp){knapp.disabled=true;knapp.innerHTML='⏳ Henter faktura-PDF…';}
+  const vedlegg=[];let pdfFeil='';
+  try{
+    if(r.fs.length){
+      const token=await vfGetApiToken();
+      for(const f of r.fs){
+        const resp=await fetch(vfApiUrl(`/api/faktura_pdf?nr=${encodeURIComponent(f.fakturanr)}`),{headers:{'Authorization':`Bearer ${token}`}});
+        if(!resp.ok){const d=await resp.json().catch(()=>({}));throw new Error(`Faktura ${f.fakturanr}: ${d.error||'HTTP '+resp.status}`);}
+        vedlegg.push({navn:`Faktura_${f.fakturanr}.pdf`,data:await resp.arrayBuffer()});
+      }
+    }
+  }catch(e){pdfFeil=e.message;vedlegg.length=0;}
+  finally{if(knapp){knapp.disabled=false;knapp.innerHTML=gammel;}}
+  const m=iaSaldoTekst(r,mott,vedlegg.length>0);
+  const blob=new Blob([iaLagEml(m,vedlegg)],{type:'message/rfc822'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download=`Saldobekreftelse_${String(r.kundenavn||r.kundenr).replace(/[^A-Za-z0-9ÆØÅæøå_-]+/g,'_').slice(0,40)}.eml`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  iaSendtSporsmal(r,m.til,pdfFeil);
+}
+// «Sendte du e-posten?» — samme mønster som foEpostKlikk.
+function iaSendtSporsmal(r,til,pdfFeil){
+  document.getElementById('ia-sendt-sporsmal')?.remove();
+  const el=document.createElement('div');el.id='ia-sendt-sporsmal';
+  el.style.cssText='position:fixed;inset:0;z-index:2000;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  const k=iaJs(r.kundenr);
+  el.innerHTML=`<div style="background:#fff;border-radius:12px;border-top:4px solid #f59e0b;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:460px;font-size:14px;color:#111">
+    <div style="font-weight:700;font-size:16px;margin-bottom:6px">✉️ Sendte du saldobekreftelsen?</div>
+    <div style="color:#4b5563;margin-bottom:12px;line-height:1.45"><b>${iaEsc(r.kundenavn)}</b>${til?` · til ${iaEsc(til)}`:' · <span style="color:#b45309">ingen e-postadresse funnet, fyll inn mottaker i Outlook</span>'}.<br>Sjekk at <b>Fra</b> er ${IA_FRA_EPOST} før du sender.<br>«Ja» setter status «Sendt kunde». Har dere ikke fått svar etter ${IA_SVAR_DAGER} dager, merkes kunden med ⏰.</div>
+    ${pdfFeil?`<div style="font-size:12px;color:#b45309;background:#fffbeb;border-radius:6px;padding:6px 8px;margin-bottom:12px">⚠️ Faktura-PDF kunne ikke hentes (${iaEsc(pdfFeil)}). E-posten er laget uten vedlegg.</div>`:''}
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn-sm" style="padding:8px 16px;font-size:14px" onclick="document.getElementById('ia-sendt-sporsmal').remove()">Nei</button><button class="prim" onclick="document.getElementById('ia-sendt-sporsmal').remove();iaMarkerSendt('${k}','${iaJs(til)}')">Ja, sett «Sendt kunde»</button></div></div>`;
+  document.body.appendChild(el);
+}
+async function iaMarkerSendt(kundenr,til){
+  const k=iaKundeMap.get(kundenr);if(!k)return;
+  const naa=new Date().toISOString();
+  const hvem=(currentUser&&(currentUser.name||currentUser.username))||'';
+  const linje=`${fDateShort(naa)}: Saldobekreftelse sendt${til?' til '+til:''}${hvem?' ('+hvem.split(' ')[0]+')':''}.`;
+  const kommentar=(k.kommentar?k.kommentar+'\n':'')+linje;
+  const gammel=k.docs.map(d=>({d,status:d.status,kommentar:d.kommentar,sendtKunde:d.sendtKunde}));
+  k.docs.forEach(d=>{d.status='Sendt kunde';d.kommentar=kommentar;d.sendtKunde=naa;});
+  iaByggMap();renderFakturaoppfolging();
+  setSPStatus('⏳ Lagrer…');
+  const kjor=medDato=>foKjorPorsjonsvis(k.docs.map(d=>()=>spUpdate('IkkeAvstemt',d.spId,medDato?{OppfolgingStatus:'Sendt kunde',Kommentar:kommentar,SendtKunde:naa}:{OppfolgingStatus:'Sendt kunde',Kommentar:kommentar})));
+  try{
+    try{await kjor(true);}
+    catch(e){
+      // Kolonnen SendtKunde finnes kanskje ikke ennå (Liste 35): lagre resten, varsle.
+      await kjor(false);
+      console.warn('SendtKunde kunne ikke lagres:',e);
+      alert('ℹ️ Status og kommentar er lagret, men datoen ble ikke lagret. Er kolonnen «SendtKunde» (Dato og klokkeslett) opprettet på lista IkkeAvstemt? Uten den virker ikke ⏰-merket etter '+IA_SVAR_DAGER+' dager.');
+    }
+    setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
+  }catch(e){
+    gammel.forEach(g=>{g.d.status=g.status;g.d.kommentar=g.kommentar;g.d.sendtKunde=g.sendtKunde;});
+    iaByggMap();renderFakturaoppfolging();
+    setSPStatus('❌ '+e.message,false);alert('⚠️ Lagring til SharePoint feilet:\n'+e.message);
+  }
 }
 
 // ----- Purre-e-post til økonomikontakt (v1.48.232) -----
