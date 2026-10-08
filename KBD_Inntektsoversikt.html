@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.237 · Oppdatert: 8. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.238 · Oppdatert: 8. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -1632,13 +1632,13 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         </div>
       </div>
     </div>
-    <div class="tabs side-faner"><button class="tab active" id="lk-fane-kontroll" onclick="lkVis='kontroll';renderLisensKontroll()">📄 Behandle faktura</button><button class="tab" id="lk-fane-historikk" onclick="lkVis='historikk';renderLisensKontroll()">📋 Historikk</button></div>
+    <div class="tabs side-faner"><button class="tab active" id="lk-fane-kontroll" onclick="lkVis='kontroll';renderLisensKontroll()">🗂️ Avvik</button><button class="tab" id="lk-fane-historikk" onclick="lkVis='historikk';renderLisensKontroll()">📋 Historikk</button></div>
       <div id="lk-liste-feil" class="hint" style="color:#b45309;margin:0 0 6px"></div>
       <div id="lk-vis-kontroll">
         <div class="card">
           <label id="lk-opplasting" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px dashed #c7d2e5;border-radius:10px;padding:14px 16px;background:#fafbfe;cursor:pointer">
             <span style="font-size:24px">📄</span>
-            <span style="flex:1;min-width:220px"><strong id="lk-filnavn">Velg lisens-/servicefaktura (PDF)</strong><br><span id="lk-fil-meta" class="hint" style="margin:0"></span></span>
+            <span style="flex:1;min-width:220px"><strong id="lk-filnavn">Last opp ny lisens-/servicefaktura (PDF)</strong><br><span id="lk-fil-meta" class="hint" style="margin:0"></span></span>
             <span class="btn-sm" id="lk-opplast-knapp">Last opp</span>
             <input type="file" id="lk-fil-input" accept="application/pdf,.pdf" style="display:none" onchange="lkLastOpp(this.files[0]);this.value=''">
           </label>
@@ -8989,7 +8989,8 @@ function openRedigerNotat(id){
   document.getElementById('notat-modal').classList.add('open');
 }
 
-function closeNotatModal(){if(taleAktiv&&taleAktiv.targetId==='n-innhold')taleStopp();document.getElementById('notat-modal').classList.remove('open');}
+let notatLagretHook=null;
+function closeNotatModal(){notatLagretHook=null;if(taleAktiv&&taleAktiv.targetId==='n-innhold')taleStopp();document.getElementById('notat-modal').classList.remove('open');}
 
 // ===== NYTT LEAD I ETT STEG (lagt til 29.09.2026, v1.48.142) =====
 // Thomas' observasjon: for å registrere et nytt lead måtte man først
@@ -10705,6 +10706,8 @@ function saveNotat(){
     }
     leadModus=false;
   }
+  // v1.48.238: lisenskontrollen (lkAvOppfolging) vil vite at oppfølgingen faktisk ble lagret
+  if(typeof notatLagretHook==='function'){try{notatLagretHook({tittel,forfallsdato,kNr,kNavn,type});}catch(e){console.warn('notatLagretHook',e);}}
   closeNotatModal();
 
   if(editId){
@@ -11379,6 +11382,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.238',dato:'08.10.2026',punkter:[
+    'Lisens- og servicekontroll har fått en avviksliste som lagres. Avvikene ligger der når du kommer tilbake, også etter at siden er lastet på nytt, så du slipper å laste opp fakturaen igjen.',
+    'Hvert avvik har status (Ny, Under arbeid, Venter på kunde, Løst, Godtatt), ansvarlig og en logg med notater, dato og navn. «🙋 Ta saken» setter deg som ansvarlig og status Under arbeid. Filteret «Mine» viser dine åpne avvik.',
+    'Ny faktura sammenlignes med avvikslisten. Avvik som er rettet, settes automatisk til «✅ Løst». Avvik som kommer igjen, gjenåpnes, og nye avvik merkes «Ny». Status og notater blir stående mellom fakturaene.',
+    'Softpay-linjer på Nets-fakturaen vises i eget filter «💳 Softpay» og ikke som avvik, til Softpay-kontrollen er klar. «+ Oppfølging» fra et avvik skrives også i avvikets logg. Hele kontrollresultatet for siste opplasting kan fortsatt vises med «Vis hele kontrollresultatet».'
+  ]},
   {versjon:'v1.48.237',dato:'08.10.2026',punkter:[
     'Ikke avstemt i Visma: ny knapp «🔄 Synk nå» (ikke for lesere). Den starter synken mot Visma med en gang i stedet for å vente på neste planlagte kjøring, og henter lista på nytt etter rundt ett minutt. Krever ny publisering av kbd-verifone-func og innstillingen KUNDE360_MASTER_KEY.'
   ]},
@@ -17671,10 +17680,13 @@ async function lkLastLister(){
     lkListeFeil='SharePoint-listene LisensKontrollUnntak/LisensKontrollHistorikk finnes ikke ennå (eller mangler tilgang) — kontrollen virker, men uten unntak og historikk.';
     console.warn('Lisenskontroll: lister ikke lastet',e);
   }
+  // v1.48.238: avvikslisten (egen try, så den kan mangle uten å stoppe resten)
+  try{lkAvvik=(await spGetItems('LisensKontrollAvvik')).map(lkAvFraSp);lkAvvikFeil='';}
+  catch(e){lkAvvikFeil='SharePoint-lista LisensKontrollAvvik finnes ikke ennå (eller mangler tilgang). Avvik og notater kan ikke lagres, og kontrollresultatet vises bare til siden lastes på nytt.';console.warn('Lisenskontroll: avvikslisten ikke lastet',e);}
   lkListerLastet=true;
 }
 
-function renderLisensKontroll(){
+function lkRenderResultat(){ // v1.48.238: hele kontrollresultatet (tidligere renderLisensKontroll)
   const el=document.getElementById('lk-innhold');if(!el)return;
   if(!lkListerLastet){lkLastLister().then(renderLisensKontroll);}
   document.getElementById('lk-liste-feil').textContent=lkListeFeil;
@@ -17745,6 +17757,279 @@ function renderLisensKontroll(){
     </div></details>`;
 }
 
+// ===== AVVIKSLISTE (v1.48.238, 08.10.2026) =====
+// Wenches ønske: notater på avvikene og en liste å gå tilbake til. Hvert avvik
+// lagres som én rad i SharePoint-lista LisensKontrollAvvik (Title =
+// «<Leverandør>|<BAX>», tekstkolonner + BelopIFare tall, Logg/Detaljer = JSON
+// i flerlinjet tekst, se Kunde360-oppsett-sjekkliste.md). Ved ny opplasting
+// sammenlignes fakturaen med lista (lkSynkAvvik):
+//   - avvik på fakturaen -> opprettes (Ny/Softpay/Godtatt hvis gammelt unntak)
+//     eller oppdateres; Løst-rader gjenåpnes,
+//   - BAX som nå er OK -> åpne avvik settes til Løst automatisk,
+//   - Nets (månedlig): åpne Nets-avvik der BAX ikke er på en NYERE faktura -> Løst,
+//   - fakturaer eldre enn det avviket sist ble sett på, endrer ingenting.
+// Status UKJENT (kontrakt ikke lest) lagres ikke og lukker ingenting.
+let lkAvvik=[], lkAvvikFeil='', lkSynkRes=null, lkVisResultat=false, lkAvFilter='apne', lkAvApen=null, lkAvSok='', lkAvLev='Alle';
+const LK_AV_STATUS={
+  NY:{t:'🆕 Ny',bg:'#dbeafe',fg:'#1e40af'},
+  ARBEID:{t:'🔧 Under arbeid',bg:'#fef9c3',fg:'#854d0e'},
+  KUNDE:{t:'⏳ Venter på kunde',bg:'#ffedd5',fg:'#9a3412'},
+  LOST:{t:'✅ Løst',bg:'#dcfce7',fg:'#166534'},
+  GODTATT:{t:'👍 Godtatt',bg:'#e0e7ff',fg:'#3730a3'},
+  SOFTPAY:{t:'💳 Softpay – senere',bg:'#f3f4f6',fg:'#4b5563'},
+};
+const LK_AV_APNE=['NY','ARBEID','KUNDE'];
+const LK_AV_TYPE={INGEN_KONTRAKT:['🔴 Ingen kontrakt','#b91c1c'],MANGLER_TJENESTE:['🟠 Mangler tjeneste','#c2410c'],FOR_FAA:['🟠 For få terminaler','#c2410c'],LAV_MARGIN:['🟡 Lav margin','#a16207'],UKJENT:['⚪ Kontrakt ikke lest','#4b5563']};
+const LK_AV_LAGRES=['INGEN_KONTRAKT','MANGLER_TJENESTE','FOR_FAA','LAV_MARGIN'];
+function lkMeg(){return currentUser?.name||currentUser?.username||'';}
+function lkNaa(){const n=new Date();return n.toLocaleDateString('nb-NO',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+n.toTimeString().slice(0,5);}
+function lkIsoDato(no){const m=/^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(no||'').trim());return m?`${m[3]}-${m[2]}-${m[1]}`:'';}
+function lkJson(t,fallback){try{const v=JSON.parse(t||'');return v==null?fallback:v;}catch(_){return fallback;}}
+function lkAvFraSp(i){
+  const f=i.fields||{};
+  return {spId:i.id,key:f.Title||'',leverandor:f.Leverandor||'',bax:String(f.BAX||'').trim(),brukersted:f.Brukersted||'',orgnr:f.Orgnr||'',
+    avvikstype:f.Avvikstype||'',status:f.Status||'NY',ansvarlig:f.Ansvarlig||'',belop:+f.BelopIFare||0,logg:lkJson(f.Logg,[]),
+    forste:f.ForsteFaktura||'',sist:f.SistFaktura||'',sistDato:f.SistFakturadato||'',detaljer:lkJson(f.Detaljer,null)};
+}
+function lkErSoftpay(r){return r.produkter&&r.produkter.length>0&&r.produkter.every(p=>/softpay/i.test(p.tekst||''));}
+function lkDetaljerJson(r,d){
+  const o={status:r.status,kostnadAar:r.kostnadAar,fakturertAar:r.fakturertAar,margin:r.margin,iFareAar:r.iFareAar,kategorier:r.kategorier,produkter:r.produkter,
+    kontrakter:r.kontrakter,andreKontraktVarer:r.andreKontraktVarer||[],perAar:d.perAar,margingrense:d.margingrense,fakturanr:d.fakturanr,fakturadato:d.fakturadato};
+  let t=JSON.stringify(o);
+  if(t.length>40000){o.produkter=o.produkter.slice(0,40);o.kontrakter=o.kontrakter.slice(0,10);t=JSON.stringify(o);}
+  return t;
+}
+function lkAvTilSp(a){
+  return {Title:a.key,Leverandor:a.leverandor,BAX:a.bax,Brukersted:a.brukersted,Orgnr:a.orgnr,Avvikstype:a.avvikstype,Status:a.status,Ansvarlig:a.ansvarlig,
+    BelopIFare:Math.round(a.belop||0),Logg:JSON.stringify(a.logg||[]),ForsteFaktura:a.forste,SistFaktura:a.sist,SistFakturadato:a.sistDato,Detaljer:a.detaljerTekst||JSON.stringify(a.detaljer||null)};
+}
+async function lkSynkAvvik(d){
+  const lev=d.leverandor,fnr=String(d.fakturanr||''),fdato=lkIsoDato(d.fakturadato),naa=lkNaa();
+  const res={leverandor:lev,fakturanr:fnr,nye:0,fortsatt:0,lost:0,gjenapnet:0,softpay:0,godtatt:0,hoppet:0,feil:0,antall:d.rader.length};
+  const endringer=[]; // {a, ny:bool}
+  const paFaktura=new Set(d.rader.map(r=>r.bax));
+  const unntakFor=r=>lkUnntak.find(u=>u.bax===r.bax&&(!u.leverandor||u.leverandor===lev)&&(!u.fakturanr||u.fakturanr===fnr));
+  for(const r of d.rader){
+    const key=lev+'|'+r.bax;
+    const eks=lkAvvik.find(a=>a.key===key);
+    if(eks&&eks.sistDato&&fdato&&fdato<eks.sistDato){res.hoppet++;continue;}
+    if(LK_AV_LAGRES.includes(r.status)){
+      const softpay=lkErSoftpay(r);
+      const felles={brukersted:r.brukersted||'',orgnr:r.orgnr||'',avvikstype:r.status,belop:Math.round(r.iFareAar||0),sist:fnr,sistDato:fdato,detaljerTekst:lkDetaljerJson(r,d)};
+      if(!eks){
+        const a={key,leverandor:lev,bax:r.bax,ansvarlig:'',forste:fnr,status:softpay?'SOFTPAY':'NY',
+          logg:[{d:naa,n:'System',t:`Opprettet fra kontroll av ${lev} ${fnr} (${d.fakturadato}).`}],...felles};
+        if(softpay){a.logg.unshift({d:naa,n:'System',t:'Softpay-linje: kontrolleres når koblingen mellom Softpay og kunde er klar.'});res.softpay++;}
+        else{const u=unntakFor(r);if(u){a.status='GODTATT';a.logg.unshift({d:naa,n:u.opprettetAv||'System',t:'Godtatt (tidligere unntak): '+u.begrunnelse});res.godtatt++;}else res.nye++;}
+        endringer.push({a,ny:true});
+      }else{
+        const a={...eks,...felles,logg:eks.logg.slice()};
+        if(eks.status==='LOST'){a.status=softpay?'SOFTPAY':'NY';a.logg.unshift({d:naa,n:'System',t:`Gjenåpnet: avvik igjen på ${lev} ${fnr} (${(LK_AV_TYPE[r.status]||[r.status])[0]}).`});res.gjenapnet++;}
+        else{
+          if(eks.avvikstype&&eks.avvikstype!==r.status)a.logg.unshift({d:naa,n:'System',t:`Avviket er endret fra ${(LK_AV_TYPE[eks.avvikstype]||[eks.avvikstype])[0]} til ${(LK_AV_TYPE[r.status]||[r.status])[0]} på ${lev} ${fnr}.`});
+          if(eks.status==='SOFTPAY')res.softpay++;else if(eks.status==='GODTATT')res.godtatt++;else res.fortsatt++;
+        }
+        endringer.push({a,ny:false});
+      }
+    }else if(r.status==='OK'&&eks&&(LK_AV_APNE.includes(eks.status)||eks.status==='SOFTPAY')){
+      const a={...eks,status:'LOST',belop:0,sist:fnr,sistDato:fdato,logg:[{d:naa,n:'System',t:`✅ Løst automatisk: OK på ${lev} ${fnr} (${d.fakturadato}).`},...eks.logg]};
+      endringer.push({a,ny:false});res.lost++;
+    }
+  }
+  if(lev==='Nets'&&fdato){
+    lkAvvik.filter(a=>a.leverandor==='Nets'&&(LK_AV_APNE.includes(a.status)||a.status==='SOFTPAY')&&!paFaktura.has(a.bax)&&a.sistDato&&fdato>a.sistDato).forEach(eks=>{
+      endringer.push({a:{...eks,status:'LOST',belop:0,logg:[{d:naa,n:'System',t:`✅ Løst automatisk: BAX er ikke lenger på Nets-fakturaen (${fnr}, ${d.fakturadato}).`},...eks.logg]},ny:false});res.lost++;
+    });
+  }
+  // skriv til SharePoint, 4 om gangen
+  let ferdig=0;const tot=endringer.length;
+  if(tot)jobbFremdrift('lk',0,tot,'lagrer avvik i SharePoint');
+  const kjor=async({a,ny})=>{
+    try{
+      const felter=lkAvTilSp(a);
+      if(ny){const c=await spCreate('LisensKontrollAvvik',felter);a.spId=c.id;}
+      else await spUpdate('LisensKontrollAvvik',a.spId,felter);
+      a.detaljer=lkJson(felter.Detaljer,null);delete a.detaljerTekst;
+      const i=lkAvvik.findIndex(x=>x.key===a.key);if(i>=0)lkAvvik[i]=a;else lkAvvik.push(a);
+    }catch(e){res.feil++;console.warn('Lisenskontroll: avvik ikke lagret',a.key,e);}
+    ferdig++;jobbFremdrift('lk',ferdig,tot,'lagrer avvik i SharePoint');
+  };
+  for(let i=0;i<endringer.length;i+=4)await Promise.all(endringer.slice(i,i+4).map(kjor));
+  if(res.feil)vfShowToast(`⚠ ${res.feil} avvik ble ikke lagret i SharePoint. Prøv å laste opp fakturaen på nytt.`,9000);
+  return res;
+}
+// Gjør et lagret avvik om til samme form som en rad fra kontrollen (for lkDetaljHtml/lkOppfolging)
+function lkAvSomRad(a){
+  const fersk=lkData&&lkData.leverandor===a.leverandor?lkData.rader.find(x=>x.bax===a.bax):null;
+  if(fersk&&lkIsoDato(lkData.fakturadato)===a.sistDato)return {r:fersk,d:lkData};
+  const x=a.detaljer||{};
+  const r={bax:a.bax,brukersted:a.brukersted,orgnr:a.orgnr,status:x.status||a.avvikstype,kostnadAar:x.kostnadAar||0,fakturertAar:x.fakturertAar||0,margin:x.margin??null,
+    iFareAar:x.iFareAar||a.belop||0,kategorier:x.kategorier||[],produkter:x.produkter||[],kontrakter:x.kontrakter||[],andreKontraktVarer:x.andreKontraktVarer||[]};
+  const d={leverandor:a.leverandor,fakturanr:x.fakturanr||a.sist,fakturadato:x.fakturadato||'',perAar:x.perAar!=null?x.perAar:a.leverandor!=='Nets',margingrense:x.margingrense||20,
+    rader:lkData&&lkData.leverandor===a.leverandor?lkData.rader:[]};
+  return {r,d};
+}
+function lkAvKanSkrive(){return !lkAvvikFeil&&(salgTilgang||lkKanStyre());}
+function lkAvChip(s){const x=LK_AV_STATUS[s]||LK_AV_STATUS.NY;return `<span style="display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;white-space:nowrap;background:${x.bg};color:${x.fg}">${x.t}</span>`;}
+const LK_AV_FILTRE={
+  apne:['Åpne',a=>LK_AV_APNE.includes(a.status)],
+  mine:['Mine',a=>LK_AV_APNE.includes(a.status)&&a.ansvarlig&&a.ansvarlig===lkMeg()],
+  NY:['🆕 Nye',a=>a.status==='NY'],
+  ARBEID:['🔧 Under arbeid',a=>a.status==='ARBEID'],
+  KUNDE:['⏳ Venter på kunde',a=>a.status==='KUNDE'],
+  LOST:['✅ Løst',a=>a.status==='LOST'],
+  GODTATT:['👍 Godtatt',a=>a.status==='GODTATT'],
+  SOFTPAY:['💳 Softpay',a=>a.status==='SOFTPAY'],
+  alle:['Alle',()=>true],
+};
+function lkAvvikHtml(){
+  if(!lkListerLastet)return jobbStatusHtml('lk')||'<div class="hint" style="padding:16px 4px">Henter avvikslisten …</div>';
+  if(lkAvvikFeil)return `<div class="hint" style="padding:12px 4px">${escHtmlEpost(lkAvvikFeil)} Last opp en faktura for å se kontrollresultatet.</div>`;
+  const levs=[...new Set(lkAvvik.map(a=>a.leverandor).filter(Boolean))].sort();
+  const sok=lkAvSok.trim().toLowerCase();
+  const grunn=lkAvvik.filter(a=>(lkAvLev==='Alle'||a.leverandor===lkAvLev)&&(!sok||[a.brukersted,a.bax,a.orgnr,a.ansvarlig].some(v=>String(v||'').toLowerCase().includes(sok))));
+  const apne=grunn.filter(a=>LK_AV_APNE.includes(a.status));
+  const kpi=(l,v,st,farge)=>`<div style="flex:1 1 150px;background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.07)"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">${l}</div><div style="font-size:20px;font-weight:700;color:${farge||'#111'};margin-top:2px">${v}</div><div style="font-size:11px;color:#9ca3af">${st}</div></div>`;
+  const banner=lkSynkRes?`<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #15803d;border-radius:10px;padding:10px 14px;margin:12px 0">
+      <span style="font-size:18px">🔁</span><span style="flex:1;font-size:13px"><strong>${escHtmlEpost(lkSynkRes.leverandor)} ${escHtmlEpost(lkSynkRes.fakturanr)} er sammenlignet med avvikslisten:</strong> ${lkSynkRes.nye} nye · ${lkSynkRes.fortsatt} fortsatt åpne · ${lkSynkRes.lost} løst${lkSynkRes.gjenapnet?` · ${lkSynkRes.gjenapnet} gjenåpnet`:''}${lkSynkRes.softpay?` · ${lkSynkRes.softpay} Softpay satt til side`:''}${lkSynkRes.godtatt?` · ${lkSynkRes.godtatt} godtatt`:''}${lkSynkRes.hoppet?` · ${lkSynkRes.hoppet} ikke endret (eldre faktura enn sist)`:''}${lkSynkRes.feil?` · <span style="color:#b91c1c">${lkSynkRes.feil} ikke lagret</span>`:''}.</span>
+      ${lkSynkRes.nye?`<button class="btn-sm" onclick="lkAvFilter='NY';lkAvApen=null;renderLisensKontroll()">Vis de nye</button>`:''}
+      ${lkData?`<button class="btn-sm" onclick="lkVisResultat=true;renderLisensKontroll()">Vis hele kontrollresultatet (${lkData.rader.length} BAX)</button>`:''}</div>`
+    :(lkData?`<div style="margin:10px 0"><button class="btn-sm" onclick="lkVisResultat=true;renderLisensKontroll()">Vis hele kontrollresultatet for ${escHtmlEpost(lkData.leverandor)} ${escHtmlEpost(lkData.fakturanr)} (${lkData.rader.length} BAX)</button></div>`:'');
+  const sisteH=[...lkHistorikk].sort((a,b)=>new Date(b.dato||0)-new Date(a.dato||0))[0];
+  const sistKjort=sisteH?`<div class="hint" style="margin:8px 2px 0">Sist kontrollert: ${escHtmlEpost(sisteH.leverandor)} ${escHtmlEpost(sisteH.fakturanr)} (${escHtmlEpost(sisteH.fakturadato)}) · kjørt ${sisteH.dato?new Date(sisteH.dato).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'}):''} av ${escHtmlEpost(sisteH.kjortAv)}</div>`:'';
+  if(!lkAvvik.length)return sistKjort+banner+`<div class="hint" style="padding:14px 4px">Ingen lagrede avvik ennå. Last opp en lisens-/servicefaktura fra Verifone eller Nets, så havner avvikene her.</div>`;
+  const pills=Object.entries(LK_AV_FILTRE).map(([k,[t,fn]])=>`<button class="fpill${lkAvFilter===k?' f-on':' f-off'}" style="${lkAvFilter===k?'border-color:#1A3A6B':''}" onclick="lkAvFilter='${k}';lkAvApen=null;renderLisensKontroll()"><span style="font-weight:600">${t} (${grunn.filter(fn).length})</span></button>`).join('');
+  const rekke={NY:0,ARBEID:1,KUNDE:2,SOFTPAY:3,GODTATT:4,LOST:5};
+  const vis=grunn.filter(LK_AV_FILTRE[lkAvFilter]?LK_AV_FILTRE[lkAvFilter][1]:()=>true).sort((a,b)=>(rekke[a.status]??9)-(rekke[b.status]??9)||(b.belop||0)-(a.belop||0)||a.brukersted.localeCompare(b.brukersted,'nb'));
+  const body=vis.map(a=>{
+    const apen=lkAvApen===a.key;const ty=LK_AV_TYPE[a.avvikstype]||[a.avvikstype||'—','#374151'];
+    const sn=(a.logg||[])[0];
+    return `<tr data-lk-key="${escHtmlEpost(a.key)}" style="cursor:pointer${apen?';background:#f0f4ff':''}" onclick="lkAvToggle('${escHtmlEpost(a.key).replace(/'/g,'&#39;')}')">
+      <td>${lkAvChip(a.status)}</td>
+      <td style="min-width:190px"><strong style="color:#1A3A6B">${apen?'▾ ':'▸ '}${escHtmlEpost(a.brukersted||'(uten navn)')}</strong>${a.status==='NY'?' <span style="font-size:10px;font-weight:700;background:#1e40af;color:#fff;border-radius:8px;padding:1px 6px">NY</span>':''}${a.orgnr?`<div class="muted" style="font-size:11px">orgnr ${escHtmlEpost(a.orgnr)}</div>`:''}</td>
+      <td>${escHtmlEpost(a.bax)}<div class="muted" style="font-size:11px">${escHtmlEpost(a.leverandor)}</div></td>
+      <td style="color:${ty[1]};font-weight:600;white-space:nowrap;font-size:12.5px">${ty[0]}</td>
+      <td class="tr" style="color:${LK_AV_APNE.includes(a.status)&&a.belop>0?'#b91c1c':'#9ca3af'}">${a.belop>0?lkKr(a.belop):'—'}</td>
+      <td style="font-size:12.5px">${a.ansvarlig?escHtmlEpost(a.ansvarlig):'<span class="muted">ingen</span>'}</td>
+      <td style="font-size:12px;max-width:280px">${sn?`${escHtmlEpost(sn.t.length>90?sn.t.slice(0,90)+' …':sn.t)}<div class="muted" style="font-size:11px">${escHtmlEpost(sn.n)} · ${escHtmlEpost(String(sn.d).slice(0,10))}${a.logg.length>1?` · ${a.logg.length} i loggen`:''}</div>`:'<span class="muted">Ingen notater</span>'}</td>
+      <td class="muted" style="font-size:11.5px;white-space:nowrap">${escHtmlEpost(a.forste&&a.forste!==a.sist?a.forste+' → '+a.sist:a.sist)}</td></tr>
+      ${apen?`<tr><td colspan="8" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${lkAvDetaljHtml(a)}</td></tr>`:''}`;
+  }).join('');
+  return sistKjort+banner+`<div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0">
+      ${kpi('Åpne avvik',apne.length,`${apne.filter(a=>a.status==='NY').length} nye · ${apne.filter(a=>!a.ansvarlig).length} uten ansvarlig`,apne.length?'#b91c1c':'#111')}
+      ${kpi('I fare per år',lkKr(apne.reduce((t,a)=>t+(a.belop||0),0)),'sum for åpne avvik',apne.length?'#b91c1c':'#111')}
+      ${kpi('Mine',grunn.filter(LK_AV_FILTRE.mine[1]).length,'åpne der du er ansvarlig')}
+      ${kpi('Løst',grunn.filter(a=>a.status==='LOST').length,`${grunn.filter(a=>a.status==='GODTATT').length} godtatt`,'#15803d')}
+    </div>
+    <div class="filters" style="row-gap:8px">${pills}
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center">${levs.length>1?`<select onchange="lkAvLev=this.value;lkAvApen=null;renderLisensKontroll()" style="padding:5px;border:1px solid #d1d5db;border-radius:6px;font:inherit;font-size:12.5px">${['Alle',...levs].map(l=>`<option${lkAvLev===l?' selected':''}>${escHtmlEpost(l)}</option>`).join('')}</select>`:''}
+      <input type="search" placeholder="Søk navn, BAX, orgnr …" value="${escHtmlEpost(lkAvSok)}" oninput="lkAvSok=this.value;lkAvSokSnart()" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font:inherit;font-size:12.5px;width:190px">
+      <button class="btn-sm" onclick="lkAvEksporterCsv()">⬇ CSV</button></span></div>
+    <div class="tbl-wrap" id="lk-avvik-boks" style="overflow:auto;max-height:72vh"><table>
+      <thead><tr>${['Status','Kunde / brukersted','BAX','Avvik','I fare/år','Ansvarlig','Siste notat','Sett på faktura'].map((h,i)=>`<th style="position:sticky;top:0;z-index:1;white-space:nowrap${i===4?';text-align:right':''}">${h}</th>`).join('')}</tr></thead>
+      <tbody>${body||'<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Ingen avvik med valgt filter 🎉</td></tr>'}</tbody>
+    </table></div>
+    <div class="hint" style="margin-top:6px">Avvik som ikke kommer igjen på neste faktura, settes automatisk til «✅ Løst». For Nets gjelder det også BAX som ikke lenger er på fakturaen. «👍 Godtatt» betyr at avviket er i orden, og det kommer ikke opp som åpent igjen.</div>`;
+}
+let lkAvSokTimer=null;
+function lkAvSokSnart(){clearTimeout(lkAvSokTimer);lkAvSokTimer=setTimeout(()=>{const f=document.activeElement&&document.activeElement.type==='search';renderLisensKontroll();if(f){const i=document.querySelector('#lk-innhold input[type=search]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}},250);}
+function lkAvToggle(key){
+  lkAvApen=lkAvApen===key?null:key;
+  bevarRulling('lk-avvik-boks',renderLisensKontroll,lkAvApen?`tr[data-lk-key="${CSS.escape(lkAvApen)}"] + tr`:null);
+}
+function lkAvDetaljHtml(a){
+  const {r,d}=lkAvSomRad(a);
+  const kan=lkAvKanSkrive();
+  const navn=[...new Set([...(typeof brukere!=='undefined'?brukere:[]).map(b=>b.navn).filter(Boolean),a.ansvarlig].filter(Boolean))].sort((x,y)=>x.localeCompare(y,'nb'));
+  const k=escHtmlEpost(a.key).replace(/'/g,'&#39;');
+  const skjema=kan?`<div><div style="font-weight:700;color:#111;margin-bottom:6px">📝 Nytt notat</div>
+      <textarea id="lk-av-notat" rows="3" placeholder="Hva er gjort, hva venter vi på …" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:13px;padding:8px;border:1px solid #d1d5db;border-radius:6px"></textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <label style="font-size:12px;color:#6b7280">Status<select id="lk-av-status" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;font:inherit;font-size:13px">${Object.entries(LK_AV_STATUS).map(([s,x])=>`<option value="${s}"${a.status===s?' selected':''}>${x.t}</option>`).join('')}</select></label>
+        <label style="font-size:12px;color:#6b7280">Ansvarlig<select id="lk-av-ansvarlig" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;font:inherit;font-size:13px"><option value="">(ingen)</option>${navn.map(n=>`<option value="${escHtmlEpost(n)}"${a.ansvarlig===n?' selected':''}>${escHtmlEpost(n)}</option>`).join('')}</select></label>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-sm" style="background:#1A3A6B;color:#fff;border-color:#1A3A6B" onclick="event.stopPropagation();lkAvLagre('${k}')">💾 Lagre</button>
+        ${a.ansvarlig!==lkMeg()||a.status==='NY'?`<button class="btn-sm" onclick="event.stopPropagation();lkAvTaSaken('${k}')">🙋 Ta saken</button>`:''}
+        ${salgTilgang?`<button class="btn-sm" onclick="event.stopPropagation();lkAvOppfolging('${k}')">⏰ + Oppfølging med frist</button>`:''}
+      </div>
+      <div class="hint" style="margin-top:6px">«Godtatt» krever et notat med begrunnelse. «+ Oppfølging» lager en påminnelse på kundekortet, og den skrives også i loggen her.</div></div>`
+    :`<div class="hint">${lkAvvikFeil?escHtmlEpost(lkAvvikFeil):'Du har lesetilgang og kan ikke endre avvik.'}</div>`;
+  const logg=(a.logg||[]).map(l=>`<div style="margin-bottom:8px;font-size:12.5px"><span style="color:#6b7280;font-size:11.5px">${escHtmlEpost(l.d)} · ${escHtmlEpost(l.n)}</span><br>${escHtmlEpost(l.t)}</div>`).join('')||'<span class="hint">Ingen notater ennå.</span>';
+  return `<div style="padding:14px 16px 0" onclick="event.stopPropagation()">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;margin-bottom:4px">
+        ${skjema}
+        <div><div style="font-weight:700;color:#111;margin-bottom:6px">📋 Logg (${(a.logg||[]).length})</div>
+          <div style="border-left:2px solid #c7d2fe;padding-left:10px;max-height:240px;overflow:auto">${logg}</div>
+          <div class="hint" style="margin-top:6px">Først sett: ${escHtmlEpost(a.leverandor)} ${escHtmlEpost(a.forste)} · Sist sett: ${escHtmlEpost(a.leverandor)} ${escHtmlEpost(a.sist)}${d.fakturadato?' ('+escHtmlEpost(d.fakturadato)+')':''}</div></div>
+      </div></div>
+    ${lkDetaljHtml(r,d,true)}`;
+}
+async function lkAvSkriv(a,endret){
+  const i=lkAvvik.findIndex(x=>x.key===a.key);
+  const ny={...lkAvvik[i],...endret};
+  try{await spUpdate('LisensKontrollAvvik',ny.spId,{Status:ny.status,Ansvarlig:ny.ansvarlig,Logg:JSON.stringify(ny.logg)});lkAvvik[i]=ny;return true;}
+  catch(e){vfShowToast('Kunne ikke lagre: '+e.message,8000);return false;}
+}
+async function lkAvLagre(key){
+  const a=lkAvvik.find(x=>x.key===key);if(!a)return;
+  const tekst=(document.getElementById('lk-av-notat')?.value||'').trim();
+  const status=document.getElementById('lk-av-status')?.value||a.status;
+  const ansv=document.getElementById('lk-av-ansvarlig')?.value??a.ansvarlig;
+  if(status==='GODTATT'&&a.status!=='GODTATT'&&!tekst){vfShowToast('Skriv en begrunnelse i notatfeltet før du setter avviket til Godtatt.',6000);document.getElementById('lk-av-notat')?.focus();return;}
+  if(!tekst&&status===a.status&&ansv===a.ansvarlig){vfShowToast('✓ Allerede lagret');return;}
+  const naa=lkNaa(),meg=lkMeg(),logg=a.logg.slice();
+  if(status!==a.status)logg.unshift({d:naa,n:meg,t:`Status: ${(LK_AV_STATUS[a.status]||{t:a.status}).t} → ${(LK_AV_STATUS[status]||{t:status}).t}`});
+  if(ansv!==a.ansvarlig)logg.unshift({d:naa,n:meg,t:`Ansvarlig: ${ansv||'(ingen)'}`});
+  if(tekst)logg.unshift({d:naa,n:meg,t:tekst});
+  if(await lkAvSkriv(a,{status,ansvarlig:ansv,logg})){vfShowToast('✓ Lagret');bevarRulling('lk-avvik-boks',renderLisensKontroll,`tr[data-lk-key="${CSS.escape(key)}"] + tr`);}
+}
+async function lkAvTaSaken(key){
+  const a=lkAvvik.find(x=>x.key===key);if(!a)return;
+  const meg=lkMeg(),naa=lkNaa(),logg=a.logg.slice();
+  const status=LK_AV_APNE.includes(a.status)&&a.status!=='NY'?a.status:'ARBEID';
+  if(status!==a.status)logg.unshift({d:naa,n:meg,t:`Status: ${(LK_AV_STATUS[a.status]||{t:a.status}).t} → ${LK_AV_STATUS[status].t}`});
+  if(a.ansvarlig!==meg)logg.unshift({d:naa,n:meg,t:`Ansvarlig: ${meg}`});
+  if(await lkAvSkriv(a,{status,ansvarlig:meg,logg})){vfShowToast('✓ Du er ansvarlig for avviket');bevarRulling('lk-avvik-boks',renderLisensKontroll,`tr[data-lk-key="${CSS.escape(key)}"] + tr`);}
+}
+function lkAvOppfolging(key){
+  const a=lkAvvik.find(x=>x.key===key);if(!a)return;
+  const {r,d}=lkAvSomRad(a);
+  if(!lkOppfolging(a.bax,r,d))return;
+  notatLagretHook=info=>{
+    const frist=info.forfallsdato?new Date(info.forfallsdato).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'}):'uten frist';
+    const b=lkAvvik.find(x=>x.key===key);if(!b)return;
+    lkAvSkriv(b,{logg:[{d:lkNaa(),n:lkMeg(),t:`⏰ ${info.type||'Oppfølging'} opprettet på kundekortet til ${info.kNavn||info.kNr} (frist ${frist}): ${info.tittel}`},...b.logg]}).then(ok=>{if(ok&&lkVis==='kontroll')bevarRulling('lk-avvik-boks',renderLisensKontroll,null);});
+  };
+}
+function lkAvEksporterCsv(){
+  const tall=v=>v==null?'':String(Math.round(v)).replace('.',',');
+  const hode=['Status','Leverandør','BAX','Brukersted','Orgnr','Avvik','I fare/år','Ansvarlig','Siste notat','Først sett','Sist sett'];
+  const vis=lkAvvik.filter(LK_AV_FILTRE[lkAvFilter]?LK_AV_FILTRE[lkAvFilter][1]:()=>true);
+  const linjer=vis.map(a=>[(LK_AV_STATUS[a.status]||{t:a.status}).t,a.leverandor,a.bax,a.brukersted,a.orgnr,(LK_AV_TYPE[a.avvikstype]||[a.avvikstype])[0],tall(a.belop),a.ansvarlig,a.logg[0]?`${a.logg[0].d} ${a.logg[0].n}: ${a.logg[0].t}`:'',a.forste,a.sist].map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(';'));
+  const blob=new Blob(['﻿'+[hode.join(';'),...linjer].join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const el=document.createElement('a');el.href=URL.createObjectURL(blob);el.download=`lisenskontroll-avvik-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(el.href),1000);
+}
+function renderLisensKontroll(){
+  const el=document.getElementById('lk-innhold');if(!el)return;
+  if(!lkListerLastet){lkLastLister().then(renderLisensKontroll);}
+  document.getElementById('lk-liste-feil').textContent=[lkListeFeil,lkAvvikFeil].filter(Boolean).join(' ');
+  document.getElementById('lk-vis-kontroll').style.display=lkVis==='kontroll'?'':'none';
+  document.getElementById('lk-vis-historikk').style.display=lkVis==='historikk'?'':'none';
+  document.getElementById('lk-fane-kontroll')?.classList.toggle('active',lkVis!=='historikk');
+  document.getElementById('lk-fane-historikk')?.classList.toggle('active',lkVis==='historikk');
+  if(lkVis==='historikk'){lkRenderHistorikk();return;}
+  if(lkLaster){el.innerHTML=jobbStatusHtml('lk');return;}
+  if(lkData&&lkAvvikFeil&&lkListerLastet)lkVisResultat=true;
+  if(lkVisResultat&&lkData){
+    lkRenderResultat();
+    el.insertAdjacentHTML('afterbegin',`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 0">${lkAvvikFeil?'':`<button class="btn-sm" onclick="lkVisResultat=false;renderLisensKontroll()">← Tilbake til avvikslisten</button>`}<span class="hint" style="margin:0">Hele kontrollresultatet for ${escHtmlEpost(lkData.leverandor)} ${escHtmlEpost(lkData.fakturanr)}. Det vises bare til siden lastes på nytt${lkAvvikFeil?'':'. Avvikene er lagret i avvikslisten'}.</span></div>`);
+    return;
+  }
+  el.innerHTML=(lkFeil?`<div style="background:#fef2f2;color:#991b1b;border-radius:8px;padding:14px 16px;font-size:13px;margin-top:12px">${escHtmlEpost(lkFeil)}</div>`:'')+lkAvvikHtml();
+}
+
 function lkToggle(bax){
   lkApen=lkApen===bax?null:bax;
   bevarRulling('lk-tabell-boks',renderLisensKontroll,lkApen?`tr[data-lk-bax="${CSS.escape(lkApen)}"] + tr`:null);
@@ -17792,7 +18077,7 @@ function lkOppsummering(r,d){
 function lkMuligKunde(r,d){
   if(!r.orgnr||r.kontrakter.some(k=>k.status==='Active'||k.status==='Aktiv'))return [];
   const ut=new Map();
-  d.rader.filter(x=>x!==r&&x.orgnr===r.orgnr).forEach(x=>x.kontrakter.filter(k=>k.status==='Active'||k.status==='Aktiv').forEach(k=>{
+  (d.rader||[]).filter(x=>x.bax!==r.bax&&x.orgnr===r.orgnr).forEach(x=>x.kontrakter.filter(k=>k.status==='Active'||k.status==='Aktiv').forEach(k=>{
     if(!ut.has(k.kundenr))ut.set(k.kundenr,{kundenr:k.kundenr,navn:k.kundenavn,grunn:`har aktiv kontrakt ${k.id} på BAX ${x.bax} (${x.brukersted||''})`});
   }));
   (typeof vismaKunder!=='undefined'?vismaKunder:[]).filter(v=>String(v.orgNr||'').replace(/\D/g,'')===r.orgnr).forEach(v=>{
@@ -17802,15 +18087,15 @@ function lkMuligKunde(r,d){
   ut.forEach(m=>{if(!m.vk)m.vk=(typeof vismaKunder!=='undefined'?vismaKunder:[]).find(x=>samKundenr(x.vismaNummer,m.kundenr));});
   return [...ut.values()];
 }
-function lkDetaljHtml(r){
-  const d=lkData;
+function lkDetaljHtml(r,dX,utenKnapper){
+  const d=dX||lkData;
   const lev=d.leverandor||'Leverandøren';
   const o=lkOppsummering(r,d);
   const aktive=r.kontrakter.filter(k=>k.status==='Active'||k.status==='Aktiv');
   const harKontrakt=aktive.length>0;
   const knapp=(txt,klikk,primar)=>`<button class="btn-sm" style="${primar?'background:#1A3A6B;color:#fff;border-color:#1A3A6B;':''}margin:2px" onclick="event.stopPropagation();${klikk}">${txt}</button>`;
   const st=r._status||r.status;
-  const knapper=st==='OK'||st==='UNNTAK'?'':`${salgTilgang?knapp('+ Oppfølging',`lkOppfolging('${r.bax}')`,true):''}${lkKanStyre()&&!lkListeFeil?knapp('Godta unntak',`lkApneUnntak('${r.bax}')`):''}`;
+  const knapper=utenKnapper||st==='OK'||st==='UNNTAK'?'':`${salgTilgang?knapp('+ Oppfølging',`lkOppfolging('${r.bax}')`,true):''}${lkKanStyre()&&!lkListeFeil?knapp('Godta unntak',`lkApneUnntak('${r.bax}')`):''}`;
   const mulige=lkMuligKunde(r,d);
   const muligHtml=mulige.length?`<div class="lk-gjor"><strong>Mulig kunde (samme orgnr ${escHtmlEpost(r.orgnr)}):</strong> ${mulige.map(m=>`${m.vk?`<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${m.vk.id}');return false" style="color:#1A3A6B;font-weight:600">${escHtmlEpost(m.navn)}</a>`:`<strong>${escHtmlEpost(m.navn)}</strong>`} (kundenr ${escHtmlEpost(m.kundenr)}, ${escHtmlEpost(m.grunn)})`).join('; ')}</div>`:'';
   const topp=`<div class="lk-oppsummering" style="background:${o.farge};border-left:4px solid ${o.kant}">
@@ -17872,6 +18157,12 @@ async function lkLastOpp(file){
     document.getElementById('lk-fil-meta').textContent=`${data.leverandor} · faktura ${data.fakturanr} · ${data.fakturadato} · ${data.rader.length} BAX · kostnad ${lkKr(data.kostnadAarTotalt)} per år`;
     await lkLastLister();
     lkLoggHistorikk();
+    lkSynkRes=null;lkVisResultat=false;lkAvFilter='apne';lkAvApen=null;
+    if(!lkAvvikFeil){
+      jobbTekst('lk','Kontrollen er ferdig. Lagrer avvikene og sammenligner med avvikslisten …');
+      try{lkSynkRes=await lkSynkAvvik(data);}
+      catch(e){console.warn('Lisenskontroll: avvik ikke lagret',e);vfShowToast('⚠ Avvikene ble ikke lagret: '+e.message,8000);lkVisResultat=true;}
+    }
   }catch(err){lkFeil='Kontrollen feilet: '+err.message;document.getElementById('lk-fil-meta').textContent='';}
   const brukteSek=jobbStopp('lk');lkLaasOpplasting(false);
   lkLaster=false;renderLisensKontroll();
@@ -17902,8 +18193,8 @@ function lkRenderHistorikk(){
 // Oppfølging: vanlig KundeNotat (type Oppfølging), ansvarlig = innlogget
 // bruker (standard i skjemaet), frist om 14 dager. Kunde = aktiv kontrakt,
 // ellers Visma-kunde med samme orgnr (Nets).
-function lkOppfolging(bax){
-  const d=lkData;const r=d&&d.rader.find(x=>x.bax===bax);if(!r)return;
+function lkOppfolging(bax,rX,dX){
+  const d=dX||lkData;const r=rX||(d&&d.rader.find(x=>x.bax===bax));if(!r)return false;
   const k=r.kontrakter.find(x=>x.status==='Active'||x.status==='Aktiv')||r.kontrakter[0];
   let vk=k?vismaKunder.find(x=>samKundenr(x.vismaNummer,k.kundenr)):null;
   if(!vk&&r.orgnr)vk=vismaKunder.find(x=>normOrgNr(x.orgNr)===normOrgNr(r.orgnr));
@@ -17916,7 +18207,7 @@ function lkOppfolging(bax){
   if(!vk){
     try{navigator.clipboard&&navigator.clipboard.writeText(tekst);}catch(_){}
     vfShowToast('Fant ikke kunden i Visma-synken (ingen kontrakt/orgnr). Teksten er kopiert — lag oppfølgingen fra riktig kundekort.',8000);
-    return;
+    return false;
   }
   openNyNotatModal(vk.vismaNummer,vk.navn);
   document.getElementById('n-type').value='Oppfølging';
@@ -17925,6 +18216,7 @@ function lkOppfolging(bax){
   rtSettInnhold(tekst);
   const frist=new Date();frist.setDate(frist.getDate()+14);frist.setHours(9,0,0,0);
   if(notatDatePicker)notatDatePicker.setDate(frist);else document.getElementById('n-forfallsdato').value=toLocalDatetimeInputValue(frist.toISOString());
+  return true;
 }
 
 let lkUnntakBax=null;
