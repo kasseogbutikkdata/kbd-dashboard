@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.242 · Oppdatert: 9. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.243 · Oppdatert: 9. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11386,6 +11386,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.243',dato:'09.10.2026',punkter:[
+    'Fakturaoppfølging og «Ikke avstemt i Visma» viser nå hverandres logg. Oppfølgingspanelet får en gul boks «🧮 Ikke avstemt i Visma» med beløp, status og de tre siste notatene, og knappen «Åpne i «Ikke avstemt» →». I «Ikke avstemt» vises de tre siste henvendelsene fra fakturaoppfølgingen med «Åpne i Fakturaoppfølging →». Begge deler er bare til visning, og notater skrives som før der du står.'
+  ]},
   {versjon:'v1.48.242',dato:'09.10.2026',punkter:[
     'Ikke avstemt i Visma: nytt notatfelt. Større felt i vanlig skrift som vokser når du skriver, og Ctrl+Enter lagrer. Hurtigvalg «📞 Ringt kunden», «✉️ E-post», «🧾 Sendt regnskapsfører», «✅ Kunde bekreftet» og «✔️ Avklart» lagrer med en gang (tekst i feltet tas med, og to av dem setter status).',
     'Loggen har ikon per linje (📝 notat, 🏷️ status, ✉️ saldobekreftelse), og Pureservice-saker som «PS#36613» vises som merke. Saldobekreftelse og «Vis fakturaene» står på egen linje under notatet.'
@@ -14060,6 +14063,7 @@ function renderIkkeAvstemt(){
         rows.push(`<tr style="background:#fffbeb"><td colspan="9" style="border-left:3px solid #f59e0b;padding:12px 14px">
           <table style="width:100%;font-size:13px;margin-bottom:12px"><thead><tr style="color:#6b7280;font-size:11px"><th>Type</th><th>Dokumentnr</th><th>Dato</th><th class="tr">Beløp</th><th class="tr">Ubrukt / utestående</th><th></th></tr></thead><tbody>${docRader}${fRader}</tbody></table>
           ${iaLoggHtml(r.kommentar)}
+          ${iaFoLoggHtml(r)}
           ${kanRedigere?`<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
               <div style="font-size:13px;font-weight:600;color:#111">✍️ Nytt notat</div>
@@ -14099,6 +14103,43 @@ const IA_HURTIG_TEKST={ring:{t:'📞 Ringt kunden'},epost:{t:'✉️ E-post til 
 const IA_PS_URL='';
 function iaNotatHtml(t){
   return iaEsc(t).replace(/PS#\s?(\d{3,7})/g,(m,nr)=>IA_PS_URL?`<a href="${IA_PS_URL.replace('{nr}',nr)}" target="_blank" rel="noopener" style="background:#ede9fe;color:#5b21b6;border-radius:6px;padding:0 6px;font-weight:600;text-decoration:none">PS#${nr} ↗</a>`:`<span style="background:#ede9fe;color:#5b21b6;border-radius:6px;padding:0 6px;font-weight:600">PS#${nr}</span>`);
+}
+// v1.48.243: loggene ser hverandre (skrivebeskyttet).
+// - Fakturaoppfølging-panelet viser «🧮 Ikke avstemt i Visma» for kunden (iaPanelHtml).
+// - «Ikke avstemt»-raden viser de siste henvendelsene fra FakturaoppfolgingLogg (iaFoLoggHtml).
+function iaVisKunde(kundenr){
+  const k=String(kundenr||'').trim();
+  const harF=fakturaoppfolging.some(f=>!f.betaltDato&&String(f.kundenr||'').trim()===k);
+  iaFane=harF?'fakturaer':'kreditt';iaStatusFilter='alle';iaApen=k;
+  foSearch='';const sk=document.getElementById('fo-search');if(sk)sk.value='';
+  setFoVisning('ikkeavstemt');
+}
+function iaPanelHtml(kundenr){
+  const k=iaKundeMap.get(String(kundenr||'').trim());if(!k)return '';
+  const ubrukt=k.docs.filter(d=>d.type!=='Refusjon').reduce((s,d)=>s+d.ubrukt,0);
+  const typer=[...new Set(k.docs.map(d=>d.type))].join(', ').toLowerCase();
+  const linjer=String(k.kommentar||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(-3).reverse();
+  return `<div style="margin-bottom:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:${linjer.length?6:0}px">
+      <span style="font-size:13px;color:#92400e">🧮 <b>Ikke avstemt i Visma</b>: ${iaEsc(typer)} ${fF(ubrukt)} ikke koblet mot faktura · ${iaStatusBadge(k.status)}${k.status==='Sendt kunde'&&k.sendtKunde?` <span style="font-size:11px;color:${iaVenterSvar(k)?'#dc2626':'#6b7280'}">${iaVenterSvar(k)?'⏰ ':''}sendt ${fDateShort(k.sendtKunde)}</span>`:''}</span>
+      <button class="btn-sm" onclick="event.stopPropagation();iaVisKunde('${iaJs(k.kundenr)}')">Åpne i «Ikke avstemt» →</button>
+    </div>
+    ${linjer.map(l=>{const m=/^(\d{2}\.\d{2}\.\d{2,4}):\s*(.*)$/.exec(l);const t=m?m[2]:l;const ik=iaLinjeIkon(t);return `<div style="font-size:12px;color:#374151;padding:2px 0"><span style="color:#92400e;font-weight:600;margin-right:6px">${m?iaEsc(m[1]):''}</span>${ik?ik+' ':''}${iaNotatHtml(t)}</div>`;}).join('')}
+  </div>`;
+}
+function iaFoLoggHtml(r){
+  const nr=new Set(fakturaoppfolging.filter(f=>String(f.kundenr||'').trim()===r.kundenr).map(f=>f.fakturanr));
+  if(!nr.size)return '';
+  const sett=new Map();
+  fakturaoppfolgingLogg.filter(l=>nr.has(l.fakturanr)).forEach(l=>{
+    const key=[String(l.dato||'').slice(0,16),l.type,l.skrevetAv,l.kommentar].join('|');
+    if(!sett.has(key))sett.set(key,{...l,nrListe:[l.fakturanr]});else sett.get(key).nrListe.push(l.fakturanr);
+  });
+  const rader=[...sett.values()].sort((a,b)=>new Date(b.dato||0)-new Date(a.dato||0));
+  if(!rader.length)return '';
+  const vis=rader.slice(0,3);
+  return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.4px">🧾 Fra fakturaoppfølgingen${rader.length>3?` (siste 3 av ${rader.length})`:''}</span>${r.fs.length?`<button class="btn-sm" style="font-size:11px;padding:2px 8px" onclick="iaGaTilFakturaer('${iaJs(r.kundenr)}')">Åpne i Fakturaoppfølging →</button>`:''}</div>
+    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:4px 12px">${vis.map((l,i)=>`<div style="font-size:12px;padding:5px 0;${i<vis.length-1?'border-bottom:1px solid #eef0f3;':''}"><span style="color:#6b7280">${fDateShort(l.dato)} · ${iaEsc(l.type||'—')} · ${iaEsc(l.skrevetAv||'—')}${l.nrListe.length>1?' · '+l.nrListe.length+' fakturaer':' · faktura '+iaEsc(l.fakturanr)}</span><div style="color:#111;white-space:pre-wrap">${iaNotatHtml(l.kommentar||'')}</div></div>`).join('')}</div></div>`;
 }
 function iaLinjeIkon(tekst){
   if(/^\p{Extended_Pictographic}/u.test(tekst))return '';
@@ -15059,7 +15100,7 @@ function renderFoDetaljPanel(r){
   const hk=(akt,txt,tittel)=>`<button class="btn-sm" onclick="foHurtig('${key}','${akt}')" title="${tittel}">${txt}</button>`;
 
   return `<div style="padding:14px 16px">
-      ${inkassoHtml}${fakturaListe}${notatHtml}
+      ${inkassoHtml}${fakturaListe}${notatHtml}${typeof iaPanelHtml==='function'?iaPanelHtml(r.kundenr):''}
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
         <div style="font-size:12px;font-weight:600;color:#6b7280">Oppfølgingslogg</div>
         <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;white-space:nowrap">
