@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.244 · Oppdatert: 9. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.245 · Oppdatert: 9. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -797,7 +797,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <!-- Onboarding av nye kunder (v1.48.177, 03.10.2026). Ikke i MODULER —
            synlig for alle; skriving styres av tilgang.onboarding / salgTilgang. -->
       <div class="nav-item" id="tab-onboarding" onclick="onbValgtId=null;onbValgtFase=null;showTab('onboarding',this)">
-        <span class="nav-item-icon">🚀</span>Onboarding (BETA)<span id="onb-nav-badge" style="display:none;margin-left:auto;font-size:11px;font-weight:700;background:#f59e0b;color:#fff;border-radius:20px;padding:1px 7px"></span>
+        <span class="nav-item-icon">🚀</span>Onboarding<span id="onb-nav-badge" style="display:none;margin-left:auto;font-size:11px;font-weight:700;background:#f59e0b;color:#fff;border-radius:20px;padding:1px 7px"></span>
       </div>
       <div class="nav-item" id="tab-smsutsendelse" onclick="showTab('smsutsendelse',this);toggleSmsUtsendelseSub(true)">
         <span class="nav-item-icon">📱</span>SMS utsendelse
@@ -1047,7 +1047,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
   <div id="tp-onboarding" class="tp">
     <div class="card card-public">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <div class="card-title" style="margin:0">🚀 Onboarding av nye kunder (BETA)</div>
+        <div class="card-title" style="margin:0">🚀 Onboarding av nye kunder</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <input type="text" placeholder="Søk kunde eller SO-nr…" oninput="onbSok=this.value.trim();onbValgtId=null;renderOnboarding()" style="min-width:200px"/>
           <button class="btn-sm" id="onb-mal-btn" style="display:none" onclick="apneOnbMal()">⚙️ Mal og varer</button>
@@ -11386,6 +11386,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.245',dato:'09.10.2026',punkter:[
+    'Onboarding er ikke lenger merket «(BETA)», verken i menyen eller i overskriften.'
+  ]},
   {versjon:'v1.48.244',dato:'09.10.2026',punkter:[
     'Ikke avstemt i Visma: «🧾 Vis fakturaene» og «✉️ Saldobekreftelse» står nå ved siden av «💾 Lagre» inne i notatboksen, og mottakeren av saldobekreftelsen vises rett under.'
   ]},
