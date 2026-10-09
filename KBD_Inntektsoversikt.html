@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.243 · Oppdatert: 9. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.244 · Oppdatert: 9. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11386,6 +11386,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.244',dato:'09.10.2026',punkter:[
+    'Ikke avstemt i Visma: «🧾 Vis fakturaene» og «✉️ Saldobekreftelse» står nå ved siden av «💾 Lagre» inne i notatboksen, og mottakeren av saldobekreftelsen vises rett under.'
+  ]},
   {versjon:'v1.48.243',dato:'09.10.2026',punkter:[
     'Fakturaoppfølging og «Ikke avstemt i Visma» viser nå hverandres logg. Oppfølgingspanelet får en gul boks «🧮 Ikke avstemt i Visma» med beløp, status og de tre siste notatene, og knappen «Åpne i «Ikke avstemt» →». I «Ikke avstemt» vises de tre siste henvendelsene fra fakturaoppfølgingen med «Åpne i Fakturaoppfølging →». Begge deler er bare til visning, og notater skrives som før der du står.'
   ]},
@@ -14072,15 +14075,16 @@ function renderIkkeAvstemt(){
             <textarea id="ia-kommentar" rows="3" placeholder="Skriv hva som er gjort eller avtalt, f.eks. «Er i dialog med kunden på PS#36613». Ctrl+Enter lagrer." style="width:100%;min-height:72px;font-family:inherit;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid #d0d5dd;border-radius:8px;resize:vertical;box-sizing:border-box" oninput="this.style.height='auto';this.style.height=Math.max(72,this.scrollHeight+2)+'px'" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();iaLagre('${k}',document.getElementById('ia-lagre-knapp'))}"></textarea>
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:8px">
               <div style="display:flex;align-items:center;gap:8px"><label for="ia-status" style="font-size:12px;color:#6b7280;margin:0">Status</label><select id="ia-status" style="width:auto;padding:6px 10px">${IA_STATUSER.map(s=>`<option${r.status===s?' selected':''}>${s}</option>`).join('')}</select><span style="font-size:11px;color:#9ca3af">Endret status logges automatisk.</span></div>
-              <button class="prim" id="ia-lagre-knapp" onclick="iaLagre('${k}',this)">💾 Lagre</button>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                ${r.fs.length?`<button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button>`:''}
+                ${r.docs.some(d=>d.type!=='Refusjon')?`<button class="btn-sm" style="${iaBareIntern(r)?'':'border-color:#f59e0b;color:#92400e;background:#fffbeb;font-weight:600'}" onclick="iaSendSaldo('${k}',this)" title="Lager et Outlook-utkast fra ${IA_FRA_EPOST} med saldo og faktura-PDF. Ingenting sendes før du trykker Send i Outlook.">✉️ Saldobekreftelse</button>`:''}
+                <button class="prim" id="ia-lagre-knapp" onclick="iaLagre('${k}',this)">💾 Lagre</button>
+              </div>
             </div>
-            <div style="font-size:11px;color:#6b7280;margin-top:6px">Hurtigvalgene lagrer med en gang, og tekst i feltet tas med. «Avklart» = kunden kommer tilbake på arbeidslisten og purring-SMS selv om posten fortsatt står åpen i Visma. Selve koblingen må gjøres i Visma.</div>
+            ${r.docs.some(d=>d.type!=='Refusjon')?(()=>{const mt=iaMottaker(r);return `<div style="font-size:11px;color:#6b7280;margin-top:8px">✉️ Saldobekreftelse går til ${mt.epost?`<b>${iaEsc(mt.epost)}</b> (${iaEsc(mt.navn?mt.navn+', ':'')}${iaEsc(mt.kilde)})`:'<span style="color:#b45309">ingen e-post funnet, fyll inn i Outlook</span>'}, fra og svar til ${IA_FRA_EPOST}.${iaBareIntern(r)?' <span style="color:#b45309">Innbetalingen dekker fakturaen nøyaktig, så dette ser ut som en intern kobling i Visma. Vurder å sende til regnskapsfører i stedet for kunden.</span>':''}${r.refusjon?' Refusjonen tas ikke med.':''}</div>`;})():''}
+            <div style="font-size:11px;color:#6b7280;margin-top:4px">Hurtigvalgene lagrer med en gang, og tekst i feltet tas med. «Avklart» = kunden kommer tilbake på arbeidslisten og purring-SMS selv om posten fortsatt står åpen i Visma. Selve koblingen må gjøres i Visma.</div>
           </div>`:`<div style="font-size:12px;margin-bottom:10px">Status: ${iaStatusBadge(r.status)}</div>`}
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-            ${kanRedigere&&r.docs.some(d=>d.type!=='Refusjon')?`<button class="${iaBareIntern(r)?'btn-sm':'prim'}" style="${iaBareIntern(r)?'':'background:#f59e0b;border-color:#f59e0b'}" onclick="iaSendSaldo('${k}',this)" title="Lager et Outlook-utkast fra ${IA_FRA_EPOST} med saldo og faktura-PDF. Ingenting sendes før du trykker Send i Outlook.">✉️ Saldobekreftelse til kunden</button>`:''}
-            ${r.fs.length?`<button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button>`:''}
-          </div>
-          ${kanRedigere&&r.docs.some(d=>d.type!=='Refusjon')?(()=>{const mt=iaMottaker(r);return `<div style="font-size:11px;color:#6b7280;margin-top:6px">Saldobekreftelse går til ${mt.epost?`<b>${iaEsc(mt.epost)}</b> (${iaEsc(mt.navn?mt.navn+', ':'')}${iaEsc(mt.kilde)})`:'<span style="color:#b45309">ingen e-post funnet, fyll inn i Outlook</span>'}, fra og svar til ${IA_FRA_EPOST}.${iaBareIntern(r)?' <span style="color:#b45309">Innbetalingen dekker fakturaen nøyaktig, så dette ser ut som en intern kobling i Visma. Vurder å sende til regnskapsfører i stedet for kunden.</span>':''}${r.refusjon?' Refusjonen tas ikke med.':''}</div>`;})():''}
+          ${!kanRedigere&&r.fs.length?`<div style="margin-bottom:6px"><button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button></div>`:''}
         </td></tr>`);
       }
       return rows.join('');
