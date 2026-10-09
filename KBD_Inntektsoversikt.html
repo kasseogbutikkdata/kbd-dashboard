@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.246 · Oppdatert: 9. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.247 · Oppdatert: 9. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -9369,6 +9369,8 @@ async function sendSmsFraKundekort(){
 // SmsUtsendelser — se Kunde360-oppsett-sjekkliste.md. Begge lastes med
 // .catch(()=>[]) i loadDataFromSP() slik at menyen fungerer (viser tomt) selv
 // før listene er opprettet.
+// smsValgteBransjer (v1.48.247): bransjefilter som SNEVRER INN Visma-kundene fra kildene over.
+let smsValgteBransjer=new Set();
 let smsMaler=[],smsUtsendelser=[],smsGrupper=[],smsValgteKilder=new Set(),smsGruppeMottakere=[],smsValgteMottakere=new Set();
 // smsuTekstRaw (lagt til 02.09.2026, fiks for Thomas' bugrapport: skrev man
 // meldingsteksten FØR man valgte mottakergruppe, forsvant teksten idet man
@@ -9539,13 +9541,16 @@ function smsRenderSaldoVisning(){
 // rekkefølge — første treff vinner (derfor 47.1/47.2 før 47, og 96.02/96.04
 // før resten). BransjeOverstyrt (satt på kundekortet) vinner alltid.
 // Kategoriene er vedtatt med Thomas 09.10.2026 (kundekommunikasjon-plan.md).
+// v1.48.247: Frisør ga 0 treff i ekte data — Brreg bruker SN2025-koder for
+// deler av 96 (frisør 96.21, skjønnhet 96.22, velvære/spa 96.23). Begge
+// kodeversjonene tas derfor med.
 const KBD_BRANSJEKATEGORIER=[
   {navn:'Servering',prefiks:['56']},
   {navn:'Dagligvare og kiosk',prefiks:['47.1','47.2']},
   {navn:'Butikk og handel',prefiks:['47','45','46']},
-  {navn:'Frisør og skjønnhet',prefiks:['96.02']},
+  {navn:'Frisør og skjønnhet',prefiks:['96.02','96.21','96.22']}, // 96.02 = SN2007, 96.21/96.22 = SN2025
   {navn:'Overnatting',prefiks:['55']},
-  {navn:'Helse, trening og velvære',prefiks:['86','93','96.04']},
+  {navn:'Helse, trening og velvære',prefiks:['86','93','96.04','96.23']}, // 96.04 = SN2007, 96.23 = SN2025
 ];
 const KBD_BRANSJE_ANNET='Annet';
 const KBD_BRANSJE_UKJENT='Ukjent bransje';
@@ -9586,8 +9591,9 @@ function smsKunderMedAktivKontrakt(){
 }
 // Kandidater for én bransje — samme radformat som smsHentKandidaterForNokkel(),
 // så de slås sammen og dedupliseres på telefonnummer på vanlig måte.
-// «Egen kilde» (Thomas 09.10.2026): bransjeknappene legges SAMMEN med andre
-// valgte kilder, de snevrer ikke inn.
+// v1.48.247 (Thomas 09.10.2026, endret fra «egen kilde»): bransje er et FILTER.
+// Brukes bare når ingen leverandør/gruppe er valgt — da gir den alle kunder
+// med aktiv kontrakt i valgt(e) bransje(r). Se smsOppdaterMottakereFraKilder().
 function smsHentKandidaterForBransje(kategori){
   return smsKunderMedAktivKontrakt().filter(k=>kbdBransje(k).kategori===kategori).map(k=>{
     const telefonRaw=normTlf(k.kontaktTelefon);
@@ -9697,12 +9703,11 @@ function smsOppdaterMottakereFraKilder(){
     }else if(kilde.startsWith('gruppe:')){
       const g=smsGrupper.find(x=>x.id===kilde.slice(7));
       if(g)kandidater=kandidater.concat(smsParseManuelleNumre(g.numre).map(r=>({vismaNummer:null,navn:r.navn,telefon:r.telefon,telefonRaw:r.telefonRaw,erMobil:r.erMobil,kontraktTreff:`Gruppe: ${g.navn}`})));
-    }else if(kilde.startsWith('bransje:')){
-      kandidater=kandidater.concat(smsHentKandidaterForBransje(kilde.slice(8)));
     }else{
       kandidater=kandidater.concat(smsHentKandidaterForNokkel(kilde));
     }
   }
+  kandidater=smsBransjeFiltrer(kandidater);
   smsGruppeMottakere=smsSlaSammenKandidaterPaTelefon(kandidater);
   smsValgteMottakere=new Set(smsGruppeMottakere.filter(m=>m.telefon).map(m=>m.key));
 }
@@ -9743,18 +9748,23 @@ function renderSmsUtsendelse(){
   }).join('');
   // Bransjeknapper (v1.48.246) — egen kilde, se smsHentKandidaterForBransje().
   const bransjeKunder=smsKunderMedAktivKontrakt();
+  // Med leverandør valgt teller knappen bare kundene i DEN leverandøren.
+  const harVismaKilde=[...smsValgteKilder].some(x=>x!=='Manuelt'&&!x.startsWith('gruppe:'));
+  const fraKilder=harVismaKilde?smsKandidaterFraKilderUtenBransje():null;
+  const katPerNr=new Map(vismaKunder.map(k=>[String(k.vismaNummer||'').trim(),kbdBransje(k).kategori]));
   const bransjeKnapper=[...KBD_BRANSJE_VALG,KBD_BRANSJE_UKJENT].map(kat=>{
-    const nokkel=`bransje:${kat}`;
-    const rader=smsSlaSammenKandidaterPaTelefon(smsHentKandidaterForBransje(kat));
+    const rader=smsSlaSammenKandidaterPaTelefon(fraKilder
+      ?fraKilder.filter(p=>(katPerNr.get(String(p.vismaNummer||'').trim())||KBD_BRANSJE_UKJENT)===kat)
+      :smsHentKandidaterForBransje(kat));
     const antall=rader.length; // samme telling som leverandørknappene
     const mobil=rader.filter(m=>m.telefon).length;
     const totalt=bransjeKunder.filter(k=>kbdBransje(k).kategori===kat).length;
     if(kat===KBD_BRANSJE_UKJENT&&totalt===0)return'';
-    const aktiv=smsValgteKilder.has(nokkel);
-    let tittel=`${totalt} kunder med aktiv kontrakt, ${mobil} unike mobilnumre`;
+    const aktiv=smsValgteBransjer.has(kat);
+    let tittel=fraKilder?`${rader.length} mottakere i valgt(e) leverandørgruppe(r), ${mobil} med mobilnummer`:`${totalt} kunder med aktiv kontrakt, ${mobil} unike mobilnumre`;
     if(kat===KBD_BRANSJE_ANNET){const topp=kbdBransjeAnnetToppkoder(bransjeKunder);if(topp)tittel+=`\n\nVanligste koder i Annet:\n${topp}`;}
     if(kat===KBD_BRANSJE_UKJENT)tittel+='\n\nMangler org.nr, eller er ikke slått opp i Brreg ennå (nattjobben tar inntil 800 kunder per natt).';
-    return `<button class="btn-sm" title="${tittel.replace(/"/g,'&quot;')}" style="${aktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}${kat===KBD_BRANSJE_UKJENT&&!aktiv?';color:#6b7280':''}" onclick="smsToggleKilde('${nokkel.replace(/'/g,"\\'")}')">${kat} (${antall})</button>`;
+    return `<button class="btn-sm" title="${tittel.replace(/"/g,'&quot;')}" style="${aktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}${kat===KBD_BRANSJE_UKJENT&&!aktiv?';color:#6b7280':''}" onclick="smsToggleBransje('${kat.replace(/'/g,"\\'")}')">${kat} (${antall})</button>`;
   }).join('');
   const malOpsjoner=smsMaler.map(m=>`<option value="${m.id}"${document.getElementById('smsu-mal-select')?.value===m.id?' selected':''}>${(m.navn||'(uten navn)').replace(/"/g,'&quot;')}</option>`).join('');
 
@@ -9770,7 +9780,7 @@ function renderSmsUtsendelse(){
         <button class="btn-sm" onclick="openNySmsGruppeModal()">➕ Ny gruppe</button>
       </div>
       <div style="margin-top:10px">
-        <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:6px">🏷️ Bransje <span style="font-weight:400">· kunder med aktiv kontrakt, hentet fra Brønnøysund (kan overstyres på kundekortet)</span></div>
+        <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:6px">🏷️ Snevre inn på bransje <span style="font-weight:400">· velg én eller flere. Med leverandør valgt over får du bare de kundene i valgt bransje. Uten leverandør: alle kunder med aktiv kontrakt i bransjen. Manuelle numre og lagrede grupper påvirkes ikke. Bransje hentes fra Brønnøysund og kan overstyres på kundekortet.</span></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">${bransjeKnapper}</div>
       </div>
       <div class="hint">Du kan velge <strong>flere grupper samtidig</strong> (f.eks. Susoft OG Verifone) — trykk på flere knapper, de forblir markert, og mottakerlisten under slår automatisk sammen alle valgte kilder og fjerner duplikater på telefonnummer. Susoft/Nets/Verifone bygger på aktive kontrakters beskrivelsesfelt fra Visma (samme grunnlag som produktoversikten på Kunde 360-forsiden). 📁-gruppene er lagrede, egendefinerte nummerlister du selv oppretter og vedlikeholder med «➕ Ny gruppe» (✏️/🗑️ på selve knappen) — bruk dem til lister som ikke matcher noen Visma-kategori (erstatter gruppene som tidligere lå i Sveve sin egen portal). Skal du bare sende til ett eller noen få numre denne ene gangen, bruk «Skriv inn nummer manuelt» i stedet for å lagre en egen gruppe.</div>
@@ -9867,6 +9877,38 @@ function smsRenderGlobaltSok(){
 // lagt til 31.08.2026 i stedet for å ERSTATTE hele valget, slik at flere
 // kilder kan være valgt samtidig. Selve mottakerlisten bygges på nytt fra
 // bunnen av smsOppdaterMottakereFraKilder() hver gang.
+// Bransjefilter (v1.48.247). Valgt(e) bransje(r) snevrer inn kandidatene:
+//  - Med kilder valgt: Visma-kunder (rader med vismaNummer) beholdes bare hvis
+//    kundens bransje er valgt. Manuelle numre og lagrede grupper har ingen
+//    kunde å slå opp, og beholdes uendret.
+//  - Uten kilder valgt: alle kunder med aktiv kontrakt i valgt(e) bransje(r).
+// Flere bransjer = «eller» (Servering ELLER Dagligvare).
+function smsBransjeFiltrer(kandidater){
+  if(smsValgteBransjer.size===0)return kandidater;
+  if(smsValgteKilder.size===0){
+    let alle=[];
+    for(const kat of smsValgteBransjer)alle=alle.concat(smsHentKandidaterForBransje(kat));
+    return alle;
+  }
+  const katPerNr=new Map(vismaKunder.map(k=>[String(k.vismaNummer||'').trim(),kbdBransje(k).kategori]));
+  return kandidater.filter(p=>!p.vismaNummer||smsValgteBransjer.has(katPerNr.get(String(p.vismaNummer).trim())||KBD_BRANSJE_UKJENT));
+}
+function smsToggleBransje(kat){
+  if(smsValgteBransjer.has(kat))smsValgteBransjer.delete(kat);else smsValgteBransjer.add(kat);
+  smsOppdaterMottakereFraKilder();
+  renderSmsUtsendelse();
+}
+// Kandidater fra valgte kilder FØR bransjefilteret — brukes til tellingen på
+// bransjeknappene (hvor mange av de valgte leverandørkundene er i bransjen).
+function smsKandidaterFraKilderUtenBransje(){
+  let k=[];
+  for(const kilde of smsValgteKilder){
+    if(kilde==='Manuelt'||kilde.startsWith('gruppe:'))continue;
+    k=k.concat(smsHentKandidaterForNokkel(kilde));
+  }
+  return k;
+}
+
 function smsToggleKilde(kilde){
   if(smsValgteKilder.has(kilde))smsValgteKilder.delete(kilde);else smsValgteKilder.add(kilde);
   smsOppdaterMottakereFraKilder();
@@ -9903,7 +9945,7 @@ function smsBrukManuelleNumre(){
 function smsRenderMottakere(){
   const wrap=document.getElementById('smsu-mottakere');
   if(!wrap)return;
-  if(smsValgteKilder.size===0){wrap.innerHTML='<div class="empty">Velg én eller flere kundegrupper, en lagret gruppe, eller skriv inn numre manuelt, for å se mottakerlisten.</div>';return;}
+  if(smsValgteKilder.size===0&&smsValgteBransjer.size===0){wrap.innerHTML='<div class="empty">Velg én eller flere kundegrupper, en lagret gruppe, eller skriv inn numre manuelt, for å se mottakerlisten.</div>';return;}
   if(smsGruppeMottakere.length===0){
     wrap.innerHTML=`<div class="empty">Fant ingen kunder/numre i valgt(e) kilde(r) (${smsGruppeVisningsnavn()}).${smsValgteKilder.has('Manuelt')?' Skriv inn numre over og trykk «Bruk disse numrene».':''}</div>`;
     return;
@@ -10221,10 +10263,11 @@ function smsGruppeVisningsnavn(){
       const g=smsGrupper.find(x=>x.id===kilde.slice(7));
       return g?g.navn:'(slettet gruppe)';
     }
-    if(kilde.startsWith('bransje:'))return `Bransje: ${kilde.slice(8)}`;
     return kilde;
   });
-  return navn.join(' + ')||'(ingen valgt)';
+  const bransje=smsValgteBransjer.size?`Bransje: ${[...smsValgteBransjer].join(' / ')}`:'';
+  if(!navn.length)return bransje||'(ingen valgt)';
+  return navn.join(' + ')+(bransje?` · ${bransje}`:'');
 }
 
 async function sendSmsGruppe(){
@@ -11505,6 +11548,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.247',dato:'09.10.2026',punkter:[
+    'SMS utsendelse: bransje snevrer nå inn mottakerne. Velg for eksempel Susoft og Verifone, og deretter Servering og Dagligvare, så får du bare Susoft- og Verifone-kundene i de to bransjene. Tallene på bransjeknappene viser hvor mange av de valgte leverandørkundene som er i hver bransje. Uten leverandør valgt gir bransjen alle kunder med aktiv kontrakt i bransjen.',
+    'Frisør og skjønnhet og Helse, trening og velvære fanger nå også opp de nye næringskodene Brønnøysund bruker.'
+  ]},
   {versjon:'v1.48.246',dato:'09.10.2026',punkter:[
     'SMS utsendelse: du kan nå velge mottakere etter bransje (Servering, Dagligvare og kiosk, Butikk og handel, Frisør og skjønnhet, Overnatting, Helse, trening og velvære og Annet). Bransjeknappene legges sammen med de andre gruppene du velger, og samme nummer får fortsatt bare én SMS.',
     'Kundekortet viser bransjen under «Adresse (Visma)», hentet fra Brønnøysundregistrene. Har kunden feil bransje, kan du overstyre den der.',
