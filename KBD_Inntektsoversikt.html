@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.247 · Oppdatert: 9. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.248 · Oppdatert: 9. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11548,6 +11548,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.248',dato:'09.10.2026',punkter:[
+    'Onboarding: «Bare mine» er erstattet med et filter på ansvarlig: Alle, Mine (ansvarlig eller selger), Ikke tatt, eller en bestemt person (Casper, Håvard, Thomas …). Antallet står i lista og i statusfiltrene, og valget huskes i nettleseren.'
+  ]},
   {versjon:'v1.48.247',dato:'09.10.2026',punkter:[
     'SMS utsendelse: bransje snevrer nå inn mottakerne. Velg for eksempel Susoft og Verifone, og deretter Servering og Dagligvare, så får du bare Susoft- og Verifone-kundene i de to bransjene. Tallene på bransjeknappene viser hvor mange av de valgte leverandørkundene som er i hver bransje. Uten leverandør valgt gir bransjen alle kunder med aktiv kontrakt i bransjen.',
     'Frisør og skjønnhet og Helse, trening og velvære fanger nå også opp de nye næringskodene Brønnøysund bruker.'
@@ -19855,6 +19858,15 @@ let onboardinger=[];
 let onbMal=null,onbMalSpId=null;
 let onbTilgang=false;
 let onbFilter='aktive',onbSok='',onbBareMine=false;
+// v1.48.248: filter på ansvarlig ('' = alle, '__mine', '__ikke', ellers navn). Huskes per nettleser.
+let onbAnsvarligFilter=(()=>{try{return localStorage.getItem('kbdOnbAnsvarlig')||'';}catch{return '';}})();
+function onbSettAnsvarligFilter(v){onbAnsvarligFilter=v;try{localStorage.setItem('kbdOnbAnsvarlig',v);}catch{}renderOnboarding();}
+function onbIAnsvarligFilter(o){
+  const f=onbAnsvarligFilter;if(!f)return true;
+  if(f==='__mine')return onbErMin(o)||(o.selgerEpost&&o.selgerEpost.toLowerCase()===onbMinEpost());
+  if(f==='__ikke')return !o.ansvarlig;
+  return o.ansvarlig===f;
+}
 let onbValgtId=null,onbValgtFase=null;
 let onbStart=null; // tilstand for startskjemaet
 let onbMalUtkast=null;
@@ -20204,12 +20216,16 @@ function renderOnboarding(){
   const filterDiv=document.getElementById('onb-filter');
   // v1.48.195: «prioritert» = aktive saker med 🚩.
   const iUtvalg=(o,f)=>f==='aktive'?(o.status==='Ny'||o.status==='Pågår'):f==='alle'?true:f==='prioritert'?(onbErPrioritert(o)&&(o.status==='Ny'||o.status==='Pågår')):o.status===f;
-  const teller=f=>onboardinger.filter(o=>iUtvalg(o,f)).length;
+  const teller=f=>onboardinger.filter(o=>iUtvalg(o,f)&&onbIAnsvarligFilter(o)).length;
+  const navn=[...new Set([...onbTeam(),...onboardinger.map(o=>o.ansvarlig).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,'nb'));
+  if(onbAnsvarligFilter&&!onbAnsvarligFilter.startsWith('__')&&!navn.includes(onbAnsvarligFilter))navn.push(onbAnsvarligFilter);
+  const antallFor=v=>{const g=onbAnsvarligFilter;onbAnsvarligFilter=v;const n=onboardinger.filter(o=>iUtvalg(o,onbFilter)&&onbIAnsvarligFilter(o)).length;onbAnsvarligFilter=g;return n;};
+  const valg=(v,l)=>`<option value="${onbEsc(v)}"${onbAnsvarligFilter===v?' selected':''}>${onbEsc(l)} (${antallFor(v)})</option>`;
   const pill=(val,lbl,farge)=>`<button class="fpill${onbFilter===val?' f-on':''}" style="${onbFilter===val?`border-color:${farge}`:''}" onclick="onbFilter='${val}';renderOnboarding()"><span class="fpill-dot" style="background:${farge}"></span>${lbl} <span style="color:#9ca3af;font-weight:400">${teller(val)}</span></button>`;
   if(filterDiv)filterDiv.innerHTML=pill('aktive','Aktive','#1A3A6B')+pill('Ny','📥 Nye','#b45309')+pill('Pågår','Pågår','#1d4ed8')+pill('Ferdig','Ferdige','#15803d')+pill('Avbrutt','Avbrutt','#6b7280')+pill('alle','Alle','#9ca3af')+pill('prioritert','🚩 Prioritert','#d03b3b')
-    +`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:6px"><input type="checkbox" ${onbBareMine?'checked':''} onchange="onbBareMine=this.checked;renderOnboarding()"/>Bare mine</label>`;
+    +`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;margin-left:6px;white-space:nowrap">👤 Ansvarlig <select onchange="onbSettAnsvarligFilter(this.value)" style="width:auto;max-width:260px;padding:5px 8px;border:1px solid ${onbAnsvarligFilter?'#1A3A6B':'#d0d5dd'};border-radius:20px;font-size:12px;font-weight:${onbAnsvarligFilter?'700':'400'};background:#fff">${valg('','Alle')}${valg('__mine','Mine (ansvarlig eller selger)')}${valg('__ikke','Ikke tatt')}${navn.map(n=>valg(n,n)).join('')}</select></label>`;
   let liste=onboardinger.filter(o=>iUtvalg(o,onbFilter));
-  if(onbBareMine)liste=liste.filter(o=>onbErMin(o)||(o.selgerEpost&&o.selgerEpost.toLowerCase()===onbMinEpost()));
+  liste=liste.filter(onbIAnsvarligFilter); // v1.48.248 (erstatter «Bare mine»)
   if(onbSok){const q=onbSok.toLowerCase();const qNr=(/^(?:onb-?)?0*(\d+)$/.exec(q)||[])[1];liste=liste.filter(o=>(o.tittel||'').toLowerCase().includes(q)||(o.soNr||'').includes(q)||(o.vismaKundeNummer||'').includes(q)||(qNr&&String(o.spId)===qNr)||(o.data.kontaktEpost||'').toLowerCase().includes(q));}
   const aktivPri=o=>onbErPrioritert(o)&&(o.status==='Ny'||o.status==='Pågår');
   liste.sort((a,b)=>(aktivPri(a)?0:1)-(aktivPri(b)?0:1)||(a.status==='Ny'?0:1)-(b.status==='Ny'?0:1)||onbSistAktivitet(b)-onbSistAktivitet(a));
