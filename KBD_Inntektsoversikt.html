@@ -698,7 +698,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.245 · Oppdatert: 9. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.246 · Oppdatert: 9. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3957,7 +3957,7 @@ async function loadDataFromSP(){
   // lenger ned og avdelings-avklaringen i silent_ordering.py sin docstring).
   // Gamle SOS*-kolonner kan fortsatt stå urørt på selve VismaKunder-lista i
   // SharePoint, men leses ikke lenger inn her.
-  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,saldoForfalt:parseFloat(i.fields.SaldoForfalt)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||'',brregKonkursVarslet:i.fields.BrregKonkursVarslet===true}));
+  vismaKunder=vkItems.map(i=>({id:`sp${i.id}`,spId:i.id,vismaNummer:i.fields.VismaNummer||'',navn:i.fields.Title||'',orgNr:i.fields.OrgNr||'',status:i.fields.Status||'',adresse:i.fields.Adresse||'',postnr:i.fields.Postnr||'',sted:i.fields.Sted||'',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',kundeklasse:i.fields.Kundeklasse||'',kredittgrense:parseFloat(i.fields.Kredittgrense)||0,kredittDagerForfalt:parseFloat(i.fields.KredittDagerForfalt)||0,saldo:parseFloat(i.fields.Saldo)||0,saldoForfalt:parseFloat(i.fields.SaldoForfalt)||0,sistOppdatertVisma:i.fields.SistOppdatertVisma||'',sistSynkronisert:i.fields.SistSynkronisert||'',brregKonkursVarslet:i.fields.BrregKonkursVarslet===true,naceKode:i.fields.NaceKode||'',naceBeskrivelse:i.fields.NaceBeskrivelse||'',naceSjekket:i.fields.NaceSjekket||'',bransjeOverstyrt:i.fields.BransjeOverstyrt||''}));
   // MERK: SharePoint-kolonnen som vises som "KontraktId" har internt feltnavn
   // "VismaKontrakter" (bekreftet 20.08.2026 via rå Graph-respons — trolig fordi
   // kolonnen opprinnelig ble opprettet med det navnet og senere bare fikk
@@ -5304,6 +5304,7 @@ const JOBBER_KONFIG={
   hent_nyetableringer:{visningsnavn:'Nyetableringer – Brønnøysund',maksMinutter:26*60},
   hent_nyetableringer_forhandlere:{visningsnavn:'Nyetableringer – forhandlerområder',maksMinutter:26*60},
   sjekk_konkurser:{visningsnavn:'Konkursvarsling',maksMinutter:26*60},
+  berik_bransje:{visningsnavn:'Bransje på kunder (Brreg)',maksMinutter:26*60}, // lagt til 09.10.2026, daglig 03:20 UTC — holdes i sync med JOBBER i jobbstatus.py
   sjekk_forfalte_fakturaer:{visningsnavn:'Purring-SMS (steg 1 – forfalte fakturaer)',maksMinutter:75*60},
   fyll_pureservice_orgnr:{visningsnavn:'Pureservice org.nr-synk',maksMinutter:26*60},
   sjekk_susoft_rma:{visningsnavn:'Susoft RMA-varsling',maksMinutter:26*60},
@@ -7339,6 +7340,37 @@ function seProffKnappHtml(orgNr,navn){
 function k360OkonomiApen(){try{return localStorage.getItem('kbd-k360-okonomi-apen')==='1';}catch(e){return false;}}
 function lagreK360OkonomiApen(apen){try{localStorage.setItem('kbd-k360-okonomi-apen',apen?'1':'0');}catch(e){}}
 
+// Bransjeraden på kundekortet (v1.48.246). Viser KBD-kategori og NACE-koden
+// fra Brreg. Brukere med salgstilgang kan overstyre (lagres i
+// BransjeOverstyrt på VismaKunder). «Automatisk» tømmer overstyringen.
+function bransjeCelleHtml(k){
+  const b=kbdBransje(k);
+  const auto=kbdBransjeFraNace(k.naceKode);
+  const nace=k.naceKode?`<span class="muted" style="font-size:12px"> · ${k.naceKode}${k.naceBeskrivelse?' '+k.naceBeskrivelse:''}</span>`:(k.naceSjekket?'<span class="muted" style="font-size:12px"> · ingen næringskode i Brreg</span>':'<span class="muted" style="font-size:12px"> · ikke slått opp i Brreg ennå</span>');
+  const merke=b.kilde==='overstyrt'?' <span title="Satt manuelt på kundekortet" style="font-size:11px;background:#fff4cc;color:#856404;border-radius:999px;padding:1px 7px">overstyrt</span>':'';
+  if(!salgTilgang||!k.spId)return `<strong>${b.kategori}</strong>${merke}${nace}`;
+  const opsjoner=[`<option value=""${!k.bransjeOverstyrt?' selected':''}>Automatisk${auto?` (${auto})`:''}</option>`]
+    .concat(KBD_BRANSJE_VALG.map(n=>`<option value="${n}"${k.bransjeOverstyrt===n?' selected':''}>${n}</option>`)).join('');
+  return `<strong>${b.kategori}</strong>${merke}${nace}
+    <div style="margin-top:4px"><select title="Overstyr bransje" onchange="lagreBransjeOverstyrt('${k.spId}',this.value,this)" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px">${opsjoner}</select></div>`;
+}
+async function lagreBransjeOverstyrt(spId,verdi,sel){
+  const k=vismaKunder.find(x=>String(x.spId)===String(spId));
+  if(!k)return;
+  const forrige=k.bransjeOverstyrt;
+  if(sel)sel.disabled=true;
+  try{
+    await spUpdate('VismaKunder',spId,{BransjeOverstyrt:verdi});
+    k.bransjeOverstyrt=verdi;
+  }catch(e){
+    console.error('Kunne ikke lagre bransje:',e);
+    alert('Kunne ikke lagre bransjen. Sjekk at kolonnen BransjeOverstyrt finnes på VismaKunder.\n\n'+(e?.message||e));
+    k.bransjeOverstyrt=forrige;
+  }
+  const celle=document.getElementById('k360-bransje');
+  if(celle)celle.innerHTML=bransjeCelleHtml(k);
+}
+
 function renderKundeKort(k){
   if(k.erProspekt){renderProspektKundeKort(k);return;}
   const kNr=String(k.vismaNummer||'').trim();
@@ -7404,6 +7436,7 @@ function renderKundeKort(k){
             <table><tbody>
               <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
               <tr><td class="muted">Sist oppdatert i Visma</td><td>${k.sistOppdatertVisma?new Date(k.sistOppdatertVisma).toLocaleDateString('nb-NO'):'—'}</td></tr>
+              ${k.erProspekt?'':`<tr><td class="muted">Bransje</td><td id="k360-bransje">${bransjeCelleHtml(k)}</td></tr>`}
             </tbody></table>
           </div>
         </div>
@@ -9499,6 +9532,70 @@ function smsRenderSaldoVisning(){
   if(el)el.innerHTML=smsSaldoVisningTekst();
 }
 
+// ===== Bransje på kunder (v1.48.246, 09.10.2026) =====
+// NaceKode/NaceBeskrivelse fylles hver natt fra Brreg av berik_bransje
+// (bransje_berikelse.py i kbd-verifone-func). Selve KBD-kategorien regnes ut
+// HER, slik at kategoriene kan justeres uten nye oppslag. Reglene sjekkes i
+// rekkefølge — første treff vinner (derfor 47.1/47.2 før 47, og 96.02/96.04
+// før resten). BransjeOverstyrt (satt på kundekortet) vinner alltid.
+// Kategoriene er vedtatt med Thomas 09.10.2026 (kundekommunikasjon-plan.md).
+const KBD_BRANSJEKATEGORIER=[
+  {navn:'Servering',prefiks:['56']},
+  {navn:'Dagligvare og kiosk',prefiks:['47.1','47.2']},
+  {navn:'Butikk og handel',prefiks:['47','45','46']},
+  {navn:'Frisør og skjønnhet',prefiks:['96.02']},
+  {navn:'Overnatting',prefiks:['55']},
+  {navn:'Helse, trening og velvære',prefiks:['86','93','96.04']},
+];
+const KBD_BRANSJE_ANNET='Annet';
+const KBD_BRANSJE_UKJENT='Ukjent bransje';
+const KBD_BRANSJE_VALG=[...KBD_BRANSJEKATEGORIER.map(x=>x.navn),KBD_BRANSJE_ANNET];
+function kbdBransjeFraNace(kode){
+  const k=String(kode||'').trim();
+  if(!k)return '';
+  for(const kat of KBD_BRANSJEKATEGORIER){
+    if(kat.prefiks.some(p=>k===p||k.startsWith(p.includes('.')?p:p+'.')||(p.includes('.')&&k.startsWith(p))))return kat.navn;
+  }
+  return KBD_BRANSJE_ANNET;
+}
+// {kategori, kilde:'overstyrt'|'brreg'|'ukjent', kode, beskrivelse}
+function kbdBransje(k){
+  if(!k)return{kategori:KBD_BRANSJE_UKJENT,kilde:'ukjent',kode:'',beskrivelse:''};
+  if(k.bransjeOverstyrt)return{kategori:k.bransjeOverstyrt,kilde:'overstyrt',kode:k.naceKode||'',beskrivelse:k.naceBeskrivelse||''};
+  const kat=kbdBransjeFraNace(k.naceKode);
+  if(kat)return{kategori:kat,kilde:'brreg',kode:k.naceKode,beskrivelse:k.naceBeskrivelse||''};
+  return{kategori:KBD_BRANSJE_UKJENT,kilde:'ukjent',kode:'',beskrivelse:''};
+}
+// Vanligste NACE-koder i «Annet» blant kundene med aktiv kontrakt — vises som
+// tooltip på Annet-knappen, slik at det er lett å se om noe stort bør flyttes
+// til en egen kategori.
+function kbdBransjeAnnetToppkoder(kunder,antall=8){
+  const telling=new Map();
+  for(const k of kunder){
+    if(k.bransjeOverstyrt||kbdBransjeFraNace(k.naceKode)!==KBD_BRANSJE_ANNET)continue;
+    const nokkel=`${k.naceKode} ${k.naceBeskrivelse||''}`.trim();
+    telling.set(nokkel,(telling.get(nokkel)||0)+1);
+  }
+  return[...telling.entries()].sort((a,b)=>b[1]-a[1]).slice(0,antall).map(([n,c])=>`${n} (${c})`).join('\n');
+}
+// Kunder med minst én AKTIV kontrakt (samme aktiv-definisjon som
+// leverandørgruppene i smsHentKandidaterForNokkel()).
+function smsKunderMedAktivKontrakt(){
+  const aktiveNr=new Set(vismaKontrakter.filter(c=>{const s=(c.status||'').toLowerCase();return s==='active'||s==='aktiv';}).map(c=>String(c.vismaKundeNummer||'').trim()).filter(Boolean));
+  return vismaKunder.filter(k=>aktiveNr.has(String(k.vismaNummer||'').trim()));
+}
+// Kandidater for én bransje — samme radformat som smsHentKandidaterForNokkel(),
+// så de slås sammen og dedupliseres på telefonnummer på vanlig måte.
+// «Egen kilde» (Thomas 09.10.2026): bransjeknappene legges SAMMEN med andre
+// valgte kilder, de snevrer ikke inn.
+function smsHentKandidaterForBransje(kategori){
+  return smsKunderMedAktivKontrakt().filter(k=>kbdBransje(k).kategori===kategori).map(k=>{
+    const telefonRaw=normTlf(k.kontaktTelefon);
+    const erMobil=erNorskMobilnummer(telefonRaw);
+    return{vismaNummer:String(k.vismaNummer||'').trim(),navn:k.navn||'(uten navn)',telefon:erMobil?telefonRaw:'',telefonRaw,erMobil,kontraktTreff:`Bransje: ${kategori}`};
+  });
+}
+
 // Finner RÅ kandidatrader (FØR sammenslåing på telefonnummer) for ett
 // Visma-nøkkelord — alle kunder med minst én AKTIV kontrakt hvis
 // Beskrivelse-felt inneholder nøkkelordet (case-insensitive), nøyaktig
@@ -9600,6 +9697,8 @@ function smsOppdaterMottakereFraKilder(){
     }else if(kilde.startsWith('gruppe:')){
       const g=smsGrupper.find(x=>x.id===kilde.slice(7));
       if(g)kandidater=kandidater.concat(smsParseManuelleNumre(g.numre).map(r=>({vismaNummer:null,navn:r.navn,telefon:r.telefon,telefonRaw:r.telefonRaw,erMobil:r.erMobil,kontraktTreff:`Gruppe: ${g.navn}`})));
+    }else if(kilde.startsWith('bransje:')){
+      kandidater=kandidater.concat(smsHentKandidaterForBransje(kilde.slice(8)));
     }else{
       kandidater=kandidater.concat(smsHentKandidaterForNokkel(kilde));
     }
@@ -9642,6 +9741,21 @@ function renderSmsUtsendelse(){
       <button class="btn-sm" title="Slett gruppe" style="border:none;border-radius:0;border-left:1px solid ${kantfarge};${aktiv?'background:#1A3A6B;color:#fff':''}" onclick="smsSlettGruppe('${g.id}')">🗑️</button>
     </span>`;
   }).join('');
+  // Bransjeknapper (v1.48.246) — egen kilde, se smsHentKandidaterForBransje().
+  const bransjeKunder=smsKunderMedAktivKontrakt();
+  const bransjeKnapper=[...KBD_BRANSJE_VALG,KBD_BRANSJE_UKJENT].map(kat=>{
+    const nokkel=`bransje:${kat}`;
+    const rader=smsSlaSammenKandidaterPaTelefon(smsHentKandidaterForBransje(kat));
+    const antall=rader.length; // samme telling som leverandørknappene
+    const mobil=rader.filter(m=>m.telefon).length;
+    const totalt=bransjeKunder.filter(k=>kbdBransje(k).kategori===kat).length;
+    if(kat===KBD_BRANSJE_UKJENT&&totalt===0)return'';
+    const aktiv=smsValgteKilder.has(nokkel);
+    let tittel=`${totalt} kunder med aktiv kontrakt, ${mobil} unike mobilnumre`;
+    if(kat===KBD_BRANSJE_ANNET){const topp=kbdBransjeAnnetToppkoder(bransjeKunder);if(topp)tittel+=`\n\nVanligste koder i Annet:\n${topp}`;}
+    if(kat===KBD_BRANSJE_UKJENT)tittel+='\n\nMangler org.nr, eller er ikke slått opp i Brreg ennå (nattjobben tar inntil 800 kunder per natt).';
+    return `<button class="btn-sm" title="${tittel.replace(/"/g,'&quot;')}" style="${aktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}${kat===KBD_BRANSJE_UKJENT&&!aktiv?';color:#6b7280':''}" onclick="smsToggleKilde('${nokkel.replace(/'/g,"\\'")}')">${kat} (${antall})</button>`;
+  }).join('');
   const malOpsjoner=smsMaler.map(m=>`<option value="${m.id}"${document.getElementById('smsu-mal-select')?.value===m.id?' selected':''}>${(m.navn||'(uten navn)').replace(/"/g,'&quot;')}</option>`).join('');
 
   target.innerHTML=`
@@ -9654,6 +9768,10 @@ function renderSmsUtsendelse(){
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">${gruppeKnapper}${lagretGruppeKnapper}
         <button class="btn-sm" style="${manuellAktiv?'background:#1A3A6B;color:#fff;border-color:#1A3A6B':''}" onclick="smsToggleManuellPanel()">✍️ Skriv inn nummer manuelt</button>
         <button class="btn-sm" onclick="openNySmsGruppeModal()">➕ Ny gruppe</button>
+      </div>
+      <div style="margin-top:10px">
+        <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:6px">🏷️ Bransje <span style="font-weight:400">· kunder med aktiv kontrakt, hentet fra Brønnøysund (kan overstyres på kundekortet)</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${bransjeKnapper}</div>
       </div>
       <div class="hint">Du kan velge <strong>flere grupper samtidig</strong> (f.eks. Susoft OG Verifone) — trykk på flere knapper, de forblir markert, og mottakerlisten under slår automatisk sammen alle valgte kilder og fjerner duplikater på telefonnummer. Susoft/Nets/Verifone bygger på aktive kontrakters beskrivelsesfelt fra Visma (samme grunnlag som produktoversikten på Kunde 360-forsiden). 📁-gruppene er lagrede, egendefinerte nummerlister du selv oppretter og vedlikeholder med «➕ Ny gruppe» (✏️/🗑️ på selve knappen) — bruk dem til lister som ikke matcher noen Visma-kategori (erstatter gruppene som tidligere lå i Sveve sin egen portal). Skal du bare sende til ett eller noen få numre denne ene gangen, bruk «Skriv inn nummer manuelt» i stedet for å lagre en egen gruppe.</div>
       <div id="smsu-manuell-panel" style="${manuellAktiv?'':'display:none'};margin-top:10px">
@@ -10103,6 +10221,7 @@ function smsGruppeVisningsnavn(){
       const g=smsGrupper.find(x=>x.id===kilde.slice(7));
       return g?g.navn:'(slettet gruppe)';
     }
+    if(kilde.startsWith('bransje:'))return `Bransje: ${kilde.slice(8)}`;
     return kilde;
   });
   return navn.join(' + ')||'(ingen valgt)';
@@ -11386,6 +11505,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.246',dato:'09.10.2026',punkter:[
+    'SMS utsendelse: du kan nå velge mottakere etter bransje (Servering, Dagligvare og kiosk, Butikk og handel, Frisør og skjønnhet, Overnatting, Helse, trening og velvære og Annet). Bransjeknappene legges sammen med de andre gruppene du velger, og samme nummer får fortsatt bare én SMS.',
+    'Kundekortet viser bransjen under «Adresse (Visma)», hentet fra Brønnøysundregistrene. Har kunden feil bransje, kan du overstyre den der.',
+    'Bransjen hentes automatisk hver natt. Første gang tar det noen netter før alle kundene har fått bransje. Til da ligger de under «Ukjent bransje».'
+  ]},
   {versjon:'v1.48.245',dato:'09.10.2026',punkter:[
     'Onboarding er ikke lenger merket «(BETA)», verken i menyen eller i overskriften.'
   ]},
