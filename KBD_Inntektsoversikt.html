@@ -639,6 +639,35 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .lk-oppsummering .lk-setning{font-size:14px;line-height:1.45;flex:1 1 420px}
 .lk-oppsummering .lk-gjor{font-size:13px;margin-top:6px}
 .lk-tj td,.lk-tj th{padding:6px 10px}
+
+/* 📦 Produktkatalog (v1.48.249) */
+#tp-produktkatalog .pk-faner{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+#tp-produktkatalog .pk-fane{padding:6px 14px;border:1px solid #d0d5dd;border-radius:20px;background:#fff;font-size:13px;color:#374151;cursor:pointer}
+#tp-produktkatalog .pk-fane.aktiv{background:#1A3A6B;border-color:#1A3A6B;color:#fff}
+#tp-produktkatalog .pk-filter{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+#tp-produktkatalog .pk-filter input[type=text],#tp-produktkatalog .pk-filter select{width:auto}
+.pk-chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#374151;white-space:nowrap;cursor:pointer}
+.pk-chk input{width:auto;margin:0}
+#tp-produktkatalog .pk-bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 12px;margin-bottom:10px;background:#eef2f9;border:1px solid #c7d2e6;border-radius:8px;font-size:13px}
+#tp-produktkatalog .pk-bulk input,#tp-produktkatalog .pk-bulk select{width:auto}
+#tp-produktkatalog .pk-teller{font-size:12px;color:#6b7280;margin:0 0 6px 2px}
+.pk-tabell td{padding:8px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+.pk-tabell th.pk-sort{cursor:pointer;user-select:none;white-space:nowrap}
+.pk-tabell .pk-pil{color:#9ca3af;font-size:11px}
+.pk-tabell.pk-liten th,.pk-tabell.pk-liten td{padding:6px 10px;font-size:13px}
+.pk-under{font-size:11.5px;color:#6b7280;margin-top:2px}
+.pk-merke{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600;white-space:nowrap}
+.pk-merke-gra{background:#f3f4f6;color:#4b5563}
+.pk-merke-bla{background:#e8eef8;color:#1A3A6B}
+.pk-merke-gul{background:#fffbeb;color:#b45309}
+.pk-merke-gronn{background:#f0fdf4;color:#15803d}
+.pk-tom{padding:28px;text-align:center;color:#4b5563;line-height:1.6;background:#fafafa;border-radius:8px}
+.pk-visma{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:8px;padding:12px;margin-bottom:6px;font-size:13px}
+.pk-visma span{display:block;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.3px}
+.pk-varer-liste{display:flex;flex-wrap:wrap;gap:6px;font-size:12px}
+.pk-varer-liste span{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:3px 8px}
+.pk-varer-liste span.pk-ukjent{background:#fffbeb;border-color:#fde68a;color:#92400e}
+@media(max-width:700px){.pk-visma{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -698,7 +727,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.248 · Oppdatert: 9. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.249 · Oppdatert: 10. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -798,6 +827,13 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            synlig for alle; skriving styres av tilgang.onboarding / salgTilgang. -->
       <div class="nav-item" id="tab-onboarding" onclick="onbValgtId=null;onbValgtFase=null;showTab('onboarding',this)">
         <span class="nav-item-icon">🚀</span>Onboarding<span id="onb-nav-badge" style="display:none;margin-left:auto;font-size:11px;font-weight:700;background:#f59e0b;color:#fff;border-radius:20px;padding:1px 7px"></span>
+      </div>
+      <!-- 📦 Produktkatalog (v1.48.249, 10.10.2026). Varer og rabatter fra Visma
+           via nattjobben ProduktSync (kbd-kunde360-func). Ikke i MODULER —
+           synlig for alle; redigering av KBD-feltene krever admin/redaktør.
+           Grunnlaget for tilbud, pakker og senere onboarding. -->
+      <div class="nav-item" id="tab-produktkatalog" onclick="showTab('produktkatalog',this)">
+        <span class="nav-item-icon">📦</span>Produktkatalog
       </div>
       <div class="nav-item" id="tab-smsutsendelse" onclick="showTab('smsutsendelse',this);toggleSmsUtsendelseSub(true)">
         <span class="nav-item-icon">📱</span>SMS utsendelse
@@ -3058,6 +3094,30 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
         <button class="prim" onclick="sendArbeidstidSoknad()" style="width:100%">Send søknad</button>
       </div>
     </div>
+  </div>
+
+  <!-- 📦 PRODUKTKATALOG (v1.48.249, 10.10.2026) — se pkLastData()/renderProduktkatalog().
+       card-public: alle kan se katalogen og prisene; lagring krever admin/redaktør
+       (sjekkes i pkKanRedigere()). -->
+  <div id="tp-produktkatalog" class="tp">
+    <div class="card card-public">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div>
+          <div class="card-title" style="margin-bottom:4px">📦 Produktkatalog</div>
+          <div style="font-size:13px;color:#6b7280;margin-bottom:12px">Varer og rabatter fra Visma, oppdatert hver natt. Navn, beskrivelse, produktgruppe, fakturering og «synlig i tilbud» settes her og brukes i tilbud og pakker.</div>
+        </div>
+        <button class="btn-sm" onclick="pkLastData(true)" title="Hent listene på nytt fra SharePoint">🔄 Oppdater</button>
+      </div>
+      <div class="pk-faner">
+        <button class="pk-fane aktiv" data-v="varer" onclick="pkByttVisning('varer')">📋 Varer</button>
+        <button class="pk-fane" data-v="rabatter" onclick="pkByttVisning('rabatter')">🏷️ Rabatter</button>
+      </div>
+      <div id="pk-status" style="font-size:12px;color:#6b7280;margin-bottom:10px"></div>
+      <div id="pk-innhold"></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="pk-modal" onclick="if(event.target===this)pkLukkVare()">
+    <div class="modal" style="max-width:640px;width:640px;max-height:90vh;overflow-y:auto" id="pk-modal-innhold"></div>
   </div>
 
   <!-- 🚦 JOBBSTATUS (lagt til 09.09.2026) — statuslys for ALLE 13 tidsstyrte
@@ -5325,6 +5385,8 @@ const JOBBER_KONFIG={
   // Jobbstatus siden 10.09.2026, men manglet her. Kjører 03:05/08:05/12:05 UTC;
   // lengste opphold 15 t + margin. I sync med jobbstatus.py.
   FakturaoppfolgingSync:{visningsnavn:'Fakturaoppfølging – Visma-synk',maksMinutter:17*60},
+  // Lagt til 10.10.2026 (v1.48.249) — ProduktSync, daglig 04:30 UTC (kbd-kunde360-func). I sync med jobbstatus.py.
+  ProduktSync:{visningsnavn:'Produktkatalog – Visma-synk',maksMinutter:26*60},
 };
 function jsEscapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 // Samme rød/grønn-vurdering som _er_rod() i jobbstatus.py — se den filens
@@ -11548,6 +11610,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.249',dato:'10.10.2026',punkter:[
+    'Ny side «📦 Produktkatalog» i venstremenyen: alle varer fra Visma med listepris, vareprofil og status, og alle rabatter. Prisen for en prisklasse (f.eks. KNIF eller NHO) vises med den beste rabatten fra Visma.',
+    'Admin og redaktører kan gi hver vare et kundevennlig navn, en beskrivelse, en produktgruppe, fakturering (engangs, månedlig osv.) og velge om den skal være synlig i tilbud – også for mange varer samtidig. Dette er grunnlaget for tilbud og pakker.',
+    'Varene og rabattene hentes hver natt fra Visma. Rabattene endres fortsatt i Visma.'
+  ]},
   {versjon:'v1.48.248',dato:'09.10.2026',punkter:[
     'Onboarding: «Bare mine» er erstattet med et filter på ansvarlig: Alle, Mine (ansvarlig eller selger), Ikke tatt, eller en bestemt person (Casper, Håvard, Thomas …). Antallet står i lista og i statusfiltrene, og valget huskes i nettleseren.'
   ]},
@@ -15761,6 +15828,359 @@ document.addEventListener('click',e=>{
   }
 },true);
 
+// ===== 📦 PRODUKTKATALOG (v1.48.249, 10.10.2026) =====
+// Varer og rabatter fra Visma.net, synket hver natt av ProduktSync
+// (kbd-kunde360-func, se prosjektstatus seksjon 32) til SharePoint-listene
+// Produktkatalog og ProduktRabatter. Visma-feltene eies av synken. KBD-feltene
+// (Visningsnavn, KundeBeskrivelse, Produktgruppe, Fakturering, SynligITilbud)
+// redigeres her og røres aldri av synken. Grunnlaget for tilbud, pakker og
+// senere onboarding (claude/lisensoversikt-tilbud-plan.md i prosjektet).
+// Pris for en prisklasse: listepris minus den BESTE rabatten for prisklassen
+// og varen (Thomas 10.10.2026). Rabatter vedlikeholdes i Visma, ikke her.
+// Data lastes først når fanen åpnes, så oppstarten av dashbordet ikke blir tregere.
+const PK_FORHANDLER_PRISKLASSER=['A','B','C'];
+const PK_FAKTURERING=['Engangs','Månedlig','Kvartalsvis','Årlig'];
+let pkVarer=[],pkRabatter=[],pkRabattIndeks=new Map(),pkLastet=false,pkLaster=false,pkFeil='';
+let pkVisning='varer';
+let pkFilter={sok:'',profil:'',gruppe:'',visInaktive:false,bareTilbud:false,prisklasse:''};
+let pkRabattFilter={bareDirekte:true,sok:''};
+let pkSort={col:'varenr',dir:'asc'};
+let pkValgte=new Set();
+let pkVisAntall=200;
+let pkApenVare=null;
+let pkApneRabatter=new Set();
+let pkRabattRaderVist=[];
+
+function pkKanRedigere(){return userRole==='admin'||userRole==='editor';}
+function pkKr(v){const n=Number(v)||0;return new Intl.NumberFormat('nb-NO',{minimumFractionDigits:Number.isInteger(Math.round(n*100)/100)?0:2,maximumFractionDigits:2}).format(n)+' kr';}
+function pkIdagIso(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function pkRabattTekst(r){return r.type==='A'?`−${pkKr(r.verdi)}`:`−${String(r.verdi).replace('.',',')} %`;}
+function pkNavn(v){return v.navn||v.vismaBeskr||v.varenr;}
+function pkErAktiv(v){return v.status==='Active';}
+
+async function pkLastData(tving){
+  if(pkLaster)return;
+  if(pkLastet&&!tving)return;
+  pkLaster=true;pkFeil='';
+  renderProduktkatalog();
+  try{
+    const[vRes,rRes]=await Promise.allSettled([spGetItems('Produktkatalog'),spGetItems('ProduktRabatter')]);
+    if(vRes.status!=='fulfilled'){
+      console.warn('Produktkatalog kunne ikke leses (finnes lista i SharePoint?):',vRes.reason);
+      pkFeil='mangler-liste';pkVarer=[];pkRabatter=[];
+    }else{
+      pkVarer=vRes.value.map(i=>{const f=i.fields||{};return{
+        spId:String(i.id),varenr:String(f.Title||'').trim(),vismaBeskr:f.VismaBeskrivelse||'',profil:f.Vareprofil||'',profilBeskr:f.VareprofilBeskrivelse||'',
+        listepris:Number(f.Listepris)||0,enhet:f.Enhet||'',status:f.VismaStatus||'',type:f.VareType||'',vismaEndret:f.VismaEndret||'',sistSynket:f.SistSynket||'',
+        navn:f.Visningsnavn||'',kundeBeskr:f.KundeBeskrivelse||'',gruppe:f.Produktgruppe||'',fakturering:f.Fakturering||'',synligITilbud:f.SynligITilbud===true,
+        kbdEndretAv:f.KbdEndretAv||'',kbdEndret:f.KbdEndret||''};}).filter(v=>v.varenr);
+      if(rRes.status!=='fulfilled'){console.warn('ProduktRabatter kunne ikke leses (finnes lista i SharePoint?):',rRes.reason);pkRabatter=[];}
+      else pkRabatter=rRes.value.map(i=>{const f=i.fields||{};return{
+        spId:i.id,kode:f.Title||'',serie:f.Serie||'',beskr:f.Beskrivelse||'',type:(f.RabattType||'P').toUpperCase(),verdi:Number(f.RabattVerdi)||0,
+        prisklasser:String(f.Prisklasser||'').split(',').map(s=>s.trim().toUpperCase()).filter(Boolean),
+        varer:String(f.Varer||'').split(',').map(s=>s.trim()).filter(Boolean),aktiv:f.Aktiv===true,gyldigFra:f.GyldigFra||'',trinn:f.Trinn||'',sistSynket:f.SistSynket||''};});
+    }
+    pkRabattIndeks=new Map();
+    pkRabatter.forEach(r=>r.varer.forEach(vnr=>{const k=vnr.toUpperCase();if(!pkRabattIndeks.has(k))pkRabattIndeks.set(k,[]);pkRabattIndeks.get(k).push(r);}));
+    pkLastet=true;
+  }catch(e){
+    console.error('Produktkatalog: lasting feilet',e);
+    pkFeil=e.message||String(e);
+  }finally{
+    pkLaster=false;
+    renderProduktkatalog();
+  }
+}
+
+// Rabatter som faktisk gjelder for en prisklasse og vare i dag.
+function pkGjeldendeRabatter(varenr,prisklasse){
+  const pk=String(prisklasse||'').toUpperCase();if(!pk)return[];
+  const idag=pkIdagIso();
+  return(pkRabattIndeks.get(String(varenr).toUpperCase())||[]).filter(r=>r.aktiv&&r.verdi>0&&r.prisklasser.includes(pk)&&(!r.gyldigFra||r.gyldigFra<=idag));
+}
+// Beste pris: listepris minus den rabatten som gir lavest pris.
+function pkPrisFor(vare,prisklasse){
+  const liste=vare.listepris;
+  let best={pris:liste,rabatt:null};
+  pkGjeldendeRabatter(vare.varenr,prisklasse).forEach(r=>{
+    const netto=r.type==='A'?Math.max(0,liste-r.verdi):liste*(1-r.verdi/100);
+    if(netto<best.pris-0.0001)best={pris:Math.round(netto*100)/100,rabatt:r};
+  });
+  return best;
+}
+function pkPrisklasser(){
+  const s=new Set();pkRabatter.forEach(r=>r.prisklasser.forEach(p=>s.add(p)));
+  const alle=[...s].sort();
+  return{direkte:alle.filter(p=>!PK_FORHANDLER_PRISKLASSER.includes(p)),forhandler:alle.filter(p=>PK_FORHANDLER_PRISKLASSER.includes(p))};
+}
+function pkProduktgrupper(){return[...new Set(pkVarer.map(v=>v.gruppe).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nb'));}
+function pkVareprofiler(){
+  const m=new Map();pkVarer.forEach(v=>{if(v.profil&&!m.has(v.profil))m.set(v.profil,v.profilBeskr||v.profil);});
+  return[...m.entries()].sort((a,b)=>a[1].localeCompare(b[1],'nb'));
+}
+function pkSistSynket(){
+  let maks='';[...pkVarer,...pkRabatter].forEach(x=>{if(x.sistSynket&&x.sistSynket>maks)maks=x.sistSynket;});
+  if(!maks)return'';
+  const d=new Date(maks);return isNaN(d)?maks:d.toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'});
+}
+
+function pkFiltrerteVarer(){
+  const q=pkFilter.sok.trim().toLowerCase();
+  let rader=pkVarer.filter(v=>{
+    if(!pkFilter.visInaktive&&!pkErAktiv(v))return false;
+    if(pkFilter.bareTilbud&&!v.synligITilbud)return false;
+    if(pkFilter.profil&&v.profil!==pkFilter.profil)return false;
+    if(pkFilter.gruppe==='__ingen'&&v.gruppe)return false;
+    if(pkFilter.gruppe&&pkFilter.gruppe!=='__ingen'&&v.gruppe!==pkFilter.gruppe)return false;
+    if(q&&!`${v.varenr} ${v.navn} ${v.vismaBeskr} ${v.gruppe} ${v.profilBeskr}`.toLowerCase().includes(q))return false;
+    return true;
+  });
+  const{col,dir}=pkSort,f=dir==='asc'?1:-1;
+  const verdi=v=>{
+    switch(col){
+      case'navn':return pkNavn(v).toLowerCase();
+      case'profil':return(v.profilBeskr||v.profil).toLowerCase();
+      case'gruppe':return(v.gruppe||'￿').toLowerCase();
+      case'fakturering':return(v.fakturering||'￿').toLowerCase();
+      case'listepris':return v.listepris;
+      case'pris':return pkPrisFor(v,pkFilter.prisklasse).pris;
+      case'tilbud':return v.synligITilbud?0:1;
+      default:return v.varenr;
+    }
+  };
+  rader.sort((a,b)=>{
+    const x=verdi(a),y=verdi(b);
+    if(typeof x==='number'&&typeof y==='number')return(x-y)*f;
+    return String(x).localeCompare(String(y),'nb',{numeric:true})*f;
+  });
+  return rader;
+}
+
+function pkSorter(col){
+  if(pkSort.col===col)pkSort.dir=pkSort.dir==='asc'?'desc':'asc';
+  else pkSort={col,dir:(col==='listepris'||col==='pris')?'desc':'asc'};
+  renderPkVarer();
+}
+function pkSettFilter(felt,verdi){pkFilter[felt]=verdi;pkVisAntall=200;renderPkVarer();}
+function pkByttVisning(v){pkVisning=v;renderProduktkatalog();}
+
+function renderProduktkatalog(){
+  const el=document.getElementById('pk-innhold');if(!el)return;
+  if(!pkLastet&&!pkLaster&&!pkFeil){pkLastData();return;}
+  document.querySelectorAll('#tp-produktkatalog .pk-fane').forEach(b=>b.classList.toggle('aktiv',b.dataset.v===pkVisning));
+  const synk=pkSistSynket();
+  const st=document.getElementById('pk-status');
+  if(st)st.textContent=pkLaster?'Laster …':(synk?`Sist endret av synken fra Visma: ${synk} · ${pkVarer.length} varer · ${pkRabatter.length} rabatter`:'');
+  if(pkLaster&&!pkLastet){el.innerHTML='<div class="pk-tom">Laster produktkatalogen …</div>';return;}
+  if(pkFeil==='mangler-liste'){
+    el.innerHTML=`<div class="pk-tom"><b>Produktkatalogen er ikke satt opp ennå.</b><br>SharePoint-listene «Produktkatalog» og «ProduktRabatter» må opprettes (Kunde360-oppsett-sjekkliste.md, Liste 38 og 39), og nattjobben ProduktSync må ha kjørt med <code>PRODUKT_SYNC_DRY_RUN=false</code>.</div>`;return;
+  }
+  if(pkFeil){el.innerHTML=`<div class="pk-tom">Kunne ikke laste produktkatalogen: ${jsEscapeHtml(pkFeil)} <button class="btn-sm" onclick="pkLastData(true)">Prøv igjen</button></div>`;return;}
+  if(pkVarer.length===0){
+    el.innerHTML='<div class="pk-tom"><b>Ingen varer ennå.</b><br>Listene finnes, men ProduktSync har ikke skrevet noe. Står <code>PRODUKT_SYNC_DRY_RUN</code> fortsatt på (standard)? Se Jobbstatus for siste kjøring.</div>';return;
+  }
+  if(pkVisning==='rabatter')renderPkRabatter();else renderPkVarer();
+}
+
+function renderPkVarer(){
+  const el=document.getElementById('pk-innhold');if(!el)return;
+  if(pkVisning!=='varer'||!pkLastet||pkVarer.length===0){renderProduktkatalog();return;}
+  const kan=pkKanRedigere();
+  const rader=pkFiltrerteVarer();
+  const synlige=rader.slice(0,pkVisAntall);
+  const pkl=pkPrisklasser();
+  const pk=pkFilter.prisklasse;
+  const opt=(v,t,val)=>`<option value="${jsEscapeHtml(v)}"${v===val?' selected':''}>${jsEscapeHtml(t)}</option>`;
+  const pil=c=>pkSort.col===c?(pkSort.dir==='asc'?' ↑':' ↓'):' ↕';
+  const th=(c,t,stil='')=>`<th class="pk-sort" style="${stil}" onclick="pkSorter('${c}')">${t}<span class="pk-pil">${pil(c)}</span></th>`;
+  const alleValgt=synlige.length>0&&synlige.every(v=>pkValgte.has(v.spId));
+  const uten=pkVarer.filter(v=>pkErAktiv(v)&&!v.gruppe).length;
+  let h=`<div class="pk-filter">
+    <input type="text" placeholder="Søk på varenr, navn eller gruppe …" value="${jsEscapeHtml(pkFilter.sok)}" oninput="pkFilter.sok=this.value;pkVisAntall=200;clearTimeout(window._pkSokT);window._pkSokT=setTimeout(renderPkVarer,200)" style="flex:2;min-width:200px">
+    <select onchange="pkSettFilter('profil',this.value)" style="flex:1;min-width:160px">${opt('','Alle vareprofiler',pkFilter.profil)}${pkVareprofiler().map(([id,b])=>opt(id,b,pkFilter.profil)).join('')}</select>
+    <select onchange="pkSettFilter('gruppe',this.value)" style="flex:1;min-width:160px">${opt('','Alle produktgrupper',pkFilter.gruppe)}${opt('__ingen',`Uten produktgruppe (${uten})`,pkFilter.gruppe)}${pkProduktgrupper().map(g=>opt(g,g,pkFilter.gruppe)).join('')}</select>
+    <select onchange="pkSettFilter('prisklasse',this.value)" style="flex:1;min-width:170px" title="Viser prisen etter beste rabatt for prisklassen">${opt('','Pris: bare listepris',pk)}<optgroup label="Direkte kunder">${pkl.direkte.map(p=>opt(p,`Pris for ${p}`,pk)).join('')}</optgroup>${pkl.forhandler.length?`<optgroup label="Forhandlere (håndteres i Visma)">${pkl.forhandler.map(p=>opt(p,`Pris for ${p}-forhandler`,pk)).join('')}</optgroup>`:''}</select>
+    <label class="pk-chk"><input type="checkbox" ${pkFilter.bareTilbud?'checked':''} onchange="pkSettFilter('bareTilbud',this.checked)"> Bare synlig i tilbud</label>
+    <label class="pk-chk"><input type="checkbox" ${pkFilter.visInaktive?'checked':''} onchange="pkSettFilter('visInaktive',this.checked)"> Vis inaktive</label>
+  </div>`;
+  if(kan&&pkValgte.size>0){
+    h+=`<div class="pk-bulk"><b>${pkValgte.size} valgt</b>
+      <input type="text" id="pk-bulk-gruppe" list="pk-grupper" placeholder="Produktgruppe (uendret)" style="width:220px">
+      <select id="pk-bulk-fakt" style="width:170px"><option value="">Fakturering (uendret)</option>${PK_FAKTURERING.map(f=>`<option>${f}</option>`).join('')}</select>
+      <select id="pk-bulk-tilbud" style="width:190px"><option value="">Synlig i tilbud (uendret)</option><option value="ja">Synlig i tilbud: Ja</option><option value="nei">Synlig i tilbud: Nei</option></select>
+      <button class="prim" id="pk-bulk-knapp" onclick="pkBrukPaValgte()">Bruk på valgte</button>
+      <button class="btn-sm" onclick="pkValgte.clear();renderPkVarer()">Fjern valg</button></div>`;
+  }
+  h+=`<datalist id="pk-grupper">${pkProduktgrupper().map(g=>`<option value="${jsEscapeHtml(g)}">`).join('')}</datalist>`;
+  h+=`<div class="pk-teller">${rader.length} varer${rader.length>synlige.length?` · viser ${synlige.length}`:''}</div>`;
+  h+=`<div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell"><thead><tr>
+    ${kan?`<th style="width:28px"><input type="checkbox" ${alleValgt?'checked':''} onchange="pkVelgAlle(this.checked)" title="Velg alle synlige"></th>`:''}
+    ${th('varenr','Varenr')}${th('navn','Navn')}${th('profil','Vareprofil')}${th('gruppe','Produktgruppe')}${th('fakturering','Fakturering')}
+    ${th('listepris','Listepris','text-align:right')}${pk?th('pris',`Pris ${jsEscapeHtml(pk)}`,'text-align:right'):''}${th('tilbud','I tilbud','text-align:center')}
+  </tr></thead><tbody>`;
+  if(synlige.length===0)h+=`<tr><td colspan="${(kan?1:0)+(pk?8:7)}" style="text-align:center;color:#6b7280;padding:24px">Ingen varer passer filteret.</td></tr>`;
+  synlige.forEach(v=>{
+    const p=pk?pkPrisFor(v,pk):null;
+    const vismaUnder=v.navn&&v.navn!==v.vismaBeskr?`<div class="pk-under">${jsEscapeHtml(v.vismaBeskr)}</div>`:'';
+    const statusMerke=pkErAktiv(v)?'':`<span class="pk-merke pk-merke-gra">${jsEscapeHtml(v.status==='Inactive'?'Inaktiv':(v.status||'Ukjent'))}</span>`;
+    h+=`<tr class="rad-klikkbar" onclick="pkApneVare('${jsEscapeHtml(v.spId)}')">
+      ${kan?`<td onclick="event.stopPropagation()"><input type="checkbox" ${pkValgte.has(v.spId)?'checked':''} onchange="pkVelg('${jsEscapeHtml(v.spId)}',this.checked)"></td>`:''}
+      <td style="font-family:monospace;white-space:nowrap">${jsEscapeHtml(v.varenr)}</td>
+      <td>${jsEscapeHtml(pkNavn(v))} ${statusMerke}${vismaUnder}</td>
+      <td style="color:#6b7280" title="${jsEscapeHtml(v.profil)}">${jsEscapeHtml(v.profilBeskr||v.profil)}</td>
+      <td>${v.gruppe?jsEscapeHtml(v.gruppe):'<span style="color:#9ca3af">–</span>'}</td>
+      <td>${v.fakturering?jsEscapeHtml(v.fakturering):'<span style="color:#9ca3af">–</span>'}</td>
+      <td style="text-align:right;white-space:nowrap">${pkKr(v.listepris)}</td>
+      ${pk?`<td style="text-align:right;white-space:nowrap">${p.rabatt?`<b>${pkKr(p.pris)}</b><div class="pk-under" title="${jsEscapeHtml(p.rabatt.kode+': '+p.rabatt.beskr)}">${pkRabattTekst(p.rabatt)} · ${jsEscapeHtml(p.rabatt.kode)}</div>`:`<span style="color:#9ca3af">${pkKr(p.pris)}</span>`}</td>`:''}
+      <td style="text-align:center">${v.synligITilbud?'✅':''}</td>
+    </tr>`;
+  });
+  h+='</tbody></table></div>';
+  if(rader.length>synlige.length)h+=`<div style="text-align:center;margin-top:10px"><button class="btn-sm" onclick="pkVisAntall+=500;renderPkVarer()">Vis flere (${rader.length-synlige.length} til)</button></div>`;
+  // Behold fokus/markør i søkefeltet når tabellen tegnes på nytt mens man skriver.
+  const aktiv=document.activeElement,varSok=aktiv&&aktiv.closest&&aktiv.closest('#pk-innhold')&&aktiv.type==='text'&&aktiv.getAttribute('placeholder')?.startsWith('Søk');
+  const pos=varSok?aktiv.selectionStart:null;
+  el.innerHTML=h;
+  if(varSok){const ny=el.querySelector('.pk-filter input[type=text]');if(ny){ny.focus();try{ny.setSelectionRange(pos,pos);}catch(e){}}}
+}
+
+function pkVelg(spId,pa){spId=String(spId);if(pa)pkValgte.add(spId);else pkValgte.delete(spId);renderPkVarer();}
+function pkVelgAlle(pa){pkFiltrerteVarer().slice(0,pkVisAntall).forEach(v=>{if(pa)pkValgte.add(v.spId);else pkValgte.delete(v.spId);});renderPkVarer();}
+
+function pkKbdFelter(v){
+  return{Visningsnavn:v.navn,KundeBeskrivelse:v.kundeBeskr,Produktgruppe:v.gruppe,Fakturering:v.fakturering,SynligITilbud:v.synligITilbud,
+    KbdEndretAv:currentUser?.name||currentUser?.username||'',KbdEndret:new Date().toISOString()};
+}
+function pkLagringsfeil(e){
+  const m=e?.message||String(e);
+  const kolonne=/field|column|felt|kolonne/i.test(m);
+  alert('Lagring feilet: '+m+(kolonne?'\n\nTrolig mangler en kolonne i SharePoint-lista «Produktkatalog». Se Kunde360-oppsett-sjekkliste.md, Liste 38.':''));
+}
+
+async function pkBrukPaValgte(){
+  const gruppe=document.getElementById('pk-bulk-gruppe')?.value.trim()||'';
+  const fakt=document.getElementById('pk-bulk-fakt')?.value||'';
+  const tilbud=document.getElementById('pk-bulk-tilbud')?.value||'';
+  if(!gruppe&&!fakt&&!tilbud){alert('Velg minst én ting å endre.');return;}
+  const valgte=pkVarer.filter(v=>pkValgte.has(v.spId));
+  const endring=[gruppe&&`produktgruppe «${gruppe}»`,fakt&&`fakturering «${fakt}»`,tilbud&&`synlig i tilbud: ${tilbud==='ja'?'Ja':'Nei'}`].filter(Boolean).join(', ');
+  if(!confirm(`Sette ${endring} på ${valgte.length} varer?`))return;
+  const knapp=document.getElementById('pk-bulk-knapp');
+  let ok=0,feil=0,sisteFeil=null;
+  for(const v of valgte){
+    if(knapp)knapp.textContent=`Lagrer ${ok+feil+1}/${valgte.length} …`;
+    const ny={...v};
+    if(gruppe)ny.gruppe=gruppe;
+    if(fakt)ny.fakturering=fakt;
+    if(tilbud)ny.synligITilbud=tilbud==='ja';
+    try{
+      const f=pkKbdFelter(ny);
+      await spUpdate('Produktkatalog',v.spId,f);
+      Object.assign(v,{gruppe:ny.gruppe,fakturering:ny.fakturering,synligITilbud:ny.synligITilbud,kbdEndretAv:f.KbdEndretAv,kbdEndret:f.KbdEndret});
+      ok++;
+    }catch(e){feil++;sisteFeil=e;console.error('Produktkatalog: masseoppdatering feilet for',v.varenr,e);}
+  }
+  pkValgte.clear();
+  renderPkVarer();
+  if(feil)pkLagringsfeil(sisteFeil);
+  else if(typeof vfShowToast==='function')vfShowToast(`✅ ${ok} varer oppdatert`);
+}
+
+function pkApneVare(spId){
+  const v=pkVarer.find(x=>String(x.spId)===String(spId));if(!v)return;
+  pkApenVare=v;
+  const kan=pkKanRedigere();
+  const dis=kan?'':'disabled';
+  const rabatter=(pkRabattIndeks.get(v.varenr.toUpperCase())||[]).slice().sort((a,b)=>a.kode.localeCompare(b.kode));
+  const klasser=[...new Set(rabatter.filter(r=>r.aktiv&&r.verdi>0).flatMap(r=>r.prisklasser))].sort((a,b)=>(PK_FORHANDLER_PRISKLASSER.includes(a)-PK_FORHANDLER_PRISKLASSER.includes(b))||a.localeCompare(b));
+  let prisRader=klasser.map(k=>{const p=pkPrisFor(v,k);return`<tr><td>${jsEscapeHtml(k)}${PK_FORHANDLER_PRISKLASSER.includes(k)?' <span class="pk-merke pk-merke-gra">forhandler</span>':''}</td><td style="text-align:right">${pkKr(p.pris)}</td><td>${p.rabatt?`${pkRabattTekst(p.rabatt)} · ${jsEscapeHtml(p.rabatt.kode)}`:'–'}</td></tr>`;}).join('');
+  if(!prisRader)prisRader='<tr><td colspan="3" style="color:#6b7280">Ingen rabatter på denne varen. Alle kunder betaler listepris.</td></tr>';
+  const endret=v.kbdEndret?` · KBD-felt sist endret ${new Date(v.kbdEndret).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${v.kbdEndretAv?' av '+jsEscapeHtml(v.kbdEndretAv):''}`:'';
+  document.getElementById('pk-modal-innhold').innerHTML=`
+    <h3>📦 ${jsEscapeHtml(v.varenr)} – ${jsEscapeHtml(pkNavn(v))}</h3>
+    <div class="pk-visma">
+      <div><span>Visma-beskrivelse</span>${jsEscapeHtml(v.vismaBeskr)||'–'}</div>
+      <div><span>Vareprofil</span>${jsEscapeHtml(v.profilBeskr||v.profil)||'–'}</div>
+      <div><span>Listepris</span>${pkKr(v.listepris)}${v.enhet?' / '+jsEscapeHtml(v.enhet.toLowerCase()):''}</div>
+      <div><span>Status i Visma</span>${jsEscapeHtml(v.status)||'–'}</div>
+    </div>
+    <div class="hint" style="margin:0 0 14px">Feltene over kommer fra Visma og oppdateres hver natt${endret}.</div>
+    <div class="fgrp" style="margin-bottom:10px"><label>Visningsnavn (kundevennlig)</label><input type="text" id="pk-m-navn" value="${jsEscapeHtml(v.navn)}" placeholder="${jsEscapeHtml(v.vismaBeskr)}" ${dis}></div>
+    <div class="fgrp" style="margin-bottom:10px"><label>Beskrivelse til kunde (brukes i tilbud)</label><textarea id="pk-m-beskr" rows="3" ${dis} style="padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;font-family:inherit;font-size:14px">${jsEscapeHtml(v.kundeBeskr)}</textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fgrp"><label>Produktgruppe</label><input type="text" id="pk-m-gruppe" list="pk-grupper-modal" value="${jsEscapeHtml(v.gruppe)}" placeholder="F.eks. Susoft regnskapsintegrasjon" ${dis}>
+        <datalist id="pk-grupper-modal">${pkProduktgrupper().map(g=>`<option value="${jsEscapeHtml(g)}">`).join('')}</datalist></div>
+      <div class="fgrp"><label>Fakturering</label><select id="pk-m-fakt" ${dis}><option value="">Ikke satt</option>${PK_FAKTURERING.map(f=>`<option${f===v.fakturering?' selected':''}>${f}</option>`).join('')}</select></div>
+    </div>
+    <label class="pk-chk" style="margin-bottom:14px"><input type="checkbox" id="pk-m-tilbud" ${v.synligITilbud?'checked':''} ${dis}> Synlig i tilbud</label>
+    <div style="font-weight:600;font-size:13px;margin:6px 0">Pris per prisklasse (beste rabatt fra Visma)</div>
+    <table class="pk-tabell pk-liten"><thead><tr><th>Prisklasse</th><th style="text-align:right">Pris</th><th>Rabatt</th></tr></thead><tbody>${prisRader}</tbody></table>
+    <div class="modal-footer">
+      <button class="btn-sm" onclick="pkLukkVare()">${kan?'Avbryt':'Lukk'}</button>
+      ${kan?'<button class="prim" id="pk-m-lagre" onclick="pkLagreVare()">Lagre</button>':''}
+    </div>`;
+  document.getElementById('pk-modal').classList.add('open');
+}
+function pkLukkVare(){document.getElementById('pk-modal').classList.remove('open');pkApenVare=null;}
+async function pkLagreVare(){
+  const v=pkApenVare;if(!v||!pkKanRedigere())return;
+  const ny={...v,navn:document.getElementById('pk-m-navn').value.trim(),kundeBeskr:document.getElementById('pk-m-beskr').value.trim(),
+    gruppe:document.getElementById('pk-m-gruppe').value.trim(),fakturering:document.getElementById('pk-m-fakt').value,synligITilbud:document.getElementById('pk-m-tilbud').checked};
+  const knapp=document.getElementById('pk-m-lagre');if(knapp){knapp.disabled=true;knapp.textContent='Lagrer …';}
+  try{
+    const f=pkKbdFelter(ny);
+    await spUpdate('Produktkatalog',v.spId,f);
+    Object.assign(v,{navn:ny.navn,kundeBeskr:ny.kundeBeskr,gruppe:ny.gruppe,fakturering:ny.fakturering,synligITilbud:ny.synligITilbud,kbdEndretAv:f.KbdEndretAv,kbdEndret:f.KbdEndret});
+    pkLukkVare();
+    renderPkVarer();
+  }catch(e){
+    console.error('Produktkatalog: lagring feilet',e);
+    if(knapp){knapp.disabled=false;knapp.textContent='Lagre';}
+    pkLagringsfeil(e);
+  }
+}
+
+function renderPkRabatter(){
+  const el=document.getElementById('pk-innhold');if(!el)return;
+  const vareNavn=new Map(pkVarer.map(v=>[v.varenr.toUpperCase(),v]));
+  const q=pkRabattFilter.sok.trim().toLowerCase();
+  const rader=pkRabatter.filter(r=>{
+    if(pkRabattFilter.bareDirekte&&r.prisklasser.length>0&&r.prisklasser.every(p=>PK_FORHANDLER_PRISKLASSER.includes(p)))return false;
+    if(q&&!`${r.kode} ${r.beskr} ${r.prisklasser.join(' ')} ${r.varer.join(' ')}`.toLowerCase().includes(q))return false;
+    return true;
+  }).sort((a,b)=>a.kode.localeCompare(b.kode,'nb'));
+  pkRabattRaderVist=rader;
+  let h=`<div class="pk-filter">
+    <input type="text" placeholder="Søk på rabattkode, beskrivelse, prisklasse eller varenr …" value="${jsEscapeHtml(pkRabattFilter.sok)}" oninput="pkRabattFilter.sok=this.value;clearTimeout(window._pkRSokT);window._pkRSokT=setTimeout(()=>{renderPkRabatter();const i=document.querySelector('#pk-innhold .pk-filter input');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},250)" style="flex:2;min-width:240px">
+    <label class="pk-chk"><input type="checkbox" ${pkRabattFilter.bareDirekte?'checked':''} onchange="pkRabattFilter.bareDirekte=this.checked;renderPkRabatter()"> Skjul rene forhandlerrabatter</label>
+  </div>
+  <div class="hint" style="margin:0 0 8px">Rabattene vedlikeholdes i Visma (Rabatter) og hentes hver natt. Treffer en kunde flere rabatter på samme vare, brukes den som gir lavest pris.</div>
+  <div class="pk-teller">${rader.length} rabatter</div>
+  <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell"><thead><tr><th>Kode</th><th>Beskrivelse</th><th>Prisklasser</th><th style="text-align:right">Rabatt</th><th>Varer</th><th>Gyldig fra</th><th>Status</th></tr></thead><tbody>`;
+  if(rader.length===0)h+='<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:24px">Ingen rabatter passer filteret.</td></tr>';
+  rader.forEach((r,ri)=>{
+    const nokkel=r.kode+'|'+r.serie;
+    const apen=pkApneRabatter.has(nokkel);
+    const ukjente=r.varer.filter(x=>!vareNavn.has(x.toUpperCase()));
+    const status=!r.aktiv?'<span class="pk-merke pk-merke-gra">Inaktiv</span>':(r.verdi<=0?'<span class="pk-merke pk-merke-gul" title="Rabatten har ingen sats i Visma og gir derfor ingen rabatt">Uten sats</span>':'<span class="pk-merke pk-merke-gronn">Aktiv</span>');
+    const klasser=r.prisklasser.map(p=>`<span class="pk-merke ${PK_FORHANDLER_PRISKLASSER.includes(p)?'pk-merke-gra':'pk-merke-bla'}">${jsEscapeHtml(p)}</span>`).join(' ');
+    h+=`<tr class="rad-klikkbar" onclick="pkVekslRabatt(${ri})">
+      <td style="font-family:monospace;white-space:nowrap">${jsEscapeHtml(r.kode)}</td>
+      <td>${jsEscapeHtml(r.beskr)}${r.trinn?' <span class="pk-merke pk-merke-gul" title="Rabatten har mengde- eller beløpstrinn i Visma. Her vises bare grunnsatsen.">har trinn</span>':''}</td>
+      <td>${klasser}</td>
+      <td style="text-align:right;white-space:nowrap">${r.verdi>0?pkRabattTekst(r):'–'}</td>
+      <td style="white-space:nowrap">${r.varer.length} ${apen?'▾':'▸'}${ukjente.length?` <span class="pk-merke pk-merke-gul" title="Varenumre som ikke finnes i produktkatalogen: ${jsEscapeHtml(ukjente.join(', '))}">${ukjente.length} ukjent</span>`:''}</td>
+      <td style="white-space:nowrap">${jsEscapeHtml(r.gyldigFra)}</td>
+      <td>${status}</td></tr>`;
+    if(apen){
+      h+=`<tr><td></td><td colspan="6"><div class="pk-varer-liste">${r.varer.map(x=>{const v=vareNavn.get(x.toUpperCase());return v?`<span><b>${jsEscapeHtml(v.varenr)}</b> ${jsEscapeHtml(pkNavn(v))} · ${pkKr(v.listepris)}</span>`:`<span class="pk-ukjent"><b>${jsEscapeHtml(x)}</b> finnes ikke i katalogen</span>`;}).join('')}</div></td></tr>`;
+    }
+  });
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+function pkVekslRabatt(i){const r=pkRabattRaderVist[i];if(!r)return;const k=r.kode+'|'+r.serie;if(pkApneRabatter.has(k))pkApneRabatter.delete(k);else pkApneRabatter.add(k);renderPkRabatter();}
+
 function showTab(name,btn){
   document.querySelectorAll('.tp').forEach(t=>{t.classList.remove('active');t.style.display='none';});
   const tp=document.getElementById('tp-'+name);
@@ -15811,6 +16231,7 @@ function showTab(name,btn){
   if(name==='onboarding'){renderOnboarding();}
   if(name==='silentordering'){renderSilentOrdering();showSilentOrderingView('oversikt');}
   if(name==='jobbstatus'){renderJobbstatus();}
+  if(name==='produktkatalog'){renderProduktkatalog();} // v1.48.249
   setTimeout(()=>{Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},50);
 }
 
