@@ -730,7 +730,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.252 · Oppdatert: 10. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.253 · Oppdatert: 10. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11616,6 +11616,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.253',dato:'10.10.2026',punkter:[
+    'Produktkatalog: ny avhuking «Egen tjeneste (kostpris 0 er riktig)» på varer, også i masseendring. Brukes for egen support, klargjøring og lignende, som har 100 % fortjeneste. Varen får da DG 100 % i stedet for «–», og varselet om manglende kostpris i pakkene forsvinner. Merkes med «egen» i Kostpris-kolonnen.',
+    'Import av Excel-malene velger nå «Susoft etablering Mini+» før «Mini» når begge har samme pris.'
+  ]},
   {versjon:'v1.48.252',dato:'10.10.2026',punkter:[
     'Produktkatalog: ny fane «📦 Pakker». En pakke er en mal for tilbud med varer fra katalogen, antall, linjetype (fast, antall kan endres eller valgfri), rabatt på linjer der produktgruppen tillater det og bransjer. Mens du endrer, vises kjøpspris, leie via Ikano, lisenser per måned og DG-lys for hardware og etablering samlet. Prisene kommer alltid fra katalogen, med listepris eller valgt prisklasse.',
     'Produktkatalog: ny fane «📝 Standardtekster» med tekstene som brukes i alle tilbud (innledning, leveringstid, garanti, vilkår osv.) og flettefelt som {kundenavn} og {gyldig_til}. Hver pakke kan bruke standardteksten, ha sin egen eller skjule den. «👁 Forhåndsvis tilbud» viser tilbudet med eksempelverdier.',
@@ -15878,6 +15882,8 @@ function pkNavn(v){return v.navn||v.vismaBeskr||v.varenr;}
 function pkErAktiv(v){return v.status==='Active';}
 // v1.48.250: dekningsgrad i % ved en gitt pris. null når kostpris eller pris mangler.
 function pkDg(pris,kost){return kost>0&&pris>0?(pris-kost)/pris*100:null;}
+// v1.48.253: «Egen tjeneste» = kostpris 0 er riktig (egen support, klargjøring o.l.), DG blir 100 %.
+function pkDgVare(pris,v){if(v&&v.egenTjeneste)return pris>0?(pris-(v.kostpris||0))/pris*100:null;return pkDg(pris,v?.kostpris||0);}
 function pkDgTekst(dg){if(dg===null)return'<span style="color:#9ca3af">–</span>';const s=dg.toFixed(1).replace('.',',')+' %';return dg<0?`<span style="color:#dc2626;font-weight:600">${s}</span>`:s;}
 function pkAntall(n){return String(Math.round((Number(n)||0)*100)/100).replace('.',',');}
 
@@ -15901,7 +15907,7 @@ async function pkLastData(tving){
       pkVarer=vRes.value.map(i=>{const f=i.fields||{};return{
         spId:String(i.id),varenr:String(f.Title||'').trim(),vismaBeskr:f.VismaBeskrivelse||'',profil:f.Vareprofil||'',profilBeskr:f.VareprofilBeskrivelse||'',
         listepris:Number(f.Listepris)||0,enhet:f.Enhet||'',status:f.VismaStatus||'',type:f.VareType||'',vismaEndret:f.VismaEndret||'',sistSynket:f.SistSynket||'',
-        navn:f.Visningsnavn||'',kundeBeskr:f.KundeBeskrivelse||'',gruppe:f.Produktgruppe||'',fakturering:f.Fakturering||'',synligITilbud:f.SynligITilbud===true,
+        navn:f.Visningsnavn||'',kundeBeskr:f.KundeBeskrivelse||'',gruppe:f.Produktgruppe||'',fakturering:f.Fakturering||'',synligITilbud:f.SynligITilbud===true,egenTjeneste:f.EgenTjeneste===true,
         kbdEndretAv:f.KbdEndretAv||'',kbdEndret:f.KbdEndret||'',
         // v1.48.250: kostpris (snitt for lagervarer, ellers standard) og lager (bare lagervarer, fra natten)
         kostpris:Number(f.Kostpris)||0,kostKilde:f.KostprisKilde||'',
@@ -15978,7 +15984,7 @@ function pkFiltrerteVarer(){
       case'listepris':return v.listepris;
       case'pris':return pkPrisFor(v,pkFilter.prisklasse).pris;
       case'kost':return v.kostpris||-1;
-      case'dg':{const d=pkDg(pkPrisFor(v,pkFilter.prisklasse).pris,v.kostpris);return d===null?-1e9:d;}
+      case'dg':{const d=pkDgVare(pkPrisFor(v,pkFilter.prisklasse).pris,v);return d===null?-1e9:d;}
       case'lager':return v.paLager==null?-1e9:v.paLager;
       case'tilbud':return v.synligITilbud?0:1;
       default:return v.varenr;
@@ -16045,6 +16051,7 @@ function renderPkVarer(){
       <input type="text" id="pk-bulk-gruppe" list="pk-grupper" placeholder="Produktgruppe (uendret)" style="width:220px">
       <select id="pk-bulk-fakt" style="width:170px"><option value="">Fakturering (uendret)</option>${PK_FAKTURERING.map(f=>`<option>${f}</option>`).join('')}</select>
       <select id="pk-bulk-tilbud" style="width:190px"><option value="">Synlig i tilbud (uendret)</option><option value="ja">Synlig i tilbud: Ja</option><option value="nei">Synlig i tilbud: Nei</option></select>
+      <select id="pk-bulk-egen" style="width:190px"><option value="">Egen tjeneste (uendret)</option><option value="ja">Egen tjeneste: Ja</option><option value="nei">Egen tjeneste: Nei</option></select>
       <button class="prim" id="pk-bulk-knapp" onclick="pkBrukPaValgte()">Bruk på valgte</button>
       <button class="btn-sm" onclick="pkValgte.clear();renderPkVarer()">Fjern valg</button></div>`;
   }
@@ -16069,8 +16076,8 @@ function renderPkVarer(){
       <td>${v.fakturering?jsEscapeHtml(v.fakturering):'<span style="color:#9ca3af">–</span>'}</td>
       <td style="text-align:right;white-space:nowrap">${pkKr(v.listepris)}</td>
       ${pk?`<td style="text-align:right;white-space:nowrap">${p.rabatt?`<b>${pkKr(p.pris)}</b><div class="pk-under" title="${jsEscapeHtml(p.rabatt.kode+': '+p.rabatt.beskr)}">${pkRabattTekst(p.rabatt)} · ${jsEscapeHtml(p.rabatt.kode)}</div>`:`<span style="color:#9ca3af">${pkKr(p.pris)}</span>`}</td>`:''}
-      <td style="text-align:right;white-space:nowrap" title="${v.kostKilde==='Snitt'?'Gjennomsnittlig kostpris (lagervare)':v.kostKilde==='Standard'?'Standard kostpris i Visma':'Ingen kostpris i Visma'}">${v.kostpris>0?pkKr(v.kostpris):'<span style="color:#9ca3af">–</span>'}</td>
-      <td style="text-align:right;white-space:nowrap">${pkDgTekst(pkDg(p?p.pris:v.listepris,v.kostpris))}</td>
+      <td style="text-align:right;white-space:nowrap" title="${v.kostKilde==='Snitt'?'Gjennomsnittlig kostpris (lagervare)':v.kostKilde==='Standard'?'Gjeldende kostpris i Visma':(v.egenTjeneste?'Egen tjeneste – kostpris 0 er riktig':'Ingen kostpris i Visma')}">${v.kostpris>0?pkKr(v.kostpris):(v.egenTjeneste?'<span class="pk-merke pk-merke-gronn">egen</span>':'<span style="color:#9ca3af">–</span>')}</td>
+      <td style="text-align:right;white-space:nowrap">${pkDgTekst(pkDgVare(p?p.pris:v.listepris,v))}</td>
       <td style="text-align:right;white-space:nowrap" title="${v.paLager==null?'Ikke lagerført vare':`Tilgjengelig: ${pkAntall(v.tilgjengelig)} · oppdatert hver natt`}">${v.paLager==null?'<span style="color:#9ca3af">–</span>':(v.paLager>0?pkAntall(v.paLager):'<span style="color:#dc2626">0</span>')}</td>
       <td style="text-align:center">${v.synligITilbud?'✅':''}</td>
     </tr>`;
@@ -16101,9 +16108,10 @@ async function pkBrukPaValgte(){
   const gruppe=document.getElementById('pk-bulk-gruppe')?.value.trim()||'';
   const fakt=document.getElementById('pk-bulk-fakt')?.value||'';
   const tilbud=document.getElementById('pk-bulk-tilbud')?.value||'';
-  if(!gruppe&&!fakt&&!tilbud){alert('Velg minst én ting å endre.');return;}
+  const egen=document.getElementById('pk-bulk-egen')?.value||'';
+  if(!gruppe&&!fakt&&!tilbud&&!egen){alert('Velg minst én ting å endre.');return;}
   const valgte=pkVarer.filter(v=>pkValgte.has(v.spId));
-  const endring=[gruppe&&`produktgruppe «${gruppe}»`,fakt&&`fakturering «${fakt}»`,tilbud&&`synlig i tilbud: ${tilbud==='ja'?'Ja':'Nei'}`].filter(Boolean).join(', ');
+  const endring=[gruppe&&`produktgruppe «${gruppe}»`,fakt&&`fakturering «${fakt}»`,tilbud&&`synlig i tilbud: ${tilbud==='ja'?'Ja':'Nei'}`,egen&&`egen tjeneste: ${egen==='ja'?'Ja':'Nei'}`].filter(Boolean).join(', ');
   if(!confirm(`Sette ${endring} på ${valgte.length} varer?`))return;
   const knapp=document.getElementById('pk-bulk-knapp');
   let ok=0,feil=0,sisteFeil=null;
@@ -16113,10 +16121,12 @@ async function pkBrukPaValgte(){
     if(gruppe)ny.gruppe=gruppe;
     if(fakt)ny.fakturering=fakt;
     if(tilbud)ny.synligITilbud=tilbud==='ja';
+    if(egen)ny.egenTjeneste=egen==='ja';
     try{
       const f=pkKbdFelter(ny);
+      if(egen)f.EgenTjeneste=ny.egenTjeneste;
       await spUpdate('Produktkatalog',v.spId,f);
-      Object.assign(v,{gruppe:ny.gruppe,fakturering:ny.fakturering,synligITilbud:ny.synligITilbud,kbdEndretAv:f.KbdEndretAv,kbdEndret:f.KbdEndret});
+      Object.assign(v,{gruppe:ny.gruppe,fakturering:ny.fakturering,synligITilbud:ny.synligITilbud,egenTjeneste:ny.egenTjeneste,kbdEndretAv:f.KbdEndretAv,kbdEndret:f.KbdEndret});
       ok++;
     }catch(e){feil++;sisteFeil=e;console.error('Produktkatalog: masseoppdatering feilet for',v.varenr,e);}
   }
@@ -16133,7 +16143,7 @@ function pkApneVare(spId){
   const dis=kan?'':'disabled';
   const rabatter=(pkRabattIndeks.get(v.varenr.toUpperCase())||[]).slice().sort((a,b)=>a.kode.localeCompare(b.kode));
   const klasser=[...new Set(rabatter.filter(r=>r.aktiv&&r.verdi>0).flatMap(r=>r.prisklasser))].sort((a,b)=>(PK_FORHANDLER_PRISKLASSER.includes(a)-PK_FORHANDLER_PRISKLASSER.includes(b))||a.localeCompare(b));
-  let prisRader=`<tr><td>Listepris</td><td style="text-align:right">${pkKr(v.listepris)}</td><td style="text-align:right">${pkDgTekst(pkDg(v.listepris,v.kostpris))}</td><td>–</td></tr>`+klasser.map(k=>{const p=pkPrisFor(v,k);return`<tr><td>${jsEscapeHtml(k)}${PK_FORHANDLER_PRISKLASSER.includes(k)?' <span class="pk-merke pk-merke-gra">forhandler</span>':''}</td><td style="text-align:right">${pkKr(p.pris)}</td><td style="text-align:right">${pkDgTekst(pkDg(p.pris,v.kostpris))}</td><td>${p.rabatt?`${pkRabattTekst(p.rabatt)} · ${jsEscapeHtml(p.rabatt.kode)}`:'–'}</td></tr>`;}).join('');
+  let prisRader=`<tr><td>Listepris</td><td style="text-align:right">${pkKr(v.listepris)}</td><td style="text-align:right">${pkDgTekst(pkDgVare(v.listepris,v))}</td><td>–</td></tr>`+klasser.map(k=>{const p=pkPrisFor(v,k);return`<tr><td>${jsEscapeHtml(k)}${PK_FORHANDLER_PRISKLASSER.includes(k)?' <span class="pk-merke pk-merke-gra">forhandler</span>':''}</td><td style="text-align:right">${pkKr(p.pris)}</td><td style="text-align:right">${pkDgTekst(pkDgVare(p.pris,v))}</td><td>${p.rabatt?`${pkRabattTekst(p.rabatt)} · ${jsEscapeHtml(p.rabatt.kode)}`:'–'}</td></tr>`;}).join('');
   if(!klasser.length)prisRader+='<tr><td colspan="4" style="color:#6b7280">Ingen rabatter på denne varen. Alle kunder betaler listepris.</td></tr>';
   const endret=v.kbdEndret?` · KBD-felt sist endret ${new Date(v.kbdEndret).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${v.kbdEndretAv?' av '+jsEscapeHtml(v.kbdEndretAv):''}`:'';
   document.getElementById('pk-modal-innhold').innerHTML=`
@@ -16143,8 +16153,8 @@ function pkApneVare(spId){
       <div><span>Vareprofil</span>${jsEscapeHtml(v.profilBeskr||v.profil)||'–'}</div>
       <div><span>Listepris</span>${pkKr(v.listepris)}${v.enhet?' / '+jsEscapeHtml(v.enhet.toLowerCase()):''}</div>
       <div><span>Status i Visma</span>${jsEscapeHtml(v.status)||'–'}</div>
-      <div><span>Kostpris</span>${v.kostpris>0?`${pkKr(v.kostpris)} (${v.kostKilde==='Snitt'?'gjennomsnitt':'standard'})`:'Ikke registrert i Visma'}</div>
-      <div><span>Dekningsgrad ved listepris</span>${pkDgTekst(pkDg(v.listepris,v.kostpris))}</div>
+      <div><span>Kostpris</span>${v.kostpris>0?`${pkKr(v.kostpris)} (${v.kostKilde==='Snitt'?'gjennomsnitt':'gjeldende kostpris'})`:(v.egenTjeneste?'0 kr (egen tjeneste)':'Ikke registrert i Visma')}</div>
+      <div><span>Dekningsgrad ved listepris</span>${pkDgTekst(pkDgVare(v.listepris,v))}</div>
       <div><span>På lager (fra natten)</span>${v.paLager==null?'Ikke lagerført':`${pkAntall(v.paLager)} · tilgjengelig ${pkAntall(v.tilgjengelig)}`}</div>
     </div>
     <div class="hint" style="margin:0 0 14px">Feltene over kommer fra Visma og oppdateres hver natt${endret}.</div>
@@ -16155,7 +16165,8 @@ function pkApneVare(spId){
         <datalist id="pk-grupper-modal">${pkProduktgrupper().map(g=>`<option value="${jsEscapeHtml(g)}">`).join('')}</datalist></div>
       <div class="fgrp"><label>Fakturering</label><select id="pk-m-fakt" ${dis}><option value="">Ikke satt</option>${PK_FAKTURERING.map(f=>`<option${f===v.fakturering?' selected':''}>${f}</option>`).join('')}</select></div>
     </div>
-    <label class="pk-chk" style="margin-bottom:14px"><input type="checkbox" id="pk-m-tilbud" ${v.synligITilbud?'checked':''} ${dis}> Synlig i tilbud</label>
+    <label class="pk-chk" style="margin-bottom:6px"><input type="checkbox" id="pk-m-tilbud" ${v.synligITilbud?'checked':''} ${dis}> Synlig i tilbud</label><br>
+    <label class="pk-chk" style="margin-bottom:14px" title="F.eks. egen support eller klargjøring. Varen får DG 100 % når kostprisen i Visma er 0."><input type="checkbox" id="pk-m-egen" ${v.egenTjeneste?'checked':''} ${dis}> Egen tjeneste (kostpris 0 er riktig)</label>
     <div style="font-weight:600;font-size:13px;margin:6px 0">Pris og dekningsgrad per prisklasse (beste rabatt fra Visma)</div>
     <table class="pk-tabell pk-liten"><thead><tr><th>Prisklasse</th><th style="text-align:right">Pris</th><th style="text-align:right">DG</th><th>Rabatt</th></tr></thead><tbody>${prisRader}</tbody></table>
     <div class="modal-footer">
@@ -16168,12 +16179,14 @@ function pkLukkVare(){document.getElementById('pk-modal').classList.remove('open
 async function pkLagreVare(){
   const v=pkApenVare;if(!v||!pkKanRedigere())return;
   const ny={...v,navn:document.getElementById('pk-m-navn').value.trim(),kundeBeskr:document.getElementById('pk-m-beskr').value.trim(),
-    gruppe:document.getElementById('pk-m-gruppe').value.trim(),fakturering:document.getElementById('pk-m-fakt').value,synligITilbud:document.getElementById('pk-m-tilbud').checked};
+    gruppe:document.getElementById('pk-m-gruppe').value.trim(),fakturering:document.getElementById('pk-m-fakt').value,synligITilbud:document.getElementById('pk-m-tilbud').checked,egenTjeneste:document.getElementById('pk-m-egen').checked};
   const knapp=document.getElementById('pk-m-lagre');if(knapp){knapp.disabled=true;knapp.textContent='Lagrer …';}
   try{
     const f=pkKbdFelter(ny);
+    // EgenTjeneste sendes bare når den endres, så lagring virker også før kolonnen er opprettet.
+    if(ny.egenTjeneste!==v.egenTjeneste)f.EgenTjeneste=ny.egenTjeneste;
     await spUpdate('Produktkatalog',v.spId,f);
-    Object.assign(v,{navn:ny.navn,kundeBeskr:ny.kundeBeskr,gruppe:ny.gruppe,fakturering:ny.fakturering,synligITilbud:ny.synligITilbud,kbdEndretAv:f.KbdEndretAv,kbdEndret:f.KbdEndret});
+    Object.assign(v,{navn:ny.navn,kundeBeskr:ny.kundeBeskr,gruppe:ny.gruppe,fakturering:ny.fakturering,synligITilbud:ny.synligITilbud,egenTjeneste:ny.egenTjeneste,kbdEndretAv:f.KbdEndretAv,kbdEndret:f.KbdEndret});
     pkLukkVare();
     renderPkVarer();
   }catch(e){
@@ -16453,8 +16466,10 @@ function pkPakkeBeregn(pakke,prisklasse){
   const sum=a=>a.reduce((s,x)=>s+x.sum,0),kost=a=>a.reduce((s,x)=>s+x.kost,0);
   const hwInn=sum(hw),hwKost=kost(hw),lopInn=sum(lop),lopKost=kost(lop);
   const kjop=sum(engang);
-  return{alle,engang,lop,kjop,lopMnd:lopInn,hwInn,hwKost,hwDb:hwInn-hwKost,hwDg:hwKost>0&&hwInn>0?(hwInn-hwKost)/hwInn*100:null,
-    lopDb:lopInn-lopKost,manglerKost:hw.filter(x=>!(x.v.kostpris>0)).length,manglerVare:alle.filter(x=>!x.v).length,
+  // Egen tjeneste (v1.48.253): kostpris 0 er riktig, så DG kan regnes selv om hele hardware-delen er uten kost.
+  const hwKjentKost=hwKost>0||(hw.length>0&&hw.every(x=>x.v.egenTjeneste));
+  return{alle,engang,lop,kjop,lopMnd:lopInn,hwInn,hwKost,hwDb:hwInn-hwKost,hwDg:hwKjentKost&&hwInn>0?(hwInn-hwKost)/hwInn*100:null,
+    lopDb:lopInn-lopKost,manglerKost:hw.filter(x=>!(x.v.kostpris>0)&&!x.v.egenTjeneste).length,manglerVare:alle.filter(x=>!x.v).length,
     leie:kjop>0?pkLeieFor(kjop):null};
 }
 function pkSeksjoner(rader){
@@ -16595,7 +16610,8 @@ function pkPakkeOppdaterSum(){
     if(!x.v){p.textContent='';s.textContent='';d.innerHTML='';return;}
     p.innerHTML=x.rabattPst>0?`<span style="text-decoration:line-through;color:#9ca3af">${pkKr(x.pris)}</span><br><b>${pkKr(x.netto)}</b>`:(x.prisRabatt?`<b>${pkKr(x.netto)}</b><div class="pk-under">${pkRabattTekst(x.prisRabatt)} · ${jsEscapeHtml(x.prisRabatt.kode)}</div>`:pkKr(x.netto));
     s.innerHTML=x.med?pkKr(x.sum)+(x.lopende?'<div class="pk-under">per mnd</div>':''):'<span style="color:#9ca3af">ikke med</span>';
-    d.innerHTML=pkDgTekst(pkDg(x.netto,x.antall>0?x.kost/x.antall:x.v.kostpris));
+    const kostStk=x.antall>0?x.kost/x.antall:(x.v.kostpris||0);
+    d.innerHTML=pkDgTekst(x.v.egenTjeneste?(x.netto>0?(x.netto-kostStk)/x.netto*100:null):pkDg(x.netto,kostStk));
   });
   const el=document.getElementById('pk-p-sum');if(!el)return;
   const lys=pkDgLys(b.hwDg);
@@ -16607,7 +16623,7 @@ function pkPakkeOppdaterSum(){
     <div style="color:${lys.farge}">${lys.ikon} DG hardware og etablering: <b>${b.hwDg===null?lys.tekst:b.hwDg.toFixed(1).replace('.',',')+' %'}</b> (DB ${pkKr(Math.round(b.hwDb))})</div>
     <div>DB lisenser: <b>${pkKr(Math.round(b.lopDb))} per måned</b></div>
     <div>${rom!==null?(rom>=0?`Rom for ytterligere ${pkKr(Math.floor(rom))} rabatt før ${String(pkInnst.DgMin).replace('.',',')} %`:`<span style="color:#dc2626">${pkKr(Math.ceil(-rom))} under minstegrensen</span>`):''}</div>
-  </div>${b.manglerKost?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerKost} linje(r) i hardware og etablering mangler kostpris og regnes med kost 0. DG blir da for høy.</div>`:''}${b.manglerVare?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerVare} linje(r) mangler vare og er ikke med i summen.</div>`:''}`;
+  </div>${b.manglerKost?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerKost} linje(r) i hardware og etablering mangler kostpris og regnes med kost 0. DG blir da for høy. Er det egen tjeneste (f.eks. vår egen klargjøring), huk av «Egen tjeneste» på varen i 📋 Varer.</div>`:''}${b.manglerVare?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerVare} linje(r) mangler vare og er ikke med i summen.</div>`:''}`;
 }
 function pkPakkeTeksterHtml(dis){
   const a=pkApenPakke,std=pkTeksterSortert();
@@ -16790,7 +16806,7 @@ const PK_STARTTEKSTER=[
   {nokkel:'avslutning',overskrift:'',plassering:'Bunn',sortering:100,tekst:'Mer informasjon om våre produkter og tjenester finner du på www.kbd.as.\n\nVi håper tilbudet samsvarer med deres forventninger og behov. Ønskes ytterligere opplysninger, står undertegnede til disposisjon.\n\nMed vennlig hilsen\n{selger}\nfor Kasse og Butikkdata AS\n{selger_telefon}'}
 ];
 const PK_L={
-  susoftEtabMini:{navn:'Etablering SuSoft Mini+',s:[['etablering','susoft','mini'],['etablering','susoft']],p:1420},
+  susoftEtabMini:{navn:'Etablering SuSoft Mini+',s:[['etablering','susoft','mini+'],['etablering','susoft','mini'],['etablering','susoft']],p:1420},
   susoftEtabBasic:{navn:'Etablering SuSoft Basic',s:[['etablering','susoft','basic'],['etablering','susoft']],p:1420},
   terminalEtab:{navn:'Etablering Softpay / BAX',s:[['etablering','softpay'],['etablering','bax'],['etablering','terminal'],['etablering','betaling']],p:1540},
   regnskapEtab:{navn:'Etablering overføring til regnskap',s:[['etablering','regnskap'],['oppsett','regnskap'],['regnskap']],p:5200},
