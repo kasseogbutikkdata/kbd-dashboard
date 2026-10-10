@@ -668,6 +668,9 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 .pk-varer-liste span{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:3px 8px}
 .pk-varer-liste span.pk-ukjent{background:#fffbeb;border-color:#fde68a;color:#92400e}
 @media(max-width:700px){.pk-visma{grid-template-columns:1fr}}
+.pk-innst{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px 18px;max-width:900px}
+.pk-innst label{font-size:12.5px;font-weight:600;color:#374151}
+.pk-eksempel{margin-top:12px;padding:12px 14px;background:#f6f8fc;border:1px solid #dbe3f0;border-radius:8px;font-size:13px;line-height:1.7;max-width:900px}
 </style>
 </head>
 <body>
@@ -727,7 +730,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.250 · Oppdatert: 10. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.251 · Oppdatert: 10. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3111,6 +3114,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <div class="pk-faner">
         <button class="pk-fane aktiv" data-v="varer" onclick="pkByttVisning('varer')">📋 Varer</button>
         <button class="pk-fane" data-v="rabatter" onclick="pkByttVisning('rabatter')">🏷️ Rabatter</button>
+        <button class="pk-fane" data-v="grupper" onclick="pkByttVisning('grupper')">⚙️ Grupper og regler</button>
       </div>
       <div id="pk-status" style="font-size:12px;color:#6b7280;margin-bottom:10px"></div>
       <div id="pk-innhold"></div>
@@ -11610,6 +11614,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.251',dato:'10.10.2026',punkter:[
+    'Produktkatalog: ny fane «⚙️ Grupper og regler». Hver produktgruppe får regler for tilbud: type, om manuell rabatt er lov (lisenser: nei), om den teller i DG for hardware og etablering samlet, seksjon i tilbudet og rekkefølge. Grupper som brukes på varer men mangler regler, vises øverst.',
+    'Innstillinger for tilbud (bare admin endrer): mål-DG 45 %, minste DG 30 %, leie via Ikano med KBD-faktor 3,3 % avrundet opp til …9, Ikano-faktor 3,1607 %, 36 måneder og 30 dagers gyldighet. Et eksempel viser leie og hva Ikano betaler. Dette er første steg mot tilbud og pakker, og brukes ennå ikke i salgsprosessen.'
+  ]},
   {versjon:'v1.48.250',dato:'10.10.2026',punkter:[
     'Produktkatalog: kostpris og dekningsgrad (DG) for hver vare. Kostprisen er gjennomsnittlig kostpris fra Visma for lagervarer og standard kostpris for lisenser og andre varer. Velger du en prisklasse, regnes DG ut fra prisen etter rabatt. Negativ DG vises i rødt.',
     'Produktkatalog: antall på lager for lagervarer (alle lagersteder samlet, oppdatert hver natt) og filteret «Bare på lager». 0 vises i rødt.'
@@ -15872,7 +15880,10 @@ async function pkLastData(tving){
   pkLaster=true;pkFeil='';
   renderProduktkatalog();
   try{
-    const[vRes,rRes]=await Promise.allSettled([spGetItems('Produktkatalog'),spGetItems('ProduktRabatter')]);
+    const[vRes,rRes,gRes,iRes]=await Promise.allSettled([spGetItems('Produktkatalog'),spGetItems('ProduktRabatter'),spGetItems('Produktgrupper'),spGetItems('TilbudInnstillinger')]);
+    // v1.48.251: produktgrupper og innstillinger for tilbud. Mangler listene, brukes standardverdier.
+    if(gRes.status==='fulfilled'){pkGrupperFinnes=true;pkLesGrupper(gRes.value);}else{pkGrupperFinnes=false;pkGrupper=[];console.warn('Produktgrupper kunne ikke leses (finnes lista i SharePoint?):',gRes.reason);}
+    if(iRes.status==='fulfilled'){pkInnstFinnes=true;pkLesInnst(iRes.value);}else{pkInnstFinnes=false;pkLesInnst([]);console.warn('TilbudInnstillinger kunne ikke leses (finnes lista i SharePoint?):',iRes.reason);}
     if(vRes.status!=='fulfilled'){
       console.warn('Produktkatalog kunne ikke leses (finnes lista i SharePoint?):',vRes.reason);
       pkFeil='mangler-liste';pkVarer=[];pkRabatter=[];
@@ -15994,7 +16005,7 @@ function renderProduktkatalog(){
   if(pkVarer.length===0){
     el.innerHTML='<div class="pk-tom"><b>Ingen varer ennå.</b><br>Listene finnes, men ProduktSync har ikke skrevet noe. Står <code>PRODUKT_SYNC_DRY_RUN</code> fortsatt på (standard)? Se Jobbstatus for siste kjøring.</div>';return;
   }
-  if(pkVisning==='rabatter')renderPkRabatter();else renderPkVarer();
+  if(pkVisning==='rabatter')renderPkRabatter();else if(pkVisning==='grupper')renderPkGrupper();else renderPkVarer();
 }
 
 function renderPkVarer(){
@@ -16202,6 +16213,182 @@ function renderPkRabatter(){
   el.innerHTML=h;
 }
 function pkVekslRabatt(i){const r=pkRabattRaderVist[i];if(!r)return;const k=r.kode+'|'+r.serie;if(pkApneRabatter.has(k))pkApneRabatter.delete(k);else pkApneRabatter.add(k);renderPkRabatter();}
+
+// ===== ⚙️ PRODUKTKATALOG: GRUPPER OG REGLER (v1.48.251, 10.10.2026) =====
+// Steg 1 i tilbud og pakker (claude/tilbud-pakker-plan.md i prosjektet).
+// Produktgrupper (SharePoint «Produktgrupper», Liste 40) bærer reglene som
+// tilbudene skal følge: type, om manuell rabatt er lov (lisenser: nei, bare
+// prisklasseregler fra Visma), om gruppen teller i DG for «hardware samlet»
+// (hardware og etablering: ja), hvilken seksjon i tilbudet linjene havner i,
+// og rekkefølgen. Innstillingene (SharePoint «TilbudInnstillinger», Liste 41,
+// én rad per nøkkel) gjelder alle tilbud. Beslutninger Thomas 10.10.2026:
+// DG grønn ≥ 45 %, rød < 30 % (årsak påkrevd), leie 36 mnd med KBD-faktor
+// 3,3 % avrundet opp til …9, Ikano-faktor 3,1607 % (730 → 23 096,43),
+// gyldighet 30 dager, priser eks. mva. Brukes ennå ikke i salgsprosessen.
+const PK_GRUPPETYPER=['Hardware','Etablering','Lisens','Tjeneste','Annet'];
+const PK_SEKSJONER=['Hardware','Betalingsterminaler','Klargjøring og etablering','Lisens kassepunkt','Lisens betalingsterminal','Rekvisita','Annet'];
+const PK_STANDARD_INNST={DgMaal:45,DgMin:30,LeieFaktor:3.3,IkanoFaktor:3.1607,LeieMaaneder:36,GyldigDager:30};
+const PK_INNST_TEKST={
+  DgMaal:{navn:'Mål-DG (grønn fra og med)',enhet:'%'},
+  DgMin:{navn:'Minste DG (rød under, årsak påkrevd)',enhet:'%'},
+  LeieFaktor:{navn:'KBDs leiefaktor per måned',enhet:'%'},
+  IkanoFaktor:{navn:'Ikanos faktor per måned',enhet:'%'},
+  LeieMaaneder:{navn:'Leietid',enhet:'mnd'},
+  GyldigDager:{navn:'Tilbudet er gyldig i',enhet:'dager'}
+};
+let pkGrupper=[],pkGrupperFinnes=false,pkInnst={...PK_STANDARD_INNST},pkInnstRader={},pkInnstFinnes=false,pkApenGruppe=null;
+
+function pkErAdmin(){return userRole==='admin';}
+function pkStandardForType(type){return{manuellRabatt:type!=='Lisens',iHwDg:type==='Hardware'||type==='Etablering'};}
+function pkGruppeFor(navn){return pkGrupper.find(g=>g.navn.toLowerCase()===String(navn||'').toLowerCase())||null;}
+// Avrunding til «salgspris»: minste hele krone som slutter på 9 og er ≥ beløpet (354 → 359, 786 → 789, 729,92 → 739).
+function pkLeieAvrund(v){if(!(v>0))return 0;const n=Math.ceil(v-1e-9);return n+((9-n%10)+10)%10;}
+// Leie for en kjøpspris (hardware + etablering etter rabatt): månedspris i tilbudet og hos Ikano,
+// og det Ikano betaler KBD (anskaffelsessum = månedspris ÷ Ikanos faktor).
+function pkLeieFor(kjop){
+  const eksakt=kjop*pkInnst.LeieFaktor/100;
+  const mnd=pkLeieAvrund(eksakt);
+  const anskaffelse=pkInnst.IkanoFaktor>0?mnd/(pkInnst.IkanoFaktor/100):0;
+  return{eksakt,mnd,anskaffelse,tillegg:anskaffelse-kjop,kundenTotalt:mnd*pkInnst.LeieMaaneder};
+}
+function pkDgLys(dg){if(dg===null)return{farge:'#9ca3af',ikon:'⚪',tekst:'Mangler kostpris'};if(dg>=pkInnst.DgMaal)return{farge:'#15803d',ikon:'🟢',tekst:'Grønn'};if(dg>=pkInnst.DgMin)return{farge:'#b45309',ikon:'🟡',tekst:'Gul'};return{farge:'#dc2626',ikon:'🔴',tekst:'Rød – årsak påkrevd'};}
+
+function pkLesGrupper(items){
+  pkGrupper=items.map(i=>{const f=i.fields||{};return{spId:String(i.id),navn:String(f.Title||'').trim(),type:f.GruppeType||'',manuellRabatt:f.ManuellRabatt===true,iHwDg:f.TellerIHardwareDG===true,seksjon:f.Tilbudsseksjon||'',sortering:f.Sortering==null||f.Sortering===''?null:Number(f.Sortering)};}).filter(g=>g.navn);
+}
+function pkLesInnst(items){
+  pkInnst={...PK_STANDARD_INNST};pkInnstRader={};
+  items.forEach(i=>{const f=i.fields||{};const k=String(f.Title||'').trim();if(!k)return;pkInnstRader[k]=String(i.id);const v=parseFloat(String(f.Verdi??'').replace(',','.'));if(k in PK_STANDARD_INNST&&isFinite(v))pkInnst[k]=v;});
+}
+
+function renderPkGrupper(){
+  const el=document.getElementById('pk-innhold');if(!el)return;
+  const kan=pkKanRedigere(),admin=pkErAdmin();
+  const brukt=new Map();pkVarer.forEach(v=>{if(v.gruppe){const k=v.gruppe.toLowerCase();if(!brukt.has(k))brukt.set(k,{navn:v.gruppe,antall:0});brukt.get(k).antall++;}});
+  const rader=[];
+  pkGrupper.forEach(g=>rader.push({...g,oppsatt:true,antall:brukt.get(g.navn.toLowerCase())?.antall||0}));
+  brukt.forEach((b,k)=>{if(!pkGrupper.some(g=>g.navn.toLowerCase()===k))rader.push({navn:b.navn,antall:b.antall,oppsatt:false});});
+  rader.sort((a,b)=>(a.oppsatt-b.oppsatt)||((a.sortering??9999)-(b.sortering??9999))||a.navn.localeCompare(b.navn,'nb'));
+  const ikkeOppsatt=rader.filter(r=>!r.oppsatt).length;
+  const ja='<span class="pk-merke pk-merke-gronn">Ja</span>',nei='<span class="pk-merke pk-merke-gra">Nei</span>';
+  let h='';
+  if(!pkGrupperFinnes)h+=`<div class="pk-tom" style="margin-bottom:14px"><b>Lista «Produktgrupper» finnes ikke ennå.</b><br>Opprett den i SharePoint (Kunde360-oppsett-sjekkliste.md, Liste 40) for å lagre reglene.</div>`;
+  h+=`<div class="hint" style="margin:0 0 8px">Reglene brukes i tilbudene: lisenser kan ikke få manuell rabatt (bare prisklasserabatter fra Visma), og grupper som «teller i hardware-DG» måles samlet mot DG-grensene under. Navnet må være likt produktgruppen på varene.</div>`;
+  h+=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><div class="pk-teller" style="margin:0">${rader.length} produktgrupper${ikkeOppsatt?` · <b style="color:#b45309">${ikkeOppsatt} uten regler</b>`:''}</div>${kan&&pkGrupperFinnes?'<button class="btn-sm" onclick="pkApneGruppe(null)">＋ Ny produktgruppe</button>':''}</div>`;
+  h+=`<div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell"><thead><tr><th>Produktgruppe</th><th style="text-align:right">Varer</th><th>Type</th><th>Manuell rabatt</th><th>Teller i hardware-DG</th><th>Seksjon i tilbud</th><th style="text-align:right">Rekkefølge</th></tr></thead><tbody>`;
+  if(rader.length===0)h+='<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:24px">Ingen produktgrupper ennå. Gi varene en produktgruppe under «📋 Varer», eller legg til en her.</td></tr>';
+  rader.forEach((r,i)=>{
+    const klikk=kan&&pkGrupperFinnes?` class="rad-klikkbar" onclick="pkApneGruppe(${i})"`:'';
+    if(!r.oppsatt){h+=`<tr${klikk} style="background:#fffbeb"><td><b>${jsEscapeHtml(r.navn)}</b></td><td style="text-align:right">${r.antall}</td><td colspan="5"><span class="pk-merke pk-merke-gul">Ikke satt opp</span>${kan&&pkGrupperFinnes?' – klikk for å sette regler':''}</td></tr>`;return;}
+    h+=`<tr${klikk}><td><b>${jsEscapeHtml(r.navn)}</b></td><td style="text-align:right">${r.antall}</td><td>${jsEscapeHtml(r.type)||'–'}</td><td>${r.manuellRabatt?ja:nei}</td><td>${r.iHwDg?ja:nei}</td><td>${jsEscapeHtml(r.seksjon)||'–'}</td><td style="text-align:right">${r.sortering??'–'}</td></tr>`;
+  });
+  h+='</tbody></table></div>';
+  window._pkGruppeRader=rader;
+  // Innstillinger
+  h+=`<div style="font-weight:600;font-size:14px;margin:22px 0 8px">Innstillinger for tilbud</div>`;
+  if(!pkInnstFinnes)h+=`<div class="hint" style="margin:0 0 8px">Lista «TilbudInnstillinger» finnes ikke ennå (Liste 41). Verdiene under er standardverdiene.</div>`;
+  h+=`<div class="pk-innst">${Object.keys(PK_STANDARD_INNST).map(k=>`<div class="fgrp"><label>${PK_INNST_TEKST[k].navn}</label><div style="display:flex;align-items:center;gap:6px"><input type="number" step="any" id="pk-innst-${k}" value="${String(pkInnst[k])}" ${admin&&pkInnstFinnes?'':'disabled'} oninput="pkVisLeieEksempel()" style="max-width:140px"><span style="font-size:13px;color:#6b7280">${PK_INNST_TEKST[k].enhet}</span></div></div>`).join('')}</div>`;
+  h+=`<div id="pk-leie-eksempel" class="pk-eksempel"></div>`;
+  if(admin&&pkInnstFinnes)h+=`<div style="margin-top:10px"><button class="prim" id="pk-innst-lagre" onclick="pkLagreInnst()">Lagre innstillinger</button></div>`;
+  else if(!admin)h+=`<div class="hint" style="margin-top:8px">Bare admin kan endre innstillingene.</div>`;
+  el.innerHTML=h;
+  pkVisLeieEksempel();
+}
+
+function pkInnstFraSkjema(){
+  const ut={...pkInnst};
+  Object.keys(PK_STANDARD_INNST).forEach(k=>{const e=document.getElementById('pk-innst-'+k);if(e){const v=parseFloat(String(e.value).replace(',','.'));if(isFinite(v))ut[k]=v;}});
+  return ut;
+}
+function pkVisLeieEksempel(){
+  const el=document.getElementById('pk-leie-eksempel');if(!el)return;
+  const lagret=pkInnst;pkInnst=pkInnstFraSkjema();
+  try{
+    const kjop=22810,l=pkLeieFor(kjop);
+    const ugyldig=pkInnst.DgMin>pkInnst.DgMaal?'<div style="color:#dc2626;margin-top:6px">Minste DG kan ikke være høyere enn mål-DG.</div>':'';
+    el.innerHTML=`<b>Eksempel</b> (M10-pakken til listepris, kjøpspris ${pkKr(kjop)}):<br>
+      ${pkKr(kjop)} × ${String(pkInnst.LeieFaktor).replace('.',',')} % = ${pkKr(Math.round(l.eksakt*100)/100)} → <b>${pkKr(l.mnd)} per måned</b> i ${pkInnst.LeieMaaneder} måneder (kunden betaler Ikano ${pkKr(l.kundenTotalt)} i alt).<br>
+      Ikano betaler KBD ${pkKr(Math.round(l.anskaffelse*100)/100)} (${pkKr(l.mnd)} ÷ ${String(pkInnst.IkanoFaktor).replace('.',',')} %), altså <b>${l.tillegg>=0?'+':''}${pkKr(Math.round(l.tillegg*100)/100)}</b> mot kjøp.<br>
+      Trafikklys for hardware og etablering samlet: 🟢 fra ${String(pkInnst.DgMaal).replace('.',',')} % · 🟡 fra ${String(pkInnst.DgMin).replace('.',',')} % · 🔴 under ${String(pkInnst.DgMin).replace('.',',')} %.${ugyldig}`;
+  }finally{pkInnst=lagret;}
+}
+
+async function pkLagreInnst(){
+  if(!pkErAdmin()||!pkInnstFinnes)return;
+  const ny=pkInnstFraSkjema();
+  if(ny.DgMin>ny.DgMaal){alert('Minste DG kan ikke være høyere enn mål-DG.');return;}
+  const knapp=document.getElementById('pk-innst-lagre');if(knapp){knapp.disabled=true;knapp.textContent='Lagrer …';}
+  try{
+    for(const k of Object.keys(PK_STANDARD_INNST)){
+      if(ny[k]===pkInnst[k]&&pkInnstRader[k])continue;
+      const felt={Title:k,Verdi:String(ny[k])};
+      if(pkInnstRader[k])await spUpdate('TilbudInnstillinger',pkInnstRader[k],{Verdi:felt.Verdi});
+      else{const r=await spCreate('TilbudInnstillinger',felt);pkInnstRader[k]=String(r.id);}
+    }
+    pkInnst=ny;
+    if(typeof vfShowToast==='function')vfShowToast('✅ Innstillingene for tilbud er lagret');
+  }catch(e){console.error('TilbudInnstillinger: lagring feilet',e);alert('Lagring feilet: '+(e.message||e)+'\n\nSjekk at lista «TilbudInnstillinger» har kolonnen «Verdi» (Liste 41 i sjekklisten).');}
+  finally{renderPkGrupper();}
+}
+
+function pkApneGruppe(i){
+  if(!pkKanRedigere()||!pkGrupperFinnes)return;
+  const r=i===null?null:(window._pkGruppeRader||[])[i];
+  const g=r&&r.oppsatt?r:null;
+  pkApenGruppe={eksisterende:g,navn:r?r.navn:''};
+  const type=g?.type||(/lisens|abonnement|avtale/i.test(r?.navn||'')?'Lisens':'Hardware');
+  const std=pkStandardForType(type);
+  const verdi=(felt,stdv)=>g?g[felt]:stdv;
+  document.getElementById('pk-modal-innhold').innerHTML=`
+    <h3>${g?'⚙️ Regler for produktgruppe':'＋ Ny produktgruppe'}</h3>
+    <div class="fgrp" style="margin-bottom:10px"><label>Navn (må være likt produktgruppen på varene)</label><input type="text" id="pk-g-navn" value="${jsEscapeHtml(pkApenGruppe.navn)}" ${r?'disabled':''} placeholder="F.eks. Kassemaskin/hardware"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fgrp"><label>Type</label><select id="pk-g-type" onchange="pkGruppeTypeEndret()">${PK_GRUPPETYPER.map(t=>`<option${t===type?' selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="fgrp"><label>Rekkefølge i tilbud</label><input type="number" id="pk-g-sort" value="${g?.sortering??''}" placeholder="10, 20 …"></div>
+    </div>
+    <div class="fgrp" style="margin-bottom:10px"><label>Seksjon i tilbudet</label><input type="text" id="pk-g-seksjon" list="pk-seksjoner" value="${jsEscapeHtml(g?.seksjon||'')}" placeholder="F.eks. Hardware"><datalist id="pk-seksjoner">${PK_SEKSJONER.map(s=>`<option value="${s}">`).join('')}</datalist></div>
+    <label class="pk-chk" style="margin-bottom:8px"><input type="checkbox" id="pk-g-rabatt" ${verdi('manuellRabatt',std.manuellRabatt)?'checked':''}> Manuell rabatt tillatt</label><br>
+    <label class="pk-chk" style="margin-bottom:6px"><input type="checkbox" id="pk-g-hwdg" ${verdi('iHwDg',std.iHwDg)?'checked':''}> Teller i DG for hardware og etablering samlet</label>
+    <div class="hint" style="margin:8px 0 0">Lisenser: ingen manuell rabatt, bare prisklasserabattene fra Visma (Thomas 10.10.2026). Hardware og etablering telles samlet og kan få rabatt.</div>
+    <div class="modal-footer">
+      ${g&&!(r.antall>0)?'<button class="btn-sm" style="margin-right:auto;color:#dc2626" onclick="pkSlettGruppe()">Slett</button>':''}
+      <button class="btn-sm" onclick="pkLukkVare()">Avbryt</button>
+      <button class="prim" id="pk-g-lagre" onclick="pkLagreGruppe()">Lagre</button>
+    </div>`;
+  document.getElementById('pk-modal').classList.add('open');
+}
+function pkGruppeTypeEndret(){
+  const t=document.getElementById('pk-g-type').value,std=pkStandardForType(t);
+  document.getElementById('pk-g-rabatt').checked=std.manuellRabatt;
+  document.getElementById('pk-g-hwdg').checked=std.iHwDg;
+}
+async function pkLagreGruppe(){
+  const a=pkApenGruppe;if(!a)return;
+  const navn=(a.navn||document.getElementById('pk-g-navn').value).trim();
+  if(!navn){alert('Gi produktgruppen et navn.');return;}
+  if(!a.eksisterende&&!a.navn&&pkGruppeFor(navn)){alert('Det finnes allerede en produktgruppe med dette navnet.');return;}
+  const sortTekst=document.getElementById('pk-g-sort').value.trim();
+  const felt={GruppeType:document.getElementById('pk-g-type').value,ManuellRabatt:document.getElementById('pk-g-rabatt').checked,
+    TellerIHardwareDG:document.getElementById('pk-g-hwdg').checked,Tilbudsseksjon:document.getElementById('pk-g-seksjon').value.trim(),
+    Sortering:sortTekst===''?null:Number(sortTekst)};
+  const knapp=document.getElementById('pk-g-lagre');if(knapp){knapp.disabled=true;knapp.textContent='Lagrer …';}
+  try{
+    if(a.eksisterende){await spUpdate('Produktgrupper',a.eksisterende.spId,felt);Object.assign(a.eksisterende,{type:felt.GruppeType,manuellRabatt:felt.ManuellRabatt,iHwDg:felt.TellerIHardwareDG,seksjon:felt.Tilbudsseksjon,sortering:felt.Sortering});
+      const g=pkGrupper.find(x=>x.spId===a.eksisterende.spId);if(g)Object.assign(g,{type:felt.GruppeType,manuellRabatt:felt.ManuellRabatt,iHwDg:felt.TellerIHardwareDG,seksjon:felt.Tilbudsseksjon,sortering:felt.Sortering});}
+    else{const r=await spCreate('Produktgrupper',{Title:navn,...felt});pkGrupper.push({spId:String(r.id),navn,type:felt.GruppeType,manuellRabatt:felt.ManuellRabatt,iHwDg:felt.TellerIHardwareDG,seksjon:felt.Tilbudsseksjon,sortering:felt.Sortering});}
+    pkLukkVare();renderPkGrupper();
+  }catch(e){
+    console.error('Produktgrupper: lagring feilet',e);
+    if(knapp){knapp.disabled=false;knapp.textContent='Lagre';}
+    alert('Lagring feilet: '+(e.message||e)+'\n\nSjekk kolonnene i lista «Produktgrupper» (Liste 40 i sjekklisten).');
+  }
+}
+async function pkSlettGruppe(){
+  const g=pkApenGruppe?.eksisterende;if(!g)return;
+  if(!confirm(`Slette reglene for «${g.navn}»? Ingen varer bruker gruppen.`))return;
+  try{await spDelete('Produktgrupper',g.spId);pkGrupper=pkGrupper.filter(x=>x.spId!==g.spId);pkLukkVare();renderPkGrupper();}
+  catch(e){alert('Sletting feilet: '+(e.message||e));}
+}
 
 function showTab(name,btn){
   document.querySelectorAll('.tp').forEach(t=>{t.classList.remove('active');t.style.display='none';});
