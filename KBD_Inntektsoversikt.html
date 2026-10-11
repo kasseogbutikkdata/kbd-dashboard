@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.271 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.272 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11695,6 +11695,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.272',dato:'11.10.2026',punkter:[
+    'PDF-en som legges ved e-posten: hver side tegnes for seg, så prisboksen og tekstene ikke lenger deles mellom to sider, og det blir ikke en nesten tom side 3. Er en side litt for lang, krympes den så den får plass. Er den mye lengre, deles den mellom to punkter eller tabellrader.',
+    'KBD-signaturen i e-posten: «Vennlig hilsen/Best regards», navn, tittel, adresse, sentralbord, mobil, e-post og nettside, med KBD-logo og Miljøfyrtårn som innebygde bilder. Tittel og mobil hentes fra Microsoft 365-profilen, kan endres i vinduet og huskes. Signaturen kan slås av.'
+  ]},
   {versjon:'v1.48.271',dato:'11.10.2026',punkter:[
     'Popup-vinduer forsvinner ikke lenger når du markerer eller sletter tekst i et felt og slipper museknappen utenfor vinduet. Vinduet lukkes bare når du både trykker og slipper på den mørke bakgrunnen. Gjelder alle popup-vinduer i dashbordet.'
   ]},
@@ -17796,12 +17800,43 @@ const PT_EPOST_TEKST=`Hei {kontakt_fornavn},
 
 Som avtalt sender jeg deg tilbudet vårt på {pakkenavn}. Du finner det som PDF i vedlegget.
 
-Tilbudet gjelder til og med {gyldig_til}. Si gjerne fra om noe er uklart, eller om du vil at vi justerer noe.
-
-Med vennlig hilsen
-{selger}
-Kasse og Butikkdata AS
-{selger_telefon}{selger_epost_linje}`;
+Tilbudet gjelder til og med {gyldig_til}. Si gjerne fra om noe er uklart, eller om du vil at vi justerer noe.`;
+// KBD-signaturen (v1.48.272, Thomas 11.10.2026: «Dette er KBD signatur»). Logo og Miljøfyrtårn legges ved som
+// innebygde bilder (cid), så de vises uten at mottakeren må laste ned bilder. Tittel og mobil hentes fra
+// Microsoft 365-profilen (Graph /me) første gang, kan endres i vinduet og huskes i denne nettleseren.
+const PT_FIRMA={adresse:'Ravnsborgveien 52, N-1395 HVALSTAD',tlf:'+47 66 77 80 30',web:'www.kbd.as'};
+const PT_SIG_LOGO='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';
+const PT_SIG_MILJO='iVBORw0KGgoAAAANSUhEUgAAARAAAABiCAMAAACvSXxZAAAAwFBMVEVhdpsZWJITJ1IipNolryIBEjmQobfJ39cLWzhGVniq3ueWpshqgptiylpty+ZVq9Sd5pcTTFcuxCcioUgCO4AcsKpKxDvA+blCuzdNuEZO3qAkyXY71o09ydWC5Xr8/v4Bq+vT8/0BKGjP6/gbxgEDGEwMJlQTo9pMueIwR3FwiKtQZ42ux9lGsdfM2eyquM/k6vU4U3iRqMd5lrKR1Oy41uhFWocmOWcUNWqtyOOn5fYJsO6Zts8jxg2Hl7QRmNWIGdkCAAAAQHRSTlP/////////////////////////////////////////////////////////////////////////////////////73leyQAAD9VJREFUeNrtnAuborjSxwM22F62e3vm7HvOe94LQnXiBGgQWG7TqN//W52qgIoXvPRoz8zzmN1RhMQmP6r+VQlBZt3LVmF3BHcgdyB3IHcgdyB3IHcgdyC/KhDbxv/tW/9duy6/OhD776dvn1Pe3t7U29PwJwOYmaY56wJiP/emk08qzR+a9v7+nI77Zv/gfnMxXoQdQOzn5eTTyxaRGZbdDwFbAL72Azp7Fu53KYi3r/HhfguuLw4ayMgLu4D83Zv8hDJ9WyuJqUt9EKz6OcBPoTUbGNzFV54HlmkY+d51NnVuiP4JHoHwyiwPDlpI2GkhT1fwl/fLm/TS1Qm4HIvZ/hBbIHXOCIseWAuDi10T8XMuhAw6OIRhbTt9vrCY3r9QQ75dgccHgEzXPrMQjqPL+vRAcscRMV7CfIB2kpGFBF7Odp3D5NwLOnhYY6MBOPP0THSkGLPOKPNt8lPKNhBHjBqn1x2H0zbgGYMCgpd8qxf04uoi7I6hBm8OwnjQNoTZ7Jyw++0aDvAjQEwuCod7atvjTqEsxF8sgsZCZmbt7hC6jC367iAITI07bDEKF6Y6Mhu5i2C0WIA/ZmawyITDTPLBYOQyNwTaWrg+xIz1ZybuULt/ZQvhnuSFj5thzjVNEBBmoM00LqMbA7y0vid0Qxe5kH1UFbQjIx+J2tV8rBHgVzDdMLLmIIpPf8B1/C9DEQmFHnncMBZ93chwQ+eO+UlA3msDOykrLSCcuy5Xvs44H3kNEEcBKQiIns2svuRcepnDUWxD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';
+function ptSigLes(){try{return JSON.parse(localStorage.getItem('pt-sig')||'null');}catch(e){return null;}}
+function ptSigLagre(o){try{localStorage.setItem('pt-sig',JSON.stringify(o));}catch(e){}}
+function ptTlfVis(t){
+  const d=String(t||'').replace(/[^\d+]/g,'');if(!d)return'';
+  const n=d.replace(/^\+?47/,'');
+  if(/^\d{8}$/.test(n))return`+47 ${n.slice(0,2)} ${n.slice(2,4)} ${n.slice(4,6)} ${n.slice(6)}`;
+  return String(t).trim();
+}
+async function ptSigFraProfil(){
+  try{
+    const tok=await getToken();
+    const r=await fetch('https://graph.microsoft.com/v1.0/me?$select=jobTitle,mobilePhone,businessPhones',{headers:{Authorization:`Bearer ${tok}`}});
+    if(!r.ok)return null;const j=await r.json();
+    return{tittel:j.jobTitle||'',mobil:j.mobilePhone||(j.businessPhones||[])[0]||''};
+  }catch(e){return null;}
+}
+function ptSignaturHtml(o,forhand){
+  const e=jsEscapeHtml,logo=forhand?`data:image/png;base64,${PT_SIG_LOGO}`:'cid:kbd-logo',miljo=forhand?`data:image/png;base64,${PT_SIG_MILJO}`:'cid:kbd-miljofyrtarn';
+  const epost=String(o.epost||'').toLowerCase(),mob=ptTlfVis(o.mobil);
+  return`<div style="font-family:Arial,Helvetica,sans-serif;font-size:10pt;color:#222;line-height:1.4;margin-top:14px">
+<div>Vennlig hilsen/Best regards</div>
+<div style="margin-top:6px"><b>${e(o.navn||'')}</b></div>${o.tittel?`<div>${e(o.tittel)}</div>`:''}
+<div style="margin-top:8px">${e(PT_FIRMA.adresse)}</div>
+<div>Tlf. ${e(PT_FIRMA.tlf)}</div>${mob?`<div>Mob: ${e(mob)}</div>`:''}
+${epost?`<div>E-mail: <a href="mailto:${e(epost)}" style="color:#1a56db">${e(epost)}</a></div>`:''}
+<div>Web: <a href="https://${PT_FIRMA.web}" style="color:#1a56db">${PT_FIRMA.web}</a></div>
+<div style="margin-top:10px"><img src="${logo}" width="115" height="60" alt="KBD – Kasse og Butikkdata AS" style="vertical-align:middle">&nbsp;&nbsp;&nbsp;<img src="${miljo}" width="122" height="44" alt="Miljøfyrtårn – sertifisert virksomhet" style="vertical-align:middle"></div>
+</div>`;
+}
+function ptTekstTilHtml(t){return String(t||'').split(/\n{2,}/).map(a=>`<p style="margin:0 0 12px">${jsEscapeHtml(a).replace(/\n/g,'<br>')}</p>`).join('');}
 let ptH2pLaster=null,ptSend=null,ptSistLagretSpId=null;
 function ptLastHtml2pdf(){
   if(window.html2pdf)return Promise.resolve();
@@ -17831,13 +17866,33 @@ async function ptBildeDataUrl(src){
 }
 function ptFilnavn(tittel){return String(tittel||'Tilbud').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,120)||'Tilbud';}
 // Lager PDF-en som fil. Gir {blob, filnavn, manglerBilder}.
+// v1.48.272: hver logiske side (delt ved «sideskift») tegnes for seg og legges på egne A4-sider. Før ble hele
+// tilbudet tegnet som ett høyt bilde og kuttet hver 297 mm, så prisboksen og tekster ble delt midt i (Thomas'
+// PDF v5 11.10.2026). Er en side litt for høy (inntil 30 %), skaleres den ned så den får plass. Er den mye
+// høyere, deles den der en blokk, tabellrad eller punkt slutter, aldri midt i.
+const PT_PDF={b:210,h:297,topp:10,bunn:16,skala:2};
+async function ptTegnDel(el){
+  const c=await html2pdf().set({margin:0,jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},html2canvas:{scale:PT_PDF.skala,useCORS:true,backgroundColor:'#ffffff',logging:false,scrollX:0,scrollY:0}}).from(el).toCanvas().get('canvas');
+  return c;
+}
+function ptBruddpunkter(el){
+  const topp=el.getBoundingClientRect().top,sett=new Set();
+  el.querySelectorAll('.ptm > *, .ptm tr, .ptm li, .ptm .kort, .ptm .gruppe, .ptm p, .ptm h2').forEach(x=>{const r=x.getBoundingClientRect();if(r.height>0)sett.add(Math.round(r.bottom-topp));});
+  return[...sett].sort((a,b)=>a-b);
+}
 async function ptLagPdf(html,tittel){
   if(!html)throw new Error('Fant ikke tilbudet.');
   await ptLastHtml2pdf();
+  let JsPDF=window.jspdf?.jsPDF;
+  if(!JsPDF){try{await new Promise((ok,feil)=>{const e=document.createElement('script');e.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';e.onload=ok;e.onerror=feil;document.head.appendChild(e);});JsPDF=window.jspdf?.jsPDF;}catch(e){}}
+  if(!JsPDF)throw new Error('PDF-verktøyet (jsPDF) er ikke lastet. Last siden på nytt.');
   const navn=ptFilnavn(tittel);
+  // Del opp ved sideskift: hver del får samme stil og .ptm-ramme.
+  const start=html.indexOf('<div class="ptm">'),prefiks=start>=0?html.slice(0,start+'<div class="ptm">'.length):'<div class="ptm">';
+  const deler=html.split('<div class="sideskift"></div>').map((d,i,a)=>(i?prefiks+d:d)+(i<a.length-1?'</div>':''));
   const boks=document.createElement('div');
   boks.style.cssText='position:fixed;left:-12000px;top:0;width:794px;background:#fff';
-  boks.innerHTML=`<div style="padding:0 57px;background:#fff"><style>.ptm .skille{display:none!important}</style>${html}</div>`;
+  boks.innerHTML=deler.map(d=>`<div class="pt-pdfdel" style="padding:0 57px;background:#fff;width:794px;box-sizing:border-box"><style>.ptm .skille{display:none!important}.ptm{max-width:none!important}</style>${d}</div>`).join('');
   document.body.appendChild(boks);
   let manglerBilder=0;
   try{
@@ -17850,11 +17905,29 @@ async function ptLagPdf(html,tittel){
       else(i.closest('figure')||i).remove();
     }));
     await Promise.all([...boks.querySelectorAll('img')].map(i=>i.complete?null:new Promise(r=>{i.onload=i.onerror=r;})));
-    const opt={margin:[10,0,14,0],filename:navn+'.pdf',image:{type:'jpeg',quality:0.9},
-      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css'],before:'.sideskift',avoid:['tr','figure','li','.kort','.pris','.gruppe']}};
-    const pdf=await html2pdf().set(opt).from(boks.firstElementChild).toPdf().get('pdf');
+    const pdf=new JsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+    const nyttHoyde=PT_PDF.h-PT_PDF.topp-PT_PDF.bunn,mmPerPx=PT_PDF.b/794;
+    let forste=true;
+    for(const del of boks.querySelectorAll('.pt-pdfdel')){
+      const cssH=del.offsetHeight,sideCss=nyttHoyde/mmPerPx;
+      const canvas=await ptTegnDel(del),k=canvas.height/cssH;
+      const leggTil=(c,bMm,hMm)=>{if(!forste)pdf.addPage();forste=false;pdf.addImage(c.toDataURL('image/jpeg',0.9),'JPEG',(PT_PDF.b-bMm)/2,PT_PDF.topp,bMm,hMm);};
+      if(cssH<=sideCss*1.3){
+        const skala=Math.min(1,sideCss/cssH);
+        leggTil(canvas,PT_PDF.b*skala,cssH*mmPerPx*skala);
+        continue;
+      }
+      // Lang del: kutt ved bruddpunkter.
+      const brudd=ptBruddpunkter(del);let fra=0;
+      while(fra<cssH-2){
+        let til=Math.min(cssH,fra+sideCss);
+        if(til<cssH){const kand=brudd.filter(b=>b>fra+sideCss*0.5&&b<=til);if(kand.length)til=kand[kand.length-1];}
+        const c=document.createElement('canvas');c.width=canvas.width;c.height=Math.max(1,Math.round((til-fra)*k));
+        const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(canvas,0,Math.round(fra*k),canvas.width,c.height,0,0,c.width,c.height);
+        leggTil(c,PT_PDF.b,(til-fra)*mmPerPx);
+        fra=til;
+      }
+    }
     const n=pdf.internal.getNumberOfPages();
     for(let i=1;i<=n;i++){
       pdf.setPage(i);pdf.setFontSize(8);pdf.setTextColor(156,163,175);pdf.setDrawColor(230,232,238);pdf.setLineWidth(0.2);
@@ -17889,8 +17962,11 @@ function ptApneSend(versjonSpId){
   f.kontakt_fornavn=(kontaktNavn.trim().split(/\s+/)[0])||'';
   if(!f.kontakt_fornavn)f.kontakt_fornavn='';
   f.selger_epost_linje=f.selger_epost?(f.selger_telefon?' · ':'')+f.selger_epost:'';
-  ptSend={v,til:kontakt?.epost||'',emne:ptFlettTekst(PT_EPOST_EMNE,f),tekst:ptFlettTekst(PT_EPOST_TEKST,f).replace('Hei ,','Hei,'),valg,pdf:null,utkast:null,status:''};
+  const lagret=ptSigLes();
+  ptSend={v,til:kontakt?.epost||'',emne:ptFlettTekst(PT_EPOST_EMNE,f),tekst:ptFlettTekst(PT_EPOST_TEKST,f).replace('Hei ,','Hei,'),valg,pdf:null,utkast:null,status:'',
+    sig:{med:lagret?.med!==false,navn:currentUser?.name||d.selger||'',tittel:lagret?.tittel||'',mobil:lagret?.mobil||d.selgerTlf||'',epost:currentUser?.username||d.selgerEpost||''}};
   ptRenderSend();
+  if(!lagret){ptSigFraProfil().then(p=>{if(!p||!ptSend||ptSend.v!==v)return;if(p.tittel)ptSend.sig.tittel=p.tittel;if(p.mobil&&!ptSend.sig.mobil)ptSend.sig.mobil=p.mobil;if(!ptSend.status&&!ptSend.utkast)ptRenderSend();});}
   document.getElementById('pk-modal').classList.add('open');
 }
 function ptRenderSend(){
@@ -17912,7 +17988,14 @@ function ptRenderSend(){
     <div class="hint" style="margin:-4px 0 10px">${jsEscapeHtml(v.kundeNavn)} – ${jsEscapeHtml(v.data.navn)} v${v.versjon}. PDF-en lages og legges ved, og e-posten legges som utkast i <b>din</b> Outlook. Den sendes ikke før du trykker Send der.</div>
     <div class="fgrp"><label>Til</label><input type="email" id="pt-send-til" value="${jsEscapeHtml(s.til)}" oninput="ptSend.til=this.value.trim()" placeholder="kunde@firma.no">${chips}</div>
     <div class="fgrp"><label>Emne</label><input type="text" value="${jsEscapeHtml(s.emne)}" oninput="ptSend.emne=this.value"></div>
-    <div class="fgrp"><label>Tekst</label><textarea rows="11" oninput="ptSend.tekst=this.value" style="width:100%;font:inherit;line-height:1.45">${jsEscapeHtml(s.tekst)}</textarea></div>
+    <div class="fgrp"><label>Tekst</label><textarea rows="8" oninput="ptSend.tekst=this.value" style="width:100%;font:inherit;line-height:1.45">${jsEscapeHtml(s.tekst)}</textarea></div>
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin:4px 0 8px;background:#fafbfc">
+      <label class="pk-chk" style="font-weight:600"><input type="checkbox" ${s.sig.med?'checked':''} onchange="ptSend.sig.med=this.checked;ptSigOppdater();ptRenderSend()"> KBD-signatur</label>
+      ${s.sig.med?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <div class="fgrp" style="margin:0"><label>Tittel</label><input type="text" value="${jsEscapeHtml(s.sig.tittel)}" oninput="ptSend.sig.tittel=this.value;ptSigOppdater()" placeholder="F.eks. Salgskonsulent"></div>
+        <div class="fgrp" style="margin:0"><label>Mobil</label><input type="text" value="${jsEscapeHtml(s.sig.mobil)}" oninput="ptSend.sig.mobil=this.value;ptSigOppdater()" placeholder="F.eks. 91550122"></div></div>
+        <div id="pt-sig-forhand" style="margin-top:4px;transform-origin:0 0">${ptSignaturHtml(s.sig,true)}</div>`:''}
+    </div>
     <div style="font-size:13px;color:#374151">📎 ${jsEscapeHtml(ptFilnavn(tittel))}.pdf</div>
     ${s.status?`<div id="pt-send-status" style="margin-top:8px;font-size:13px;color:#1d4ed8">${jsEscapeHtml(s.status)}</div>`:''}
     <div class="modal-footer">
@@ -17920,6 +18003,10 @@ function ptRenderSend(){
       <button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare();ptSend=null" ${s.status?'disabled':''}>Senere</button>
       <button class="prim" onclick="ptLagUtkast()" ${s.status?'disabled':''}>✉️ Lag e-post i Outlook</button>
     </div>`;
+}
+function ptSigOppdater(){
+  const s=ptSend;if(!s)return;ptSigLagre({med:s.sig.med,tittel:s.sig.tittel,mobil:s.sig.mobil});
+  const el=document.getElementById('pt-sig-forhand');if(el)el.innerHTML=ptSignaturHtml(s.sig,true);
 }
 async function ptSikrePdf(){
   const s=ptSend;if(s.pdf)return s.pdf;
@@ -17958,13 +18045,16 @@ async function ptLagUtkast(){
     try{token=await ptMailToken();}
     catch(e){console.error('Mail.ReadWrite-token',e);throw new Error(/consent|AADSTS65001|AADSTS90094/i.test(String(e?.message||e))?'Dashbordet har ikke fått lov til å lage e-postutkast ennå. En administrator må godkjenne tillatelsen «Mail.ReadWrite» for appen (se statusfilen).':'Innloggingen til Outlook ble avbrutt: '+(e.message||e));}
     s.status='Legger utkastet i Outlook …';ptRenderSend();
-    const melding={subject:s.emne.trim(),body:{contentType:'Text',content:s.tekst},toRecipients:[{emailAddress:{address:til}}]};
+    const html=`<div style="font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;color:#111">${ptTekstTilHtml(s.tekst)}</div>${s.sig.med?ptSignaturHtml(s.sig,false):''}`;
+    const innebygd=s.sig.med?[{'@odata.type':'#microsoft.graph.fileAttachment',name:'kbd-logo.png',contentType:'image/png',contentBytes:PT_SIG_LOGO,isInline:true,contentId:'kbd-logo'},
+      {'@odata.type':'#microsoft.graph.fileAttachment',name:'miljofyrtarn.png',contentType:'image/png',contentBytes:PT_SIG_MILJO,isInline:true,contentId:'kbd-miljofyrtarn'}]:[];
+    const melding={subject:s.emne.trim(),body:{contentType:'HTML',content:html},toRecipients:[{emailAddress:{address:til}}]};
     const base64=(await ptTilDataUrl(p.blob)).split(',')[1];
     let msg;
     if(p.blob.size<=PT_MAKS_VEDLEGG){
-      msg=await ptGraph(token,'POST','/me/messages',{...melding,attachments:[{'@odata.type':'#microsoft.graph.fileAttachment',name:p.filnavn,contentType:'application/pdf',contentBytes:base64}]});
+      msg=await ptGraph(token,'POST','/me/messages',{...melding,attachments:[...innebygd,{'@odata.type':'#microsoft.graph.fileAttachment',name:p.filnavn,contentType:'application/pdf',contentBytes:base64}]});
     }else{
-      msg=await ptGraph(token,'POST','/me/messages',melding);
+      msg=await ptGraph(token,'POST','/me/messages',{...melding,attachments:innebygd});
       const sesjon=await ptGraph(token,'POST',`/me/messages/${msg.id}/attachments/createUploadSession`,{AttachmentItem:{attachmentType:'file',name:p.filnavn,size:p.blob.size,contentType:'application/pdf'}});
       const bit=3*1024*1024;
       for(let start=0;start<p.blob.size;start+=bit){
