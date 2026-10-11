@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.270 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.271 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11695,6 +11695,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.271',dato:'11.10.2026',punkter:[
+    'Popup-vinduer forsvinner ikke lenger når du markerer eller sletter tekst i et felt og slipper museknappen utenfor vinduet. Vinduet lukkes bare når du både trykker og slipper på den mørke bakgrunnen. Gjelder alle popup-vinduer i dashbordet.'
+  ]},
   {versjon:'v1.48.270',dato:'11.10.2026',punkter:[
     'Send tilbudet: etter «Lagre tilbud» åpnes «✉️ Send tilbudet» med mottaker (kontaktpersonene til kunden), emne og en kort følgetekst. «✉️ Lag e-post i Outlook» lager PDF-en som fil og legger e-posten med PDF-en vedlagt som utkast i din egen Outlook. Den sendes ikke før du trykker Send der.',
     '«📄 Last ned PDF» i samme vindu laster ned akkurat den PDF-en som legges ved. «✅ Jeg har sendt den» fører sendingen i saksloggen. «✉️ Send tilbudet» finnes også når du åpner et lagret tilbud.',
@@ -17997,6 +18000,21 @@ async function ptMarkerSendt(){
   vfShowToast?.('✅ Sendingen er ført i saksloggen');
 }
 
+// ===== Popup-vinduer lukkes ikke ved et uhell (v1.48.271, Thomas 11.10.2026) =====
+// Vinduene lukkes når man klikker på den mørke bakgrunnen (onclick="if(event.target===this)…").
+// Markerer man tekst i et felt og slipper museknappen utenfor vinduet, tolker nettleseren det som
+// et klikk på bakgrunnen, og vinduet forsvant med alt som var skrevet. Nå lukkes vinduet bare når
+// BÅDE trykket og slippet skjer på bakgrunnen. Gjelder alle popup-vinduer i dashbordet.
+(function(){
+  let nedPa=null;
+  const erBakgrunn=el=>!!(el&&el.classList&&(el.classList.contains('modal-overlay')||/(^|[\s-])overlay(\s|$)/.test(el.className||'')));
+  document.addEventListener('pointerdown',e=>{nedPa=e.target;},true);
+  document.addEventListener('mousedown',e=>{nedPa=e.target;},true);
+  document.addEventListener('click',e=>{
+    if(erBakgrunn(e.target)&&nedPa!==e.target){e.stopPropagation();e.preventDefault();}
+    nedPa=null;
+  },true);
+})();
 function showTab(name,btn){
   document.querySelectorAll('.tp').forEach(t=>{t.classList.remove('active');t.style.display='none';});
   const tp=document.getElementById('tp-'+name);
