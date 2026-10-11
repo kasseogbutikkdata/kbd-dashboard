@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.276 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.277 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -826,6 +826,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            for seg selv, som en egen forside til videre utvikling senere. -->
       <div class="nav-sub" id="kunder360-sub-nav">
         <div class="nav-sub-item active" id="ksub360-kunder" onclick="showTab('kundesaker',document.getElementById('tab-kunder'))">🗂️ Kundesaker</div>
+        <div class="nav-sub-item" id="ksub360-tilbud" onclick="showTab('tilbud',document.getElementById('tab-kunder'))">🧾 Tilbud</div>
         <div class="nav-sub-item" id="ksub360-nyetableringer" onclick="visNyeUndermeny('oversikt')">🏢 Nyetableringer</div>
         <!-- Tredje menynivå, lagt til 07.09.2026 (Thomas' ønske). Alt trafikk
              til «nyetableringer»-fanen går nå via visNyeUndermeny(), som
@@ -859,9 +860,6 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            via nattjobben ProduktSync (kbd-kunde360-func). Ikke i MODULER —
            synlig for alle; redigering av KBD-feltene krever admin/redaktør.
            Grunnlaget for tilbud, pakker og senere onboarding. -->
-      <div class="nav-item" id="tab-produktkatalog" onclick="showTab('produktkatalog',this)">
-        <span class="nav-item-icon">📦</span>Produktkatalog
-      </div>
       <div class="nav-item" id="tab-smsutsendelse" onclick="showTab('smsutsendelse',this);toggleSmsUtsendelseSub(true)">
         <span class="nav-item-icon">📱</span>SMS utsendelse
       </div>
@@ -966,6 +964,11 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
            renderJobbstatus() og jobbstatus.py (kbd-verifone-func). -->
       <div class="nav-item" id="tab-jobbstatus" onclick="showTab('jobbstatus',this)">
         <span class="nav-item-icon">🚦</span>Jobbstatus
+      </div>
+      <!-- v1.48.277 (Thomas 11.10.2026): Produktkatalog flyttet hit fra Drift — oppsett, ikke daglig bruk.
+           Tilbudslista har fått eget menypunkt «🧾 Tilbud» under Kunde360. -->
+      <div class="nav-item" id="tab-produktkatalog" onclick="showTab('produktkatalog',this)">
+        <span class="nav-item-icon">📦</span>Produktkatalog
       </div>
       <div class="nav-item" id="tab-innstillinger" onclick="showTab('innstillinger',this);toggleInnstillingerSub(true)">
         <span class="nav-item-icon">⚙️</span>Innstillinger
@@ -1171,6 +1174,16 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
   </div>
 
   <!-- KONKURSER -->
+  <!-- 🧾 Tilbud (v1.48.277): tilbudslista med kladder, egen side under Kunde360. -->
+  <div id="tp-tilbud" class="tp">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <div><div style="font-size:18px;font-weight:700">🧾 Tilbud</div><div style="font-size:13px;color:#6b7280">Alle lagrede tilbud og kladder. Nye tilbud lages helst fra salgssaken med «🧾 Lag tilbud».</div></div>
+        <button class="btn-sm" onclick="pkLastData(true)">🔄 Oppdater</button>
+      </div>
+      <div id="pt-innhold"></div>
+    </div>
+  </div>
   <div id="tp-konkurser" class="tp">
     <!-- card-public lagt til 03.09.2026: samme bug som over — ren visning
          (kun tittel+hint, ingen skjema), skal derfor være synlig for alle. -->
@@ -3139,7 +3152,6 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <div class="pk-faner">
         <button class="pk-fane aktiv" data-v="varer" onclick="pkByttVisning('varer')">📋 Varer</button>
         <button class="pk-fane" data-v="rabatter" onclick="pkByttVisning('rabatter')">🏷️ Rabatter</button>
-        <button class="pk-fane" data-v="tilbud" onclick="pkByttVisning('tilbud')">🧾 Tilbud</button>
         <button class="pk-fane" data-v="pakker" onclick="pkByttVisning('pakker')">📦 Pakker</button>
         <button class="pk-fane" data-v="tekster" onclick="pkByttVisning('tekster')">📝 Standardtekster</button>
         <button class="pk-fane" data-v="grupper" onclick="pkByttVisning('grupper')">⚙️ Grupper og regler</button>
@@ -7041,7 +7053,7 @@ function setKunder360SubActive(view){
   // hovedpunktet) har bevisst INGEN tilsvarende underpunkt lenger — se
   // kommentaren ved kunder360-sub-nav i HTML-en. Ingen av underpunktene
   // markeres da aktive, siden ingen av dem faktisk viser innholdet man ser.
-  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':view==='konkurser'?'ksub360-konkurser':null;
+  const id=view==='nyetableringer'?'ksub360-nyetableringer':view==='kundesaker'?'ksub360-kunder':view==='konkurser'?'ksub360-konkurser':view==='tilbud'?'ksub360-tilbud':null;
   if(id){const el=document.getElementById(id);if(el)el.classList.add('active');}
   // v1.48.153: tredje menynivå under Nyetableringer (Oversikt/Forhandler-
   // områder) vises KUN når Nyetableringer faktisk er åpen, og markeringen
@@ -11793,6 +11805,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.277',dato:'11.10.2026',punkter:[
+    'Menyen: «🧾 Tilbud» har eget menypunkt under Kunde360, rett under Kundesaker, med alle lagrede tilbud og kladder. Det er ikke lenger en fane i Produktkatalog.',
+    'Produktkatalog er flyttet ned til Admin, mellom Jobbstatus og Innstillinger, siden varer, rabatter, pakker, standardtekster og grupper er oppsett og ikke daglig bruk.'
+  ]},
   {versjon:'v1.48.276',dato:'11.10.2026',punkter:[
     'Bursdager og jubileer i helgen vises også på mandag, merket «(lørdag)» eller «(i går, søndag)», så de ikke går tapt når ingen er på jobb. På lørdag og søndag vises de som før på selve dagen.'
   ]},
@@ -16287,6 +16303,8 @@ function pkSettFilter(felt,verdi){pkFilter[felt]=verdi;pkVisAntall=200;renderPkV
 function pkByttVisning(v){pkVisning=v;renderProduktkatalog();}
 
 function renderProduktkatalog(){
+  if(typeof ptSideAktiv==='function'&&ptSideAktiv())renderTilbudSide(); // v1.48.277
+  if(pkVisning==='tilbud')pkVisning='varer';
   const el=document.getElementById('pk-innhold');if(!el)return;
   if(!pkLastet&&!pkLaster&&!pkFeil){pkLastData();return;}
   document.querySelectorAll('#tp-produktkatalog .pk-fane').forEach(b=>b.classList.toggle('aktiv',b.dataset.v===pkVisning));
@@ -17475,8 +17493,16 @@ function ptFlett(a,datoIso,gyldigIso){
 }
 
 // ---------- Oversikt ----------
+// v1.48.277: tilbudslista har egen side «🧾 Tilbud» under Kunde360 (tp-tilbud), og er ikke lenger en fane i Produktkatalog.
+function ptSideAktiv(){return!!document.getElementById('tp-tilbud')?.classList.contains('active');}
+function renderTilbudSide(){
+  const el=document.getElementById('pt-innhold');if(!el)return;
+  if(!pkLastet){el.innerHTML='<div class="pk-tom">Laster tilbud …</div>';if(!pkLaster&&!pkFeil)pkLastData();return;}
+  if(pkFeil){el.innerHTML='<div class="pk-tom">Fikk ikke lastet produktkatalogen og tilbudene. Prøv «Oppdater».</div>';return;}
+  renderPkTilbud();
+}
 function renderPkTilbud(){
-  const el=document.getElementById('pk-innhold');if(!el)return;
+  const el=document.getElementById(ptSideAktiv()?'pt-innhold':'pk-innhold');if(!el)return;
   if(!ptFinnes){el.innerHTML=`<div class="pk-tom"><b>Lista «TilbudVersjoner» finnes ikke ennå.</b><br>Opprett den i SharePoint (Kunde360-oppsett-sjekkliste.md, Liste 44) for å lagre tilbud.</div>`;return;}
   const kan=ptKanSelge();
   let rader=ptSisteVersjoner().map(v=>({v,sak:ptSakFor(v.sakId)}));
@@ -18234,7 +18260,7 @@ function showTab(name,btn){
   const tp=document.getElementById('tp-'+name);
   if(tp){tp.classList.add('active');tp.style.display='block';}
   document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  const effectiveTab=(name==='sammenligning'||name==='licmaaned')?'lisenser':(name==='kicksammenligning'||name==='kickmaaned')?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets'||name==='lisenskontroll')?'transaksjonsavgift':name==='purring'?'fakturaoppfolging':name;
+  const effectiveTab=(name==='sammenligning'||name==='licmaaned')?'lisenser':(name==='kicksammenligning'||name==='kickmaaned')?'kickback':(name==='nyetableringer'||name==='kundesaker'||name==='konkurser'||name==='tilbud')?'kunder':(name==='smshistorikk'||name==='smsplanlagt')?'smsutsendelse':(name==='verifone'||name==='nets'||name==='lisenskontroll')?'transaksjonsavgift':name==='purring'?'fakturaoppfolging':name;
   const navBtn=document.getElementById('tab-'+effectiveTab);
   if(navBtn)navBtn.classList.add('active');
   toggleUtleieSub(name==='utleie');
@@ -18242,7 +18268,7 @@ function showTab(name,btn){
   toggleKickbackSub(name==='kickback'||name==='kicksammenligning'||name==='kickmaaned');
   toggleInnstillingerSub(name==='innstillinger');
   toggleArbeidstidSub(name==='arbeidstid');
-  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser');
+  toggleKunder360Sub(name==='kunder'||name==='nyetableringer'||name==='kundesaker'||name==='konkurser'||name==='tilbud');
   toggleSmsUtsendelseSub(name==='smsutsendelse'||name==='smsplanlagt'||name==='smshistorikk');
   toggleTransaksjonsavgiftSub(name==='verifone'||name==='nets'||name==='lisenskontroll');
   toggleSilentOrderingSub(name==='silentordering');
@@ -18267,6 +18293,7 @@ function showTab(name,btn){
   if(name==='kundesaker'){renderKundesaker();setKunder360SubActive('kundesaker');}
   if(name==='nyetableringer'){renderNyetableringer();setKunder360SubActive('nyetableringer');}
   if(name==='konkurser'){renderKonkurser();setKunder360SubActive('konkurser');}
+  if(name==='tilbud'){setKunder360SubActive('tilbud');if(typeof renderTilbudSide==='function')renderTilbudSide();} // v1.48.277
   if(name==='smsutsendelse'){setSmsUtsendelseSubActive('smsutsendelse');renderSmsUtsendelse();smsHentSaldo();}
   if(name==='smsplanlagt'){setSmsUtsendelseSubActive('smsplanlagt');renderSmsPlanlagt();}
   if(name==='smshistorikk'){setSmsUtsendelseSubActive('smshistorikk');renderSmsHistorikk();}
