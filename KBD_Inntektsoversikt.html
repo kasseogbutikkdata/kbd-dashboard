@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.274 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.275 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2145,6 +2145,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
           <div id="n-lead-treff" class="vf-ac-treff"></div>
         </div>
         <div id="n-lead-valgt" style="font-size:12px;margin-top:6px;color:#1e40af"></div>
+        <div id="n-lead-bransje-wrap" style="display:none;margin-top:8px"><label>Bransje (brukes i tilbud og utsendelser)</label><select id="n-lead-bransje" style="width:100%"></select><div id="n-lead-bransje-info" style="font-size:12px;color:#6b7280;margin-top:3px"></div></div>
         <div id="n-lead-kontakt" style="display:none;margin-top:8px">
           <div class="fg" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
             <div class="fgrp" style="margin-bottom:0"><label>Kontaktperson</label><input type="text" id="n-lead-kontakt-navn" placeholder="Navn"/></div>
@@ -4134,7 +4135,7 @@ async function loadDataFromSP(){
   // faller da tilbake til '' her, og _nyeForhandlerVerdi() under tolker det
   // som 'KBD' (den opprinnelige jobbens eget område), ikke som en tom/femte
   // kategori.
-  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',forhandlerOmrade:i.fields.Forhandleromrade||'',prioritetScore:(i.fields.PrioritetScore??null),prioritetBegrunnelse:i.fields.PrioritetBegrunnelse||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
+  nyetableringer=nyeItems.map(i=>({id:`sp${i.id}`,spId:i.id,orgNr:i.fields.OrgNr||'',tittel:i.fields.Title||'',naeringskode:i.fields.Naeringskode||'',naeringsBeskrivelse:i.fields.NaeringsBeskrivelse||'',bransjeOverstyrt:i.fields.BransjeOverstyrt||'',selskapsform:i.fields.Selskapsform||'',selskapsformBeskrivelse:i.fields.SelskapsformBeskrivelse||'',kommune:i.fields.Kommune||'',adresse:i.fields.Adresse||'',postnummer:i.fields.Postnummer||'',poststed:i.fields.Poststed||'',registreringsDato:i.fields.RegistreringsDato||'',status:i.fields.Status||'Ikke kontaktet',kontaktNavn:i.fields.KontaktpersonNavn||'',kontaktEpost:i.fields.KontaktEpost||'',kontaktTelefon:i.fields.KontaktTelefon||'',forhandlerOmrade:i.fields.Forhandleromrade||'',prioritetScore:(i.fields.PrioritetScore??null),prioritetBegrunnelse:i.fields.PrioritetBegrunnelse||'',logg:(()=>{try{const p=JSON.parse(i.fields.Logg||'[]');return Array.isArray(p)?p:[];}catch{return[];}})()}));
   // Forhandleromrader (lagt til 07.09.2026) — område-oppsettet for
   // forhandler-piloter i «🏢 Nyetableringer», tidligere hardkodet i
   // nyetableringer.py (FORHANDLER_OMRADER), nå datadrevet — se admin-
@@ -6942,7 +6943,8 @@ function hentProspektKunder(){
       kontaktNavn:n.kontaktNavn||'',kontaktEpost:n.kontaktEpost||'',kontaktTelefon:n.kontaktTelefon||'',
       kundeklasse:'',kredittgrense:0,kredittDagerForfalt:0,
       saldo:0,saldoForfalt:0,sistOppdatertVisma:'',sistSynkronisert:'',
-      erProspekt:true,nyetableringId:n.id
+      erProspekt:true,nyetableringId:n.id,
+      naceKode:n.naeringskode||'',naceBeskrivelse:n.naeringsBeskrivelse||'',bransjeOverstyrt:n.bransjeOverstyrt||'' // v1.48.275
     };
   });
 }
@@ -7441,11 +7443,22 @@ function bransjeCelleHtml(k){
   const auto=kbdBransjeFraNace(k.naceKode);
   const nace=k.naceKode?`<span class="muted" style="font-size:12px"> · ${k.naceKode}${k.naceBeskrivelse?' '+k.naceBeskrivelse:''}</span>`:(k.naceSjekket?'<span class="muted" style="font-size:12px"> · ingen næringskode i Brreg</span>':'<span class="muted" style="font-size:12px"> · ikke slått opp i Brreg ennå</span>');
   const merke=b.kilde==='overstyrt'?' <span title="Satt manuelt på kundekortet" style="font-size:11px;background:#fff4cc;color:#856404;border-radius:999px;padding:1px 7px">overstyrt</span>':'';
-  if(!salgTilgang||!k.spId)return `<strong>${b.kategori}</strong>${merke}${nace}`;
+  const lagreKall=k.erProspekt&&k.nyetableringId?`lagreBransjeOverstyrtProspekt('${k.nyetableringId}',this.value,this)`:`lagreBransjeOverstyrt('${k.spId}',this.value,this)`;
+  if(!salgTilgang||!(k.spId||(k.erProspekt&&k.nyetableringId)))return `<strong>${b.kategori}</strong>${merke}${nace}`;
   const opsjoner=[`<option value=""${!k.bransjeOverstyrt?' selected':''}>Automatisk${auto?` (${auto})`:''}</option>`]
     .concat(KBD_BRANSJE_VALG.map(n=>`<option value="${n}"${k.bransjeOverstyrt===n?' selected':''}>${n}</option>`)).join('');
   return `<strong>${b.kategori}</strong>${merke}${nace}
-    <div style="margin-top:4px"><select title="Overstyr bransje" onchange="lagreBransjeOverstyrt('${k.spId}',this.value,this)" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px">${opsjoner}</select></div>`;
+    <div style="margin-top:4px"><select title="Overstyr bransje" onchange="${lagreKall}" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px">${opsjoner}</select></div>`;
+}
+// v1.48.275: prospekter (Nyetableringer) har egen kolonne BransjeOverstyrt.
+async function lagreBransjeOverstyrtProspekt(nyId,verdi,sel){
+  const n=nyetableringer.find(x=>x.id===nyId);if(!n)return;
+  if(sel)sel.disabled=true;
+  try{await spUpdate('Nyetableringer',n.spId,{BransjeOverstyrt:verdi});n.bransjeOverstyrt=verdi;}
+  catch(e){console.error('Kunne ikke lagre bransje på prospekt:',e);alert('Kunne ikke lagre bransjen. Sjekk at kolonnen BransjeOverstyrt finnes på Nyetableringer.\n\n'+(e?.message||e));}
+  if(k360Valgt){const k=hentProspektKunder().find(x=>x.nyetableringId===nyId);if(k)k360Valgt=k;}
+  const celle=document.getElementById('k360-bransje');
+  if(celle&&k360Valgt)celle.innerHTML=bransjeCelleHtml(k360Valgt);
 }
 async function lagreBransjeOverstyrt(spId,verdi,sel){
   const k=vismaKunder.find(x=>String(x.spId)===String(spId));
@@ -7529,7 +7542,7 @@ function renderKundeKort(k){
             <table><tbody>
               <tr><td class="muted" style="width:160px">Adresse</td><td>${k.adresse||'—'}${(k.postnr||k.sted)?`, ${k.postnr||''} ${k.sted||''}`:''}</td></tr>
               <tr><td class="muted">Sist oppdatert i Visma</td><td>${k.sistOppdatertVisma?new Date(k.sistOppdatertVisma).toLocaleDateString('nb-NO'):'—'}</td></tr>
-              ${k.erProspekt?'':`<tr><td class="muted">Bransje</td><td id="k360-bransje">${bransjeCelleHtml(k)}</td></tr>`}
+              <tr><td class="muted">Bransje</td><td id="k360-bransje">${bransjeCelleHtml(k)}</td></tr>
             </tbody></table>
           </div>
         </div>
@@ -9152,7 +9165,7 @@ let kundesakerBrregTreffCache=[];
 let leadLagrerPagar=false;  // hindrer dobbel opprettelse ved dobbeltklikk på Lagre
 
 function settLeadModus(pa){
-  leadModus=!!pa;leadValg=null;leadLagrerPagar=false;leadTreffCache=[];leadBrregSisteSok='';
+  leadModus=!!pa;leadValg=null;if(typeof leadBransje!=='undefined'){leadBransje=null;const bw=document.getElementById('n-lead-bransje-wrap');if(bw)bw.style.display='none';}leadLagrerPagar=false;leadTreffCache=[];leadBrregSisteSok='';
   const wrap=document.getElementById('n-lead-wrap');if(wrap)wrap.style.display=pa?'':'none';
   const sok=document.getElementById('n-lead-sok');if(sok)sok.value='';
   const treff=document.getElementById('n-lead-treff');if(treff){treff.style.display='none';treff.innerHTML='';}
@@ -9162,7 +9175,8 @@ function settLeadModus(pa){
 
 function leadValgFraBrreg(e){
   const adr=e.forretningsadresse||e.beliggenhetsadresse||{};
-  return{type:'brreg',navn:e.navn||'',orgNr:normOrgNr(e.organisasjonsnummer),adresse:(adr.adresse||[]).join(' '),postnr:adr.postnummer||'',poststed:adr.poststed||adr.kommune||''};
+  return{type:'brreg',navn:e.navn||'',orgNr:normOrgNr(e.organisasjonsnummer),adresse:(adr.adresse||[]).join(' '),postnr:adr.postnummer||'',poststed:adr.poststed||adr.kommune||'',
+    naceKode:e.naeringskode1?.kode||'',naceBeskrivelse:e.naeringskode1?.beskrivelse||''};
 }
 
 function openNyttLeadModal(forhaandsvalg){
@@ -9282,6 +9296,85 @@ function leadVelgObjekt(v){
     else if(v.type==='eksisterende'&&!v.erProspekt)ks.value='Eksisterende kunde';
   }
   visLeadValg();
+  leadHentBransje(v);
+}
+// ===== Bransje ved nytt lead (v1.48.275, Thomas 11.10.2026) =====
+// «når vi oppretter ett nytt leads/salgsmulighet, kan vi samtidig hente bransje og sette bransje på
+// kundekortet, slik at tilbudet kan bli bransjerettet». Når firmaet velges, hentes næringskoden (NACE):
+// fra kunden/prospektet hvis den finnes, fra Brreg-treffet, eller med et direkte oppslag i Brreg på
+// org.nr. KBD-kategorien vises som «Automatisk (…)» og kan overstyres. Ved lagring skrives NACE og
+// eventuell overstyring på kunden (VismaKunder: NaceKode/NaceBeskrivelse/NaceSjekket/BransjeOverstyrt)
+// eller prospektet (Nyetableringer: Naeringskode/NaeringsBeskrivelse/BransjeOverstyrt). Salgsmuligheter
+// kan ikke lagres med ukjent bransje.
+let leadBransje=null; // {kode, beskrivelse, overstyrt, kilde, laster}
+async function leadBrregNace(orgNr){
+  const nr=normOrgNr(orgNr);if(nr.length!==9)return null;
+  for(const ep of['underenheter','enheter']){
+    try{const r=await fetch(`https://data.brreg.no/enhetsregisteret/api/${ep}/${nr}`);if(r.ok){const j=await r.json();if(j.naeringskode1?.kode)return{kode:j.naeringskode1.kode,beskrivelse:j.naeringskode1.beskrivelse||''};}}catch(e){}
+  }
+  return null;
+}
+async function leadHentBransje(v){
+  leadBransje={kode:'',beskrivelse:'',overstyrt:'',kilde:'',laster:true,for:v};
+  tegnLeadBransje();
+  let kode='',beskr='',overstyrt='';
+  if(v.type==='eksisterende'){
+    const k=kpFinnKunde(v.kNr);
+    if(k){kode=k.naceKode||'';beskr=k.naceBeskrivelse||'';overstyrt=k.bransjeOverstyrt||'';}
+  }else if(v.type==='nyetablering'){
+    const n=nyetableringer.find(x=>x.id===v.nyId);if(n){kode=n.naeringskode||'';beskr=n.naeringsBeskrivelse||'';overstyrt=n.bransjeOverstyrt||'';}
+  }else if(v.type==='brreg'){kode=v.naceKode||'';beskr=v.naceBeskrivelse||'';}
+  let kilde=kode?'registrert':'';
+  if(!kode&&!overstyrt&&v.orgNr){const b=await leadBrregNace(v.orgNr);if(b){kode=b.kode;beskr=b.beskrivelse;kilde='brreg';}}
+  if(leadBransje?.for!==v)return; // nytt valg i mellomtiden
+  leadBransje={kode,beskrivelse:beskr,overstyrt,kilde,laster:false,for:v};
+  tegnLeadBransje();
+}
+function tegnLeadBransje(){
+  const wrap=document.getElementById('n-lead-bransje-wrap'),sel=document.getElementById('n-lead-bransje'),info=document.getElementById('n-lead-bransje-info');
+  if(!wrap||!sel)return;
+  const b=leadBransje;
+  if(!b||!leadModus){wrap.style.display='none';return;}
+  wrap.style.display='';
+  if(b.laster){sel.innerHTML='<option value="">Henter bransje fra Brønnøysundregisteret …</option>';sel.disabled=true;if(info)info.textContent='';return;}
+  sel.disabled=false;
+  const auto=b.kode?kbdBransjeFraNace(b.kode):'';
+  sel.innerHTML=(auto?`<option value="">Automatisk (${auto})</option>`:'<option value="">— velg bransje —</option>')+KBD_BRANSJE_VALG.map(n=>`<option value="${n}">${n}</option>`).join('');
+  sel.value=b.overstyrt&&KBD_BRANSJE_VALG.includes(b.overstyrt)?b.overstyrt:'';
+  if(info)info.textContent=b.kode?`Næringskode ${b.kode}${b.beskrivelse?' '+b.beskrivelse:''}${b.kilde==='brreg'?' (hentet fra Brreg nå)':''}`:'Fant ingen næringskode. Velg bransjen selv.';
+}
+function leadBransjeLes(){
+  const b=leadBransje;if(!b||b.laster)return null;
+  const valgt=document.getElementById('n-lead-bransje')?.value||'';
+  const auto=b.kode?kbdBransjeFraNace(b.kode):'';
+  return{kode:b.kode,beskrivelse:b.beskrivelse,kilde:b.kilde,overstyrt:valgt&&valgt!==auto?valgt:'',kategori:valgt||auto||''};
+}
+async function leadLagreBransje(kNr,bv){
+  if(!bv||!kNr)return;
+  try{
+    const vk=vismaKunder.find(x=>samKundenr(x.vismaNummer,kNr));
+    if(vk&&vk.spId){
+      const f={};
+      if(bv.kode&&!vk.naceKode){f.NaceKode=bv.kode;f.NaceBeskrivelse=bv.beskrivelse||'';f.NaceSjekket=new Date().toISOString();}
+      if(bv.overstyrt&&bv.overstyrt!==vk.bransjeOverstyrt)f.BransjeOverstyrt=bv.overstyrt;
+      if(!Object.keys(f).length)return;
+      await spUpdate('VismaKunder',vk.spId,f);
+      if(f.NaceKode){vk.naceKode=f.NaceKode;vk.naceBeskrivelse=f.NaceBeskrivelse;vk.naceSjekket=f.NaceSjekket;}
+      if(f.BransjeOverstyrt)vk.bransjeOverstyrt=f.BransjeOverstyrt;
+      return;
+    }
+    const n=nyetableringer.find(x=>prospektKundenummer(x)===kNr);
+    if(n&&n.spId){
+      const f={};
+      if(bv.kode&&!n.naeringskode){f.Naeringskode=bv.kode;f.NaeringsBeskrivelse=bv.beskrivelse||'';}
+      if(Object.keys(f).length){await spUpdate('Nyetableringer',n.spId,f);n.naeringskode=f.Naeringskode;n.naeringsBeskrivelse=f.NaeringsBeskrivelse;}
+      if(bv.overstyrt&&bv.overstyrt!==n.bransjeOverstyrt){
+        try{await spUpdate('Nyetableringer',n.spId,{BransjeOverstyrt:bv.overstyrt});n.bransjeOverstyrt=bv.overstyrt;}
+        catch(e){console.warn('BransjeOverstyrt på Nyetableringer:',e);alert('Bransjen ble ikke lagret på prospektet. Kolonnen «BransjeOverstyrt» (én linje med tekst) mangler på Nyetableringer – se sjekklisten.');}
+      }
+    }
+  }catch(e){console.warn('Bransje ved nytt lead ble ikke lagret',e);}
+  finally{if(k360Valgt)try{renderKundeKort(k360Valgt);}catch(e){}}
 }
 function visLeadValg(){
   const el=document.getElementById('n-lead-valgt');
@@ -10998,6 +11091,9 @@ function saveNotat(){
   // saveNotat() på nytt med kunde-nr satt — samme lagringsvei som alltid.
   if(!editId&&leadModus){
     if(!leadValg){alert('Velg kunde/firma fra lista øverst (eller «Registrer manuelt» nederst i lista).');return;}
+    if(leadBransje?.laster){alert('Henter bransje fra Brønnøysundregisteret. Prøv igjen om et øyeblikk.');return;}
+    const bransjeValg=leadBransjeLes();
+    if(type==='Tilbud'&&!(bransjeValg&&bransjeValg.kategori)){alert('Velg bransje. Den brukes til å gjøre tilbudet bransjerettet.');document.getElementById('n-lead-bransje')?.focus();return;}
     if(!kNr){
       if(leadLagrerPagar)return;
       leadLagrerPagar=true;
@@ -11007,6 +11103,7 @@ function saveNotat(){
         document.getElementById('n-kunde-nr').value=k.kNr;
         document.getElementById('n-kunde-navn').value=k.navn;
         leadModus=false;
+        leadLagreBransje(k.kNr,bransjeValg);
         saveNotat();
         if(typeof renderNyetableringer==='function')renderNyetableringer();
       }).catch(e=>{
@@ -11016,6 +11113,7 @@ function saveNotat(){
       });
       return;
     }
+    leadLagreBransje(kNr,bransjeValg);
     leadModus=false;
   }
   // v1.48.238: lisenskontrollen (lkAvOppfolging) vil vite at oppfølgingen faktisk ble lagret
@@ -11695,6 +11793,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.275',dato:'11.10.2026',punkter:[
+    'Nytt lead: når firmaet velges, hentes bransjen automatisk. Den kommer fra kunden eller prospektet, fra Brreg-treffet, eller fra et direkte oppslag i Brønnøysundregisteret på org.nr. Feltet «Bransje» viser «Automatisk (…)» med næringskoden, og bransjen kan overstyres. En salgsmulighet kan ikke lagres uten bransje.',
+    'Ved lagring settes bransjen på kundekortet (næringskode og eventuell overstyring), slik at tilbudet får riktig bransjebilde og salgstekst.',
+    'Prospekter viser nå bransje på kundekortet, med næringskoden fra Nyetableringer, og bransjen kan overstyres der som for vanlige kunder. Det krever den nye kolonnen BransjeOverstyrt på Nyetableringer.'
+  ]},
   {versjon:'v1.48.274',dato:'11.10.2026',punkter:[
     'Tilbudet viser versjonsnummeret til kunden: øverst på side 1 ved datoen («11. oktober 2026 · versjon 3») og øverst på side 2 ved tittelen. Gjelder forhåndsvisning, PDF og vedlegget i e-posten. Flettefeltet {versjon} kan også brukes i standardtekstene.'
   ]},
