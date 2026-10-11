@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.261 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.262 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11644,6 +11644,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.262',dato:'11.10.2026',punkter:[
+    'Tilbud og pakker: knappene Forhåndsvis, Avbryt, Lagre som kladd og Lagre er flyttet opp til høyre for «＋ Legg til linje», rett under varelinjene.'
+  ]},
   {versjon:'v1.48.261',dato:'11.10.2026',punkter:[
     'Tilbud og pakker: oppsummeringen fremhever leie via Ikano og lisenser per måned med store tall, med kjøpsprisen rett under leien og DG-lyset ved siden av. DB, verdi første år og hva Ikano betaler står som opplysninger under. Sum per linje er nå like tydelig som prisen.'
   ]},
@@ -16623,13 +16626,13 @@ function pkRenderPakkeEditor(){
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${erTilbud&&kan?`<select onchange="if(this.value)ptLeggTilPakkeIApen(this.value)" style="width:auto"><option value="">＋ Legg til pakke …</option>${pkPakker.filter(p=>p.aktiv).map(p=>`<option value="${p.spId}">${jsEscapeHtml(p.navn)}</option>`).join('')}</select>`:''}${erTilbud&&kan?'<button class="btn-sm" onclick="ptRabattAlleHw()" title="Samme rabatt på alle linjer som kan få rabatt">％ Rabatt på all hardware</button>':''}${prisVelger}</div>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th style="min-width:300px">Vare</th><th style="width:70px">Antall</th><th style="min-width:150px">Type</th><th style="width:80px">Rabatt %</th><th style="text-align:right">Pris/stk</th><th style="text-align:right">Sum</th><th style="text-align:right">DG</th><th></th></tr></thead><tbody id="pk-p-linjer"></tbody></table></div>
-    ${kan?'<div style="margin:6px 0 0"><button class="btn-sm" onclick="pkPakkeNyLinje()">＋ Legg til linje</button></div>':''}
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 0">${kan?'<button class="btn-sm" onclick="pkPakkeNyLinje()">＋ Legg til linje</button>':''}<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto">${fot}</div></div>
     <div id="pk-p-sum" class="pk-eksempel"></div>
     ${erTilbud?'<div id="pt-arsak-wrap"></div>':''}
     <div style="font-weight:600;font-size:14px;margin:18px 0 6px">Tekster i tilbudet</div>
     <div class="hint" style="margin:0 0 8px">${erTilbud?'Tekstene kommer fra pakken og standardtekstene. Velg «Egen tekst» for å endre en tekst bare i dette tilbudet.':'Standardtekstene redigeres under «📝 Standardtekster». Her velger du om pakken bruker standardteksten, har sin egen eller skjuler den.'} Flettefelt: ${PK_FLETTEFELT.map(f=>`<code>{${f}}</code>`).join(' ')}</div>
     <div id="pk-p-tekster">${pkPakkeTeksterHtml(dis)}</div>
-    <div class="modal-footer">${fot}</div>`;
+`;
   document.getElementById('pk-modal-innhold').innerHTML=h;
   pkRenderPakkeLinjer();
 }
