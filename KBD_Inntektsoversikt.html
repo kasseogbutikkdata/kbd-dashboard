@@ -746,7 +746,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.258 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.260 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11636,6 +11636,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.260',dato:'11.10.2026',punkter:[
+    'Tilbud: ny knapp «📝 Lagre som kladd». Et påbegynt tilbud (også en ny versjon) kan lagres og åpnes igjen senere uten at det lages en tilbudssak. Kladdene ligger øverst under «🧾 Tilbud» med «Fortsett» og «Slett». Når tilbudet lagres ordentlig, slettes kladden automatisk.'
+  ]},
+  {versjon:'v1.48.259',dato:'11.10.2026',punkter:[
+    'Tilbud: lisenser og avtaler vises i hele kroner per måned. Årspriser fra Visma delt på 12 rundes av (f.eks. 3 025/år → 252 kr/mnd og 1 390/år → 116 kr/mnd).'
+  ]},
   {versjon:'v1.48.258',dato:'11.10.2026',punkter:[
     'Tilbud: flere pakker kan settes sammen til ett komplett tilbud. Huk av flere pakker under «＋ Nytt tilbud», eller bruk «＋ Legg til pakke …» i et tilbud du holder på med. Varer som finnes i flere av pakkene, tas med én gang med det høyeste antallet. Tittelen settes sammen («M10 med Softpay + Verifone V660P»), tekstene kommer fra første pakke, og pakkenes kommentarer slås sammen.'
   ]},
@@ -16499,9 +16505,9 @@ function pkIHwDg(v){if(!v||pkErLopende(v))return false;const g=pkGruppeFor(pkGru
 function pkLinjeBeregn(l,prisklasse){
   const v=pkVare(l.varenr),med=l.type!=='valgfri'||l.valgt!==false,antall=Math.max(0,Number(l.antall)||0);
   if(!v)return{l,v:null,med,antall,lopende:false,pris:0,netto:0,sum:0,kost:0,rabattPst:0,iHwDg:false,seksjon:'Mangler vare',sortering:99999};
-  const g=pkGruppeFor(pkGruppeNavn(v)),lopende=pkErLopende(v),fakt=lopende?pkMndFaktor(v):1,p0=pkPrisFor(v,prisklasse),p={...p0,pris:Math.round(p0.pris*fakt*100)/100};
+  const g=pkGruppeFor(pkGruppeNavn(v)),lopende=pkErLopende(v),fakt=lopende?pkMndFaktor(v):1,p0=pkPrisFor(v,prisklasse),p={...p0,pris:lopende?Math.round(p0.pris*fakt):Math.round(p0.pris*fakt*100)/100}; // v1.48.259: løpende priser per måned i hele kroner (Thomas 11.10.2026)
   const rabattPst=pkRabattTillatt(v)?Math.min(100,Math.max(0,Number(l.rabattPst)||0)):0;
-  const netto=Math.round(p.pris*(1-rabattPst/100)*100)/100;
+  const netto=lopende?Math.round(p.pris*(1-rabattPst/100)):Math.round(p.pris*(1-rabattPst/100)*100)/100;
   return{l,v,g,med,antall,lopende,pris:p.pris,prisRabatt:p.rabatt,netto,sum:netto*antall,kost:(v.kostpris||0)*fakt*antall,rabattPst,iHwDg:pkIHwDg(v),
     seksjon:g?.seksjon||(lopende?'Lisenser':'Annet'),sortering:g?.sortering??(lopende?9000:8000)};
 }
@@ -17084,15 +17090,54 @@ let ptVersjoner=[],ptFinnes=false,ptVisFilter='apne',ptSokTekst='';
 function ptKanSelge(){return userRole==='admin'||(typeof salgTilgang!=='undefined'&&salgTilgang===true);}
 function ptLes(items){
   ptVersjoner=items.map(i=>{const f=i.fields||{};return{spId:String(i.id),tittel:f.Title||'',sakId:String(f.SakId||''),kNr:f.VismaKundeNummer||'',kundeNavn:f.KundeNavn||'',
-    versjon:Number(f.TilbudVersjon)||1,pakke:f.Pakke||'',prisklasse:f.Prisklasse||'',data:pkJson(f.Data,null),kjop:Number(f.Kjopspris)||0,lisensMnd:Number(f.LisensMnd)||0,
+    versjon:f.TilbudVersjon===0||f.TilbudVersjon==='0'?0:(Number(f.TilbudVersjon)||1),endret:i.lastModifiedDateTime||f.Modified||'',pakke:f.Pakke||'',prisklasse:f.Prisklasse||'',data:pkJson(f.Data,null),kjop:Number(f.Kjopspris)||0,lisensMnd:Number(f.LisensMnd)||0,
     leieMnd:Number(f.LeieMnd)||0,hwDg:f.HwDg==null||f.HwDg===''?null:Number(f.HwDg),arsak:f.DgArsak||'',gyldigTil:f.GyldigTil||'',selger:f.Selger||'',opprettet:i.createdDateTime||f.Created||''};});
 }
 function ptSakFor(sakId){return(typeof kundeNotater!=='undefined'?kundeNotater:[]).find(n=>String(n.spId)===String(sakId))||null;}
 function ptSisteVersjoner(){
-  const m=new Map();ptVersjoner.forEach(v=>{const k=v.sakId||('uten-'+v.spId);const g=m.get(k);if(!g||v.versjon>g.versjon)m.set(k,v);});
+  const m=new Map();ptVersjoner.filter(v=>v.versjon>0).forEach(v=>{const k=v.sakId||('uten-'+v.spId);const g=m.get(k);if(!g||v.versjon>g.versjon)m.set(k,v);});
   return[...m.values()];
 }
-function ptAntallVersjoner(sakId){return ptVersjoner.filter(v=>v.sakId===sakId).length;}
+function ptAntallVersjoner(sakId){return ptVersjoner.filter(v=>v.sakId===sakId&&v.versjon>0).length;}
+// ---------- Kladder (v1.48.260, Thomas 11.10.2026) ----------
+// En kladd er en rad i TilbudVersjoner med TilbudVersjon = 0. Den kan endres og lagres på nytt
+// så mange ganger man vil, og blir ikke en tilbudssak før man trykker «Lagre tilbud». Da slettes
+// kladden. Data = hele redigeringstilstanden (kunde, linjer, tekster, valg).
+function ptKladder(){return ptVersjoner.filter(v=>v.versjon===0).sort((a,b)=>String(b.endret||b.opprettet).localeCompare(String(a.endret||a.opprettet)));}
+async function ptLagreKladd(){
+  const a=pkApenPakke;if(!a||a.modus!=='tilbud'||!ptKanSelge())return;
+  if(!ptFinnes){alert('Lista «TilbudVersjoner» finnes ikke ennå (Liste 44 i sjekklisten).');return;}
+  const b=pkPakkeBeregn(a,pkPakkePrisklasse);
+  const tilstand=JSON.parse(JSON.stringify({...a,visning:'rediger',kladdId:undefined,prisklasse:pkPakkePrisklasse}));
+  const kundeNavn=a.kunde?.navn||'';
+  const felt={Title:`KLADD: ${kundeNavn||'(uten mottaker)'} – ${a.navn||'(uten tittel)'}`.slice(0,250),SakId:a.sakId||'',VismaKundeNummer:a.kunde?.kNr||'',KundeNavn:kundeNavn,
+    TilbudVersjon:0,Pakke:a.pakke||'',Prisklasse:pkPakkePrisklasse||'',Data:JSON.stringify({format:'kladd',a:tilstand}),Kjopspris:Math.round(b.kjop*100)/100,LisensMnd:Math.round(b.lopMnd*100)/100,
+    LeieMnd:b.leie?.mnd||0,HwDg:b.hwDg==null?null:Math.round(b.hwDg*10)/10,DgArsak:(a.arsak||'').slice(0,250),Selger:a.selger||currentUser?.name||''};
+  const knapp=document.getElementById('pt-kladd');if(knapp){knapp.disabled=true;knapp.textContent='Lagrer …';}
+  try{
+    const naa=new Date().toISOString();
+    if(a.kladdId){await spUpdate('TilbudVersjoner',a.kladdId,felt);const k=ptVersjoner.find(x=>x.spId===a.kladdId);if(k)Object.assign(k,{tittel:felt.Title,kundeNavn,pakke:felt.Pakke,data:JSON.parse(felt.Data),kjop:felt.Kjopspris,lisensMnd:felt.LisensMnd,leieMnd:felt.LeieMnd,hwDg:felt.HwDg,endret:naa});}
+    else{const r=await spCreate('TilbudVersjoner',felt);a.kladdId=String(r.id);
+      ptVersjoner.push({spId:a.kladdId,tittel:felt.Title,sakId:felt.SakId,kNr:felt.VismaKundeNummer,kundeNavn,versjon:0,pakke:felt.Pakke,prisklasse:felt.Prisklasse,data:JSON.parse(felt.Data),kjop:felt.Kjopspris,lisensMnd:felt.LisensMnd,leieMnd:felt.LeieMnd,hwDg:felt.HwDg,arsak:felt.DgArsak,gyldigTil:'',selger:felt.Selger,opprettet:naa,endret:naa});}
+    vfShowToast?.('📝 Kladden er lagret. Du finner den under «🧾 Tilbud».');
+  }catch(e){console.error('TilbudVersjoner: lagring av kladd feilet',e);alert('Kladden ble ikke lagret: '+(e.message||e));}
+  finally{if(knapp){knapp.disabled=false;knapp.textContent='📝 Lagre som kladd';}}
+}
+function ptApneKladd(spId){
+  const k=ptVersjoner.find(x=>x.spId===String(spId)&&x.versjon===0);if(!k||!k.data?.a){alert('Kladden mangler innhold.');return;}
+  if(!ptKanSelge())return;
+  pkApenPakke={...JSON.parse(JSON.stringify(k.data.a)),modus:'tilbud',visning:'rediger',kladdId:k.spId};
+  if(!pkApenPakke.vis)pkApenPakke.vis={kjopspris:false,linjepriser:false};
+  pkPakkePrisklasse=pkApenPakke.prisklasse||'';
+  pkModalBred(true);pkRenderPakkeEditor();
+  document.getElementById('pk-modal').classList.add('open');
+}
+async function ptSlettKladd(spId,stille){
+  const k=ptVersjoner.find(x=>x.spId===String(spId)&&x.versjon===0);if(!k)return;
+  if(!stille&&!confirm(`Slette kladden «${k.kundeNavn||'(uten mottaker)'} – ${k.data?.a?.navn||k.pakke||''}»?`))return;
+  try{await spDelete('TilbudVersjoner',k.spId);ptVersjoner=ptVersjoner.filter(x=>x.spId!==k.spId);if(!stille)renderPkTilbud();}
+  catch(e){console.error('Sletting av kladd feilet',e);if(!stille)alert('Sletting feilet: '+(e.message||e));}
+}
 function ptDatoIso(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function ptGyldigTil(){const d=new Date();d.setDate(d.getDate()+(pkInnst.GyldigDager||30));return d;}
 function ptSelgerTlf(){try{return localStorage.getItem('pt-selger-tlf')||'';}catch(e){return'';}}
@@ -17122,6 +17167,8 @@ function renderPkTilbud(){
       <select onchange="ptVisFilter=this.value;renderPkTilbud()" style="width:auto"><option value="apne"${ptVisFilter==='apne'?' selected':''}>Åpne tilbud</option><option value="mine"${ptVisFilter==='mine'?' selected':''}>Mine tilbud</option><option value="alle"${ptVisFilter==='alle'?' selected':''}>Alle tilbud</option></select>
       ${kan?'<button class="prim" style="margin-left:auto" onclick="ptVelgPakke()">＋ Nytt tilbud</button>':''}
     </div>
+    ${(()=>{const kl=ptKladder().filter(k=>ptVisFilter!=='mine'||k.selger===(currentUser?.name||''));if(!kl.length)return'';
+      return`<div style="margin:6px 0 12px;padding:10px 12px;border:1px dashed #f59e0b;background:#fffbeb;border-radius:8px"><div style="font-weight:600;margin-bottom:6px">📝 Kladder (${kl.length})</div>${kl.map(k=>`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;border-top:1px solid #fde68a;font-size:13px"><a href="#" onclick="event.preventDefault();ptApneKladd('${k.spId}')" style="font-weight:600">${jsEscapeHtml(k.kundeNavn||'(uten mottaker)')} – ${jsEscapeHtml(k.data?.a?.navn||k.pakke||'(uten tittel)')}</a><span style="color:#6b7280">${k.leieMnd?pkKr(k.leieMnd)+'/mnd · ':''}${jsEscapeHtml(k.selger)} · lagret ${new Date(k.endret||k.opprettet).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${k.sakId?' · ny versjon av et tilbud':''}</span>${ptKanSelge()?`<button class="btn-sm" style="margin-left:auto" onclick="ptApneKladd('${k.spId}')">Fortsett</button><button class="btn-sm" style="color:#dc2626" onclick="ptSlettKladd('${k.spId}')">Slett</button>`:''}</div>`).join('')}</div>`;})()}
     <div class="pk-teller">${rader.length} tilbud</div>
     <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell"><thead><tr><th>Kunde</th><th>Tilbud</th><th style="text-align:right">Leie/mnd</th><th style="text-align:right">Kjøpspris</th><th style="text-align:right">Lisens/mnd</th><th>DG</th><th>Gyldig til</th><th>Selger</th><th>Sak</th></tr></thead><tbody>`;
   if(!rader.length)h+=`<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:24px">Ingen tilbud her ennå.${kan?' Trykk «＋ Nytt tilbud», eller «🧾 Lag tilbud» på en pakke.':''}</td></tr>`;
@@ -17205,7 +17252,7 @@ function ptEditorHode(a,dis){
   const kundeInfo=!k?'<span style="color:#6b7280">Søk opp en kunde, eller skriv navnet på et nytt firma. Nye firma velges fra Brreg når tilbudet lagres.</span>'
     :k.kNr?`✓ Eksisterende ${String(k.kNr).startsWith('LEAD-')?'prospekt':'kunde'} <b>${jsEscapeHtml(k.navn)}</b>${k.klasse?` · kundeprofil ${jsEscapeHtml(k.klasse)}`:''}`
     :`Nytt firma <b>${jsEscapeHtml(k.navn)}</b> – velges fra Brreg eller registreres manuelt når tilbudet lagres.`;
-  return`<h3>🧾 ${a.sakId?`Tilbud – ny versjon (v${a.versjon})`:'Nytt tilbud'}${a.pakke?` <span style="font-weight:400;color:#6b7280;font-size:14px">fra pakken «${jsEscapeHtml(a.pakke)}»</span>`:''}</h3>
+  return`<h3>🧾 ${a.sakId?`Tilbud – ny versjon (v${a.versjon})`:'Nytt tilbud'}${a.kladdId?' <span class="pk-merke pk-merke-gul">kladd</span>':''}${a.pakke?` <span style="font-weight:400;color:#6b7280;font-size:14px">fra pakken «${jsEscapeHtml(a.pakke)}»</span>`:''}</h3>
     <div style="display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:10px;margin-bottom:4px">
       <div class="fgrp"><label>Mottaker (kunde eller firma)</label><input type="text" data-auto="kunde" autocomplete="off" value="${jsEscapeHtml(k?.navn||'')}" ${dis||(a.sakId?'disabled':'')} placeholder="Søk kunde, eller skriv firmanavn" onchange="ptSettKunde(this.value)"></div>
       <div class="fgrp"><label>Kontaktperson</label><input type="text" value="${jsEscapeHtml(a.kontaktperson)}" ${dis} oninput="pkApenPakke.kontaktperson=this.value" placeholder="F.eks. Kari Nordmann"></div>
@@ -17237,7 +17284,8 @@ function ptSettKunde(tekst){
 function ptEditorFot(a,kan){
   return`${a.sakId&&typeof gaTilKundeFraSak==='function'&&ptSakFor(a.sakId)?`<button class="btn-sm" onclick="ptGaTilSak('${a.sakId}')">↗ Gå til saken</button>`:''}
     <button class="btn-sm" style="margin-left:auto" onclick="pkApenPakke.visning='forhand';pkRenderPakkeEditor()">👁 Forhåndsvis</button>
-    <button class="btn-sm" onclick="pkLukkVare()">Avbryt</button>
+    <button class="btn-sm" onclick="pkLukkVare()">${a.kladdId?'Lukk':'Avbryt'}</button>
+    ${kan?`<button class="btn-sm" id="pt-kladd" onclick="ptLagreKladd()" title="Lagrer tilbudet uten å lage tilbudssak, så du kan fortsette senere">📝 Lagre som kladd</button>`:''}
     ${kan?`<button class="prim" id="pt-lagre" onclick="ptLagre()">💾 ${a.sakId?`Lagre som v${a.versjon}`:'Lagre tilbud'}</button>`:''}`;
 }
 function ptVisArsak(b){
@@ -17294,7 +17342,7 @@ async function ptLagre(){
   const bilde=ptOyeblikksbilde(a,b),gyldig=ptGyldigTil();
   if(a.sakId){
     const knapp=document.getElementById('pt-lagre');if(knapp){knapp.disabled=true;knapp.textContent='Lagrer …';}
-    try{await ptSkrivVersjon(a,bilde,b,ptSakFor(a.sakId),gyldig);pkLukkVare();vfShowToast?.(`✅ Tilbudet er lagret som v${a.versjon}`);renderProduktkatalog();}
+    try{await ptSkrivVersjon(a,bilde,b,ptSakFor(a.sakId),gyldig);if(a.kladdId)await ptSlettKladd(a.kladdId,true);pkLukkVare();vfShowToast?.(`✅ Tilbudet er lagret som v${a.versjon}`);renderProduktkatalog();}
     catch(e){console.error('TilbudVersjoner: lagring feilet',e);if(knapp){knapp.disabled=false;knapp.textContent=`💾 Lagre som v${a.versjon}`;}alert('Lagring feilet: '+(e.message||e)+'\n\nSjekk kolonnene i «TilbudVersjoner» (Liste 44 i sjekklisten).');}
     return;
   }
@@ -17328,6 +17376,7 @@ async function ptVersjon1(v,sak){
   try{
     v.a.versjon=1;
     await ptSkrivVersjon(v.a,v.bilde,v.b,sak,v.gyldig,true);
+    if(v.a.kladdId)await ptSlettKladd(v.a.kladdId,true);
     vfShowToast?.('✅ Tilbudet er lagret som tilbudssak');
     if(document.getElementById('tp-produktkatalog')?.offsetParent)renderProduktkatalog();
   }catch(e){
@@ -17358,7 +17407,7 @@ async function ptSkrivVersjon(a,bilde,b,sak,gyldig,erNySak){
 // ---------- Visning av et lagret tilbud ----------
 function ptApneVisning(spId,versjonSpId){
   const v0=ptVersjoner.find(x=>x.spId===String(spId));if(!v0)return;
-  const alle=ptVersjoner.filter(x=>v0.sakId?x.sakId===v0.sakId:x.spId===v0.spId).sort((a,b)=>b.versjon-a.versjon);
+  const alle=ptVersjoner.filter(x=>x.versjon>0&&(v0.sakId?x.sakId===v0.sakId:x.spId===v0.spId)).sort((a,b)=>b.versjon-a.versjon);
   const v=versjonSpId?alle.find(x=>x.spId===String(versjonSpId))||v0:v0;
   const d=v.data,sak=ptSakFor(v.sakId),kan=ptKanSelge()&&(!sak||sak.status==='Åpen');
   pkModalBred(true);
