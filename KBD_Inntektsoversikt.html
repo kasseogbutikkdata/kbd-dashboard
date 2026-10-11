@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.263 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.265 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11644,6 +11644,13 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.265',dato:'11.10.2026',punkter:[
+    'Tilbud og pakker: det samme for betalingsterminaler. Nye linjetyper «💳 Terminal» (P400, V660P …) og «🔁 Per terminal» (terminallisens, bytteservice, etablering BAX). Per-terminal-linjene følger summen av terminalene på samme måte som Susoft-lisensen følger kassene.'
+  ]},
+  {versjon:'v1.48.264',dato:'11.10.2026',punkter:[
+    'Tilbud: knappen «📄 Last ned PDF» i forhåndsvisningen og i visningen av lagrede tilbud. Tilbudet åpnes i et eget vindu med A4-oppsett, og utskriftsvinduet starter av seg selv. Velg «Lagre som PDF» som skriver. Filnavnet foreslås som «Tilbud kunde tittel».',
+    'Tekster: linjer som starter med «- » blir punktliste også når avsnittet starter med vanlig tekst, f.eks. «Åpningstider:».'
+  ]},
   {versjon:'v1.48.263',dato:'11.10.2026',punkter:[
     'Tilbud og pakker: to nye linjetyper. «🖥️ Kasse» brukes på kassene (Telpo M10, M1, POS 15 …), og «🔁 Per kasse» på det som følger hver kasse (Susoft-lisensen). Øker du antall kasser i et tilbud, får per-kasse-linjene samme antall automatisk, også når kassene er av ulike typer. Endrer du antallet på en per-kasse-linje selv, står den som «manuelt» til du trykker «↺ følg».'
   ]},
@@ -16489,24 +16496,29 @@ async function pkSlettGruppe(){
 // Liste 43) gjelder alle pakker; en pakke kan bruke standardteksten, ha sin egen eller skjule den.
 // Prisene hentes alltid fra katalogen (listepris eller prisklasse), aldri fra malen.
 // Admin og redaktør endrer (Thomas 10.10.2026). Brukes ennå ikke i salgsprosessen.
-const PK_LINJETYPER={fast:'Fast',antall:'Antall kan endres',kasse:'🖥️ Kasse (styrer lisenser)',perkasse:'🔁 Per kasse',valgfri:'Valgfri'};
-// v1.48.263 (Thomas 11.10.2026): linjer av typen «Per kasse» (f.eks. Susoft-lisensen) får automatisk
-// samme antall som summen av alle «Kasse»-linjer (Telpo M10, M1, POS 15 …). Endrer man antallet på en
-// per-kasse-linje selv, slutter den å følge (manuelt) til man trykker ↺. Finnes ingen kasselinjer,
-// gjøres ingenting.
-function pkKasseAntall(a){return a.linjer.filter(l=>l.type==='kasse'&&l.varenr).reduce((s,l)=>s+(Number(l.antall)||0),0);}
-function pkHarKasser(a){return a.linjer.some(l=>l.type==='kasse'&&l.varenr);}
+const PK_LINJETYPER={fast:'Fast',antall:'Antall kan endres',kasse:'🖥️ Kasse (styrer lisenser)',perkasse:'🔁 Per kasse',terminal:'💳 Terminal (styrer lisenser)',perterminal:'🔁 Per terminal',valgfri:'Valgfri'};
+// v1.48.263/265 (Thomas 11.10.2026): linjer av typen «Per kasse» (f.eks. Susoft-lisensen) får automatisk
+// samme antall som summen av alle «Kasse»-linjer (Telpo M10, M1, POS 15 …), og «Per terminal»
+// (terminallisens, bytteservice) følger summen av «Terminal»-linjene (P400, V660P …). Endrer man antallet
+// på en følgelinje selv, slutter den å følge (manuelt) til man trykker ↺. Uten styrende linjer: ingenting.
+const PK_FOLGER={perkasse:{styrer:'kasse',ord:['kasse','kasser']},perterminal:{styrer:'terminal',ord:['terminal','terminaler']}};
+function pkStyrerAntall(a,styrer){return a.linjer.filter(l=>l.type===styrer&&l.varenr).reduce((s,l)=>s+(Number(l.antall)||0),0);}
+function pkHarStyrer(a,styrer){return a.linjer.some(l=>l.type===styrer&&l.varenr);}
+function pkKasseAntall(a){return pkStyrerAntall(a,'kasse');}
+function pkHarKasser(a){return pkHarStyrer(a,'kasse');}
 function pkOppdaterPerKasse(a){
-  if(!a||!pkHarKasser(a))return false;
-  const n=pkKasseAntall(a);let endret=false;
-  a.linjer.forEach(l=>{if(l.type==='perkasse'&&!l.manuelt&&Number(l.antall)!==n){l.antall=n;endret=true;}});
+  if(!a)return false;let endret=false;
+  Object.entries(PK_FOLGER).forEach(([type,r])=>{if(!pkHarStyrer(a,r.styrer))return;const n=pkStyrerAntall(a,r.styrer);
+    a.linjer.forEach(l=>{if(l.type===type&&!l.manuelt&&Number(l.antall)!==n){l.antall=n;endret=true;}});});
   return endret;
 }
+function pkFolgTekst(a,type){const r=PK_FOLGER[type],n=pkStyrerAntall(a,r.styrer);return`følger ${pkAntall(n)} ${n===1?r.ord[0]:r.ord[1]}`;}
 function pkAntallEndret(i,verdi){
   const a=pkApenPakke,l=a.linjer[i];l.antall=Number(verdi)||0;
-  if(l.type==='perkasse'&&pkHarKasser(a)){l.manuelt=l.antall!==pkKasseAntall(a);pkRenderPakkeLinjer();return;}
-  if(l.type==='kasse'&&pkOppdaterPerKasse(a)){
-    a.linjer.forEach((x,j)=>{if(x.type==='perkasse'){const e=document.getElementById('pk-l-ant-'+j);if(e&&j!==i)e.value=pkAntall(x.antall);const m=document.getElementById('pk-l-folg-'+j);if(m)m.textContent=`følger ${pkAntall(pkKasseAntall(a))} kasse${pkKasseAntall(a)===1?'':'r'}`;}});
+  const r=PK_FOLGER[l.type];
+  if(r&&pkHarStyrer(a,r.styrer)){l.manuelt=l.antall!==pkStyrerAntall(a,r.styrer);pkRenderPakkeLinjer();return;}
+  if(Object.values(PK_FOLGER).some(x=>x.styrer===l.type)&&pkOppdaterPerKasse(a)){
+    a.linjer.forEach((x,j)=>{if(PK_FOLGER[x.type]&&j!==i){const e=document.getElementById('pk-l-ant-'+j);if(e)e.value=pkAntall(x.antall);const m=document.getElementById('pk-l-folg-'+j);if(m&&!x.manuelt)m.textContent=pkFolgTekst(a,x.type);}});
   }
   pkPakkeOppdaterSum();
 }
@@ -16666,7 +16678,6 @@ function pkRenderPakkeLinjer(){
   const kan=pkKanEndreApen(),dis=kan?'':'disabled';
   if(!a.linjer.length){tb.innerHTML='<tr><td colspan="8" style="color:#6b7280;text-align:center;padding:14px">Ingen linjer ennå.</td></tr>';pkPakkeOppdaterSum();return;}
   pkOppdaterPerKasse(a);
-  const harKasser=pkHarKasser(a),kasser=pkKasseAntall(a);
   const grupper=pkLinjeGrupper(a);
   tb.innerHTML=grupper.map((g,gi)=>`<tr class="pk-linjegruppe"><td colspan="5" style="background:#eef3fb;color:#1A3A6B;font-weight:700;font-size:12.5px;padding:6px 10px">${jsEscapeHtml(g.navn)}${g.lopende?' <span style="font-weight:400;color:#4b5563">· per måned</span>':''}</td><td colspan="3" style="background:#eef3fb;text-align:right;font-size:12.5px;color:#1A3A6B;padding:6px 10px;white-space:nowrap" id="pk-g-sum-${gi}"></td></tr>`+g.idx.map(i=>{const l=a.linjer[i];
     const x=pkLinjeBeregn(l,pkPakkePrisklasse),v=x.v;
@@ -16676,7 +16687,7 @@ function pkRenderPakkeLinjer(){
       ${v?`<div class="pk-under">${jsEscapeHtml(pkGruppeNavn(v)||'Uten gruppe')}${!v.gruppe&&pkGruppeNavn(v)?' (vareprofil)':''}${pkGruppeNavn(v)&&!pkGruppeFor(pkGruppeNavn(v))?' · <span style="color:#b45309">gruppen har ikke regler</span>':''}${x.lopende?(pkMndFaktor(v)<1?` · ${pkKr(v.listepris)} per ${pkMndFaktor(v)<0.1?'år':'kvartal'} i Visma`:' · løpende'):''}${v.status&&!pkErAktiv(v)?' · <span style="color:#dc2626">inaktiv i Visma</span>':''}</div>`:`<div class="pk-under" style="color:#b45309">⚠ Velg vare${l.sok?` (fra malen: «${jsEscapeHtml(l.sok)}»)`:''}</div>`}${malNotat}`;
     return`<tr${v?'':' style="background:#fffbeb"'}>
       <td>${vareCelle}</td>
-      <td><input type="number" min="0" step="1" id="pk-l-ant-${i}" value="${pkAntall(l.antall)}" ${dis} oninput="pkAntallEndret(${i},this.value)" style="width:64px">${l.type==='perkasse'?(harKasser?(l.manuelt?`<div class="pk-under" style="color:#b45309">manuelt${kan?` · <a href="#" onclick="event.preventDefault();pkFolgKasser(${i})" title="Følg antall kasser igjen">↺ følg</a>`:''}</div>`:`<div class="pk-under" id="pk-l-folg-${i}" style="color:#1d4ed8">følger ${pkAntall(kasser)} kasse${kasser===1?'':'r'}</div>`):'<div class="pk-under" style="color:#9ca3af">ingen kasselinjer</div>'):''}</td>
+      <td><input type="number" min="0" step="1" id="pk-l-ant-${i}" value="${pkAntall(l.antall)}" ${dis} oninput="pkAntallEndret(${i},this.value)" style="width:64px">${PK_FOLGER[l.type]?(pkHarStyrer(a,PK_FOLGER[l.type].styrer)?(l.manuelt?`<div class="pk-under" style="color:#b45309">manuelt${kan?` · <a href="#" onclick="event.preventDefault();pkFolgKasser(${i})" title="Følg antallet igjen">↺ følg</a>`:''}</div>`:`<div class="pk-under" id="pk-l-folg-${i}" style="color:#1d4ed8">${pkFolgTekst(a,l.type)}</div>`):`<div class="pk-under" style="color:#9ca3af">ingen ${PK_FOLGER[l.type].ord[1]}</div>`):''}</td>
       <td><select ${dis} style="min-width:150px" onchange="pkApenPakke.linjer[${i}].type=this.value;delete pkApenPakke.linjer[${i}].manuelt;pkRenderPakkeLinjer()">${Object.entries(PK_LINJETYPER).map(([k,t])=>`<option value="${k}"${(l.type||'fast')===k?' selected':''}>${t}</option>`).join('')}</select>
         ${l.type==='valgfri'?`<label class="pk-chk" style="display:block;margin-top:3px"><input type="checkbox" ${l.valgt!==false?'checked':''} ${dis} onchange="pkApenPakke.linjer[${i}].valgt=this.checked;pkPakkeOppdaterSum()"> med som standard</label>`:''}</td>
       <td>${tillatt?`<input type="number" min="0" max="100" step="any" value="${l.rabattPst?String(l.rabattPst):''}" ${dis} oninput="pkApenPakke.linjer[${i}].rabattPst=Number(String(this.value).replace(',','.'))||0;pkPakkeOppdaterSum()" style="width:70px">`:`<span style="color:#9ca3af" title="${v?'Produktgruppen tillater ikke manuell rabatt (lisenser får bare prisklasserabatt fra Visma)':''}">–</span>`}</td>
@@ -16804,10 +16815,13 @@ function pkFlett(tekst,f){return String(tekst||'').replace(/\{([a-z_]+)\}/g,(m,k
 // Enkel formatering: tom linje = nytt avsnitt, «- » = punktliste, **fet**.
 function pkTekstHtml(tekst,f){
   const esc=s=>jsEscapeHtml(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  // v1.48.264: linjer som starter med «- » blir punktliste også når avsnittet starter med vanlig tekst («Åpningstider:»).
+  const erPunkt=l=>/^\s*[-•]\s+/.test(l);
   return pkFlett(tekst,f).split(/\n\s*\n/).map(avsnitt=>{
-    const linjer=avsnitt.split('\n');
-    if(linjer.every(l=>/^\s*[-•]\s+/.test(l)))return'<ul style="margin:4px 0 8px 18px;padding:0">'+linjer.map(l=>`<li>${esc(l.replace(/^\s*[-•]\s+/,''))}</li>`).join('')+'</ul>';
-    return`<p style="margin:0 0 8px">${linjer.map(esc).join('<br>')}</p>`;
+    const linjer=avsnitt.split('\n'),deler=[];
+    linjer.forEach(l=>{const p=erPunkt(l),s=deler[deler.length-1];if(s&&s.p===p)s.l.push(l);else deler.push({p,l:[l]});});
+    return deler.map(d=>d.p?'<ul style="margin:2px 0 8px 18px;padding:0">'+d.l.map(l=>`<li>${esc(l.replace(/^\s*[-•]\s+/,''))}</li>`).join('')+'</ul>'
+      :`<p style="margin:0 ${'0'} ${'8px'}">${d.l.map(esc).join('<br>')}</p>`).join('');
   }).join('');
 }
 function pkDatoTekst(d){return d.toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'});}
@@ -16872,8 +16886,8 @@ function pkRenderForhand(){
   const f=erTilbud?ptFlett(a):pkFlettEksempel(pakke.navn);
   document.getElementById('pk-modal-innhold').innerHTML=`<h3>👁 Forhåndsvisning${pkPakkePrisklasse?` · prisklasse ${jsEscapeHtml(pkPakkePrisklasse)}`:' · listepris'}</h3>
     <div class="hint" style="margin:0 0 10px">${erTilbud?'Slik blir tilbudet. PDF og sending kommer i steg 4.':'Flettefeltene er fylt ut med eksempelverdier. Tekstene kan senere endres i hvert enkelt tilbud. PDF og sending kommer i steg 4.'}</div>
-    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:22px;background:#fff">${pkTilbudHtml(pakke,pkPakkePrisklasse,f)}</div>
-    <div class="modal-footer"><button class="btn-sm" onclick="pkApenPakke.visning='rediger';pkRenderPakkeEditor()">← Tilbake til ${erTilbud?'tilbudet':'pakken'}</button></div>`;
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:22px;background:#fff">${(window._ptPdfHtml=pkTilbudHtml(pakke,pkPakkePrisklasse,f))}</div>
+    <div class="modal-footer"><button class="btn-sm" onclick="pkApenPakke.visning='rediger';pkRenderPakkeEditor()">← Tilbake til ${erTilbud?'tilbudet':'pakken'}</button><button class="prim" style="margin-left:auto" onclick="ptSkrivUtPdf(window._ptPdfHtml,'${jsEscapeHtml(('Tilbud '+(erTilbud?(a.kunde?.navn||''):'')+' '+pakke.navn).replace(/['\\]/g,'').trim())}')">📄 Last ned PDF</button></div>`;
   document.getElementById('pk-modal-innhold').scrollTop=0;
 }
 
@@ -17000,8 +17014,8 @@ const PK_L={
   softpayLis:{navn:'SoftPay betalingsløsning',s:[['softpay','betalingsløsning'],['softpay']],p:299},
   regnskapLis:{navn:'Regnskapsoverføring API',s:[['regnskap','api'],['regnskap']],p:210},
   support:{navn:'Telefonsupport med fjernstyring',s:[['support','fjern'],['telefonsupport'],['support']],p:149},
-  terminalLis:{navn:'Lisensavtale betalingsterminal',s:[['lisens','terminal'],['lisensavtale'],['sw','lisens']],p:252},
-  bytte:{navn:'Bytteservice betalingsterminal',s:[['bytteservice','verifone','stasjon'],['bytteservice','verifone'],['bytteservice']],p:116}
+  terminalLis:{navn:'Lisensavtale betalingsterminal',s:[['lisens','terminal'],['lisensavtale'],['sw','lisens']],p:252,type:'perterminal'},
+  bytte:{navn:'Bytteservice betalingsterminal',s:[['bytteservice','verifone','stasjon'],['bytteservice','verifone'],['bytteservice']],p:116,type:'perterminal'}
 };
 const PK_STARTPAKKER=[
   {navn:'KBD Android POS M10 med Softpay',beskr:'Kassasystem med Softpay betalingsløsning',sortering:10,linjer:[
@@ -17009,14 +17023,14 @@ const PK_STARTPAKKER=[
     tekster:{leveringstid:{tekst:'All hardware er lagervare og kan leveres i løpet av 2 uker. Ved levering som krever spesielle tilpasninger, avtales leveringstid.'}}},
   {navn:'KBD Android POS 15 med Verifone P400',beskr:'Kassasystem med stasjonær betalingsterminal',sortering:20,linjer:[
     {navn:'KBD Android POS 15,6" med kundeskjerm',s:[['pos','15,6'],['pos','15']],p:22490,type:'kasse'},{navn:'Kvitteringsprinter 80 mm',s:[['kvitteringsprinter'],['printer','80'],['thermo','printer'],['printer']],p:4990,type:'antall'},PK_L.kassaskuff,
-    {navn:'Verifone P400 stasjonær og kablet',s:[['p400']],p:8250,type:'antall'},{...PK_L.terminalEtab,navn:'Etablering BAX'},PK_L.regnskapEtab,PK_L.susoftEtabBasic,PK_L.oppsett,
+    {navn:'Verifone P400 stasjonær og kablet',s:[['p400']],p:8250,type:'terminal'},{...PK_L.terminalEtab,navn:'Etablering BAX',type:'perterminal'},PK_L.regnskapEtab,PK_L.susoftEtabBasic,PK_L.oppsett,
     {navn:'SuSoft Basic',s:[['susoft','g1','basic'],['susoft','basic']],p:590,type:'perkasse'},PK_L.regnskapLis,PK_L.support,PK_L.terminalLis,PK_L.bytte],tekster:{}},
   {navn:'KBD Android POS Telpo M1 med SoftPay',beskr:'Mobilt kassasystem med SoftPay betalingsløsning',sortering:30,linjer:[
     {navn:'KBD POS Telpo M1',s:[['telpo','m1 '],['telpo','m1']],p:9490,type:'kasse'},{navn:'Telpo ladebase/docking til M1',s:[['telpo','dock'],['telpo','lade'],['m1','dock']],p:990,type:'antall'},PK_L.susoftEtabMini,PK_L.terminalEtab,
     {...PK_L.oppsett,mal:0,rabattPst:100},{navn:'Etablering nettbutikk',s:[['etablering','nettbutikk'],['nettbutikk','oppsett'],['nettbutikk']],p:5200,type:'valgfri',valgt:false},PK_L.mini,PK_L.regnskapLis,PK_L.support,PK_L.softpayLis],
     tekster:{kommentarer:{tekst:'Softpay har en transaksjonsavgift på 1,15 % for Visa og Mastercard. Man kan også få BankAxept i terminalen.\n\nArbeid utover ordinær programmering og import til kassesystemet inngår ikke i tilbudet, og faktureres til timespris. Eventuelt merarbeid avklares med kunden på forhånd.'}}},
   {navn:'Verifone V660P betalingsterminal',beskr:'Mobil betalingsterminal',sortering:40,linjer:[
-    {navn:'Verifone V660P',s:[['v660p'],['v660']],p:15990,type:'antall'},{...PK_L.terminalEtab,navn:'Etablering BAX',p:1450},{navn:'SW-lisens V660P',s:[['v660','lisens'],['sw','lisens'],['lisens','terminal']],p:252},{...PK_L.bytte,navn:'Bytteserviceavtale Verifone mobil',s:[['bytteservice','verifone','mobil'],['bytteservice','verifone'],['bytteservice']],p:115}],
+    {navn:'Verifone V660P',s:[['v660p'],['v660']],p:15990,type:'terminal'},{...PK_L.terminalEtab,navn:'Etablering BAX',p:1450,type:'perterminal'},{navn:'SW-lisens V660P',s:[['v660','lisens'],['sw','lisens'],['lisens','terminal']],p:252,type:'perterminal'},{...PK_L.bytte,navn:'Bytteserviceavtale Verifone mobil',s:[['bytteservice','verifone','mobil'],['bytteservice','verifone'],['bytteservice']],p:115}],
     tekster:{kommentarer:{tekst:'Verifone har en transaksjonsavgift på 0,40 kr per transaksjon. Den etterfaktureres hver 3. måned.'},leveringstid:{skjul:true}}}
 ];
 function pkFinnVare(s,pris){
@@ -17267,7 +17281,7 @@ function ptTekstFor(tekster,nokkel){const o=tekster?.[nokkel];if(o?.skjul)return
 function ptSlaSammenPakke(a,p){
   (p.linjer||[]).filter(l=>l.varenr).forEach(l=>{
     const fins=a.linjer.find(x=>String(x.varenr).toUpperCase()===String(l.varenr).toUpperCase());
-    if(fins){fins.antall=Math.max(Number(fins.antall)||0,Number(l.antall)||0);if(fins.type==='valgfri'&&l.type!=='valgfri'){fins.type=l.type;delete fins.valgt;}if(l.type==='kasse'||l.type==='perkasse')fins.type=l.type;}
+    if(fins){fins.antall=Math.max(Number(fins.antall)||0,Number(l.antall)||0);if(fins.type==='valgfri'&&l.type!=='valgfri'){fins.type=l.type;delete fins.valgt;}if(['kasse','perkasse','terminal','perterminal'].includes(l.type))fins.type=l.type;}
     else{const k=JSON.parse(JSON.stringify(l));delete k.malPris;delete k.sok;a.linjer.push(k);}
   });
   a.navn=[a.navn,p.navn].filter(Boolean).join(' + ');
@@ -17463,7 +17477,7 @@ function ptApneVisning(spId,versjonSpId){
     const b=ptBeregnFraBilde(d),tek={Topp:d.tekster.filter(t=>t.plassering==='Topp'),Bunn:d.tekster.filter(t=>t.plassering==='Bunn')};
     const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:d.kontaktperson,selger:d.selger,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn},v.opprettet,v.gyldigTil);
     f.gyldig_dager=String(d.innst?.GyldigDager||pkInnst.GyldigDager);
-    innhold=`<div style="border:1px solid #e5e7eb;border-radius:8px;padding:22px;background:#fff">${pkTilbudHtmlFra(b,{navn:d.navn,beskr:d.beskr,bransje:d.bransje||null},tek,f,d.vis||{kjopspris:true,linjepriser:true})}</div>`;
+    innhold=`<div style="border:1px solid #e5e7eb;border-radius:8px;padding:22px;background:#fff">${window._ptPdfHtml=pkTilbudHtmlFra(b,{navn:d.navn,beskr:d.beskr,bransje:d.bransje||null},tek,f,d.vis||{kjopspris:true,linjepriser:true})}</div>`;
   }
   const lys=pkDgLys(v.hwDg);
   document.getElementById('pk-modal-innhold').innerHTML=`<h3>🧾 ${jsEscapeHtml(v.kundeNavn)} – ${jsEscapeHtml(d?.navn||v.pakke)}</h3>
@@ -17478,6 +17492,7 @@ function ptApneVisning(spId,versjonSpId){
     <div class="modal-footer">
       ${sak?`<button class="btn-sm" onclick="ptGaTilSak('${v.sakId}')">↗ Gå til saken</button>`:''}
       <button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare()">Lukk</button>
+      ${d?.linjer?`<button class="btn-sm" onclick="ptSkrivUtPdf(window._ptPdfHtml,'${jsEscapeHtml(`Tilbud ${v.kundeNavn} ${d.navn} v${v.versjon}`.replace(/['\\]/g,''))}')">📄 Last ned PDF</button>`:''}
       ${kan&&d?.linjer?`<button class="prim" onclick="ptNyVersjon('${v.spId}')">✎ Lag ny versjon</button>`:''}
     </div>`;
   document.getElementById('pk-modal-innhold').scrollTop=0;
@@ -17498,6 +17513,32 @@ function ptNyVersjon(spId){
   vfShowToast?.('Prisene er hentet på nytt fra katalogen. Tidligere versjoner er uendret.');
 }
 function ptGaTilSak(sakId){const s=ptSakFor(sakId);if(!s)return;pkLukkVare();gaTilKundeFraSak(s.id);}
+
+// ---------- PDF (v1.48.264) ----------
+// Åpner tilbudet i et eget vindu med A4-oppsett og starter utskrift. I utskriftsvinduet velges
+// «Lagre som PDF». Teksten i PDF-en blir søkbar, og bildene hentes fra www.kbd.as.
+function ptSkrivUtPdf(html,tittel){
+  if(!html){alert('Fant ikke tilbudet. Åpne forhåndsvisningen på nytt.');return;}
+  const w=window.open('','_blank');
+  if(!w){alert('Nettleseren blokkerte vinduet. Tillat sprettoppvinduer for dashbordet og prøv igjen.');return;}
+  const navn=String(tittel||'Tilbud').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim();
+  w.document.open();
+  w.document.write(`<!doctype html><html lang="nb"><head><meta charset="utf-8"><title>${jsEscapeHtml(navn)}</title>
+    <style>@page{size:A4;margin:14mm 14mm 16mm}html,body{margin:0;padding:0;background:#fff}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    tr,img,figure,li{break-inside:avoid}table{page-break-inside:auto}thead{display:table-header-group}
+    .pt-verktoy{position:sticky;top:0;background:#1A3A6B;color:#fff;padding:8px 14px;font:14px Arial,sans-serif;display:flex;gap:10px;align-items:center}
+    .pt-verktoy button{font:inherit;padding:5px 12px;border-radius:6px;border:0;cursor:pointer}
+    @media print{.pt-verktoy{display:none}}</style></head>
+    <body><div class="pt-verktoy">Velg «Lagre som PDF» som skriver i utskriftsvinduet.<button onclick="window.print()">📄 Skriv ut / lagre som PDF</button><button onclick="window.close()">Lukk</button></div>
+    <div style="padding:10px 0">${html}</div></body></html>`);
+  w.document.close();
+  const bilder=[...w.document.images],klar=()=>{try{w.focus();w.print();}catch(e){}};
+  let igjen=bilder.filter(i=>!i.complete).length;
+  if(!igjen){setTimeout(klar,300);return;}
+  const ferdig=()=>{if(--igjen<=0)setTimeout(klar,200);};
+  bilder.forEach(i=>{if(!i.complete){i.addEventListener('load',ferdig);i.addEventListener('error',ferdig);}});
+  setTimeout(()=>{if(igjen>0){igjen=0;klar();}},4000);
+}
 
 function showTab(name,btn){
   document.querySelectorAll('.tp').forEach(t=>{t.classList.remove('active');t.style.display='none';});
