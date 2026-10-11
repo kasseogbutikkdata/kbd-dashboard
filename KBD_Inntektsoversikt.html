@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.275 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.276 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11793,6 +11793,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.276',dato:'11.10.2026',punkter:[
+    'Bursdager og jubileer i helgen vises også på mandag, merket «(lørdag)» eller «(i går, søndag)», så de ikke går tapt når ingen er på jobb. På lørdag og søndag vises de som før på selve dagen.'
+  ]},
   {versjon:'v1.48.275',dato:'11.10.2026',punkter:[
     'Nytt lead: når firmaet velges, hentes bransjen automatisk. Den kommer fra kunden eller prospektet, fra Brreg-treffet, eller fra et direkte oppslag i Brønnøysundregisteret på org.nr. Feltet «Bransje» viser «Automatisk (…)» med næringskoden, og bransjen kan overstyres. En salgsmulighet kan ikke lagres uten bransje.',
     'Ved lagring settes bransjen på kundekortet (næringskode og eventuell overstyring), slik at tilbudet får riktig bransjebilde og salgstekst.',
@@ -13963,19 +13966,31 @@ function renderHjemKunngjoring(){
 // person og skal ikke være med i selve sammenligningen, kun i teksten som
 // vises. Jubileum krever i tillegg startår < inneværende år (unngår en
 // merkelig "0 år i KBD"-hilsen samme dag noen registreres).
-function hentDagensMarkeringer(){
-  const idag=new Date();
-  const dd=idag.getDate(),mm=idag.getMonth()+1;
+// v1.48.276 (Thomas 11.10.2026: «idag er det søndag og da er det ingen som ser det»): på mandag vises
+// også markeringer fra lørdag og søndag, med «(lørdag)»/«(i går, søndag)» bak, så de ikke går tapt i helgen.
+// Lørdag og søndag vises de fortsatt på selve dagen.
+function hentDagensMarkeringer(idagInn){
+  const idag=idagInn?new Date(idagInn):new Date();
+  const dager=[{d:new Date(idag),merke:''}];
+  if(idag.getDay()===1){
+    const lor=new Date(idag);lor.setDate(lor.getDate()-2);
+    const son=new Date(idag);son.setDate(son.getDate()-1);
+    dager.push({d:lor,merke:' (lørdag)'},{d:son,merke:' (i går, søndag)'});
+  }
   const markeringer=[];
-  brukere.forEach(b=>{
-    const fodt=parseLD(b.tilgang?.fodselsdato);
-    if(fodt&&fodt.getDate()===dd&&fodt.getMonth()+1===mm){
-      markeringer.push({navn:b.navn,tekst:`🎂 Gratulerer med dagen, ${(b.navn||'').split(' ')[0]}! (${idag.getFullYear()-fodt.getFullYear()} år)`});
-    }
-    const startet=parseLD(b.tilgang?.startetIKBD);
-    if(startet&&startet.getDate()===dd&&startet.getMonth()+1===mm&&startet.getFullYear()<idag.getFullYear()){
-      markeringer.push({navn:b.navn,tekst:`🎉 Gratulerer med ${idag.getFullYear()-startet.getFullYear()} år i KBD, ${(b.navn||'').split(' ')[0]}!`});
-    }
+  dager.forEach(({d,merke})=>{
+    const dd=d.getDate(),mm=d.getMonth()+1;
+    brukere.forEach(b=>{
+      const fornavn=(b.navn||'').split(' ')[0];
+      const fodt=parseLD(b.tilgang?.fodselsdato);
+      if(fodt&&fodt.getDate()===dd&&fodt.getMonth()+1===mm){
+        markeringer.push({navn:b.navn,tekst:`🎂 Gratulerer med dagen, ${fornavn}! (${d.getFullYear()-fodt.getFullYear()} år)${merke}`});
+      }
+      const startet=parseLD(b.tilgang?.startetIKBD);
+      if(startet&&startet.getDate()===dd&&startet.getMonth()+1===mm&&startet.getFullYear()<d.getFullYear()){
+        markeringer.push({navn:b.navn,tekst:`🎉 Gratulerer med ${d.getFullYear()-startet.getFullYear()} år i KBD, ${fornavn}!${merke}`});
+      }
+    });
   });
   return markeringer;
 }
