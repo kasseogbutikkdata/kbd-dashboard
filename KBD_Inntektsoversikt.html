@@ -734,7 +734,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.255 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.256 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3118,6 +3118,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       <div class="pk-faner">
         <button class="pk-fane aktiv" data-v="varer" onclick="pkByttVisning('varer')">📋 Varer</button>
         <button class="pk-fane" data-v="rabatter" onclick="pkByttVisning('rabatter')">🏷️ Rabatter</button>
+        <button class="pk-fane" data-v="tilbud" onclick="pkByttVisning('tilbud')">🧾 Tilbud</button>
         <button class="pk-fane" data-v="pakker" onclick="pkByttVisning('pakker')">📦 Pakker</button>
         <button class="pk-fane" data-v="tekster" onclick="pkByttVisning('tekster')">📝 Standardtekster</button>
         <button class="pk-fane" data-v="grupper" onclick="pkByttVisning('grupper')">⚙️ Grupper og regler</button>
@@ -9098,6 +9099,8 @@ function openRedigerNotat(id){
 }
 
 let notatLagretHook=null;
+// v1.48.256: kalles én gang med den nye saken når en NY sak er opprettet i SharePoint (brukes av tilbudsbyggeren).
+let notatOpprettetHook=null;
 function lkSkjulNotatInfo(){const e=document.getElementById('n-lk-info');if(e){e.style.display='none';e.innerHTML='';}}
 function closeNotatModal(){notatLagretHook=null;lkSkjulNotatInfo();if(taleAktiv&&taleAktiv.targetId==='n-innhold')taleStopp();document.getElementById('notat-modal').classList.remove('open');}
 
@@ -11010,6 +11013,7 @@ function saveNotat(){
     spLagreMedMykFallback(f=>spCreate('KundeNotater',f),notatFieldsPayload(nyNotat),NOTAT_MYKE_FELTER).then(r=>{
       const midlertidigId=nyNotat.id;
       nyNotat.spId=r.id;nyNotat.id=`sp${r.id}`;
+      if(typeof notatOpprettetHook==='function'){const h=notatOpprettetHook;notatOpprettetHook=null;try{h(nyNotat);}catch(e){console.warn('notatOpprettetHook',e);}}
       setSPStatus('✅ Lagret');setTimeout(()=>setSPStatus(''),3000);
       // VIKTIG: kortet ble tegnet rett over (linje "if(k360Valgt)renderKundeKort")
       // med den midlertidige "tmp…"-IDen bakt inn i alle onclick-attributter på
@@ -11620,6 +11624,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.256',dato:'11.10.2026',punkter:[
+    'Produktkatalog: ny fane «🧾 Tilbud» med tilbudsbyggeren. Velg en pakke (eller start tomt), velg mottaker (eksisterende kunde, prospekt, nytt firma fra Brreg eller fritt navn), kontaktperson og prisklasse, og juster antall, linjer og rabatt. «％ Rabatt på all hardware» setter samme rabatt på alle linjer som kan få rabatt. DG-lyset oppdateres mens du skriver, og ved rødt lys må du skrive en årsak (med hurtigvalg som Konkurrent og Strategisk kunde).',
+    'Tilbudet lagres som en tilbudssak i Kundesaker (fase «Tilbud sendt», totalsum = kjøpspris + 12 × lisenser), i det vanlige sakvinduet, så leadkilde, sannsynlighet og oppretting av nye kunder virker som før. Selve tilbudet låses i lista «TilbudVersjoner». Endringer gir en ny versjon (v2, v3 …), oppdaterer totalsummen på saken og skriver en loggpost. Alle versjoner kan åpnes og ses slik de var.',
+    'Tilbudet viser nå en samleboks «Månedlige abonnementer» når lisensene står i flere seksjoner. Pakker har fått knappen «🧾 Lag tilbud fra pakken».'
+  ]},
   {versjon:'v1.48.255',dato:'11.10.2026',punkter:[
     'Produktkatalog: forslagslistene for seksjon i tilbudet, produktgruppe og vare i pakkene er nå en lys liste under feltet, med søk på flere ord og piltaster, i stedet for den mørke systemlista. Vinduet for en vareprofil uten regler heter nå «Sett regler for …».'
   ]},
@@ -15903,7 +15912,9 @@ async function pkLastData(tving){
   pkLaster=true;pkFeil='';
   renderProduktkatalog();
   try{
-    const[vRes,rRes,gRes,iRes,pRes,tRes]=await Promise.allSettled([spGetItems('Produktkatalog'),spGetItems('ProduktRabatter'),spGetItems('Produktgrupper'),spGetItems('TilbudInnstillinger'),spGetItems('Tilbudspakker'),spGetItems('TilbudTekster')]);
+    const[vRes,rRes,gRes,iRes,pRes,tRes,tvRes]=await Promise.allSettled([spGetItems('Produktkatalog'),spGetItems('ProduktRabatter'),spGetItems('Produktgrupper'),spGetItems('TilbudInnstillinger'),spGetItems('Tilbudspakker'),spGetItems('TilbudTekster'),spGetItems('TilbudVersjoner')]);
+    // v1.48.256: lagrede tilbud (én rad per versjon).
+    if(tvRes.status==='fulfilled'){ptFinnes=true;ptLes(tvRes.value);}else{ptFinnes=false;ptVersjoner=[];console.warn('TilbudVersjoner kunne ikke leses (finnes lista i SharePoint?):',tvRes.reason);}
     // v1.48.252: pakker og standardtekster for tilbud.
     if(pRes.status==='fulfilled'){pkPakkerFinnes=true;pkLesPakker(pRes.value);}else{pkPakkerFinnes=false;pkPakker=[];console.warn('Tilbudspakker kunne ikke leses (finnes lista i SharePoint?):',pRes.reason);}
     if(tRes.status==='fulfilled'){pkTeksterFinnes=true;pkLesTekster(tRes.value);}else{pkTeksterFinnes=false;pkTekster=[];console.warn('TilbudTekster kunne ikke leses (finnes lista i SharePoint?):',tRes.reason);}
@@ -16031,7 +16042,7 @@ function renderProduktkatalog(){
   if(pkVarer.length===0){
     el.innerHTML='<div class="pk-tom"><b>Ingen varer ennå.</b><br>Listene finnes, men ProduktSync har ikke skrevet noe. Står <code>PRODUKT_SYNC_DRY_RUN</code> fortsatt på (standard)? Se Jobbstatus for siste kjøring.</div>';return;
   }
-  if(pkVisning==='rabatter')renderPkRabatter();else if(pkVisning==='grupper')renderPkGrupper();else if(pkVisning==='pakker')renderPkPakker();else if(pkVisning==='tekster')renderPkTekster();else renderPkVarer();
+  if(pkVisning==='rabatter')renderPkRabatter();else if(pkVisning==='grupper')renderPkGrupper();else if(pkVisning==='pakker')renderPkPakker();else if(pkVisning==='tilbud')renderPkTilbud();else if(pkVisning==='tekster')renderPkTekster();else renderPkVarer();
 }
 
 function renderPkVarer(){
@@ -16540,13 +16551,15 @@ function pkApnePakke(spId){
   document.getElementById('pk-modal').classList.add('open');
 }
 function pkVareValgTekst(v){return`${v.varenr} — ${pkNavn(v)}`;}
+function pkKanEndreApen(){const a=pkApenPakke;return a&&a.modus==='tilbud'?(typeof ptKanSelge==='function'&&ptKanSelge()&&!a.laast):pkKanRedigere();}
 function pkRenderPakkeEditor(){
   const a=pkApenPakke;if(!a)return;
   if(a.visning==='forhand'){pkRenderForhand();return;}
-  const kan=pkKanRedigere(),dis=kan?'':'disabled';
+  const erTilbud=a.modus==='tilbud';
+  const kan=pkKanEndreApen(),dis=kan?'':'disabled';
   const klasser=pkPrisklasser().direkte;
   const bransjeValg=(typeof KBD_BRANSJE_VALG!=='undefined'?KBD_BRANSJE_VALG:[]);
-  let h=`<h3>${a.spId?'📦 Pakke':'＋ Ny pakke'}</h3>
+  const topp=erTilbud?ptEditorHode(a,dis):`<h3>${a.spId?'📦 Pakke':'＋ Ny pakke'}</h3>
     <div style="display:grid;grid-template-columns:2fr 3fr 110px;gap:10px;margin-bottom:10px">
       <div class="fgrp"><label>Pakkenavn</label><input type="text" id="pk-p-navn" value="${jsEscapeHtml(a.navn)}" oninput="pkApenPakke.navn=this.value" ${dis} placeholder="F.eks. KBD Android POS M10 med Softpay"></div>
       <div class="fgrp"><label>Undertittel i tilbudet</label><input type="text" value="${jsEscapeHtml(a.beskr)}" oninput="pkApenPakke.beskr=this.value" ${dis} placeholder="F.eks. Kassasystem med Softpay betalingsløsning"></div>
@@ -16556,30 +16569,34 @@ function pkRenderPakkeEditor(){
       <span style="font-size:12.5px;font-weight:600;color:#374151">Bransjer (foreslås for leads i disse bransjene senere):</span>
       ${bransjeValg.map(b=>`<label class="pk-chk"><input type="checkbox" ${a.bransjer.includes(b)?'checked':''} ${dis} onchange="pkPakkeBransje('${jsEscapeHtml(b).replace(/'/g,'&#39;')}',this.checked)"> ${jsEscapeHtml(b)}</label>`).join('')}
       <label class="pk-chk" style="margin-left:auto"><input type="checkbox" ${a.aktiv?'checked':''} ${dis} onchange="pkApenPakke.aktiv=this.checked"> Aktiv</label>
-    </div>
+    </div>`;
+  const prisVelger=`<select onchange="pkPakkePrisklasse=this.value;if(pkApenPakke.modus==='tilbud')pkApenPakke.prisklasse=this.value;pkRenderPakkeEditor()" style="width:auto" ${erTilbud?dis:''}><option value="">${erTilbud?'Listepris (nye kunder)':'Vis med listepris (nye kunder)'}</option>${klasser.map(k=>`<option value="${jsEscapeHtml(k)}"${k===pkPakkePrisklasse?' selected':''}>${erTilbud?'Prisklasse':'Vis med prisklasse'} ${jsEscapeHtml(k)}</option>`).join('')}</select>`;
+  const fot=erTilbud?ptEditorFot(a,kan):`
+      ${kan&&a.spId?'<button class="btn-sm" style="color:#dc2626" onclick="pkSlettPakke()">Slett</button><button class="btn-sm" onclick="pkKopierPakke()">Lag kopi</button>':''}
+      ${a.spId&&typeof ptKanSelge==='function'&&ptKanSelge()?'<button class="btn-sm" onclick="ptNyttFraPakke(pkApenPakke.spId)">🧾 Lag tilbud fra pakken</button>':''}
+      <button class="btn-sm" style="margin-left:auto" onclick="pkApenPakke.visning=\'forhand\';pkRenderPakkeEditor()">👁 Forhåndsvis tilbud</button>
+      <button class="btn-sm" onclick="pkLukkVare()">${kan?'Avbryt':'Lukk'}</button>
+      ${kan?'<button class="prim" id="pk-p-lagre" onclick="pkLagrePakke()">Lagre</button>':''}`;
+  let h=`${topp}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap">
       <div style="font-weight:600;font-size:14px">Varelinjer</div>
-      <select onchange="pkPakkePrisklasse=this.value;pkRenderPakkeEditor()" style="width:auto"><option value="">Vis med listepris (nye kunder)</option>${klasser.map(k=>`<option value="${jsEscapeHtml(k)}"${k===pkPakkePrisklasse?' selected':''}>Vis med prisklasse ${jsEscapeHtml(k)}</option>`).join('')}</select>
+      <div style="display:flex;gap:6px;align-items:center">${erTilbud&&kan?'<button class="btn-sm" onclick="ptRabattAlleHw()" title="Samme rabatt på alle linjer som kan få rabatt">％ Rabatt på all hardware</button>':''}${prisVelger}</div>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th style="min-width:300px">Vare</th><th style="width:70px">Antall</th><th style="min-width:150px">Type</th><th style="width:80px">Rabatt %</th><th style="text-align:right">Pris/stk</th><th style="text-align:right">Sum</th><th style="text-align:right">DG</th><th></th></tr></thead><tbody id="pk-p-linjer"></tbody></table></div>
     ${kan?'<div style="margin:6px 0 0"><button class="btn-sm" onclick="pkPakkeNyLinje()">＋ Legg til linje</button></div>':''}
     <div id="pk-p-sum" class="pk-eksempel"></div>
+    ${erTilbud?'<div id="pt-arsak-wrap"></div>':''}
     <div style="font-weight:600;font-size:14px;margin:18px 0 6px">Tekster i tilbudet</div>
-    <div class="hint" style="margin:0 0 8px">Standardtekstene redigeres under «📝 Standardtekster». Her velger du om pakken bruker standardteksten, har sin egen eller skjuler den. Flettefelt: ${PK_FLETTEFELT.map(f=>`<code>{${f}}</code>`).join(' ')}</div>
+    <div class="hint" style="margin:0 0 8px">${erTilbud?'Tekstene kommer fra pakken og standardtekstene. Velg «Egen tekst» for å endre en tekst bare i dette tilbudet.':'Standardtekstene redigeres under «📝 Standardtekster». Her velger du om pakken bruker standardteksten, har sin egen eller skjuler den.'} Flettefelt: ${PK_FLETTEFELT.map(f=>`<code>{${f}}</code>`).join(' ')}</div>
     <div id="pk-p-tekster">${pkPakkeTeksterHtml(dis)}</div>
-    <div class="modal-footer">
-      ${kan&&a.spId?'<button class="btn-sm" style="color:#dc2626" onclick="pkSlettPakke()">Slett</button><button class="btn-sm" onclick="pkKopierPakke()">Lag kopi</button>':''}
-      <button class="btn-sm" style="margin-left:auto" onclick="pkApenPakke.visning=\'forhand\';pkRenderPakkeEditor()">👁 Forhåndsvis tilbud</button>
-      <button class="btn-sm" onclick="pkLukkVare()">${kan?'Avbryt':'Lukk'}</button>
-      ${kan?'<button class="prim" id="pk-p-lagre" onclick="pkLagrePakke()">Lagre</button>':''}
-    </div>`;
+    <div class="modal-footer">${fot}</div>`;
   document.getElementById('pk-modal-innhold').innerHTML=h;
   pkRenderPakkeLinjer();
 }
 function pkPakkeBransje(b,pa){const a=pkApenPakke;a.bransjer=a.bransjer.filter(x=>x!==b);if(pa)a.bransjer.push(b);}
 function pkRenderPakkeLinjer(){
   const a=pkApenPakke,tb=document.getElementById('pk-p-linjer');if(!a||!tb)return;
-  const kan=pkKanRedigere(),dis=kan?'':'disabled';
+  const kan=pkKanEndreApen(),dis=kan?'':'disabled';
   if(!a.linjer.length){tb.innerHTML='<tr><td colspan="8" style="color:#6b7280;text-align:center;padding:14px">Ingen linjer ennå.</td></tr>';pkPakkeOppdaterSum();return;}
   tb.innerHTML=a.linjer.map((l,i)=>{
     const x=pkLinjeBeregn(l,pkPakkePrisklasse),v=x.v;
@@ -16623,6 +16640,7 @@ function pkPakkeOppdaterSum(){
     d.innerHTML=pkDgTekst(x.v.egenTjeneste?(x.netto>0?(x.netto-kostStk)/x.netto*100:null):pkDg(x.netto,kostStk));
   });
   const el=document.getElementById('pk-p-sum');if(!el)return;
+  if(a.modus==='tilbud'&&typeof ptVisArsak==='function')ptVisArsak(b);
   const lys=pkDgLys(b.hwDg);
   const rom=b.hwDg!==null&&b.hwInn>0?b.hwInn-b.hwKost/(1-pkInnst.DgMin/100):null;
   el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 18px">
@@ -16632,7 +16650,7 @@ function pkPakkeOppdaterSum(){
     <div style="color:${lys.farge}">${lys.ikon} DG hardware og etablering: <b>${b.hwDg===null?lys.tekst:b.hwDg.toFixed(1).replace('.',',')+' %'}</b> (DB ${pkKr(Math.round(b.hwDb))})</div>
     <div>DB lisenser: <b>${pkKr(Math.round(b.lopDb))} per måned</b></div>
     <div>${rom!==null?(rom>=0?`Rom for ytterligere ${pkKr(Math.floor(rom))} rabatt før ${String(pkInnst.DgMin).replace('.',',')} %`:`<span style="color:#dc2626">${pkKr(Math.ceil(-rom))} under minstegrensen</span>`):''}</div>
-  </div>${b.manglerKost?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerKost} linje(r) i hardware og etablering mangler kostpris og regnes med kost 0. DG blir da for høy. Er det egen tjeneste (f.eks. vår egen klargjøring), huk av «Egen tjeneste» på varen i 📋 Varer.</div>`:''}${b.manglerVare?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerVare} linje(r) mangler vare og er ikke med i summen.</div>`:''}`;
+  </div>${a.modus==='tilbud'?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid #dbe3f0">Verdi første år (kjøpspris + 12 × lisenser): <b>${pkKr(Math.round(b.kjop+12*b.lopMnd))}</b> · DB første år: <b>${pkKr(Math.round(b.hwDb+12*b.lopDb))}</b>${b.leie?` · Ikano betaler KBD ${pkKr(Math.round(b.leie.anskaffelse))} ved leie (${b.leie.tillegg>=0?'+':''}${pkKr(Math.round(b.leie.tillegg))})`:''}</div>`:''}${b.manglerKost?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerKost} linje(r) i hardware og etablering mangler kostpris og regnes med kost 0. DG blir da for høy. Er det egen tjeneste (f.eks. vår egen klargjøring), huk av «Egen tjeneste» på varen i 📋 Varer.</div>`:''}${b.manglerVare?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerVare} linje(r) mangler vare og er ikke med i summen.</div>`:''}`;
 }
 function pkPakkeTeksterHtml(dis){
   const a=pkApenPakke,std=pkTeksterSortert();
@@ -16643,7 +16661,7 @@ function pkPakkeTeksterHtml(dis){
     const k=jsEscapeHtml(t.nokkel);
     return`<details style="border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;margin-bottom:6px"${modus==='egen'?' open':''}>
       <summary style="cursor:pointer;font-size:13px"><b>${jsEscapeHtml(t.overskrift||t.nokkel)}</b> <span class="pk-merke ${modus==='std'?'pk-merke-gra':modus==='egen'?'pk-merke-bla':'pk-merke-gul'}">${modus==='std'?'standard':modus==='egen'?'egen tekst':'skjult'}</span> <span style="color:#9ca3af;font-size:12px">${t.plassering==='Topp'?'før linjene':'etter linjene'}</span></summary>
-      <div style="margin-top:6px"><select ${dis} onchange="pkPakkeTekstModus('${k}',this.value)" style="width:auto;margin-bottom:6px"><option value="std"${modus==='std'?' selected':''}>Bruk standardteksten</option><option value="egen"${modus==='egen'?' selected':''}>Egen tekst for denne pakken</option><option value="skjul"${modus==='skjul'?' selected':''}>Ikke ta med</option></select>
+      <div style="margin-top:6px"><select ${dis} onchange="pkPakkeTekstModus('${k}',this.value)" style="width:auto;margin-bottom:6px"><option value="std"${modus==='std'?' selected':''}>Bruk standardteksten</option><option value="egen"${modus==='egen'?' selected':''}>Egen tekst for ${a.modus==='tilbud'?'dette tilbudet':'denne pakken'}</option><option value="skjul"${modus==='skjul'?' selected':''}>Ikke ta med</option></select>
       ${modus==='egen'?`<textarea rows="4" ${dis} style="width:100%" oninput="pkApenPakke.tekster['${k}'].tekst=this.value">${jsEscapeHtml(o.tekst)}</textarea>`:modus==='std'?`<div style="white-space:pre-wrap;font-size:12.5px;color:#4b5563;background:#f9fafb;padding:6px 8px;border-radius:6px">${jsEscapeHtml(t.tekst)}</div>`:''}</div></details>`;
   }).join('')+(ekstra.length?`<div class="hint">Pakken har tekster for nøkler som ikke finnes som standardtekst: ${ekstra.map(jsEscapeHtml).join(', ')}. De vises ikke.</div>`:'');
 }
@@ -16652,7 +16670,7 @@ function pkPakkeTekstModus(nokkel,modus){
   if(modus==='std')delete a.tekster[nokkel];
   else if(modus==='skjul')a.tekster[nokkel]={skjul:true};
   else a.tekster[nokkel]={tekst:a.tekster[nokkel]?.tekst??t?.tekst??''};
-  document.getElementById('pk-p-tekster').innerHTML=pkPakkeTeksterHtml('');
+  document.getElementById('pk-p-tekster').innerHTML=pkPakkeTeksterHtml(pkKanEndreApen()?'':'disabled');
 }
 function pkPakkeFelter(a){
   const linjer=a.linjer.map(l=>{const u={varenr:l.varenr||'',antall:Number(l.antall)||0,type:l.type||'fast'};if(u.type==='valgfri')u.valgt=l.valgt!==false;if(Number(l.rabattPst)>0)u.rabattPst=Number(l.rabattPst);if(l.sok&&!l.varenr)u.sok=l.sok;if(l.malPris!=null&&l.varenr)u.malPris=Number(l.malPris);return u;});
@@ -16707,34 +16725,43 @@ function pkTeksterForPakke(pakke,plassering){
 }
 // Tilbudet slik det blir seende ut. Brukes til forhåndsvisning nå og til PDF i steg 4.
 function pkTilbudHtml(pakke,prisklasse,f){
-  const b=pkPakkeBeregn(pakke,prisklasse);
+  return pkTilbudHtmlFra(pkPakkeBeregn(pakke,prisklasse),{navn:pakke.navn,beskr:pakke.beskr},{Topp:pkTeksterForPakke(pakke,'Topp'),Bunn:pkTeksterForPakke(pakke,'Bunn')},f);
+}
+// Tegner tilbudet fra ferdig utregnede linjer (b) og tekster. Brukes både for live utregning og for
+// lagrede tilbud (øyeblikksbilde i TilbudVersjoner), slik at et lagret tilbud aldri endrer seg.
+function pkTilbudHtmlFra(b,hode,tekster,f){
   const tekstBlokk=t=>`<div style="margin:0 0 12px">${t.overskrift?`<div style="font-weight:700;margin-bottom:3px">${jsEscapeHtml(pkFlett(t.overskrift,f))}</div>`:''}${pkTekstHtml(t.tekst,f)}</div>`;
   const linjeTabell=(rader,lopende)=>`<table style="width:100%;border-collapse:collapse;font-size:13px;margin:4px 0 6px"><thead><tr style="border-bottom:1px solid #1A3A6B;color:#1A3A6B">${['Antall','Beskrivelse','Pris'+(lopende?' per mnd':' per stk'),'Sum'].map((x,i)=>`<th style="${i>1?'text-align:right;':'text-align:left;'}${i===0?'width:60px;':''}text-transform:none;letter-spacing:0;background:none;font-size:12.5px;font-weight:700;color:#1A3A6B;padding:3px 4px">${x}</th>`).join('')}</tr></thead><tbody>${rader.map(x=>`<tr style="border-bottom:1px solid #eef0f4"><td style="padding:3px 4px">${pkAntall(x.antall)}</td><td style="padding:3px 4px">${jsEscapeHtml(pkNavn(x.v))}${x.v.kundeBeskr?`<div style="color:#6b7280;font-size:12px">${jsEscapeHtml(x.v.kundeBeskr)}</div>`:''}</td><td style="text-align:right;white-space:nowrap;padding:3px 4px">${x.rabattPst>0?`<span style="text-decoration:line-through;color:#9ca3af">${pkKr(x.pris)}</span> `:''}${pkKr(x.netto)}</td><td style="text-align:right;white-space:nowrap;padding:3px 4px">${pkKr(x.sum)}</td></tr>`).join('')}</tbody></table>`;
   const engSeks=pkSeksjoner(b.engang),lopSeks=pkSeksjoner(b.lop);
   const tilvalg=b.alle.filter(x=>x.v&&!x.med);
   let h=`<div style="font-family:Arial,Helvetica,sans-serif;color:#111827;max-width:780px;margin:0 auto;font-size:13.5px;line-height:1.5">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1A3A6B;padding-bottom:8px;margin-bottom:14px"><div style="font-weight:800;font-size:18px;color:#1A3A6B">Kasse og Butikkdata AS</div><div style="text-align:right;font-size:12.5px;color:#4b5563">${jsEscapeHtml(f.dato)}<br>Til: ${jsEscapeHtml(f.kundenavn)}${f.kontaktperson?`<br>v/ ${jsEscapeHtml(f.kontaktperson)}`:''}</div></div>
-    <div style="font-size:20px;font-weight:700;color:#1A3A6B">Tilbud ${jsEscapeHtml(pakke.navn)}</div>${pakke.beskr?`<div style="font-size:14px;color:#4b5563;margin-bottom:12px">${jsEscapeHtml(pakke.beskr)}</div>`:'<div style="margin-bottom:12px"></div>'}
-    ${pkTeksterForPakke(pakke,'Topp').map(tekstBlokk).join('')}`;
+    <div style="font-size:20px;font-weight:700;color:#1A3A6B">Tilbud ${jsEscapeHtml(hode.navn)}</div>${hode.beskr?`<div style="font-size:14px;color:#4b5563;margin-bottom:12px">${jsEscapeHtml(hode.beskr)}</div>`:'<div style="margin-bottom:12px"></div>'}
+    ${(tekster.Topp||[]).map(tekstBlokk).join('')}`;
   engSeks.forEach(s=>{h+=`<div style="font-weight:700;color:#1A3A6B;margin-top:10px">${jsEscapeHtml(s.navn)}</div>${linjeTabell(s.rader,false)}<div style="text-align:right;font-size:13px">Sum ${jsEscapeHtml(s.navn.toLowerCase())}: <b>${pkKr(s.rader.reduce((x,r)=>x+r.sum,0))}</b></div>`;});
   if(b.engang.length){
     h+=`<div style="margin:14px 0;padding:10px 12px;background:#f6f8fc;border:1px solid #dbe3f0;border-radius:8px"><div style="font-weight:700;margin-bottom:4px">Samlet pris totalpakke</div>
       ${engSeks.map(s=>`<div style="display:flex;justify-content:space-between"><span>${jsEscapeHtml(s.navn)}</span><span>${pkKr(s.rader.reduce((x,r)=>x+r.sum,0))}</span></div>`).join('')}
       <div style="display:flex;justify-content:space-between;border-top:1px solid #c7d2e5;margin-top:4px;padding-top:4px;font-weight:700"><span>Sum kjøpspris eks. mva</span><span>${pkKr(b.kjop)}</span></div>
-      ${b.leie?`<div style="display:flex;justify-content:space-between;margin-top:6px;color:#1A3A6B"><span>Eller leie ved ${pkInnst.LeieMaaneder} måneders kontrakt</span><b>${pkKr(b.leie.mnd)} per måned</b></div>`:''}</div>`;
+      ${b.leie?`<div style="display:flex;justify-content:space-between;margin-top:6px;color:#1A3A6B"><span>Eller leie ved ${b.leie.maaneder||pkInnst.LeieMaaneder} måneders kontrakt</span><b>${pkKr(b.leie.mnd)} per måned</b></div>`:''}</div>`;
   }
   lopSeks.forEach(s=>{const m=pkFaktMerknad(s.rader);h+=`<div style="font-weight:700;color:#1A3A6B;margin-top:10px">${jsEscapeHtml(s.navn)}</div>${linjeTabell(s.rader,true)}<div style="text-align:right;font-size:13px">Månedlige abonnementer${m?` (${m})`:''}: <b>${pkKr(s.rader.reduce((x,r)=>x+r.sum,0))}</b></div>`;});
+  // v1.48.256: samleboks når lisensene står i flere seksjoner.
+  if(lopSeks.length>1)h+=`<div style="margin:14px 0;padding:10px 12px;background:#f6f8fc;border:1px solid #dbe3f0;border-radius:8px"><div style="font-weight:700;margin-bottom:4px">Månedlige abonnementer</div>
+      ${lopSeks.map(s=>`<div style="display:flex;justify-content:space-between"><span>${jsEscapeHtml(s.navn)}</span><span>${pkKr(s.rader.reduce((x,r)=>x+r.sum,0))}</span></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;border-top:1px solid #c7d2e5;margin-top:4px;padding-top:4px;font-weight:700"><span>Sum per måned eks. mva</span><span>${pkKr(b.lopMnd)}</span></div></div>`;
   if(tilvalg.length)h+=`<div style="font-weight:700;color:#1A3A6B;margin-top:12px">Tilvalg (ikke med i summene)</div>${linjeTabell(tilvalg,false)}`;
-  h+=`<div style="margin-top:16px">${pkTeksterForPakke(pakke,'Bunn').map(tekstBlokk).join('')}</div></div>`;
+  h+=`<div style="margin-top:16px">${(tekster.Bunn||[]).map(tekstBlokk).join('')}</div></div>`;
   return h;
 }
 function pkRenderForhand(){
-  const a=pkApenPakke;
+  const a=pkApenPakke,erTilbud=a.modus==='tilbud';
   const pakke={navn:a.navn||'(uten navn)',beskr:a.beskr,linjer:a.linjer,tekster:a.tekster};
+  const f=erTilbud?ptFlett(a):pkFlettEksempel(pakke.navn);
   document.getElementById('pk-modal-innhold').innerHTML=`<h3>👁 Forhåndsvisning${pkPakkePrisklasse?` · prisklasse ${jsEscapeHtml(pkPakkePrisklasse)}`:' · listepris'}</h3>
-    <div class="hint" style="margin:0 0 10px">Flettefeltene er fylt ut med eksempelverdier. Tekstene kan senere endres i hvert enkelt tilbud. PDF og sending kommer i steg 4.</div>
-    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:22px;background:#fff">${pkTilbudHtml(pakke,pkPakkePrisklasse,pkFlettEksempel(pakke.navn))}</div>
-    <div class="modal-footer"><button class="btn-sm" onclick="pkApenPakke.visning='rediger';pkRenderPakkeEditor()">← Tilbake til pakken</button></div>`;
+    <div class="hint" style="margin:0 0 10px">${erTilbud?'Slik blir tilbudet. PDF og sending kommer i steg 4.':'Flettefeltene er fylt ut med eksempelverdier. Tekstene kan senere endres i hvert enkelt tilbud. PDF og sending kommer i steg 4.'}</div>
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:22px;background:#fff">${pkTilbudHtml(pakke,pkPakkePrisklasse,f)}</div>
+    <div class="modal-footer"><button class="btn-sm" onclick="pkApenPakke.visning='rediger';pkRenderPakkeEditor()">← Tilbake til ${erTilbud?'tilbudet':'pakken'}</button></div>`;
   document.getElementById('pk-modal-innhold').scrollTop=0;
 }
 
@@ -16883,7 +16910,7 @@ async function pkImporterStartpakker(){
   }catch(e){console.error('Import av startpakker feilet',e);alert('Importen stoppet: '+(e.message||e)+'\n\nSjekk kolonnene i «Tilbudspakker» og «TilbudTekster» (Liste 42 og 43). Pakker som ble lagret før feilen, ligger i lista.');}
   renderPkPakker();
 }
-// ===== Forslagsliste for tekstfelt i Produktkatalog (v1.48.255, 11.10.2026) =====
+// ===== Forslagsliste for tekstfelt i Produktkatalog (v1.48.255, 11.10.2026; «kunde» fra v1.48.256) =====
 // Erstatter <datalist>, som Chrome viser som en mørk, smal systemliste. Felt med
 // data-auto="seksjon|gruppe|vare" får en lys liste under feltet. Valg setter verdien og
 // sender input/change, slik at de vanlige onchange-handlerne kjører som før.
@@ -16893,6 +16920,7 @@ function pkAutoKilde(type){
   if(type==='seksjon')return[...new Set([...PK_SEKSJONER,...pkGrupper.map(g=>g.seksjon).filter(Boolean)])];
   if(type==='gruppe')return[...new Set([...pkProduktgrupper(),...pkGrupper.map(g=>g.navn),...pkVareprofiler().map(x=>x[1])].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nb'));
   if(type==='vare')return pkVarer.filter(v=>pkErAktiv(v)).map(v=>pkVareValgTekst(v));
+  if(type==='kunde'&&typeof ptKundeValg==='function')return ptKundeValg().map(k=>k.tekst);
   return[];
 }
 function pkAutoBoks(){
@@ -16943,6 +16971,303 @@ document.addEventListener('keydown',e=>{
 },true);
 window.addEventListener('scroll',e=>{const b=document.getElementById('pk-auto');if(pkAutoFelt&&b&&!b.contains(e.target))pkAutoLukk();},true);
 window.addEventListener('resize',()=>pkAutoLukk());
+// ===== 🧾 PRODUKTKATALOG: TILBUDSBYGGER (v1.48.256, 11.10.2026) =====
+// Steg 3 i tilbud og pakker (claude/tilbud-pakker-plan.md i prosjektet).
+// Et tilbud lages fra en pakke (eller tomt), justeres for kunden og lagres som en
+// tilbudssak i Kundesaker (KundeNotater, NotatType=Tilbud) – Thomas 11.10.2026.
+// Selve innholdet lagres som et låst øyeblikksbilde i SharePoint «TilbudVersjoner»
+// (Liste 44), én rad per versjon, koblet til saken med SakId. Et lagret tilbud endres
+// aldri; endringer gir ny versjon (v2, v3 …) og oppdaterer TilbudSum på saken.
+// Mottaker: eksisterende kunde/prospekt, lead/nyetablering/Brreg eller fritt navn. Kunden
+// velges i det vanlige sakvinduet («Nytt lead»), så duplikatsjekk og prospektoppretting
+// er de samme som ellers. Rødt DG-lys krever en årsak, ingen godkjenning.
+// TilbudSum på saken = kjøpspris + 12 × lisenser per måned (verdi første år).
+const PT_ARSAK_HURTIG=['Konkurrent','Strategisk kunde','Kampanje','Pakkepris','Annet'];
+let ptVersjoner=[],ptFinnes=false,ptVisFilter='apne',ptSokTekst='';
+function ptKanSelge(){return userRole==='admin'||(typeof salgTilgang!=='undefined'&&salgTilgang===true);}
+function ptLes(items){
+  ptVersjoner=items.map(i=>{const f=i.fields||{};return{spId:String(i.id),tittel:f.Title||'',sakId:String(f.SakId||''),kNr:f.VismaKundeNummer||'',kundeNavn:f.KundeNavn||'',
+    versjon:Number(f.Versjon)||1,pakke:f.Pakke||'',prisklasse:f.Prisklasse||'',data:pkJson(f.Data,null),kjop:Number(f.Kjopspris)||0,lisensMnd:Number(f.LisensMnd)||0,
+    leieMnd:Number(f.LeieMnd)||0,hwDg:f.HwDg==null||f.HwDg===''?null:Number(f.HwDg),arsak:f.DgArsak||'',gyldigTil:f.GyldigTil||'',selger:f.Selger||'',opprettet:i.createdDateTime||f.Created||''};});
+}
+function ptSakFor(sakId){return(typeof kundeNotater!=='undefined'?kundeNotater:[]).find(n=>String(n.spId)===String(sakId))||null;}
+function ptSisteVersjoner(){
+  const m=new Map();ptVersjoner.forEach(v=>{const k=v.sakId||('uten-'+v.spId);const g=m.get(k);if(!g||v.versjon>g.versjon)m.set(k,v);});
+  return[...m.values()];
+}
+function ptAntallVersjoner(sakId){return ptVersjoner.filter(v=>v.sakId===sakId).length;}
+function ptDatoIso(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function ptGyldigTil(){const d=new Date();d.setDate(d.getDate()+(pkInnst.GyldigDager||30));return d;}
+function ptSelgerTlf(){try{return localStorage.getItem('pt-selger-tlf')||'';}catch(e){return'';}}
+function ptLagreSelgerTlf(v){try{localStorage.setItem('pt-selger-tlf',v);}catch(e){}}
+function ptFlett(a,datoIso,gyldigIso){
+  const dato=datoIso?new Date(datoIso):new Date(),gyldig=gyldigIso?new Date(gyldigIso):ptGyldigTil();
+  return{kundenavn:a.kunde?.navn||'(mottaker)',kontaktperson:a.kontaktperson||'',selger:a.selger||currentUser?.name||'',selger_telefon:a.selgerTlf||'',
+    selger_epost:a.selgerEpost||currentUser?.username||'',dato:pkDatoTekst(dato),gyldig_til:pkDatoTekst(gyldig),gyldig_dager:String(pkInnst.GyldigDager||30),pakkenavn:a.navn||''};
+}
+
+// ---------- Oversikt ----------
+function renderPkTilbud(){
+  const el=document.getElementById('pk-innhold');if(!el)return;
+  if(!ptFinnes){el.innerHTML=`<div class="pk-tom"><b>Lista «TilbudVersjoner» finnes ikke ennå.</b><br>Opprett den i SharePoint (Kunde360-oppsett-sjekkliste.md, Liste 44) for å lagre tilbud.</div>`;return;}
+  const kan=ptKanSelge();
+  let rader=ptSisteVersjoner().map(v=>({v,sak:ptSakFor(v.sakId)}));
+  const status=r=>!r.sak?'ukjent':(r.sak.status!=='Åpen'?(r.sak.tilbudUtfall||'Lukket'):'Åpen');
+  if(ptVisFilter==='apne')rader=rader.filter(r=>status(r)==='Åpen');
+  if(ptVisFilter==='mine')rader=rader.filter(r=>r.v.selger===(currentUser?.name||''));
+  const q=ptSokTekst.trim().toLowerCase();
+  if(q)rader=rader.filter(r=>(r.v.kundeNavn+' '+r.v.pakke+' '+r.v.selger).toLowerCase().includes(q));
+  rader.sort((a,b)=>String(b.v.opprettet).localeCompare(String(a.v.opprettet)));
+  const idag=ptDatoIso(new Date());
+  let h=`<div class="hint" style="margin:0 0 8px">Tilbudene lagres som tilbudssaker i Kundesaker. Hvert tilbud er låst når det er lagret; endringer gir en ny versjon. ${kan?'':'Du trenger salgstilgang for å lage tilbud.'}</div>
+    <div class="pk-filter" style="align-items:center">
+      <input type="text" placeholder="Søk kunde, pakke eller selger" value="${jsEscapeHtml(ptSokTekst)}" oninput="ptSokTekst=this.value;clearTimeout(window._ptSokT);window._ptSokT=setTimeout(renderPkTilbud,250)" style="max-width:300px">
+      <select onchange="ptVisFilter=this.value;renderPkTilbud()" style="width:auto"><option value="apne"${ptVisFilter==='apne'?' selected':''}>Åpne tilbud</option><option value="mine"${ptVisFilter==='mine'?' selected':''}>Mine tilbud</option><option value="alle"${ptVisFilter==='alle'?' selected':''}>Alle tilbud</option></select>
+      ${kan?'<button class="prim" style="margin-left:auto" onclick="ptVelgPakke()">＋ Nytt tilbud</button>':''}
+    </div>
+    <div class="pk-teller">${rader.length} tilbud</div>
+    <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell"><thead><tr><th>Kunde</th><th>Tilbud</th><th style="text-align:right">Kjøpspris</th><th style="text-align:right">Lisens/mnd</th><th>DG</th><th>Gyldig til</th><th>Selger</th><th>Sak</th></tr></thead><tbody>`;
+  if(!rader.length)h+=`<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:24px">Ingen tilbud her ennå.${kan?' Trykk «＋ Nytt tilbud», eller «🧾 Lag tilbud» på en pakke.':''}</td></tr>`;
+  rader.forEach(r=>{
+    const v=r.v,lys=pkDgLys(v.hwDg),st=status(r),utlopt=v.gyldigTil&&String(v.gyldigTil).slice(0,10)<idag&&st==='Åpen';
+    const merke=st==='Vunnet'?'<span class="pk-merke pk-merke-gronn">✅ Vunnet</span>':st==='Tapt'?'<span class="pk-merke pk-merke-gra">❌ Tapt</span>':st==='Åpen'?`<span class="pk-merke pk-merke-bla">${jsEscapeHtml((r.sak&&typeof salgFase==='function'?salgFase(r.sak):'')||'Åpen')}</span>`:'<span class="pk-merke pk-merke-gul" title="Fant ikke saken i Kundesaker">uten sak</span>';
+    h+=`<tr class="rad-klikkbar" onclick="ptApneVisning('${v.spId}')">
+      <td><b>${jsEscapeHtml(v.kundeNavn||'–')}</b></td>
+      <td>${jsEscapeHtml(v.pakke||v.tittel)} <span class="pk-merke pk-merke-gra">v${v.versjon}</span></td>
+      <td style="text-align:right;white-space:nowrap">${pkKr(v.kjop)}</td>
+      <td style="text-align:right;white-space:nowrap">${v.lisensMnd?pkKr(v.lisensMnd):'–'}</td>
+      <td style="white-space:nowrap;color:${lys.farge}" title="${jsEscapeHtml(v.arsak?'Årsak: '+v.arsak:'')}">${lys.ikon} ${v.hwDg==null?'–':v.hwDg.toFixed(1).replace('.',',')+' %'}${v.arsak?' 💬':''}</td>
+      <td style="white-space:nowrap${utlopt?';color:#dc2626':''}">${v.gyldigTil?pkDatoTekst(new Date(v.gyldigTil)):'–'}${utlopt?' (utløpt)':''}</td>
+      <td>${jsEscapeHtml(v.selger||'–')}</td><td>${merke}</td></tr>`;
+  });
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+
+// ---------- Nytt tilbud ----------
+function ptVelgPakke(){
+  if(!ptKanSelge())return;
+  const pakker=[...pkPakker].filter(p=>p.aktiv).sort((a,b)=>((a.sortering??9999)-(b.sortering??9999))||a.navn.localeCompare(b.navn,'nb'));
+  pkModalBred(false);
+  document.getElementById('pk-modal-innhold').innerHTML=`<h3>🧾 Nytt tilbud – velg pakke</h3>
+    <div style="display:grid;gap:8px">${pakker.map(p=>{const b=pkPakkeBeregn(p,'');return`<button class="btn-sm" style="text-align:left;padding:10px 12px;display:block;width:100%" onclick="ptNyttFraPakke('${p.spId}')"><b>${jsEscapeHtml(p.navn)}</b><div style="font-size:12px;color:#6b7280">${jsEscapeHtml(p.beskr||'')}${p.beskr?' · ':''}${pkKr(b.kjop)}${b.lop.length?` + ${pkKr(b.lopMnd)}/mnd`:''}</div></button>`;}).join('')||'<div class="hint">Ingen aktive pakker.</div>'}
+      <button class="btn-sm" style="text-align:left;padding:10px 12px" onclick="ptNyttFraPakke(null)"><b>Tomt tilbud</b><div style="font-size:12px;color:#6b7280">Legg til varene selv</div></button></div>
+    <div class="modal-footer"><button class="btn-sm" onclick="pkLukkVare()">Avbryt</button></div>`;
+  document.getElementById('pk-modal').classList.add('open');
+}
+function ptNyttFraPakke(spId){
+  if(!ptKanSelge())return;
+  const p=spId?pkPakker.find(x=>x.spId===String(spId)):null;
+  pkApenPakke={modus:'tilbud',sakId:null,versjon:1,kunde:null,kontaktperson:'',selger:currentUser?.name||currentUser?.username||'',selgerTlf:ptSelgerTlf(),
+    prisklasse:'',navn:p?.navn||'',beskr:p?.beskr||'',pakke:p?.navn||'',bransjer:[],aktiv:true,
+    linjer:JSON.parse(JSON.stringify(p?.linjer||[])).map(l=>{delete l.malPris;delete l.sok;return l;}).filter(l=>l.varenr||!p),
+    tekster:JSON.parse(JSON.stringify(p?.tekster||{})),arsak:'',visning:'rediger'};
+  pkPakkePrisklasse='';
+  pkModalBred(true);pkRenderPakkeEditor();
+  document.getElementById('pk-modal').classList.add('open');
+}
+
+// ---------- Editor (tilbudsdelen av pkRenderPakkeEditor) ----------
+function ptKundeValg(){
+  const kunder=(typeof vismaKunder!=='undefined'?vismaKunder:[]).map(k=>({tekst:`${k.navn} (${k.vismaNummer})`,kNr:k.vismaNummer,navn:k.navn,kontakt:k.kontaktNavn||'',klasse:k.kundeklasse||''}));
+  const prosp=(typeof hentProspektKunder==='function'?hentProspektKunder():[]).map(k=>({tekst:`${k.navn} (prospekt)`,kNr:k.vismaNummer,navn:k.navn,kontakt:k.kontaktNavn||'',klasse:''}));
+  return[...kunder,...prosp].filter(k=>k.navn);
+}
+function ptEditorHode(a,dis){
+  const k=a.kunde;
+  const kundeInfo=!k?'<span style="color:#6b7280">Søk opp en kunde, eller skriv navnet på et nytt firma. Nye firma velges fra Brreg når tilbudet lagres.</span>'
+    :k.kNr?`✓ Eksisterende ${String(k.kNr).startsWith('LEAD-')?'prospekt':'kunde'} <b>${jsEscapeHtml(k.navn)}</b>${k.klasse?` · kundeprofil ${jsEscapeHtml(k.klasse)}`:''}`
+    :`Nytt firma <b>${jsEscapeHtml(k.navn)}</b> – velges fra Brreg eller registreres manuelt når tilbudet lagres.`;
+  return`<h3>🧾 ${a.sakId?`Tilbud – ny versjon (v${a.versjon})`:'Nytt tilbud'}${a.pakke?` <span style="font-weight:400;color:#6b7280;font-size:14px">fra pakken «${jsEscapeHtml(a.pakke)}»</span>`:''}</h3>
+    <div style="display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:10px;margin-bottom:4px">
+      <div class="fgrp"><label>Mottaker (kunde eller firma)</label><input type="text" data-auto="kunde" autocomplete="off" value="${jsEscapeHtml(k?.navn||'')}" ${dis||(a.sakId?'disabled':'')} placeholder="Søk kunde, eller skriv firmanavn" onchange="ptSettKunde(this.value)"></div>
+      <div class="fgrp"><label>Kontaktperson</label><input type="text" value="${jsEscapeHtml(a.kontaktperson)}" ${dis} oninput="pkApenPakke.kontaktperson=this.value" placeholder="F.eks. Kari Nordmann"></div>
+      <div class="fgrp"><label>Ditt telefonnummer</label><input type="text" value="${jsEscapeHtml(a.selgerTlf)}" ${dis} oninput="pkApenPakke.selgerTlf=this.value;ptLagreSelgerTlf(this.value)" placeholder="Vises i hilsenen"></div>
+    </div>
+    <div id="pt-kunde-info" style="font-size:12.5px;margin:0 0 10px">${kundeInfo}</div>
+    <div style="display:grid;grid-template-columns:2fr 3fr;gap:10px;margin-bottom:10px">
+      <div class="fgrp"><label>Tittel (vises som «Tilbud …»)</label><input type="text" value="${jsEscapeHtml(a.navn)}" ${dis} oninput="pkApenPakke.navn=this.value"></div>
+      <div class="fgrp"><label>Undertittel</label><input type="text" value="${jsEscapeHtml(a.beskr)}" ${dis} oninput="pkApenPakke.beskr=this.value"></div>
+    </div>`;
+}
+function ptSettKunde(tekst){
+  const a=pkApenPakke;if(!a)return;
+  const t=String(tekst||'').trim();
+  if(!t){a.kunde=null;}
+  else{const m=ptKundeValg().find(k=>k.tekst===t);
+    if(m){a.kunde={navn:m.navn,kNr:m.kNr,klasse:m.klasse};if(!a.kontaktperson&&m.kontakt)a.kontaktperson=m.kontakt;}
+    else a.kunde={navn:t,kNr:'',klasse:''};}
+  pkRenderPakkeEditor();
+}
+function ptEditorFot(a,kan){
+  return`${a.sakId&&typeof gaTilKundeFraSak==='function'&&ptSakFor(a.sakId)?`<button class="btn-sm" onclick="ptGaTilSak('${a.sakId}')">↗ Gå til saken</button>`:''}
+    <button class="btn-sm" style="margin-left:auto" onclick="pkApenPakke.visning='forhand';pkRenderPakkeEditor()">👁 Forhåndsvis</button>
+    <button class="btn-sm" onclick="pkLukkVare()">Avbryt</button>
+    ${kan?`<button class="prim" id="pt-lagre" onclick="ptLagre()">💾 ${a.sakId?`Lagre som v${a.versjon}`:'Lagre tilbud'}</button>`:''}`;
+}
+function ptVisArsak(b){
+  const el=document.getElementById('pt-arsak-wrap');if(!el)return;
+  const a=pkApenPakke;
+  if(!(b.hwDg!==null&&b.hwDg<pkInnst.DgMin)){el.innerHTML='';return;}
+  if(el.dataset.vist==='1'&&el.innerHTML)return; // ikke tegn på nytt mens man skriver
+  el.dataset.vist='1';
+  el.innerHTML=`<div style="margin-top:8px;padding:10px 12px;border:1px solid #fca5a5;background:#fef2f2;border-radius:8px">
+    <div style="font-weight:600;color:#b91c1c;margin-bottom:6px">🔴 DG under ${String(pkInnst.DgMin).replace('.',',')} % – skriv en årsak før tilbudet lagres</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${PT_ARSAK_HURTIG.map(x=>`<button class="btn-sm" onclick="ptArsakHurtig('${x}')">${x}</button>`).join('')}</div>
+    <textarea id="pt-arsak" rows="2" style="width:100%" placeholder="F.eks. Konkurrent har gitt tilbud på samme løsning" oninput="pkApenPakke.arsak=this.value">${jsEscapeHtml(a.arsak||'')}</textarea></div>`;
+}
+function ptArsakHurtig(x){const a=pkApenPakke,e=document.getElementById('pt-arsak');a.arsak=(a.arsak?a.arsak.replace(/\s+$/,'')+(a.arsak.endsWith(':')?' ':'. '):'')+x+': ';if(e){e.value=a.arsak;e.focus();}}
+function ptRabattAlleHw(){
+  const a=pkApenPakke;if(!a)return;
+  const s=prompt('Rabatt i % på alle linjer som kan få rabatt (hardware og etablering):','10');if(s==null)return;
+  const r=Math.min(100,Math.max(0,Number(String(s).replace(',','.'))||0));
+  a.linjer.forEach(l=>{if(pkRabattTillatt(pkVare(l.varenr)))l.rabattPst=r;});
+  pkRenderPakkeLinjer();
+}
+
+// ---------- Lagring ----------
+function ptOyeblikksbilde(a,b){
+  const tekster=[];
+  ['Topp','Bunn'].forEach(pl=>pkTeksterSortert().filter(t=>t.plassering===pl).forEach(t=>{const o=a.tekster?.[t.nokkel];if(o?.skjul)return;const tekst=o&&typeof o.tekst==='string'?o.tekst:t.tekst;if(tekst.trim())tekster.push({nokkel:t.nokkel,plassering:pl,overskrift:t.overskrift,tekst});}));
+  return{format:1,navn:a.navn,beskr:a.beskr,pakke:a.pakke,prisklasse:pkPakkePrisklasse,kontaktperson:a.kontaktperson,selger:a.selger,selgerTlf:a.selgerTlf,selgerEpost:currentUser?.username||'',
+    innst:{DgMaal:pkInnst.DgMaal,DgMin:pkInnst.DgMin,LeieFaktor:pkInnst.LeieFaktor,IkanoFaktor:pkInnst.IkanoFaktor,LeieMaaneder:pkInnst.LeieMaaneder,GyldigDager:pkInnst.GyldigDager},
+    linjer:b.alle.filter(x=>x.v).map(x=>({varenr:x.v.varenr,navn:pkNavn(x.v),kundeBeskr:x.v.kundeBeskr||'',fakturering:x.v.fakturering||'',antall:x.antall,type:x.l.type||'fast',med:x.med,
+      pris:x.pris,rabattPst:x.rabattPst,netto:x.netto,sum:x.sum,kost:x.kost,lopende:x.lopende,iHwDg:x.iHwDg,seksjon:x.seksjon,sortering:x.sortering,egen:!!x.v.egenTjeneste})),
+    sum:{kjop:b.kjop,lopMnd:b.lopMnd,hwInn:b.hwInn,hwKost:b.hwKost,hwDg:b.hwDg,lopDb:b.lopDb,leieMnd:b.leie?.mnd||0,anskaffelse:b.leie?.anskaffelse||0},
+    tekster,arsak:a.arsak||''};
+}
+// Gjør et øyeblikksbilde om til samme form som pkPakkeBeregn, så pkTilbudHtmlFra kan tegne det.
+function ptBeregnFraBilde(d){
+  const alle=(d.linjer||[]).map(x=>({v:{varenr:x.varenr,navn:x.navn,vismaBeskr:'',kundeBeskr:x.kundeBeskr,fakturering:x.fakturering},antall:x.antall,med:x.med,pris:x.pris,netto:x.netto,sum:x.sum,rabattPst:x.rabattPst,lopende:x.lopende,seksjon:x.seksjon,sortering:x.sortering}));
+  const med=alle.filter(x=>x.med&&x.antall>0);
+  return{alle,engang:med.filter(x=>!x.lopende),lop:med.filter(x=>x.lopende),kjop:d.sum.kjop,lopMnd:d.sum.lopMnd,leie:d.sum.leieMnd?{mnd:d.sum.leieMnd,maaneder:d.innst?.LeieMaaneder}:null};
+}
+function ptTilbudSum(b){return Math.round(b.kjop+12*b.lopMnd);}
+function ptInnholdTekst(a,b){
+  return`Tilbud laget i tilbudsbyggeren${a.pakke?` fra pakken «${a.pakke}»`:''}: kjøpspris ${pkKr(b.kjop)} eks. mva${b.leie?` (eller leie ${pkKr(b.leie.mnd)}/mnd i ${pkInnst.LeieMaaneder} mnd)`:''}${b.lop.length?`, lisenser og avtaler ${pkKr(b.lopMnd)}/mnd`:''}. DG hardware og etablering: ${b.hwDg==null?'–':b.hwDg.toFixed(1).replace('.',',')+' %'}.${a.arsak?` Årsak til lav DG: ${a.arsak}`:''}`;
+}
+let ptVenter=null; // tilbud som venter på at saken skal bli opprettet i Kundesaker
+async function ptLagre(){
+  const a=pkApenPakke;if(!a||a.modus!=='tilbud'||!ptKanSelge())return;
+  if(!ptFinnes){alert('Lista «TilbudVersjoner» finnes ikke ennå (Liste 44 i sjekklisten).');return;}
+  const b=pkPakkeBeregn(a,pkPakkePrisklasse);
+  if(!a.kunde?.navn){alert('Velg eller skriv inn mottakeren av tilbudet.');return;}
+  if(b.manglerVare){alert('Noen linjer mangler vare. Velg vare eller fjern linjene.');return;}
+  if(!b.alle.some(x=>x.v&&x.med&&x.antall>0)){alert('Tilbudet har ingen linjer.');return;}
+  if(!a.navn.trim()){alert('Gi tilbudet en tittel.');return;}
+  if(b.hwDg!==null&&b.hwDg<pkInnst.DgMin&&!(a.arsak||'').trim()){alert(`DG for hardware og etablering er under ${String(pkInnst.DgMin).replace('.',',')} %. Skriv en årsak før du lagrer.`);document.getElementById('pt-arsak')?.focus();return;}
+  const bilde=ptOyeblikksbilde(a,b),gyldig=ptGyldigTil();
+  if(a.sakId){
+    const knapp=document.getElementById('pt-lagre');if(knapp){knapp.disabled=true;knapp.textContent='Lagrer …';}
+    try{await ptSkrivVersjon(a,bilde,b,ptSakFor(a.sakId),gyldig);pkLukkVare();vfShowToast?.(`✅ Tilbudet er lagret som v${a.versjon}`);renderProduktkatalog();}
+    catch(e){console.error('TilbudVersjoner: lagring feilet',e);if(knapp){knapp.disabled=false;knapp.textContent=`💾 Lagre som v${a.versjon}`;}alert('Lagring feilet: '+(e.message||e)+'\n\nSjekk kolonnene i «TilbudVersjoner» (Liste 44 i sjekklisten).');}
+    return;
+  }
+  // Nytt tilbud: åpne det vanlige sakvinduet (Tilbud), med alt fylt ut. Når saken er opprettet,
+  // lagres versjon 1 med saken som SakId (notatOpprettetHook kalles fra saveNotat()).
+  const tittel=`Tilbud: ${a.navn.trim()}`.slice(0,250);
+  ptVenter={a,bilde,b,gyldig,tittel};
+  pkLukkVare();
+  if(a.kunde.kNr)openNyNotatModal(a.kunde.kNr,a.kunde.navn);
+  else openNyttLeadModal();
+  document.getElementById('n-type').value='Tilbud';
+  if(typeof updateNotatFormFields==='function')updateNotatFormFields();
+  if(typeof fyllFaseOgKildeValg==='function')fyllFaseOgKildeValg('Tilbud sendt',a.kunde.kNr&&!String(a.kunde.kNr).startsWith('LEAD-')?'Eksisterende kunde':'','');
+  if(typeof faseEndretISkjema==='function')faseEndretISkjema();
+  document.getElementById('notat-modal-title').textContent='🧾 Lagre tilbudet som tilbudssak';
+  document.getElementById('n-tittel').value=tittel;
+  if(typeof rtSettInnhold==='function')rtSettInnhold(ptInnholdTekst(a,b));
+  const sum=document.getElementById('n-tilbudsum');if(sum)sum.value=String(ptTilbudSum(b));
+  if(!a.kunde.kNr){
+    const s=document.getElementById('n-lead-sok');if(s){s.value=a.kunde.navn;if(typeof leadKundeSok==='function')leadKundeSok();s.focus();}
+    const kn=document.getElementById('n-lead-kontakt-navn');if(kn&&a.kontaktperson)kn.value=a.kontaktperson;
+  }
+  notatLagretHook=info=>{
+    if(!ptVenter)return;
+    if(info.type!=='Tilbud'){ptVenter=null;return;}
+    ptVenter.kNr=info.kNr;ptVenter.kNavn=info.kNavn;ptVenter.tittelLagret=info.tittel;
+    notatOpprettetHook=sak=>{const v=ptVenter;ptVenter=null;if(!v||sak.tittel!==v.tittelLagret)return;ptVersjon1(v,sak);};
+  };
+}
+async function ptVersjon1(v,sak){
+  try{
+    v.a.versjon=1;
+    await ptSkrivVersjon(v.a,v.bilde,v.b,sak,v.gyldig,true);
+    vfShowToast?.('✅ Tilbudet er lagret som tilbudssak');
+    if(document.getElementById('tp-produktkatalog')?.offsetParent)renderProduktkatalog();
+  }catch(e){
+    console.error('TilbudVersjoner: lagring av v1 feilet',e);
+    alert('Tilbudssaken er opprettet, men selve tilbudet ble ikke lagret: '+(e.message||e)+'\n\nSjekk kolonnene i «TilbudVersjoner» (Liste 44 i sjekklisten), og lagre tilbudet på nytt fra saken.');
+  }
+}
+async function ptSkrivVersjon(a,bilde,b,sak,gyldig,erNySak){
+  const sakId=String(sak?.spId||a.sakId||'');
+  const versjon=erNySak?1:Math.max(0,...ptVersjoner.filter(x=>x.sakId===sakId).map(x=>x.versjon))+1;
+  const kundeNavn=sak?.kundeNavn||a.kunde?.navn||'';
+  const felt={Title:`${kundeNavn} – ${a.navn} v${versjon}`.slice(0,250),SakId:sakId,VismaKundeNummer:sak?.vismaKundeNummer||a.kunde?.kNr||'',KundeNavn:kundeNavn,
+    Versjon:versjon,Pakke:a.pakke||'',Prisklasse:pkPakkePrisklasse||'',Data:JSON.stringify(bilde),Kjopspris:Math.round(b.kjop*100)/100,LisensMnd:Math.round(b.lopMnd*100)/100,
+    LeieMnd:b.leie?.mnd||0,HwDg:b.hwDg==null?null:Math.round(b.hwDg*10)/10,DgArsak:(a.arsak||'').slice(0,250),GyldigTil:ptDatoIso(gyldig)+'T12:00:00Z',Selger:a.selger||currentUser?.name||''};
+  const r=await spCreate('TilbudVersjoner',felt);
+  ptVersjoner.push({spId:String(r.id),tittel:felt.Title,sakId,kNr:felt.VismaKundeNummer,kundeNavn,versjon,pakke:felt.Pakke,prisklasse:felt.Prisklasse,data:bilde,kjop:felt.Kjopspris,lisensMnd:felt.LisensMnd,
+    leieMnd:felt.LeieMnd,hwDg:felt.HwDg,arsak:felt.DgArsak,gyldigTil:felt.GyldigTil,selger:felt.Selger,opprettet:new Date().toISOString()});
+  // Saken: ny TilbudSum og en loggpost (ved ny versjon). Ved ny sak er summen allerede satt i sakvinduet.
+  if(sak&&!erNySak&&typeof spLagreMedMykFallback==='function'){
+    sak.tilbudSum=ptTilbudSum(b);
+    if(!Array.isArray(sak.logg))sak.logg=[];
+    sak.logg.push({dato:new Date().toISOString(),tekst:`🧾 Tilbud v${versjon} lagret: kjøpspris ${pkKr(b.kjop)}${b.lop.length?`, lisenser ${pkKr(b.lopMnd)}/mnd`:''}, DG ${b.hwDg==null?'–':b.hwDg.toFixed(1).replace('.',',')+' %'}${a.arsak?` (årsak: ${a.arsak})`:''}. Ny totalsum ${pkKr(sak.tilbudSum)}.`,forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
+    if(typeof markerAktivitet==='function')markerAktivitet(sak);
+    if(sak.spId)await spLagreMedMykFallback(f=>spUpdate('KundeNotater',sak.spId,f),notatFieldsPayload(sak),NOTAT_MYKE_FELTER);
+  }
+}
+
+// ---------- Visning av et lagret tilbud ----------
+function ptApneVisning(spId,versjonSpId){
+  const v0=ptVersjoner.find(x=>x.spId===String(spId));if(!v0)return;
+  const alle=ptVersjoner.filter(x=>v0.sakId?x.sakId===v0.sakId:x.spId===v0.spId).sort((a,b)=>b.versjon-a.versjon);
+  const v=versjonSpId?alle.find(x=>x.spId===String(versjonSpId))||v0:v0;
+  const d=v.data,sak=ptSakFor(v.sakId),kan=ptKanSelge()&&(!sak||sak.status==='Åpen');
+  pkModalBred(true);
+  let innhold;
+  if(!d||!d.linjer){innhold='<div class="pk-tom">Tilbudet mangler innhold (Data-feltet er tomt eller ugyldig).</div>';}
+  else{
+    const b=ptBeregnFraBilde(d),tek={Topp:d.tekster.filter(t=>t.plassering==='Topp'),Bunn:d.tekster.filter(t=>t.plassering==='Bunn')};
+    const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:d.kontaktperson,selger:d.selger,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn},v.opprettet,v.gyldigTil);
+    f.gyldig_dager=String(d.innst?.GyldigDager||pkInnst.GyldigDager);
+    innhold=`<div style="border:1px solid #e5e7eb;border-radius:8px;padding:22px;background:#fff">${pkTilbudHtmlFra(b,{navn:d.navn,beskr:d.beskr},tek,f)}</div>`;
+  }
+  const lys=pkDgLys(v.hwDg);
+  document.getElementById('pk-modal-innhold').innerHTML=`<h3>🧾 ${jsEscapeHtml(v.kundeNavn)} – ${jsEscapeHtml(d?.navn||v.pakke)}</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+      <select onchange="ptApneVisning('${v0.spId}',this.value)" style="width:auto">${alle.map(x=>`<option value="${x.spId}"${x.spId===v.spId?' selected':''}>Versjon ${x.versjon} · ${x.opprettet?new Date(x.opprettet).toLocaleDateString('nb-NO'):''} · ${jsEscapeHtml(x.selger)}</option>`).join('')}</select>
+      <span>🔒 Låst</span><span style="color:${lys.farge}">${lys.ikon} DG ${v.hwDg==null?'–':v.hwDg.toFixed(1).replace('.',',')+' %'}</span>
+      ${v.arsak?`<span title="Årsak til lav DG">💬 ${jsEscapeHtml(v.arsak)}</span>`:''}
+      <span>Prisklasse: ${jsEscapeHtml(v.prisklasse||'listepris')}</span>
+      ${sak?`<span>Sak: ${jsEscapeHtml(sak.status==='Åpen'?(typeof salgFase==='function'?salgFase(sak):'Åpen'):(sak.tilbudUtfall||'Lukket'))} · totalsum ${pkKr(sak.tilbudSum||0)}</span>`:'<span class="pk-merke pk-merke-gul">fant ikke saken</span>'}
+    </div>
+    ${innhold}
+    <div class="modal-footer">
+      ${sak?`<button class="btn-sm" onclick="ptGaTilSak('${v.sakId}')">↗ Gå til saken</button>`:''}
+      <button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare()">Lukk</button>
+      ${kan&&d?.linjer?`<button class="prim" onclick="ptNyVersjon('${v.spId}')">✎ Lag ny versjon</button>`:''}
+    </div>`;
+  document.getElementById('pk-modal-innhold').scrollTop=0;
+  document.getElementById('pk-modal').classList.add('open');
+}
+function ptNyVersjon(spId){
+  const v=ptVersjoner.find(x=>x.spId===String(spId));if(!v||!v.data)return;
+  const d=v.data,maks=Math.max(...ptVersjoner.filter(x=>x.sakId===v.sakId).map(x=>x.versjon));
+  const tekster={};
+  // Tekstene fra versjonen tas med som egne tekster; standardtekster som var skjult, skjules fortsatt.
+  pkTekster.forEach(t=>{const s=d.tekster.find(x=>x.nokkel===t.nokkel);tekster[t.nokkel]=s?{tekst:s.tekst}:{skjul:true};});
+  pkApenPakke={modus:'tilbud',sakId:v.sakId,versjon:maks+1,kunde:{navn:v.kundeNavn,kNr:v.kNr,klasse:''},kontaktperson:d.kontaktperson||'',selger:currentUser?.name||currentUser?.username||'',
+    selgerTlf:ptSelgerTlf()||d.selgerTlf||'',prisklasse:d.prisklasse||'',navn:d.navn,beskr:d.beskr,pakke:d.pakke,bransjer:[],aktiv:true,
+    linjer:d.linjer.map(x=>{const l={varenr:x.varenr,antall:x.antall,type:x.type||'fast'};if(l.type==='valgfri')l.valgt=x.med;if(x.rabattPst)l.rabattPst=x.rabattPst;return l;}),
+    tekster,arsak:d.arsak||'',visning:'rediger'};
+  pkPakkePrisklasse=d.prisklasse||'';
+  pkModalBred(true);pkRenderPakkeEditor();
+  vfShowToast?.('Prisene er hentet på nytt fra katalogen. Tidligere versjoner er uendret.');
+}
+function ptGaTilSak(sakId){const s=ptSakFor(sakId);if(!s)return;pkLukkVare();gaTilKundeFraSak(s.id);}
 
 function showTab(name,btn){
   document.querySelectorAll('.tp').forEach(t=>{t.classList.remove('active');t.style.display='none';});
