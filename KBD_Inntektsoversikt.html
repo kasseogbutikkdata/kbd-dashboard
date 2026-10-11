@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.269 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.270 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11695,6 +11695,11 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.270',dato:'11.10.2026',punkter:[
+    'Send tilbudet: etter «Lagre tilbud» åpnes «✉️ Send tilbudet» med mottaker (kontaktpersonene til kunden), emne og en kort følgetekst. «✉️ Lag e-post i Outlook» lager PDF-en som fil og legger e-posten med PDF-en vedlagt som utkast i din egen Outlook. Den sendes ikke før du trykker Send der.',
+    '«📄 Last ned PDF» i samme vindu laster ned akkurat den PDF-en som legges ved. «✅ Jeg har sendt den» fører sendingen i saksloggen. «✉️ Send tilbudet» finnes også når du åpner et lagret tilbud.',
+    'Første gang ber Microsoft om tillatelse til å lage e-postutkast (Mail.ReadWrite, bare din egen postkasse). Bildene fra www.kbd.as hentes via kbd-verifone-func (/api/tilbudsbilde).'
+  ]},
   {versjon:'v1.48.269',dato:'11.10.2026',punkter:[
     'Kladder på kundekortet: har en salgssak en tilbudskladd, viser saken «📝 Kladd» (eller «📝 Kladd v2» ved siden av «🧾 Tilbud v1»), som åpner kladden. Kladder til kunden som ikke hører til en sak, vises øverst i «Salg & oppfølging» med «Fortsett».',
     'Kladdelista under «🧾 Tilbud» viser «på saken «…»» for kladder laget fra en sak, i stedet for «ny versjon av et tilbud».'
@@ -17543,7 +17548,7 @@ async function ptLagre(){
     const knapp=document.getElementById('pt-lagre');if(knapp){knapp.disabled=true;knapp.textContent='Lagrer …';}
     const sak=ptSakFor(a.sakId);
     if(!sak){if(knapp){knapp.disabled=false;knapp.textContent='💾 Lagre tilbud';}alert('Fant ikke saken tilbudet hører til. Last siden på nytt og prøv igjen.');return;}
-    try{const v=await ptSkrivVersjon(a,bilde,b,sak,gyldig);if(a.kladdId)await ptSlettKladd(a.kladdId,true);pkLukkVare();vfShowToast?.(`✅ Tilbudet er lagret som v${v} på saken`);renderProduktkatalog();ptOppdaterSak();}
+    try{const v=await ptSkrivVersjon(a,bilde,b,sak,gyldig);if(a.kladdId)await ptSlettKladd(a.kladdId,true);pkLukkVare();vfShowToast?.(`✅ Tilbudet er lagret som v${v} på saken`);renderProduktkatalog();ptOppdaterSak();if(typeof ptApneSend==='function'&&ptSistLagretSpId)ptApneSend(ptSistLagretSpId);}
     catch(e){console.error('TilbudVersjoner: lagring feilet',e);if(knapp){knapp.disabled=false;knapp.textContent=a.versjon>1?`💾 Lagre som v${a.versjon}`:'💾 Lagre tilbud';}alert('Lagring feilet: '+(e.message||e)+'\n\nSjekk kolonnene i «TilbudVersjoner» (Liste 44 i sjekklisten).');}
     return;
   }
@@ -17584,6 +17589,7 @@ async function ptVersjon1(v,sak){
     vfShowToast?.('✅ Tilbudet er lagret som tilbudssak');
     if(document.getElementById('tp-produktkatalog')?.offsetParent)renderProduktkatalog();
     ptOppdaterSakKnapper();
+    if(typeof ptApneSend==='function'&&ptSistLagretSpId)ptApneSend(ptSistLagretSpId);
   }catch(e){
     console.error('TilbudVersjoner: lagring av v1 feilet',e);
     alert('Tilbudssaken er opprettet, men selve tilbudet ble ikke lagret: '+(e.message||e)+'\n\nSjekk kolonnene i «TilbudVersjoner» (Liste 44 i sjekklisten), og lagre tilbudet på nytt fra saken.');
@@ -17597,6 +17603,7 @@ async function ptSkrivVersjon(a,bilde,b,sak,gyldig,erNySak){
     TilbudVersjon:versjon,Pakke:a.pakke||'',Prisklasse:pkPakkePrisklasse||'',Data:JSON.stringify(bilde),Kjopspris:Math.round(b.kjop*100)/100,LisensMnd:Math.round(b.lopMnd*100)/100,
     LeieMnd:b.leie?.mnd||0,HwDg:b.hwDg==null?null:Math.round(b.hwDg*10)/10,DgArsak:(a.arsak||'').slice(0,250),GyldigTil:ptDatoIso(gyldig)+'T12:00:00Z',Selger:a.selger||currentUser?.name||''};
   const r=await spCreate('TilbudVersjoner',felt);
+  if(typeof ptSistLagretSpId!=='undefined')ptSistLagretSpId=String(r.id);
   ptVersjoner.push({spId:String(r.id),tittel:felt.Title,sakId,kNr:felt.VismaKundeNummer,kundeNavn,versjon,pakke:felt.Pakke,prisklasse:felt.Prisklasse,data:bilde,kjop:felt.Kjopspris,lisensMnd:felt.LisensMnd,
     leieMnd:felt.LeieMnd,hwDg:felt.HwDg,arsak:felt.DgArsak,gyldigTil:felt.GyldigTil,selger:felt.Selger,opprettet:new Date().toISOString()});
   // Saken: ny TilbudSum og en loggpost (ved ny versjon). Ved ny sak er summen allerede satt i sakvinduet.
@@ -17647,6 +17654,7 @@ function ptApneVisning(spId,versjonSpId){
       ${sak?`<button class="btn-sm" onclick="ptGaTilSak('${v.sakId}')">↗ Gå til saken</button>`:''}
       <button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare()">Lukk</button>
       ${d?.linjer?`<button class="btn-sm" onclick="ptSkrivUtPdf(window._ptPdfHtml,'${jsEscapeHtml(`Tilbud ${v.kundeNavn} ${d.navn} v${v.versjon}`.replace(/['\\]/g,''))}')">📄 Last ned PDF</button>`:''}
+      ${kan&&d?.linjer?`<button class="btn-sm" onclick="ptApneSend('${v.spId}')" title="Lag e-post i Outlook med PDF-en vedlagt">✉️ Send tilbudet</button>`:''}
       ${kan&&d?.linjer?`<button class="prim" onclick="ptNyVersjon('${v.spId}')">✎ Lag ny versjon</button>`:''}
     </div>`;
   document.getElementById('pk-modal-innhold').scrollTop=0;
@@ -17769,6 +17777,224 @@ function ptSkrivUtPdf(html,tittel){
   const ferdig=()=>{if(--igjen<=0)setTimeout(klar,200);};
   bilder.forEach(i=>{if(!i.complete){i.addEventListener('load',ferdig);i.addEventListener('error',ferdig);}});
   setTimeout(()=>{if(igjen>0){igjen=0;klar();}},4000);
+}
+// ===== ✉️ TILBUD: SEND TILBUDET (v1.48.270, Thomas 11.10.2026: «når jeg lagrer tilbud burde jeg bli guidet videre … å sende tilbudet», «kjør trinn 2») =====
+// Etter «Lagre tilbud» åpnes «Send tilbudet». Dashbordet lager PDF-en som fil (html2pdf, i nettleseren) og legger
+// en e-post med PDF-en vedlagt som UTKAST i selgerens egen Outlook (Microsoft Graph, POST /me/messages, delegert
+// Mail.ReadWrite). Ingenting sendes automatisk: selgeren åpner utkastet og trykker Send selv. Derfor ingen
+// dry-run-brems her. «Marker som sendt» fører det i saksloggen.
+// Bilder fra www.kbd.as hentes via kbd-verifone-func (/api/tilbudsbilde), fordi kbd.as ikke sender CORS-hoder og
+// nettleseren ellers ikke får tegne dem inn i PDF-en. Bilder som ikke kan hentes, utelates fra PDF-en.
+const PT_H2P_KILDER=['https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js','https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'];
+const PT_BILDE_VERTER=['www.kbd.as','kbd.as'];
+const PT_MAKS_VEDLEGG=2.8*1024*1024; // under Graphs grense på 3 MB for vedlegg i samme kall; større filer lastes opp i biter
+const PT_EPOST_EMNE='Tilbud fra KBD – {pakkenavn}';
+const PT_EPOST_TEKST=`Hei {kontakt_fornavn},
+
+Som avtalt sender jeg deg tilbudet vårt på {pakkenavn}. Du finner det som PDF i vedlegget.
+
+Tilbudet gjelder til og med {gyldig_til}. Si gjerne fra om noe er uklart, eller om du vil at vi justerer noe.
+
+Med vennlig hilsen
+{selger}
+Kasse og Butikkdata AS
+{selger_telefon}{selger_epost_linje}`;
+let ptH2pLaster=null,ptSend=null,ptSistLagretSpId=null;
+function ptLastHtml2pdf(){
+  if(window.html2pdf)return Promise.resolve();
+  if(ptH2pLaster)return ptH2pLaster;
+  ptH2pLaster=(async()=>{
+    for(const src of PT_H2P_KILDER){
+      try{await new Promise((ok,feil)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=feil;document.head.appendChild(s);});if(window.html2pdf)return;}catch(e){console.warn('html2pdf kunne ikke lastes fra',src);}
+    }
+    ptH2pLaster=null;throw new Error('Fikk ikke lastet PDF-verktøyet. Sjekk nettforbindelsen og prøv igjen.');
+  })();
+  return ptH2pLaster;
+}
+function ptTilDataUrl(blob){return new Promise((ok,feil)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=feil;r.readAsDataURL(blob);});}
+async function ptBildeDataUrl(src){
+  if(!src||String(src).startsWith('data:'))return src;
+  try{const r=await fetch(src,{mode:'cors'});if(r.ok)return await ptTilDataUrl(await r.blob());}catch(e){}
+  try{
+    const vert=new URL(src,location.href).hostname.toLowerCase();
+    if(PT_BILDE_VERTER.includes(vert)&&typeof VF_CONFIG!=='undefined'&&VF_CONFIG.baseUrl){
+      const tok=await vfGetApiToken();
+      const r=await fetch(vfApiUrl('/api/tilbudsbilde?url='+encodeURIComponent(src)),{headers:{Authorization:`Bearer ${tok}`}});
+      if(r.ok)return await ptTilDataUrl(await r.blob());
+      console.warn('tilbudsbilde: HTTP',r.status,src);
+    }
+  }catch(e){console.warn('tilbudsbilde feilet',src,e);}
+  return null;
+}
+function ptFilnavn(tittel){return String(tittel||'Tilbud').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,120)||'Tilbud';}
+// Lager PDF-en som fil. Gir {blob, filnavn, manglerBilder}.
+async function ptLagPdf(html,tittel){
+  if(!html)throw new Error('Fant ikke tilbudet.');
+  await ptLastHtml2pdf();
+  const navn=ptFilnavn(tittel);
+  const boks=document.createElement('div');
+  boks.style.cssText='position:fixed;left:-12000px;top:0;width:794px;background:#fff';
+  boks.innerHTML=`<div style="padding:0 57px;background:#fff"><style>.ptm .skille{display:none!important}</style>${html}</div>`;
+  document.body.appendChild(boks);
+  let manglerBilder=0;
+  try{
+    await Promise.all([...boks.querySelectorAll('img')].map(async i=>{
+      i.removeAttribute('onerror');
+      const d=await ptBildeDataUrl(i.getAttribute('src'));
+      if(d){i.setAttribute('src',d);return;}
+      manglerBilder++;
+      if(i.getAttribute('alt')==='Kasse og Butikkdata AS'){const t=document.createElement('div');t.style.cssText='font-weight:800;font-size:18px;color:#1A3A6B';t.textContent='Kasse og Butikkdata AS';i.replaceWith(t);}
+      else(i.closest('figure')||i).remove();
+    }));
+    await Promise.all([...boks.querySelectorAll('img')].map(i=>i.complete?null:new Promise(r=>{i.onload=i.onerror=r;})));
+    const opt={margin:[10,0,14,0],filename:navn+'.pdf',image:{type:'jpeg',quality:0.9},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:{mode:['css'],before:'.sideskift',avoid:['tr','figure','li','.kort','.pris','.gruppe']}};
+    const pdf=await html2pdf().set(opt).from(boks.firstElementChild).toPdf().get('pdf');
+    const n=pdf.internal.getNumberOfPages();
+    for(let i=1;i<=n;i++){
+      pdf.setPage(i);pdf.setFontSize(8);pdf.setTextColor(156,163,175);pdf.setDrawColor(230,232,238);pdf.setLineWidth(0.2);
+      pdf.line(15,285,195,285);pdf.text('Kasse og Butikkdata AS · www.kbd.as',15,289);pdf.text(`side ${i} av ${n}`,195,289,{align:'right'});
+    }
+    return{blob:pdf.output('blob'),filnavn:navn+'.pdf',manglerBilder};
+  }finally{boks.remove();}
+}
+// Samme tegning som ptApneVisning, for én lagret versjon.
+function ptVersjonHtml(v){
+  const d=v?.data;if(!d||!d.linjer)return'';
+  const b=ptBeregnFraBilde(d),tek={Topp:d.tekster.filter(t=>t.plassering==='Topp'),Bunn:d.tekster.filter(t=>t.plassering==='Bunn'),Hvorfor:d.tekster.filter(t=>t.plassering==='Hvorfor')};
+  const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:d.kontaktperson,selger:d.selger,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn},v.opprettet,v.gyldigTil);
+  f.gyldig_dager=String(d.innst?.GyldigDager||pkInnst.GyldigDager);
+  return pkTilbudHtmlFra(b,{navn:d.navn,beskr:d.beskr,bransje:d.bransje||null},tek,f,d.vis||{kjopspris:true,linjepriser:true});
+}
+// E-postadresser til kunden: kontaktpersoner (uten tidligere ansatte) og adressen på kunden/prospektet.
+function ptMottakerValg(kNr){
+  const k=typeof kpFinnKunde==='function'?kpFinnKunde(kNr):null;if(!k)return[];
+  const liste=[...(typeof kontaktBase==='function'&&kontaktBase(k)?[kontaktBase(k)]:[]),...(typeof kontakterForKunde==='function'?kontakterForKunde(k).filter(c=>!c.tidligere):[])];
+  const sett=new Set();
+  return liste.filter(c=>c.epost&&!sett.has(c.epost.toLowerCase())&&sett.add(c.epost.toLowerCase())).map(c=>({navn:c.navn||'',epost:c.epost.trim(),hoved:!!c.hoved}));
+}
+function ptFlettTekst(mal,f){return String(mal||'').replace(/\{(\w+)\}/g,(m,k)=>f[k]!=null?f[k]:m);}
+function ptApneSend(versjonSpId){
+  const v=ptVersjoner.find(x=>x.spId===String(versjonSpId)&&x.versjon>0);if(!v||!v.data){alert('Fant ikke tilbudet.');return;}
+  if(!ptKanSelge())return;
+  const d=v.data,valg=ptMottakerValg(v.kNr);
+  const kontakt=valg.find(c=>d.kontaktperson&&c.navn.trim().toLowerCase()===d.kontaktperson.trim().toLowerCase())||valg.find(c=>c.hoved)||valg[0]||null;
+  const kontaktNavn=d.kontaktperson||kontakt?.navn||'';
+  const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:kontaktNavn,selger:d.selger||currentUser?.name,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn},v.opprettet,v.gyldigTil);
+  f.kontakt_fornavn=(kontaktNavn.trim().split(/\s+/)[0])||'';
+  if(!f.kontakt_fornavn)f.kontakt_fornavn='';
+  f.selger_epost_linje=f.selger_epost?(f.selger_telefon?' · ':'')+f.selger_epost:'';
+  ptSend={v,til:kontakt?.epost||'',emne:ptFlettTekst(PT_EPOST_EMNE,f),tekst:ptFlettTekst(PT_EPOST_TEKST,f).replace('Hei ,','Hei,'),valg,pdf:null,utkast:null,status:''};
+  ptRenderSend();
+  document.getElementById('pk-modal').classList.add('open');
+}
+function ptRenderSend(){
+  const s=ptSend;if(!s)return;const v=s.v;
+  pkModalBred(false);
+  const tittel=`Tilbud ${v.kundeNavn} ${v.data.navn} v${v.versjon}`;
+  const el=document.getElementById('pk-modal-innhold');
+  if(s.utkast){
+    el.innerHTML=`<h3>✉️ E-posten ligger klar i Outlook</h3>
+      <div style="font-size:14px;line-height:1.6">Utkastet til <b>${jsEscapeHtml(s.til)}</b> ligger i <b>Kladd</b> i Outlook, med <b>${jsEscapeHtml(s.pdf?.filnavn||'')}</b> vedlagt.<br>Åpne det, se over, og trykk <b>Send</b> i Outlook.</div>
+      ${s.pdf?.manglerBilder?`<div class="hint" style="margin-top:8px">${s.pdf.manglerBilder} bilde${s.pdf.manglerBilder>1?'r':''} kunne ikke hentes og er ikke med i PDF-en.</div>`:''}
+      <div class="modal-footer">${s.utkast.webLink?`<a class="btn-sm" href="${jsEscapeHtml(s.utkast.webLink)}" target="_blank" rel="noopener">↗ Åpne utkastet</a>`:''}
+        <button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare();ptSend=null">Lukk</button>
+        <button class="prim" id="pt-send-markert" onclick="ptMarkerSendt()">✅ Jeg har sendt den</button></div>`;
+    return;
+  }
+  const chips=s.valg.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${s.valg.map(c=>`<button type="button" class="btn-sm" onclick="ptSend.til='${jsEscapeHtml(c.epost.replace(/'/g,''))}';ptRenderSend()" title="${jsEscapeHtml(c.epost)}">${c.hoved?'⭐ ':''}${jsEscapeHtml(c.navn||c.epost)}</button>`).join('')}</div>`:'<div class="hint" style="margin-top:4px">Kunden har ingen kontaktperson med e-post. Skriv adressen.</div>';
+  el.innerHTML=`<h3>✉️ Send tilbudet</h3>
+    <div class="hint" style="margin:-4px 0 10px">${jsEscapeHtml(v.kundeNavn)} – ${jsEscapeHtml(v.data.navn)} v${v.versjon}. PDF-en lages og legges ved, og e-posten legges som utkast i <b>din</b> Outlook. Den sendes ikke før du trykker Send der.</div>
+    <div class="fgrp"><label>Til</label><input type="email" id="pt-send-til" value="${jsEscapeHtml(s.til)}" oninput="ptSend.til=this.value.trim()" placeholder="kunde@firma.no">${chips}</div>
+    <div class="fgrp"><label>Emne</label><input type="text" value="${jsEscapeHtml(s.emne)}" oninput="ptSend.emne=this.value"></div>
+    <div class="fgrp"><label>Tekst</label><textarea rows="11" oninput="ptSend.tekst=this.value" style="width:100%;font:inherit;line-height:1.45">${jsEscapeHtml(s.tekst)}</textarea></div>
+    <div style="font-size:13px;color:#374151">📎 ${jsEscapeHtml(ptFilnavn(tittel))}.pdf</div>
+    ${s.status?`<div id="pt-send-status" style="margin-top:8px;font-size:13px;color:#1d4ed8">${jsEscapeHtml(s.status)}</div>`:''}
+    <div class="modal-footer">
+      <button class="btn-sm" onclick="ptLastNedPdfFil()" ${s.status?'disabled':''}>📄 Last ned PDF</button>
+      <button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare();ptSend=null" ${s.status?'disabled':''}>Senere</button>
+      <button class="prim" onclick="ptLagUtkast()" ${s.status?'disabled':''}>✉️ Lag e-post i Outlook</button>
+    </div>`;
+}
+async function ptSikrePdf(){
+  const s=ptSend;if(s.pdf)return s.pdf;
+  s.pdf=await ptLagPdf(ptVersjonHtml(s.v),`Tilbud ${s.v.kundeNavn} ${s.v.data.navn} v${s.v.versjon}`);
+  return s.pdf;
+}
+async function ptLastNedPdfFil(){
+  const s=ptSend;if(!s)return;
+  s.status='Lager PDF …';ptRenderSend();
+  try{const p=await ptSikrePdf();const url=URL.createObjectURL(p.blob);const a=document.createElement('a');a.href=url;a.download=p.filnavn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);}
+  catch(e){console.error('PDF feilet',e);alert('PDF-en kunne ikke lages: '+(e.message||e));}
+  finally{if(ptSend){ptSend.status='';ptRenderSend();}}
+}
+// Token for e-post (Mail.ReadWrite, delegert). Spørres først når den trengs, så innloggingen ellers er uendret.
+async function ptMailToken(){
+  const account=msalInstance.getActiveAccount(),scopes=['Mail.ReadWrite'];
+  try{return(await msalInstance.acquireTokenSilent({scopes,account})).accessToken;}
+  catch(e){return(await msalInstance.acquireTokenPopup({scopes,account})).accessToken;}
+}
+async function ptGraph(token,metode,sti,body){
+  const r=await fetch('https://graph.microsoft.com/v1.0'+sti,{method:metode,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null;}catch(e){}
+  if(!r.ok)throw new Error(j?.error?.message||`Graph svarte ${r.status}`);
+  return j;
+}
+async function ptLagUtkast(){
+  const s=ptSend;if(!s)return;
+  const til=(s.til||'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(til)){alert('Skriv en gyldig e-postadresse i «Til».');document.getElementById('pt-send-til')?.focus();return;}
+  if(!s.emne.trim()){alert('Skriv et emne.');return;}
+  try{
+    s.status='Lager PDF …';ptRenderSend();
+    const p=await ptSikrePdf();
+    s.status='Kobler til Outlook …';ptRenderSend();
+    let token;
+    try{token=await ptMailToken();}
+    catch(e){console.error('Mail.ReadWrite-token',e);throw new Error(/consent|AADSTS65001|AADSTS90094/i.test(String(e?.message||e))?'Dashbordet har ikke fått lov til å lage e-postutkast ennå. En administrator må godkjenne tillatelsen «Mail.ReadWrite» for appen (se statusfilen).':'Innloggingen til Outlook ble avbrutt: '+(e.message||e));}
+    s.status='Legger utkastet i Outlook …';ptRenderSend();
+    const melding={subject:s.emne.trim(),body:{contentType:'Text',content:s.tekst},toRecipients:[{emailAddress:{address:til}}]};
+    const base64=(await ptTilDataUrl(p.blob)).split(',')[1];
+    let msg;
+    if(p.blob.size<=PT_MAKS_VEDLEGG){
+      msg=await ptGraph(token,'POST','/me/messages',{...melding,attachments:[{'@odata.type':'#microsoft.graph.fileAttachment',name:p.filnavn,contentType:'application/pdf',contentBytes:base64}]});
+    }else{
+      msg=await ptGraph(token,'POST','/me/messages',melding);
+      const sesjon=await ptGraph(token,'POST',`/me/messages/${msg.id}/attachments/createUploadSession`,{AttachmentItem:{attachmentType:'file',name:p.filnavn,size:p.blob.size,contentType:'application/pdf'}});
+      const bit=3*1024*1024;
+      for(let start=0;start<p.blob.size;start+=bit){
+        const slutt=Math.min(start+bit,p.blob.size);
+        const r=await fetch(sesjon.uploadUrl,{method:'PUT',headers:{'Content-Range':`bytes ${start}-${slutt-1}/${p.blob.size}`,'Content-Type':'application/octet-stream'},body:p.blob.slice(start,slutt)});
+        if(!r.ok&&r.status!==201&&r.status!==200)throw new Error('Opplasting av vedlegget feilet (HTTP '+r.status+')');
+      }
+    }
+    s.utkast={id:msg.id,webLink:msg.webLink||''};s.status='';
+    await ptLoggPaSak(s.v,`✉️ E-post med tilbud v${s.v.versjon} lagt som utkast i Outlook til ${til} (PDF vedlagt).`);
+    ptRenderSend();
+    if(s.utkast.webLink){try{window.open(s.utkast.webLink,'_blank','noopener');}catch(e){}}
+  }catch(e){
+    console.error('Send tilbudet feilet',e);
+    if(ptSend){ptSend.status='';ptRenderSend();}
+    alert('E-posten ble ikke laget: '+(e.message||e));
+  }
+}
+async function ptLoggPaSak(v,tekst){
+  const sak=ptSakFor(v.sakId);if(!sak)return;
+  if(!Array.isArray(sak.logg))sak.logg=[];
+  sak.logg.push({dato:new Date().toISOString(),tekst,forfatter:currentUser?.name||currentUser?.username||'Ukjent'});
+  if(typeof markerAktivitet==='function')markerAktivitet(sak);
+  try{if(sak.spId)await spLagreMedMykFallback(f=>spUpdate('KundeNotater',sak.spId,f),notatFieldsPayload(sak),NOTAT_MYKE_FELTER);}
+  catch(e){console.warn('Loggpost på saken ble ikke lagret',e);}
+  if(typeof ptOppdaterSak==='function')ptOppdaterSak();
+}
+async function ptMarkerSendt(){
+  const s=ptSend;if(!s)return;
+  const k=document.getElementById('pt-send-markert');if(k){k.disabled=true;k.textContent='Lagrer …';}
+  await ptLoggPaSak(s.v,`✅ Tilbud v${s.v.versjon} sendt til ${s.til}.`);
+  pkLukkVare();ptSend=null;
+  vfShowToast?.('✅ Sendingen er ført i saksloggen');
 }
 
 function showTab(name,btn){
