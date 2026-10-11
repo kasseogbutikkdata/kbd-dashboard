@@ -746,7 +746,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.257 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.258 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11636,6 +11636,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.258',dato:'11.10.2026',punkter:[
+    'Tilbud: flere pakker kan settes sammen til ett komplett tilbud. Huk av flere pakker under «＋ Nytt tilbud», eller bruk «＋ Legg til pakke …» i et tilbud du holder på med. Varer som finnes i flere av pakkene, tas med én gang med det høyeste antallet. Tittelen settes sammen («M10 med Softpay + Verifone V660P»), tekstene kommer fra første pakke, og pakkenes kommentarer slås sammen.'
+  ]},
   {versjon:'v1.48.257',dato:'11.10.2026',punkter:[
     'Tilbud: leie via Ikano i 36 måneder er hovedprisen. Kjøpspris og priser per linje for hardware og etablering vises bare når du huker av for det i tilbudet. Linjene vises da uten priser, og «Samlet pris totalpakke» viser leien (og kjøpsprisen hvis valgt). Lisensene vises som før.',
     'Tilbud: produktbilder over varelinjene. Standardbilder fra www.kbd.as for M10, POS 15, Telpo M1, Verifone P400 og SoftPay, og eget bilde kan legges inn på varen («Produktbilde i tilbud»). Bransje med bilde og salgstekst øverst i tilbudet (velges per tilbud, foreslås fra kundens bransje), og KBD-logoen i toppen.',
@@ -16600,7 +16603,7 @@ function pkRenderPakkeEditor(){
   let h=`${topp}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap">
       <div style="font-weight:600;font-size:14px">Varelinjer</div>
-      <div style="display:flex;gap:6px;align-items:center">${erTilbud&&kan?'<button class="btn-sm" onclick="ptRabattAlleHw()" title="Samme rabatt på alle linjer som kan få rabatt">％ Rabatt på all hardware</button>':''}${prisVelger}</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${erTilbud&&kan?`<select onchange="if(this.value)ptLeggTilPakkeIApen(this.value)" style="width:auto"><option value="">＋ Legg til pakke …</option>${pkPakker.filter(p=>p.aktiv).map(p=>`<option value="${p.spId}">${jsEscapeHtml(p.navn)}</option>`).join('')}</select>`:''}${erTilbud&&kan?'<button class="btn-sm" onclick="ptRabattAlleHw()" title="Samme rabatt på alle linjer som kan få rabatt">％ Rabatt på all hardware</button>':''}${prisVelger}</div>
     </div>
     <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th style="min-width:300px">Vare</th><th style="width:70px">Antall</th><th style="min-width:150px">Type</th><th style="width:80px">Rabatt %</th><th style="text-align:right">Pris/stk</th><th style="text-align:right">Sum</th><th style="text-align:right">DG</th><th></th></tr></thead><tbody id="pk-p-linjer"></tbody></table></div>
     ${kan?'<div style="margin:6px 0 0"><button class="btn-sm" onclick="pkPakkeNyLinje()">＋ Legg til linje</button></div>':''}
@@ -17144,22 +17147,51 @@ function ptVelgPakke(){
   if(!ptKanSelge())return;
   const pakker=[...pkPakker].filter(p=>p.aktiv).sort((a,b)=>((a.sortering??9999)-(b.sortering??9999))||a.navn.localeCompare(b.navn,'nb'));
   pkModalBred(false);
-  document.getElementById('pk-modal-innhold').innerHTML=`<h3>🧾 Nytt tilbud – velg pakke</h3>
-    <div style="display:grid;gap:8px">${pakker.map(p=>{const b=pkPakkeBeregn(p,'');return`<button class="btn-sm" style="text-align:left;padding:10px 12px;display:block;width:100%" onclick="ptNyttFraPakke('${p.spId}')"><b>${jsEscapeHtml(p.navn)}</b><div style="font-size:12px;color:#6b7280">${jsEscapeHtml(p.beskr||'')}${p.beskr?' · ':''}${pkKr(b.kjop)}${b.lop.length?` + ${pkKr(b.lopMnd)}/mnd`:''}</div></button>`;}).join('')||'<div class="hint">Ingen aktive pakker.</div>'}
-      <button class="btn-sm" style="text-align:left;padding:10px 12px" onclick="ptNyttFraPakke(null)"><b>Tomt tilbud</b><div style="font-size:12px;color:#6b7280">Legg til varene selv</div></button></div>
-    <div class="modal-footer"><button class="btn-sm" onclick="pkLukkVare()">Avbryt</button></div>`;
+  document.getElementById('pk-modal-innhold').innerHTML=`<h3>🧾 Nytt tilbud – velg én eller flere pakker</h3>
+    <div class="hint" style="margin:0 0 8px">Velger du flere pakker, settes de sammen til ett tilbud. Varer som finnes i flere av pakkene, tas med én gang (høyeste antall).</div>
+    <div style="display:grid;gap:6px">${pakker.map(p=>{const b=pkPakkeBeregn(p,'');return`<label style="display:flex;gap:10px;align-items:flex-start;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;cursor:pointer;background:#fff"><input type="checkbox" class="pt-pakkevalg" value="${p.spId}" onchange="ptPakkevalgTeller()" style="margin-top:3px"><span><b>${jsEscapeHtml(p.navn)}</b><div style="font-size:12px;color:#6b7280">${jsEscapeHtml(p.beskr||'')}${p.beskr?' · ':''}${b.leie?`leie ${pkKr(b.leie.mnd)}/mnd · `:''}kjøp ${pkKr(b.kjop)}${b.lop.length?` · lisenser ${pkKr(b.lopMnd)}/mnd`:''}</div></span></label>`;}).join('')||'<div class="hint">Ingen aktive pakker.</div>'}</div>
+    <div class="modal-footer"><button class="btn-sm" onclick="ptNyttFraPakker([])">Tomt tilbud</button><button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare()">Avbryt</button><button class="prim" id="pt-pakkevalg-knapp" disabled onclick="ptNyttFraPakker([...document.querySelectorAll('.pt-pakkevalg:checked')].map(x=>x.value))">Lag tilbud</button></div>`;
   document.getElementById('pk-modal').classList.add('open');
 }
-function ptNyttFraPakke(spId){
+function ptPakkevalgTeller(){const n=document.querySelectorAll('.pt-pakkevalg:checked').length,k=document.getElementById('pt-pakkevalg-knapp');if(k){k.disabled=!n;k.textContent=n>1?`Lag tilbud av ${n} pakker`:'Lag tilbud';}}
+function ptNyttFraPakke(spId){ptNyttFraPakker(spId?[spId]:[]);}
+function ptNyttFraPakker(ider){
   if(!ptKanSelge())return;
-  const p=spId?pkPakker.find(x=>x.spId===String(spId)):null;
+  const [forste,...resten]=(ider||[]).map(id=>pkPakker.find(x=>x.spId===String(id))).filter(Boolean);
+  const p=forste||null;
   pkApenPakke={modus:'tilbud',sakId:null,versjon:1,kunde:null,kontaktperson:'',selger:currentUser?.name||currentUser?.username||'',selgerTlf:ptSelgerTlf(),
     prisklasse:'',navn:p?.navn||'',beskr:p?.beskr||'',pakke:p?.navn||'',bransjer:[],aktiv:true,
     linjer:JSON.parse(JSON.stringify(p?.linjer||[])).map(l=>{delete l.malPris;delete l.sok;return l;}).filter(l=>l.varenr||!p),
     tekster:JSON.parse(JSON.stringify(p?.tekster||{})),arsak:'',visning:'rediger',bransje:(p?.bransjer||[]).find(x=>pkBransjeFor(x))||'',vis:{kjopspris:false,linjepriser:false}};
+  resten.forEach(x=>ptSlaSammenPakke(pkApenPakke,x));
   pkPakkePrisklasse='';
   pkModalBred(true);pkRenderPakkeEditor();
   document.getElementById('pk-modal').classList.add('open');
+}
+// v1.48.258 (Thomas 11.10.2026): flere pakker i ett tilbud. Like varer tas med én gang med høyeste
+// antall. Tittelen settes sammen, tekstene kommer fra første pakke, og pakkenes kommentarer slås sammen.
+function ptTekstFor(tekster,nokkel){const o=tekster?.[nokkel];if(o?.skjul)return null;if(o&&typeof o.tekst==='string')return o.tekst;const t=pkTekster.find(x=>x.nokkel===nokkel);return t?t.tekst:null;}
+function ptSlaSammenPakke(a,p){
+  (p.linjer||[]).filter(l=>l.varenr).forEach(l=>{
+    const fins=a.linjer.find(x=>String(x.varenr).toUpperCase()===String(l.varenr).toUpperCase());
+    if(fins){fins.antall=Math.max(Number(fins.antall)||0,Number(l.antall)||0);if(fins.type==='valgfri'&&l.type!=='valgfri'){fins.type=l.type;delete fins.valgt;}}
+    else{const k=JSON.parse(JSON.stringify(l));delete k.malPris;delete k.sok;a.linjer.push(k);}
+  });
+  a.navn=[a.navn,p.navn].filter(Boolean).join(' + ');
+  a.pakke=[a.pakke,p.navn].filter(Boolean).join(' + ');
+  if(!a.beskr)a.beskr=p.beskr||'';
+  if(!a.bransje)a.bransje=(p.bransjer||[]).find(x=>pkBransjeFor(x))||'';
+  const ka=ptTekstFor(a.tekster,'kommentarer'),kb=ptTekstFor(p.tekster,'kommentarer');
+  if(kb!=null&&kb!==ka){
+    const avsnitt=[...String(ka||'').split(/\n\s*\n/),...String(kb).split(/\n\s*\n/)].map(s=>s.trim()).filter(Boolean);
+    a.tekster.kommentarer={tekst:[...new Set(avsnitt)].join('\n\n')};
+  }
+}
+function ptLeggTilPakkeIApen(spId){
+  const a=pkApenPakke,p=pkPakker.find(x=>x.spId===String(spId));if(!a||!p)return;
+  const før=a.linjer.length;ptSlaSammenPakke(a,p);
+  pkRenderPakkeEditor();
+  vfShowToast?.(`＋ «${p.navn}» lagt til (${a.linjer.length-før} nye linjer, like varer slått sammen)`);
 }
 
 // ---------- Editor (tilbudsdelen av pkRenderPakkeEditor) ----------
