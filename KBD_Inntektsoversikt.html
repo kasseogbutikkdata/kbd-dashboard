@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.267 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.268 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -2161,7 +2161,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
             <option value="Oppfølging">⏰ Oppfølging</option>
           </select>
         </div>
-        <div class="fgrp" id="n-forfallsdato-wrap" style="display:none"><label>Forfallsdato og klokkeslett</label><input type="datetime-local" id="n-forfallsdato"/></div>
+        <div class="fgrp" id="n-forfallsdato-wrap" style="display:none"><label id="n-forfallsdato-etikett">Forfallsdato og klokkeslett</label><input type="datetime-local" id="n-forfallsdato"/></div>
       </div>
       <div class="fgrp" id="n-varsel-wrap" style="display:none;margin-bottom:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px">
         <label style="margin-bottom:6px">Varsling ved forfall</label>
@@ -10552,6 +10552,10 @@ function updateNotatFormFields(){
   const tilbudWrap=document.getElementById('n-tilbud-wrap');
   if(tilbudWrap)tilbudWrap.style.display=erTilbud?'':'none';
   if(erTilbud)oppdaterTilbudVektetVisning();
+  // v1.48.268: salgsmuligheter har «Neste steg» (obligatorisk), de andre typene «Forfallsdato».
+  const et=document.getElementById('n-forfallsdato-etikett');
+  if(et)et.textContent=erTilbud?'Neste steg (dato og klokkeslett) *':'Forfallsdato og klokkeslett';
+  if(erTilbud&&typeof skjemaForeslaNesteSteg==='function')skjemaForeslaNesteSteg();
 }
 
 // Viser vektet verdi (sum × sannsynlighet) live mens man fyller ut et Tilbud
@@ -10667,6 +10671,32 @@ function kildeDetaljLes(p){
   return{kilde,detalj:''};
 }
 const FASER_MED_SUM=['Tilbud sendt','Closing'];
+// ===== NESTE STEG PÅ SALGSMULIGHETER (v1.48.268, Thomas 11.10.2026: «krev dato») =====
+// En åpen salgsmulighet skal alltid ha en dato for neste steg. Den lagres i Forfallsdato
+// (ingen ny kolonne), og påminnelse, «Forfalt / i dag» og 💤 virker som før. Datoen foreslås
+// ut fra fasen (neste virkedager kl. 09, helg hoppes over) og kan endres. Demo får ingen
+// forslag: selgeren setter datoen for demoen. Utsatt har sin egen dato som før.
+const SALG_NESTE_STEG_DAGER={'Lead':1,'Kontakt':3,'Tilbud sendt':1,'Closing':2};
+function nesteVirkedag(dager){
+  const d=new Date();let n=0;
+  while(n<dager){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d.getDay()!==6)n++;}
+  d.setHours(9,0,0,0);return d;
+}
+function salgNesteStegForslag(fase){const x=SALG_NESTE_STEG_DAGER[fase];return x?nesteVirkedag(x):null;}
+function salgDatoUtlopt(iso){if(!iso)return true;const d=new Date(iso);return isNaN(d)||d<=new Date();}
+function skjemaSettForfall(d){
+  if(typeof notatDatePicker!=='undefined'&&notatDatePicker){if(d)notatDatePicker.setDate(d);else notatDatePicker.clear();}
+  else{const el=document.getElementById('n-forfallsdato');if(el)el.value=d?toLocalDatetimeInputValue(d.toISOString()):'';}
+}
+// Fyller inn forslag i skjemaet når feltet er tomt (bare for salgsmuligheter). Ved faseskifte
+// (ogsaPassert) også når datoen er passert. Når et skjema bare åpnes, endres en passert dato ikke.
+function skjemaForeslaNesteSteg(ogsaPassert){
+  if(document.getElementById('n-type')?.value!=='Tilbud')return;
+  const fase=document.getElementById('n-fase')?.value||'';
+  const raw=document.getElementById('n-forfallsdato')?.value||'';
+  if(raw&&(!ogsaPassert||!salgDatoUtlopt(new Date(raw).toISOString())))return;
+  const d=salgNesteStegForslag(fase);if(d)skjemaSettForfall(d);
+}
 function salgFase(n){
   if(!n||n.type!=='Tilbud')return '';
   if(n.status==='Lukket')return n.tilbudUtfall||'Lukket';
@@ -10700,6 +10730,7 @@ function faseEndretISkjema(){
   const sans=salgFaseSans(fs.value);
   if(sans!=null){const r=document.getElementById('n-sannsynlighet');if(r){r.value=sans;document.getElementById('n-sannsynlighet-verdi').textContent=sans;}oppdaterTilbudVektetVisning();}
   fs.dataset.forrige=fs.value;
+  skjemaForeslaNesteSteg(true);
 }
 function faseLogg(n,fra,til){
   if(!Array.isArray(n.logg))n.logg=[];
@@ -10720,9 +10751,26 @@ function settSalgFase(id,nyFase){
     setTimeout(()=>document.getElementById('n-tilbudsum')?.focus(),50);
     return;
   }
+  // v1.48.268: neste steg. Er datoen tom eller passert, foreslås en ny ut fra fasen.
+  // Demo uten fremtidig dato: skjemaet åpnes så selgeren setter datoen for demoen.
+  let nyDato=null;
+  if(salgDatoUtlopt(n.forfallsdato)){
+    nyDato=salgNesteStegForslag(nyFase);
+    if(!nyDato){
+      openRedigerNotat(id);
+      const fs=document.getElementById('n-fase');if(fs){fs.value=nyFase;faseEndretISkjema();}
+      skjemaSettForfall(null);
+      alert(`Sett datoen for ${nyFase==='Demo'?'demoen':'neste steg'} under «Neste steg», og lagre.`);
+      setTimeout(()=>document.getElementById('n-forfallsdato')?.focus(),50);
+      return;
+    }
+    n.forfallsdato=nyDato.toISOString();n.varselSendt=false;
+    if(!n.varsleEpost&&!n.varsleDashbord)n.varsleDashbord=true;
+  }
   n.fase=nyFase;
   const sans=salgFaseSans(nyFase);if(sans!=null)n.sannsynlighet=sans;
   faseLogg(n,gammel,nyFase);
+  if(nyDato){n.logg[n.logg.length-1].tekst+=` · neste steg ${nyDato.toLocaleDateString('nb-NO')} kl. 09:00`;if(typeof vfShowToast==='function')vfShowToast(`Neste steg satt til ${nyDato.toLocaleDateString('nb-NO',{weekday:'long',day:'numeric',month:'long'})} kl. 09:00`);}
   markerAktivitet(n);
   if(k360Valgt)renderKundeKort(k360Valgt);
   renderKundesaker();
@@ -10940,6 +10988,7 @@ function saveNotat(){
   // eldre). Lukkede saker fra før kan fortsatt lagres som «Ukjent».
   if(type==='Tilbud'&&erApenSak&&!leadKildeValgt){alert('Velg hvor leadet kommer fra (Leadkilde) — det er obligatorisk på åpne salgsmuligheter.');document.getElementById('n-leadkilde')?.focus();return;}
   if(type==='Tilbud'&&leadKildeValgt&&kildeLest.feil){alert(kildeLest.feil);return;}
+  if(type==='Tilbud'&&erApenSak&&faseValgt!==SALG_UTSATT&&!forfallsdatoRaw){alert(faseValgt==='Demo'?'Sett datoen for demoen under «Neste steg». Det er obligatorisk på åpne salgsmuligheter.':'Sett dato og klokkeslett for neste steg. Det er obligatorisk på åpne salgsmuligheter.');document.getElementById('n-forfallsdato')?.focus();return;}
   if(type==='Tilbud'&&erApenSak&&faseValgt===SALG_UTSATT&&!forfallsdatoRaw){alert('Fasen «Utsatt» trenger en forfallsdato — datoen saken skal tas opp igjen.');return;}
   if(type==='Tilbud'&&erApenSak&&FASER_MED_SUM.includes(faseValgt)&&(!tilbudSum||tilbudSum<=0)){alert(`Fyll inn en totalsum — fasen «${faseValgt}» krever det.`);return;}
   if((varsleEpost||varsleDashbord)&&!forfallsdatoRaw){alert('Fyll inn en forfallsdato/klokkeslett for å kunne varsle');return;}
@@ -11645,6 +11694,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.268',dato:'11.10.2026',punkter:[
+    'Neste steg på salgsmuligheter (Thomas 11.10.2026: «krev dato»): datofeltet heter «Neste steg» for salgsmuligheter og er obligatorisk på åpne saker. Notat og oppfølging er som før.',
+    'Datoen foreslås ut fra fasen, neste virkedag(er) kl. 09: Lead 1, Kontakt 3, Tilbud sendt 1, Closing 2. Demo får ikke forslag, der setter du datoen for demoen. Forslaget kommer bare når feltet er tomt eller datoen er passert, så en avtalt dato blir stående.',
+    'Faseknappene på kortet: er neste steg passert eller tomt, settes ny dato automatisk. Ved Demo åpnes skjemaet så du kan sette demodatoen.',
+    'Salgsmuligheter fra onboarding-oppfølgingen får neste steg neste virkedag kl. 09.'
+  ]},
   {versjon:'v1.48.267',dato:'11.10.2026',punkter:[
     'Lag tilbud fra saken: salgssaker på kundekortet har knappen «🧾 Lag tilbud». Den åpner tilbudsbyggeren med kunde, kontaktperson og bransje fylt ut, og tilbudet lagres på den saken i stedet for som en ny sak. Har saken tilbud fra før, viser knappen «🧾 Tilbud vN» og åpner siste versjon.',
     'Første tilbud flytter saken fra Lead, Kontakt, Demo eller Utsatt til «Tilbud sendt», og totalsummen settes fra tilbudet.',
@@ -22783,7 +22838,7 @@ async function onbLagSalgsmulighet(id){
   try{
     const selger=o.selger||o.ansvarlig||onbMeg();
     const b=brukere.find(x=>x.navn===selger);
-    const n=await onbLagNotat({...o,ansvarlig:selger,ansvarligEpost:(b?.epost||o.selgerEpost||'').toLowerCase()},'Tilbud',tekst,`Meldt i onboarding-oppfølgingen av ${onbMeg()}.`,'',{fase:'Lead',leadKilde:'Eksisterende kunde',leadKildeDetalj:'',tilbudSum:null,sannsynlighet:10,tilbudUtfall:'',tilbudLukketDato:'',tilbudArsak:'',tilbudArsakDetalj:''});
+    const n=await onbLagNotat({...o,ansvarlig:selger,ansvarligEpost:(b?.epost||o.selgerEpost||'').toLowerCase()},'Tilbud',tekst,`Meldt i onboarding-oppfølgingen av ${onbMeg()}.`,salgNesteStegForslag('Lead').toISOString(),{fase:'Lead',leadKilde:'Eksisterende kunde',leadKildeDetalj:'',tilbudSum:null,sannsynlighet:10,tilbudUtfall:'',tilbudLukketDato:'',tilbudArsak:'',tilbudArsakDetalj:''});
     o.data.nySalgSpId=n.spId;onbLogg(o,`💼 Salgsmulighet opprettet til ${selger}: ${tekst}`);
     setSPStatus('✅ Salgsmulighet opprettet');setTimeout(()=>setSPStatus(''),2500);
   }catch(e){setSPStatus('❌ '+e.message,false);alert('⚠️ Klarte ikke lage salgsmuligheten:\n'+e.message);return;}
