@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.268 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.269 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -8927,6 +8927,7 @@ function renderKundeNotaterHTML(k){
       ${salgTilgang?`<button class="btn-sm" onclick="openNyNotatModal('${kNr}','${(k.navn||'').replace(/'/g,"\\'")}')">+ Ny oppføring</button>`:'<span></span>'}
       ${filterHtml}
     </div>
+    ${typeof ptKundeKladdHtml==='function'?ptKundeKladdHtml(kNr):''}
     <div style="margin-bottom:20px">
       ${notater.length===0?`<div class="empty">${notaterAlle.length===0?'Ingen oppføringer registrert ennå.':'Ingen oppføringer av denne typen.'}</div>`:rader}
     </div>
@@ -11694,6 +11695,10 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.269',dato:'11.10.2026',punkter:[
+    'Kladder på kundekortet: har en salgssak en tilbudskladd, viser saken «📝 Kladd» (eller «📝 Kladd v2» ved siden av «🧾 Tilbud v1»), som åpner kladden. Kladder til kunden som ikke hører til en sak, vises øverst i «Salg & oppfølging» med «Fortsett».',
+    'Kladdelista under «🧾 Tilbud» viser «på saken «…»» for kladder laget fra en sak, i stedet for «ny versjon av et tilbud».'
+  ]},
   {versjon:'v1.48.268',dato:'11.10.2026',punkter:[
     'Neste steg på salgsmuligheter (Thomas 11.10.2026: «krev dato»): datofeltet heter «Neste steg» for salgsmuligheter og er obligatorisk på åpne saker. Notat og oppfølging er som før.',
     'Datoen foreslås ut fra fasen, neste virkedag(er) kl. 09: Lead 1, Kontakt 3, Tilbud sendt 1, Closing 2. Demo får ikke forslag, der setter du datoen for demoen. Forslaget kommer bare når feltet er tomt eller datoen er passert, så en avtalt dato blir stående.',
@@ -17303,7 +17308,8 @@ async function ptLagreKladd(){
     if(a.kladdId){await spUpdate('TilbudVersjoner',a.kladdId,felt);const k=ptVersjoner.find(x=>x.spId===a.kladdId);if(k)Object.assign(k,{tittel:felt.Title,kundeNavn,pakke:felt.Pakke,data:JSON.parse(felt.Data),kjop:felt.Kjopspris,lisensMnd:felt.LisensMnd,leieMnd:felt.LeieMnd,hwDg:felt.HwDg,endret:naa});}
     else{const r=await spCreate('TilbudVersjoner',felt);a.kladdId=String(r.id);
       ptVersjoner.push({spId:a.kladdId,tittel:felt.Title,sakId:felt.SakId,kNr:felt.VismaKundeNummer,kundeNavn,versjon:0,pakke:felt.Pakke,prisklasse:felt.Prisklasse,data:JSON.parse(felt.Data),kjop:felt.Kjopspris,lisensMnd:felt.LisensMnd,leieMnd:felt.LeieMnd,hwDg:felt.HwDg,arsak:felt.DgArsak,gyldigTil:'',selger:felt.Selger,opprettet:naa,endret:naa});}
-    vfShowToast?.('📝 Kladden er lagret. Du finner den under «🧾 Tilbud».');
+    vfShowToast?.(a.sakId?'📝 Kladden er lagret. Du finner den på saken og under «🧾 Tilbud».':(a.kunde?.kNr?'📝 Kladden er lagret. Du finner den på kundekortet og under «🧾 Tilbud».':'📝 Kladden er lagret. Du finner den under «🧾 Tilbud».'));
+    ptOppdaterSakKnapper();
   }catch(e){console.error('TilbudVersjoner: lagring av kladd feilet',e);alert('Kladden ble ikke lagret: '+(e.message||e));}
   finally{if(knapp){knapp.disabled=false;knapp.textContent='📝 Lagre som kladd';}}
 }
@@ -17319,7 +17325,7 @@ function ptApneKladd(spId){
 async function ptSlettKladd(spId,stille){
   const k=ptVersjoner.find(x=>x.spId===String(spId)&&x.versjon===0);if(!k)return;
   if(!stille&&!confirm(`Slette kladden «${k.kundeNavn||'(uten mottaker)'} – ${k.data?.a?.navn||k.pakke||''}»?`))return;
-  try{await spDelete('TilbudVersjoner',k.spId);ptVersjoner=ptVersjoner.filter(x=>x.spId!==k.spId);if(!stille)renderPkTilbud();}
+  try{await spDelete('TilbudVersjoner',k.spId);ptVersjoner=ptVersjoner.filter(x=>x.spId!==k.spId);if(!stille)renderPkTilbud();ptOppdaterSakKnapper();}
   catch(e){console.error('Sletting av kladd feilet',e);if(!stille)alert('Sletting feilet: '+(e.message||e));}
 }
 function ptDatoIso(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -17352,7 +17358,7 @@ function renderPkTilbud(){
       ${kan?'<button class="prim" style="margin-left:auto" onclick="ptVelgPakke()">＋ Nytt tilbud</button>':''}
     </div>
     ${(()=>{const kl=ptKladder().filter(k=>ptVisFilter!=='mine'||k.selger===(currentUser?.name||''));if(!kl.length)return'';
-      return`<div style="margin:6px 0 12px;padding:10px 12px;border:1px dashed #f59e0b;background:#fffbeb;border-radius:8px"><div style="font-weight:600;margin-bottom:6px">📝 Kladder (${kl.length})</div>${kl.map(k=>`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;border-top:1px solid #fde68a;font-size:13px"><a href="#" onclick="event.preventDefault();ptApneKladd('${k.spId}')" style="font-weight:600">${jsEscapeHtml(k.kundeNavn||'(uten mottaker)')} – ${jsEscapeHtml(k.data?.a?.navn||k.pakke||'(uten tittel)')}</a><span style="color:#6b7280">${k.leieMnd?pkKr(k.leieMnd)+'/mnd · ':''}${jsEscapeHtml(k.selger)} · lagret ${new Date(k.endret||k.opprettet).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${k.sakId?' · ny versjon av et tilbud':''}</span>${ptKanSelge()?`<button class="btn-sm" style="margin-left:auto" onclick="ptApneKladd('${k.spId}')">Fortsett</button><button class="btn-sm" style="color:#dc2626" onclick="ptSlettKladd('${k.spId}')">Slett</button>`:''}</div>`).join('')}</div>`;})()}
+      return`<div style="margin:6px 0 12px;padding:10px 12px;border:1px dashed #f59e0b;background:#fffbeb;border-radius:8px"><div style="font-weight:600;margin-bottom:6px">📝 Kladder (${kl.length})</div>${kl.map(k=>`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;border-top:1px solid #fde68a;font-size:13px"><a href="#" onclick="event.preventDefault();ptApneKladd('${k.spId}')" style="font-weight:600">${jsEscapeHtml(k.kundeNavn||'(uten mottaker)')} – ${jsEscapeHtml(k.data?.a?.navn||k.pakke||'(uten tittel)')}</a><span style="color:#6b7280">${k.leieMnd?pkKr(k.leieMnd)+'/mnd · ':''}${jsEscapeHtml(k.selger)} · lagret ${new Date(k.endret||k.opprettet).toLocaleString('nb-NO',{dateStyle:'short',timeStyle:'short'})}${k.sakId?(ptSakTilbud({spId:k.sakId}).length?' · ny versjon av et tilbud':` · på saken «${jsEscapeHtml(ptSakFor(k.sakId)?.tittel||'')}»`):''}</span>${ptKanSelge()?`<button class="btn-sm" style="margin-left:auto" onclick="ptApneKladd('${k.spId}')">Fortsett</button><button class="btn-sm" style="color:#dc2626" onclick="ptSlettKladd('${k.spId}')">Slett</button>`:''}</div>`).join('')}</div>`;})()}
     <div class="pk-teller">${rader.length} tilbud</div>
     <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell"><thead><tr><th>Kunde</th><th>Tilbud</th><th style="text-align:right">Leie/mnd</th><th style="text-align:right">Kjøpspris</th><th style="text-align:right">Lisens/mnd</th><th>DG</th><th>Gyldig til</th><th>Selger</th><th>Sak</th></tr></thead><tbody>`;
   if(!rader.length)h+=`<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:24px">Ingen tilbud her ennå.${kan?' Trykk «＋ Nytt tilbud», eller «🧾 Lag tilbud» på en pakke.':''}</td></tr>`;
@@ -17681,8 +17687,11 @@ function ptSakKnappInnhold(n){
   if(!n||n.type!=='Tilbud'||!ptKanSelge())return'';
   if(!pkLastet)return n.status==='Åpen'?`<button class="btn-sm" style="white-space:nowrap" onclick="ptFraSak('${n.id}')" title="Lag tilbud på denne saken">🧾 Tilbud</button>`:'';
   if(!ptFinnes)return'';
-  const t=ptSakTilbud(n);
-  if(t.length)return`<button class="btn-sm" style="white-space:nowrap;color:#6d28d9" onclick="ptApneVisning('${t[0].spId}')" title="Åpne tilbudet (${t.length} versjon${t.length>1?'er':''})">🧾 Tilbud v${t[0].versjon}</button>`;
+  const t=ptSakTilbud(n),kl=ptKladder().find(k=>k.sakId===String(n.spId));
+  // v1.48.269: kladd på saken vises som egen knapp (Thomas 11.10.2026).
+  const klKnapp=kl&&n.status==='Åpen'?`<button class="btn-sm" style="white-space:nowrap;color:#b45309;border-color:#f59e0b" onclick="ptApneKladd('${kl.spId}')" title="Fortsett kladden (lagret ${pkDatoTekst(new Date(kl.endret||kl.opprettet))})">📝 Kladd${t.length?` v${t[0].versjon+1}`:''}</button>`:'';
+  if(kl&&!t.length)return klKnapp;
+  if(t.length)return klKnapp+`<button class="btn-sm" style="white-space:nowrap;color:#6d28d9" onclick="ptApneVisning('${t[0].spId}')" title="Åpne tilbudet (${t.length} versjon${t.length>1?'er':''})">🧾 Tilbud v${t[0].versjon}</button>`;
   return n.status==='Åpen'?`<button class="btn-sm" style="white-space:nowrap" onclick="ptFraSak('${n.id}')" title="Lag tilbud på denne saken">🧾 Lag tilbud</button>`:'';
 }
 function ptSakKnappHtml(n){
@@ -17692,7 +17701,20 @@ function ptSakKnappHtml(n){
   return`<span class="pt-sakknapp" data-id="${n.id}">${ptSakKnappInnhold(n)}</span>`;
 }
 let ptBakgrunnStartet=false;
+// v1.48.269: kladder til kunden som ikke hører til en sak (nye tilbud), vist i «Salg & oppfølging».
+function ptKundeKladdInnhold(kNr){
+  if(!pkLastet||!ptFinnes||!ptKanSelge()||!kNr)return'';
+  const kl=ptKladder().filter(k=>String(k.kNr)===String(kNr)&&(!k.sakId||!ptSakFor(k.sakId)));
+  if(!kl.length)return'';
+  return`<div style="margin:0 0 10px;padding:8px 12px;border:1px dashed #f59e0b;background:#fffbeb;border-radius:8px;font-size:13px">${kl.map(k=>`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:2px 0">📝 <b>Kladd til tilbud:</b> <a href="#" onclick="event.preventDefault();ptApneKladd('${k.spId}')">${jsEscapeHtml(k.data?.a?.navn||k.pakke||'(uten tittel)')}</a><span style="color:#6b7280">${k.leieMnd?pkKr(k.leieMnd)+'/mnd · ':''}${jsEscapeHtml(k.selger||'')} · lagret ${pkDatoTekst(new Date(k.endret||k.opprettet))}</span><button class="btn-sm" style="margin-left:auto" onclick="ptApneKladd('${k.spId}')">Fortsett</button></div>`).join('')}</div>`;
+}
+function ptKundeKladdHtml(kNr){
+  if(!ptKanSelge()||!kNr)return'';
+  if(!pkLastet&&!pkLaster&&!pkFeil&&!ptBakgrunnStartet){ptBakgrunnStartet=true;setTimeout(()=>{Promise.resolve(pkLastData()).then(ptOppdaterSakKnapper).catch(()=>{});},300);}
+  return`<div class="pt-kundekladd" data-knr="${jsEscapeHtml(String(kNr))}">${ptKundeKladdInnhold(kNr)}</div>`;
+}
 function ptOppdaterSakKnapper(){
+  document.querySelectorAll('.pt-kundekladd').forEach(el=>{el.innerHTML=ptKundeKladdInnhold(el.dataset.knr);});
   document.querySelectorAll('.pt-sakknapp').forEach(el=>{const n=(typeof kundeNotater!=='undefined'?kundeNotater:[]).find(x=>x.id===el.dataset.id);el.innerHTML=ptSakKnappInnhold(n);});
 }
 function ptOppdaterSak(){
