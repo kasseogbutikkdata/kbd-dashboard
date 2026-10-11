@@ -674,6 +674,14 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
 #pk-auto .pk-auto-rad{padding:6px 12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #pk-auto .pk-auto-rad:hover,#pk-auto .pk-auto-rad.aktiv{background:#eef3fb;color:#1A3A6B}
 #pk-auto .pk-auto-mer{padding:6px 12px;color:#6b7280;font-size:12px;border-top:1px solid #eef0f4}
+.pk-sum-fliser{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.pk-sum-flis{background:#fff;border:1px solid #dbe3f0;border-radius:10px;padding:10px 14px}
+.pk-sum-flis.hoved{border-color:#1A3A6B;border-width:2px}
+.pk-sum-etikett{font-size:12px;color:#4b5563;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.pk-sum-tall{font-size:26px;font-weight:800;color:#1A3A6B;line-height:1.25;margin:2px 0}
+.pk-sum-tall span{font-size:14px;font-weight:600;color:#4b5563}
+.pk-sum-under{font-size:13px;color:#374151}
+.pk-sum-info{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:10px;padding-top:8px;border-top:1px solid #dbe3f0;font-size:12.5px;color:#4b5563}
 .pk-tk-del{font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;margin:10px 0 6px}
 .pk-tk{border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
 .pk-tk.skjult{background:#f9fafb;opacity:.75}
@@ -746,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.260 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.261 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11636,6 +11644,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.261',dato:'11.10.2026',punkter:[
+    'Tilbud og pakker: oppsummeringen fremhever leie via Ikano og lisenser per måned med store tall, med kjøpsprisen rett under leien og DG-lyset ved siden av. DB, verdi første år og hva Ikano betaler står som opplysninger under. Sum per linje er nå like tydelig som prisen.'
+  ]},
   {versjon:'v1.48.260',dato:'11.10.2026',punkter:[
     'Tilbud: ny knapp «📝 Lagre som kladd». Et påbegynt tilbud (også en ny versjon) kan lagres og åpnes igjen senere uten at det lages en tilbudssak. Kladdene ligger øverst under «🧾 Tilbud» med «Fortsett» og «Slett». Når tilbudet lagres ordentlig, slettes kladden automatisk.'
   ]},
@@ -16674,7 +16685,7 @@ function pkPakkeOppdaterSum(){
     if(!p)return;
     if(!x.v){p.textContent='';s.textContent='';d.innerHTML='';return;}
     p.innerHTML=x.rabattPst>0?`<span style="text-decoration:line-through;color:#9ca3af">${pkKr(x.pris)}</span><br><b>${pkKr(x.netto)}</b>`:(x.prisRabatt?`<b>${pkKr(x.netto)}</b><div class="pk-under">${pkRabattTekst(x.prisRabatt)} · ${jsEscapeHtml(x.prisRabatt.kode)}</div>`:pkKr(x.netto));
-    s.innerHTML=x.med?pkKr(x.sum)+(x.lopende?'<div class="pk-under">per mnd</div>':''):'<span style="color:#9ca3af">ikke med</span>';
+    s.innerHTML=x.med?'<b>'+pkKr(x.sum)+'</b>'+(x.lopende?'<div class="pk-under">per mnd</div>':''):'<span style="color:#9ca3af">ikke med</span>';
     const kostStk=x.antall>0?x.kost/x.antall:(x.v.kostpris||0);
     d.innerHTML=pkDgTekst(x.v.egenTjeneste?(x.netto>0?(x.netto-kostStk)/x.netto*100:null):pkDg(x.netto,kostStk));
   });
@@ -16682,14 +16693,20 @@ function pkPakkeOppdaterSum(){
   if(a.modus==='tilbud'&&typeof ptVisArsak==='function')ptVisArsak(b);
   const lys=pkDgLys(b.hwDg);
   const rom=b.hwDg!==null&&b.hwInn>0?b.hwInn-b.hwKost/(1-pkInnst.DgMin/100):null;
-  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 18px">
-    <div>Kjøpspris (engangs): <b>${pkKr(b.kjop)}</b></div>
-    <div>Leie via Ikano: <b>${b.leie?pkKr(b.leie.mnd)+' per måned':'–'}</b>${b.leie?` i ${pkInnst.LeieMaaneder} mnd`:''}</div>
-    <div>Lisenser og avtaler: <b>${pkKr(b.lopMnd)} per måned</b></div>
-    <div style="color:${lys.farge}">${lys.ikon} DG hardware og etablering: <b>${b.hwDg===null?lys.tekst:b.hwDg.toFixed(1).replace('.',',')+' %'}</b> (DB ${pkKr(Math.round(b.hwDb))})</div>
-    <div>DB lisenser: <b>${pkKr(Math.round(b.lopDb))} per måned</b></div>
-    <div>${rom!==null?(rom>=0?`Rom for ytterligere ${pkKr(Math.floor(rom))} rabatt før ${String(pkInnst.DgMin).replace('.',',')} %`:`<span style="color:#dc2626">${pkKr(Math.ceil(-rom))} under minstegrensen</span>`):''}</div>
-  </div>${a.modus==='tilbud'?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid #dbe3f0">Verdi første år (kjøpspris + 12 × lisenser): <b>${pkKr(Math.round(b.kjop+12*b.lopMnd))}</b> · DB første år: <b>${pkKr(Math.round(b.hwDb+12*b.lopDb))}</b>${b.leie?` · Ikano betaler KBD ${pkKr(Math.round(b.leie.anskaffelse))} ved leie (${b.leie.tillegg>=0?'+':''}${pkKr(Math.round(b.leie.tillegg))})`:''}</div>`:''}${b.manglerKost?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerKost} linje(r) i hardware og etablering mangler kostpris og regnes med kost 0. DG blir da for høy. Er det egen tjeneste (f.eks. vår egen klargjøring), huk av «Egen tjeneste» på varen i 📋 Varer.</div>`:''}${b.manglerVare?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerVare} linje(r) mangler vare og er ikke med i summen.</div>`:''}`;
+  // v1.48.261 (Thomas 11.10.2026): leie og lisenser fremhevet, kjøpspris under, resten som opplysninger.
+  const dgTekst=b.hwDg===null?lys.tekst:b.hwDg.toFixed(1).replace('.',',')+' %';
+  const romTekst=rom!==null?(rom>=0?`Rom for ytterligere <b>${pkKr(Math.floor(rom))}</b> rabatt før ${String(pkInnst.DgMin).replace('.',',')} %`:`<span style="color:#dc2626"><b>${pkKr(Math.ceil(-rom))}</b> under minstegrensen</span>`):'';
+  el.innerHTML=`<div class="pk-sum-fliser">
+      <div class="pk-sum-flis hoved"><div class="pk-sum-etikett">Leie via Ikano · ${pkInnst.LeieMaaneder} mnd</div><div class="pk-sum-tall">${b.leie?pkKr(b.leie.mnd):'–'}<span> /mnd</span></div><div class="pk-sum-under">Kjøpspris eks. mva: <b>${pkKr(b.kjop)}</b></div></div>
+      <div class="pk-sum-flis hoved"><div class="pk-sum-etikett">Lisenser og avtaler</div><div class="pk-sum-tall">${pkKr(b.lopMnd)}<span> /mnd</span></div><div class="pk-sum-under">${b.lop.length} linje${b.lop.length===1?'':'r'}</div></div>
+      <div class="pk-sum-flis" style="border-color:${lys.farge}"><div class="pk-sum-etikett">DG hardware og etablering</div><div class="pk-sum-tall" style="color:${lys.farge};font-size:22px">${lys.ikon} ${dgTekst}</div><div class="pk-sum-under">${romTekst}</div></div>
+    </div>
+    <div class="pk-sum-info">
+      <span>DB hardware og etablering: <b>${pkKr(Math.round(b.hwDb))}</b></span>
+      <span>DB lisenser: <b>${pkKr(Math.round(b.lopDb))}</b> /mnd</span>
+      ${a.modus==='tilbud'?`<span>Verdi første år: <b>${pkKr(Math.round(b.kjop+12*b.lopMnd))}</b></span><span>DB første år: <b>${pkKr(Math.round(b.hwDb+12*b.lopDb))}</b></span>`:''}
+      ${b.leie?`<span>Ikano betaler KBD <b>${pkKr(Math.round(b.leie.anskaffelse))}</b> (${b.leie.tillegg>=0?'+':''}${pkKr(Math.round(b.leie.tillegg))} mot kjøp)</span>`:''}
+    </div>${b.manglerKost?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerKost} linje(r) i hardware og etablering mangler kostpris og regnes med kost 0. DG blir da for høy. Er det egen tjeneste (f.eks. vår egen klargjøring), huk av «Egen tjeneste» på varen i 📋 Varer.</div>`:''}${b.manglerVare?`<div style="color:#b45309;margin-top:4px">⚠ ${b.manglerVare} linje(r) mangler vare og er ikke med i summen.</div>`:''}`;
 }
 function pkPakkeTeksterHtml(dis){
   const a=pkApenPakke,std=pkTeksterSortert();
