@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.273 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.274 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11695,6 +11695,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.274',dato:'11.10.2026',punkter:[
+    'Tilbudet viser versjonsnummeret til kunden: øverst på side 1 ved datoen («11. oktober 2026 · versjon 3») og øverst på side 2 ved tittelen. Gjelder forhåndsvisning, PDF og vedlegget i e-posten. Flettefeltet {versjon} kan også brukes i standardtekstene.'
+  ]},
   {versjon:'v1.48.273',dato:'11.10.2026',punkter:[
     'KBD-signaturen: Miljøfyrtårn-merket vises i riktige proporsjoner og full kvalitet (det ble klemt sammen i høyden i Outlook). Bildene står i en liten tabell med bare bredde satt, slik e-postprogrammer tegner dem riktig.'
   ]},
@@ -16978,7 +16981,7 @@ function pkTilbudHtmlFra(b,hode,tekster,f,vis){
   const navn=x=>jsEscapeHtml(pkNavn(x.v));
   const logo=`<img src="${PK_KBD_LOGO}" alt="Kasse og Butikkdata AS" onerror="this.outerHTML='<div style=&quot;font-weight:800;font-size:18px;color:#1A3A6B&quot;>Kasse og Butikkdata AS</div>'">`;
   let h=`<style>${PT_MAL_CSS}</style><div class="ptm">
-    <div class="topp">${logo}<div class="meta">${T(f.dato)}<br>Til: <b>${T(f.kundenavn)}</b>${f.kontaktperson?`<br>v/ ${T(f.kontaktperson)}`:''}</div></div>
+    <div class="topp">${logo}<div class="meta">${T(f.dato)}${f.versjon?` · versjon ${jsEscapeHtml(f.versjon)}`:''}<br>Til: <b>${T(f.kundenavn)}</b>${f.kontaktperson?`<br>v/ ${T(f.kontaktperson)}`:''}</div></div>
     <h1>Tilbud ${jsEscapeHtml(hode.navn)}</h1>${hode.beskr?`<div class="under">${jsEscapeHtml(hode.beskr)}</div>`:'<div style="height:10px"></div>'}
     ${hode.bransje?.bilde?`<img class="hero" src="${jsEscapeHtml(hode.bransje.bilde)}" alt="" onerror="this.style.display='none'">`:''}
     ${topp[0]?`<div class="blokk">${topp[0].overskrift?`<b>${T(topp[0].overskrift)}</b>`:''}${pkTekstHtml(topp[0].tekst,f)}</div>`:''}
@@ -17003,7 +17006,7 @@ function pkTilbudHtmlFra(b,hode,tekster,f,vis){
   h+=`<div class="gyldig">Tilbudet gjelder til og med <b>${T(f.gyldig_til)}</b>. Alle priser er eksklusive mva.</div>`;
   // Side 2
   h+=`<div class="skille">side 2</div><div class="sideskift"></div>
-    <div class="topp">${logo}<div class="meta">Tilbud ${jsEscapeHtml(hode.navn)}<br>${T(f.kundenavn)}</div></div>`;
+    <div class="topp">${logo}<div class="meta">Tilbud ${jsEscapeHtml(hode.navn)}${f.versjon?` · versjon ${jsEscapeHtml(f.versjon)}`:''}<br>${T(f.kundenavn)}</div></div>`;
   if(hvorfor.length)h+=`<h2 style="margin-top:0">Hvorfor KBD</h2><div class="hvorfor">${hvorfor.map(x=>`<div class="kort">${x.overskrift?`<b>${T(x.overskrift)}</b>`:''}${pkTekstHtml(x.tekst,f)}</div>`).join('')}</div>`;
   h+=ekstraTopp.map(x=>`<div class="blokk">${x.overskrift?`<h2>${T(x.overskrift)}</h2>`:''}${pkTekstHtml(x.tekst,f)}</div>`).join('');
   if(lopSeks.length){
@@ -17350,7 +17353,7 @@ function ptLagreSelgerTlf(v){try{localStorage.setItem('pt-selger-tlf',v);}catch(
 function ptFlett(a,datoIso,gyldigIso){
   const dato=datoIso?new Date(datoIso):new Date(),gyldig=gyldigIso?new Date(gyldigIso):ptGyldigTil();
   return{kundenavn:a.kunde?.navn||'(mottaker)',kontaktperson:a.kontaktperson||'',selger:a.selger||currentUser?.name||'',selger_telefon:a.selgerTlf||'',
-    selger_epost:a.selgerEpost||currentUser?.username||'',dato:pkDatoTekst(dato),gyldig_til:pkDatoTekst(gyldig),gyldig_dager:String(pkInnst.GyldigDager||30),pakkenavn:a.navn||''};
+    selger_epost:a.selgerEpost||currentUser?.username||'',dato:pkDatoTekst(dato),gyldig_til:pkDatoTekst(gyldig),gyldig_dager:String(pkInnst.GyldigDager||30),pakkenavn:a.navn||'',versjon:a.versjon?String(a.versjon):''};
 }
 
 // ---------- Oversikt ----------
@@ -17646,7 +17649,7 @@ function ptApneVisning(spId,versjonSpId){
   if(!d||!d.linjer){innhold='<div class="pk-tom">Tilbudet mangler innhold (Data-feltet er tomt eller ugyldig).</div>';}
   else{
     const b=ptBeregnFraBilde(d),tek={Topp:d.tekster.filter(t=>t.plassering==='Topp'),Bunn:d.tekster.filter(t=>t.plassering==='Bunn'),Hvorfor:d.tekster.filter(t=>t.plassering==='Hvorfor')};
-    const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:d.kontaktperson,selger:d.selger,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn},v.opprettet,v.gyldigTil);
+    const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:d.kontaktperson,selger:d.selger,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn,versjon:v.versjon},v.opprettet,v.gyldigTil);
     f.gyldig_dager=String(d.innst?.GyldigDager||pkInnst.GyldigDager);
     innhold=`<div style="border:1px solid #e5e7eb;border-radius:8px;padding:22px;background:#fff">${window._ptPdfHtml=pkTilbudHtmlFra(b,{navn:d.navn,beskr:d.beskr,bransje:d.bransje||null},tek,f,d.vis||{kjopspris:true,linjepriser:true})}</div>`;
   }
@@ -17943,7 +17946,7 @@ async function ptLagPdf(html,tittel){
 function ptVersjonHtml(v){
   const d=v?.data;if(!d||!d.linjer)return'';
   const b=ptBeregnFraBilde(d),tek={Topp:d.tekster.filter(t=>t.plassering==='Topp'),Bunn:d.tekster.filter(t=>t.plassering==='Bunn'),Hvorfor:d.tekster.filter(t=>t.plassering==='Hvorfor')};
-  const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:d.kontaktperson,selger:d.selger,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn},v.opprettet,v.gyldigTil);
+  const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:d.kontaktperson,selger:d.selger,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn,versjon:v.versjon},v.opprettet,v.gyldigTil);
   f.gyldig_dager=String(d.innst?.GyldigDager||pkInnst.GyldigDager);
   return pkTilbudHtmlFra(b,{navn:d.navn,beskr:d.beskr,bransje:d.bransje||null},tek,f,d.vis||{kjopspris:true,linjepriser:true});
 }
@@ -17961,7 +17964,7 @@ function ptApneSend(versjonSpId){
   const d=v.data,valg=ptMottakerValg(v.kNr);
   const kontakt=valg.find(c=>d.kontaktperson&&c.navn.trim().toLowerCase()===d.kontaktperson.trim().toLowerCase())||valg.find(c=>c.hoved)||valg[0]||null;
   const kontaktNavn=d.kontaktperson||kontakt?.navn||'';
-  const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:kontaktNavn,selger:d.selger||currentUser?.name,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn},v.opprettet,v.gyldigTil);
+  const f=ptFlett({kunde:{navn:v.kundeNavn},kontaktperson:kontaktNavn,selger:d.selger||currentUser?.name,selgerTlf:d.selgerTlf,selgerEpost:d.selgerEpost,navn:d.navn,versjon:v.versjon},v.opprettet,v.gyldigTil);
   f.kontakt_fornavn=(kontaktNavn.trim().split(/\s+/)[0])||'';
   if(!f.kontakt_fornavn)f.kontakt_fornavn='';
   f.selger_epost_linje=f.selger_epost?(f.selger_telefon?' · ':'')+f.selger_epost:'';
