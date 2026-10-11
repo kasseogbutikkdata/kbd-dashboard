@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.262 · Oppdatert: 11. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.263 · Oppdatert: 11. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11644,6 +11644,9 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.263',dato:'11.10.2026',punkter:[
+    'Tilbud og pakker: to nye linjetyper. «🖥️ Kasse» brukes på kassene (Telpo M10, M1, POS 15 …), og «🔁 Per kasse» på det som følger hver kasse (Susoft-lisensen). Øker du antall kasser i et tilbud, får per-kasse-linjene samme antall automatisk, også når kassene er av ulike typer. Endrer du antallet på en per-kasse-linje selv, står den som «manuelt» til du trykker «↺ følg».'
+  ]},
   {versjon:'v1.48.262',dato:'11.10.2026',punkter:[
     'Tilbud og pakker: knappene Forhåndsvis, Avbryt, Lagre som kladd og Lagre er flyttet opp til høyre for «＋ Legg til linje», rett under varelinjene.'
   ]},
@@ -16486,7 +16489,28 @@ async function pkSlettGruppe(){
 // Liste 43) gjelder alle pakker; en pakke kan bruke standardteksten, ha sin egen eller skjule den.
 // Prisene hentes alltid fra katalogen (listepris eller prisklasse), aldri fra malen.
 // Admin og redaktør endrer (Thomas 10.10.2026). Brukes ennå ikke i salgsprosessen.
-const PK_LINJETYPER={fast:'Fast',antall:'Antall kan endres',valgfri:'Valgfri'};
+const PK_LINJETYPER={fast:'Fast',antall:'Antall kan endres',kasse:'🖥️ Kasse (styrer lisenser)',perkasse:'🔁 Per kasse',valgfri:'Valgfri'};
+// v1.48.263 (Thomas 11.10.2026): linjer av typen «Per kasse» (f.eks. Susoft-lisensen) får automatisk
+// samme antall som summen av alle «Kasse»-linjer (Telpo M10, M1, POS 15 …). Endrer man antallet på en
+// per-kasse-linje selv, slutter den å følge (manuelt) til man trykker ↺. Finnes ingen kasselinjer,
+// gjøres ingenting.
+function pkKasseAntall(a){return a.linjer.filter(l=>l.type==='kasse'&&l.varenr).reduce((s,l)=>s+(Number(l.antall)||0),0);}
+function pkHarKasser(a){return a.linjer.some(l=>l.type==='kasse'&&l.varenr);}
+function pkOppdaterPerKasse(a){
+  if(!a||!pkHarKasser(a))return false;
+  const n=pkKasseAntall(a);let endret=false;
+  a.linjer.forEach(l=>{if(l.type==='perkasse'&&!l.manuelt&&Number(l.antall)!==n){l.antall=n;endret=true;}});
+  return endret;
+}
+function pkAntallEndret(i,verdi){
+  const a=pkApenPakke,l=a.linjer[i];l.antall=Number(verdi)||0;
+  if(l.type==='perkasse'&&pkHarKasser(a)){l.manuelt=l.antall!==pkKasseAntall(a);pkRenderPakkeLinjer();return;}
+  if(l.type==='kasse'&&pkOppdaterPerKasse(a)){
+    a.linjer.forEach((x,j)=>{if(x.type==='perkasse'){const e=document.getElementById('pk-l-ant-'+j);if(e&&j!==i)e.value=pkAntall(x.antall);const m=document.getElementById('pk-l-folg-'+j);if(m)m.textContent=`følger ${pkAntall(pkKasseAntall(a))} kasse${pkKasseAntall(a)===1?'':'r'}`;}});
+  }
+  pkPakkeOppdaterSum();
+}
+function pkFolgKasser(i){const a=pkApenPakke;delete a.linjer[i].manuelt;pkOppdaterPerKasse(a);pkRenderPakkeLinjer();}
 const PK_LOPENDE_FAKT=['Månedlig','Kvartalsvis','Årlig'];
 const PK_FLETTEFELT=['kundenavn','kontaktperson','selger','selger_telefon','selger_epost','dato','gyldig_til','gyldig_dager','pakkenavn'];
 let pkPakker=[],pkPakkerFinnes=false,pkTekster=[],pkTeksterFinnes=false,pkApenPakke=null,pkPakkePrisklasse='',pkApenTekst=null,pkVareIdx=null,pkVareIdxKilde=null;
@@ -16641,6 +16665,8 @@ function pkRenderPakkeLinjer(){
   const a=pkApenPakke,tb=document.getElementById('pk-p-linjer');if(!a||!tb)return;
   const kan=pkKanEndreApen(),dis=kan?'':'disabled';
   if(!a.linjer.length){tb.innerHTML='<tr><td colspan="8" style="color:#6b7280;text-align:center;padding:14px">Ingen linjer ennå.</td></tr>';pkPakkeOppdaterSum();return;}
+  pkOppdaterPerKasse(a);
+  const harKasser=pkHarKasser(a),kasser=pkKasseAntall(a);
   const grupper=pkLinjeGrupper(a);
   tb.innerHTML=grupper.map((g,gi)=>`<tr class="pk-linjegruppe"><td colspan="5" style="background:#eef3fb;color:#1A3A6B;font-weight:700;font-size:12.5px;padding:6px 10px">${jsEscapeHtml(g.navn)}${g.lopende?' <span style="font-weight:400;color:#4b5563">· per måned</span>':''}</td><td colspan="3" style="background:#eef3fb;text-align:right;font-size:12.5px;color:#1A3A6B;padding:6px 10px;white-space:nowrap" id="pk-g-sum-${gi}"></td></tr>`+g.idx.map(i=>{const l=a.linjer[i];
     const x=pkLinjeBeregn(l,pkPakkePrisklasse),v=x.v;
@@ -16650,8 +16676,8 @@ function pkRenderPakkeLinjer(){
       ${v?`<div class="pk-under">${jsEscapeHtml(pkGruppeNavn(v)||'Uten gruppe')}${!v.gruppe&&pkGruppeNavn(v)?' (vareprofil)':''}${pkGruppeNavn(v)&&!pkGruppeFor(pkGruppeNavn(v))?' · <span style="color:#b45309">gruppen har ikke regler</span>':''}${x.lopende?(pkMndFaktor(v)<1?` · ${pkKr(v.listepris)} per ${pkMndFaktor(v)<0.1?'år':'kvartal'} i Visma`:' · løpende'):''}${v.status&&!pkErAktiv(v)?' · <span style="color:#dc2626">inaktiv i Visma</span>':''}</div>`:`<div class="pk-under" style="color:#b45309">⚠ Velg vare${l.sok?` (fra malen: «${jsEscapeHtml(l.sok)}»)`:''}</div>`}${malNotat}`;
     return`<tr${v?'':' style="background:#fffbeb"'}>
       <td>${vareCelle}</td>
-      <td><input type="number" min="0" step="1" value="${pkAntall(l.antall)}" ${dis} oninput="pkApenPakke.linjer[${i}].antall=Number(this.value)||0;pkPakkeOppdaterSum()" style="width:64px"></td>
-      <td><select ${dis} style="min-width:150px" onchange="pkApenPakke.linjer[${i}].type=this.value;pkRenderPakkeLinjer()">${Object.entries(PK_LINJETYPER).map(([k,t])=>`<option value="${k}"${(l.type||'fast')===k?' selected':''}>${t}</option>`).join('')}</select>
+      <td><input type="number" min="0" step="1" id="pk-l-ant-${i}" value="${pkAntall(l.antall)}" ${dis} oninput="pkAntallEndret(${i},this.value)" style="width:64px">${l.type==='perkasse'?(harKasser?(l.manuelt?`<div class="pk-under" style="color:#b45309">manuelt${kan?` · <a href="#" onclick="event.preventDefault();pkFolgKasser(${i})" title="Følg antall kasser igjen">↺ følg</a>`:''}</div>`:`<div class="pk-under" id="pk-l-folg-${i}" style="color:#1d4ed8">følger ${pkAntall(kasser)} kasse${kasser===1?'':'r'}</div>`):'<div class="pk-under" style="color:#9ca3af">ingen kasselinjer</div>'):''}</td>
+      <td><select ${dis} style="min-width:150px" onchange="pkApenPakke.linjer[${i}].type=this.value;delete pkApenPakke.linjer[${i}].manuelt;pkRenderPakkeLinjer()">${Object.entries(PK_LINJETYPER).map(([k,t])=>`<option value="${k}"${(l.type||'fast')===k?' selected':''}>${t}</option>`).join('')}</select>
         ${l.type==='valgfri'?`<label class="pk-chk" style="display:block;margin-top:3px"><input type="checkbox" ${l.valgt!==false?'checked':''} ${dis} onchange="pkApenPakke.linjer[${i}].valgt=this.checked;pkPakkeOppdaterSum()"> med som standard</label>`:''}</td>
       <td>${tillatt?`<input type="number" min="0" max="100" step="any" value="${l.rabattPst?String(l.rabattPst):''}" ${dis} oninput="pkApenPakke.linjer[${i}].rabattPst=Number(String(this.value).replace(',','.'))||0;pkPakkeOppdaterSum()" style="width:70px">`:`<span style="color:#9ca3af" title="${v?'Produktgruppen tillater ikke manuell rabatt (lisenser får bare prisklasserabatt fra Visma)':''}">–</span>`}</td>
       <td style="text-align:right;white-space:nowrap" id="pk-l-pris-${i}"></td>
@@ -16970,7 +16996,7 @@ const PK_L={
   regnskapEtab:{navn:'Etablering overføring til regnskap',s:[['etablering','regnskap'],['oppsett','regnskap'],['regnskap']],p:5200},
   oppsett:{navn:'Oppsett og klargjøring',s:[['klargjøring'],['oppsett'],['klargj']],p:2500},
   kassaskuff:{navn:'Kassaskuff',s:[['kassaskuff','k-2'],['kassaskuff']],p:2250,type:'antall'},
-  mini:{navn:'SuSoft Mini+',s:[['susoft','mini+'],['susoft','mini']],p:349},
+  mini:{navn:'SuSoft Mini+',s:[['susoft','mini+'],['susoft','mini']],p:349,type:'perkasse'},
   softpayLis:{navn:'SoftPay betalingsløsning',s:[['softpay','betalingsløsning'],['softpay']],p:299},
   regnskapLis:{navn:'Regnskapsoverføring API',s:[['regnskap','api'],['regnskap']],p:210},
   support:{navn:'Telefonsupport med fjernstyring',s:[['support','fjern'],['telefonsupport'],['support']],p:149},
@@ -16979,14 +17005,14 @@ const PK_L={
 };
 const PK_STARTPAKKER=[
   {navn:'KBD Android POS M10 med Softpay',beskr:'Kassasystem med Softpay betalingsløsning',sortering:10,linjer:[
-    {navn:'KBD Android POS M10',s:[['pos','m10'],['m10']],p:9900,type:'antall'},PK_L.kassaskuff,PK_L.susoftEtabMini,PK_L.terminalEtab,PK_L.regnskapEtab,PK_L.oppsett,PK_L.mini,PK_L.softpayLis,PK_L.regnskapLis,PK_L.support],
+    {navn:'KBD Android POS M10',s:[['pos','m10'],['m10']],p:9900,type:'kasse'},PK_L.kassaskuff,PK_L.susoftEtabMini,PK_L.terminalEtab,PK_L.regnskapEtab,PK_L.oppsett,PK_L.mini,PK_L.softpayLis,PK_L.regnskapLis,PK_L.support],
     tekster:{leveringstid:{tekst:'All hardware er lagervare og kan leveres i løpet av 2 uker. Ved levering som krever spesielle tilpasninger, avtales leveringstid.'}}},
   {navn:'KBD Android POS 15 med Verifone P400',beskr:'Kassasystem med stasjonær betalingsterminal',sortering:20,linjer:[
-    {navn:'KBD Android POS 15,6" med kundeskjerm',s:[['pos','15,6'],['pos','15']],p:22490,type:'antall'},{navn:'Kvitteringsprinter 80 mm',s:[['kvitteringsprinter'],['printer','80'],['thermo','printer'],['printer']],p:4990,type:'antall'},PK_L.kassaskuff,
+    {navn:'KBD Android POS 15,6" med kundeskjerm',s:[['pos','15,6'],['pos','15']],p:22490,type:'kasse'},{navn:'Kvitteringsprinter 80 mm',s:[['kvitteringsprinter'],['printer','80'],['thermo','printer'],['printer']],p:4990,type:'antall'},PK_L.kassaskuff,
     {navn:'Verifone P400 stasjonær og kablet',s:[['p400']],p:8250,type:'antall'},{...PK_L.terminalEtab,navn:'Etablering BAX'},PK_L.regnskapEtab,PK_L.susoftEtabBasic,PK_L.oppsett,
-    {navn:'SuSoft Basic',s:[['susoft','g1','basic'],['susoft','basic']],p:590},PK_L.regnskapLis,PK_L.support,PK_L.terminalLis,PK_L.bytte],tekster:{}},
+    {navn:'SuSoft Basic',s:[['susoft','g1','basic'],['susoft','basic']],p:590,type:'perkasse'},PK_L.regnskapLis,PK_L.support,PK_L.terminalLis,PK_L.bytte],tekster:{}},
   {navn:'KBD Android POS Telpo M1 med SoftPay',beskr:'Mobilt kassasystem med SoftPay betalingsløsning',sortering:30,linjer:[
-    {navn:'KBD POS Telpo M1',s:[['telpo','m1 '],['telpo','m1']],p:9490,type:'antall'},{navn:'Telpo ladebase/docking til M1',s:[['telpo','dock'],['telpo','lade'],['m1','dock']],p:990,type:'antall'},PK_L.susoftEtabMini,PK_L.terminalEtab,
+    {navn:'KBD POS Telpo M1',s:[['telpo','m1 '],['telpo','m1']],p:9490,type:'kasse'},{navn:'Telpo ladebase/docking til M1',s:[['telpo','dock'],['telpo','lade'],['m1','dock']],p:990,type:'antall'},PK_L.susoftEtabMini,PK_L.terminalEtab,
     {...PK_L.oppsett,mal:0,rabattPst:100},{navn:'Etablering nettbutikk',s:[['etablering','nettbutikk'],['nettbutikk','oppsett'],['nettbutikk']],p:5200,type:'valgfri',valgt:false},PK_L.mini,PK_L.regnskapLis,PK_L.support,PK_L.softpayLis],
     tekster:{kommentarer:{tekst:'Softpay har en transaksjonsavgift på 1,15 % for Visa og Mastercard. Man kan også få BankAxept i terminalen.\n\nArbeid utover ordinær programmering og import til kassesystemet inngår ikke i tilbudet, og faktureres til timespris. Eventuelt merarbeid avklares med kunden på forhånd.'}}},
   {navn:'Verifone V660P betalingsterminal',beskr:'Mobil betalingsterminal',sortering:40,linjer:[
@@ -17241,7 +17267,7 @@ function ptTekstFor(tekster,nokkel){const o=tekster?.[nokkel];if(o?.skjul)return
 function ptSlaSammenPakke(a,p){
   (p.linjer||[]).filter(l=>l.varenr).forEach(l=>{
     const fins=a.linjer.find(x=>String(x.varenr).toUpperCase()===String(l.varenr).toUpperCase());
-    if(fins){fins.antall=Math.max(Number(fins.antall)||0,Number(l.antall)||0);if(fins.type==='valgfri'&&l.type!=='valgfri'){fins.type=l.type;delete fins.valgt;}}
+    if(fins){fins.antall=Math.max(Number(fins.antall)||0,Number(l.antall)||0);if(fins.type==='valgfri'&&l.type!=='valgfri'){fins.type=l.type;delete fins.valgt;}if(l.type==='kasse'||l.type==='perkasse')fins.type=l.type;}
     else{const k=JSON.parse(JSON.stringify(l));delete k.malPris;delete k.sok;a.linjer.push(k);}
   });
   a.navn=[a.navn,p.navn].filter(Boolean).join(' + ');
