@@ -754,7 +754,7 @@ button.salg-kilde-mangler:hover{background:#fef3c7}
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.278 · Oppdatert: 12. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.280 · Oppdatert: 12. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -11805,6 +11805,12 @@ function leggTilLoggpost(id){
 // hjemme i KBD-Command-Center-prosjektstatus.md, ikke her). Rene bugfikser og
 // interne refaktoreringer uten synlig brukereffekt trenger IKKE eget punkt.
 const versjonslogg=[
+  {versjon:'v1.48.280',dato:'12.10.2026',punkter:[
+    'PDF-en som legges ved e-posten: bransjebildet øverst og produktbildene blir ikke lenger strukket ut. De beskjæres som i forhåndsvisningen: toppbildet fyller boksen, og produktbildene vises hele.'
+  ]},
+  {versjon:'v1.48.279',dato:'12.10.2026',punkter:[
+    'Rettet: tilbudstypen ble ikke med når en lagret pakke ble åpnet. Forhåndsvisningen viste derfor leie i 36 mnd og alle tekster, og en ny lagring satte pakken tilbake til Kassesystem.'
+  ]},
   {versjon:'v1.48.278',dato:'12.10.2026',punkter:[
     'Tilbudstype på pakker og tilbud: «Kassesystem» (som før) eller «Silent Ordering System». Typen velges på pakken, og kan byttes i tilbudsbyggeren.',
     'SOS: leie via Ikano i 60 måneder med faktor 2,0 %. Rabattvarsel: gul over 10 % og rød over 12 %, og ved rødt kreves en årsak før lagring. Bildet fra www.kbd.as brukes øverst. Bransjeteksten (om SuSoft) vises ikke. Satsene endres under «Grupper og regler».',
@@ -16889,7 +16895,7 @@ function pkApnePakke(spId){
   const p=spId?pkPakker.find(x=>x.spId===String(spId)):null;
   if(!p&&!pkKanRedigere())return;
   pkApenPakke={spId:p?p.spId:null,navn:p?.navn||'',beskr:p?.beskr||'',bransjer:[...(p?.bransjer||[])],aktiv:p?p.aktiv:true,sortering:p?.sortering??null,
-    linjer:JSON.parse(JSON.stringify(p?.linjer||[])),tekster:JSON.parse(JSON.stringify(p?.tekster||{})),visning:'rediger'};
+    linjer:JSON.parse(JSON.stringify(p?.linjer||[])),tekster:JSON.parse(JSON.stringify(p?.tekster||{})),visning:'rediger',tilbudstype:pkTypeFor(p?.tilbudstype)}; // v1.48.279: tilbudstypen ble ikke med når pakken ble åpnet
   pkModalBred(true);
   pkRenderPakkeEditor();
   document.getElementById('pk-modal').classList.add('open');
@@ -18093,6 +18099,27 @@ async function ptBildeDataUrl(src){
   return null;
 }
 function ptFilnavn(tittel){return String(tittel||'Tilbud').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,120)||'Tilbud';}
+// v1.48.280 (Thomas/Hege 12.10.2026: «bildet blir strekt ut» i PDF-en): html2canvas støtter ikke object-fit,
+// så bildet tegnes i full størrelse inn i boksen og blir forvrengt. Hvert bilde tegnes derfor først på et lerret
+// med boksens mål og samme beskjæring som på skjermen (cover = fyll og kutt, contain = hele bildet med luft rundt).
+function ptBeskjaerBilder(rot){
+  rot.querySelectorAll('img').forEach(img=>{
+    try{
+      const st=getComputedStyle(img),fit=st.objectFit;
+      if(fit!=='cover'&&fit!=='contain')return;
+      const bw=img.clientWidth,bh=img.clientHeight,nw=img.naturalWidth,nh=img.naturalHeight;
+      if(!bw||!bh||!nw||!nh)return;
+      const k=3,c=document.createElement('canvas');c.width=Math.round(bw*k);c.height=Math.round(bh*k);
+      const g=c.getContext('2d');
+      const skala=fit==='cover'?Math.max(c.width/nw,c.height/nh):Math.min(c.width/nw,c.height/nh);
+      const w=nw*skala,h=nh*skala;
+      if(fit==='contain'){g.fillStyle=getComputedStyle(img.parentElement).backgroundColor||'#fff';if(g.fillStyle==='rgba(0, 0, 0, 0)')g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);}
+      g.imageSmoothingQuality='high';
+      g.drawImage(img,(c.width-w)/2,(c.height-h)/2,w,h);
+      img.src=c.toDataURL('image/jpeg',0.92);img.style.objectFit='fill';img.style.width=bw+'px';img.style.height=bh+'px';
+    }catch(e){console.warn('Beskjæring av bilde i PDF',e);}
+  });
+}
 // Lager PDF-en som fil. Gir {blob, filnavn, manglerBilder}.
 // v1.48.272: hver logiske side (delt ved «sideskift») tegnes for seg og legges på egne A4-sider. Før ble hele
 // tilbudet tegnet som ett høyt bilde og kuttet hver 297 mm, så prisboksen og tekster ble delt midt i (Thomas'
@@ -18133,6 +18160,7 @@ async function ptLagPdf(html,tittel){
       else(i.closest('figure')||i).remove();
     }));
     await Promise.all([...boks.querySelectorAll('img')].map(i=>i.complete?null:new Promise(r=>{i.onload=i.onerror=r;})));
+    ptBeskjaerBilder(boks); // v1.48.280: html2canvas kan ikke object-fit, så bildene strekkes uten dette
     const pdf=new JsPDF({unit:'mm',format:'a4',orientation:'portrait'});
     const nyttHoyde=PT_PDF.h-PT_PDF.topp-PT_PDF.bunn,mmPerPx=PT_PDF.b/794;
     let forste=true;
