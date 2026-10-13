@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.282 · Oppdatert: 13. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.285 · Oppdatert: 13. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,14 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.285",
+ dato: "13.10.2026",
+ punkter: [ "Tilbud: nytt valg «Pris» med tre alternativer i stedet for avkrysningen «Vis også kjøpspris»: «Leie via Ikano» (standard), «Leie, kjøp som alternativ» og «Kun kjøp (uten Ikano)».", "«Kun kjøp (uten Ikano)» viser kjøpspris for utstyr og etablering og lisenser per måned. Leie og Ikano nevnes ikke: teksten om leasingkontrakt skjules, og «Slik går dere videre» byttes med standardteksten «videre_kjop» (legg den inn med «📥 Legg til nye standardtekster»)." ]
+}, {
+ versjon: "v1.48.284",
+ dato: "13.10.2026",
+ punkter: [ "Susoft-kontroll: ny boks «📊 Årsaker» viser hvor mange fakturaer som har hver årsak, for eksempel samme vare som mangler på kontrakten. Klikk på en årsak for å se bare de fakturaene.", "«⬇ CSV» laster ned hele kontrollen med én rad per fakturalinje, til Excel." ]
+}, {
  versjon: "v1.48.283",
  dato: "13.10.2026",
  punkter: [ "Ny side «🔍 Susoft-kontroll» under Leverandørfakturaer. Den viser Susoft-fakturaene som står «På vent» i Visma, sammenlignet med kundekontrakten og det KBD fakturerer kunden. Hver faktura blir grønn, gul eller rød med årsak, og et klikk viser linjene side ved side med margin og antall.", "Admin kan godkjenne én faktura eller alle valgte (for eksempel «Velg alle grønne»). Godkjenn fjerner «På vent» i Visma, det samme som gjøres manuelt i dag. Inntil videre står godkjenningen i testmodus og endrer ingenting.", "«📄 PDF» åpner Susoft-fakturaen direkte." ]
@@ -21658,6 +21666,16 @@ const PK_TILBUDSTYPER = {
  }
 };
 
+const PK_PRISVISNING = {
+ leie: "Leie via Ikano",
+ leiekjop: "Leie, kjøp som alternativ",
+ kjop: "Kun kjøp (uten Ikano)"
+};
+
+function pkVisModus(vis) {
+ return vis && PK_PRISVISNING[vis.modus] ? vis.modus : vis?.kjopspris ? "leiekjop" : "leie";
+}
+
 function pkTypeFor(x) {
  return PK_TILBUDSTYPER[x] ? x : "Kasse";
 }
@@ -22375,6 +22393,11 @@ function pkTilbudHtmlFra(b, hode, tekster, f, vis) {
   kjopspris: false,
   linjepriser: false
  };
+ const modus = pkVisModus(vis);
+ if (modus === "kjop") b = {
+  ...b,
+  leie: null
+ };
  const T = x => jsEscapeHtml(pkFlett(x || "", f));
  const topp = tekster.Topp || [], bunn = tekster.Bunn || [];
  let hvorfor = tekster.Hvorfor || [];
@@ -22397,7 +22420,7 @@ function pkTilbudHtmlFra(b, hode, tekster, f, vis) {
  const byttRad = bytte.length ? `<div class="rad"><span>${bytte.length === 1 ? navn(bytte[0]) : "Brikkebytte-avtale"}<span class="t">${bytte.map(x => `${pkAntall(x.antall)} × ${pkKr(x.netto)}`).join(" + ")} per bytte, etter behov</span></span><b>${pkKr(b.byttePris)} <small>per bytte</small></b></div>` : "";
  const lisRad = b.lop.length ? `<div class="rad"><span>Lisenser og support<span class="t">Pris per måned${merk ? `, ${merk.charAt(0).toLowerCase() + merk.slice(1)}` : ""}</span></span><b>${pkKr(b.lopMnd)} <small>/mnd</small></b></div>` : "";
  if (b.leie) {
-  h += `<div class="pris"><div class="hode"><span>Totalt per måned</span><strong>${pkKr(b.leie.mnd + b.lopMnd)} <small>/mnd eks. mva</small></strong></div>\n      <div class="rader"><div class="rad"><span>Leie av utstyr, klargjøring og etablering<span class="t">${b.leie.maaneder || pkInnst.LeieMaaneder} måneder via Ikano</span></span><b>${pkKr(b.leie.mnd)} <small>/mnd</small></b></div>${lisRad}${byttRad}</div>\n      ${vis.kjopspris ? `<div class="kjop">Ønsker dere heller å kjøpe utstyret: <b>${pkKr(b.kjop)}</b> eks. mva${b.lop.length ? `, og lisenser og support ${pkKr(b.lopMnd)} per måned` : ""}.</div>` : ""}</div>`;
+  h += `<div class="pris"><div class="hode"><span>Totalt per måned</span><strong>${pkKr(b.leie.mnd + b.lopMnd)} <small>/mnd eks. mva</small></strong></div>\n      <div class="rader"><div class="rad"><span>Leie av utstyr, klargjøring og etablering<span class="t">${b.leie.maaneder || pkInnst.LeieMaaneder} måneder via Ikano</span></span><b>${pkKr(b.leie.mnd)} <small>/mnd</small></b></div>${lisRad}${byttRad}</div>\n      ${modus === "leiekjop" ? `<div class="kjop">Ønsker dere heller å kjøpe utstyret: <b>${pkKr(b.kjop)}</b> eks. mva${b.lop.length ? `, og lisenser og support ${pkKr(b.lopMnd)} per måned` : ""}.</div>` : ""}</div>`;
  } else if (b.engang.length || b.lop.length) {
   h += `<div class="pris"><div class="hode"><span>${b.engang.length ? "Kjøpspris" : "Totalt per måned"}</span><strong>${pkKr(b.engang.length ? b.kjop : b.lopMnd)} <small>${b.engang.length ? "eks. mva" : "/mnd eks. mva"}</small></strong></div>${b.engang.length && b.lop.length || bytte.length ? `<div class="rader">${b.engang.length ? lisRad : ""}${byttRad}</div>` : ""}</div>`;
  }
@@ -22410,8 +22433,13 @@ function pkTilbudHtmlFra(b, hode, tekster, f, vis) {
  }
  if (bytte.length) h += `<h2>Brikkebytte-avtale</h2><table class="tab"><thead><tr><th style="width:50px">Antall</th><th>Beskrivelse</th><th class="h">Pris per stk</th><th class="h">Per bytte</th></tr></thead><tbody>${bytte.map(x => `<tr><td>${pkAntall(x.antall)}</td><td>${navn(x)}</td><td class="h">${pkKr(x.netto)}</td><td class="h">${pkKr(x.sum)}</td></tr>`).join("")}</tbody><tfoot><tr><td></td><td colspan="2">Sum per bytte (utføres etter behov)</td><td class="h">${pkKr(b.byttePris)}</td></tr></tfoot></table>`;
  if (tilvalg.length) h += `<h2>Tilvalg</h2><table class="tab"><tbody>${tilvalg.map(x => `<tr><td style="width:50px">${pkAntall(x.antall)}</td><td>${navn(x)}</td><td class="h">${pkKr(x.sum)}${x.lopende ? " /mnd" : ""}</td></tr>`).join("")}</tbody></table>`;
- const kom = bunn.filter(x => x.nokkel === "kommentarer"), videre = bunn.filter(x => x.nokkel === "videre"), avsl = bunn.filter(x => x.nokkel === "avslutning");
- const vilkar = bunn.filter(x => ![ "kommentarer", "videre", "avslutning", "gyldighet" ].includes(x.nokkel));
+ let bunnV = bunn;
+ if (modus === "kjop") {
+  bunnV = bunn.filter(x => x.nokkel !== "leasing");
+  if (bunnV.some(x => x.nokkel === "videre_kjop")) bunnV = bunnV.filter(x => x.nokkel !== "videre");
+ } else bunnV = bunn.filter(x => x.nokkel !== "videre_kjop");
+ const kom = bunnV.filter(x => x.nokkel === "kommentarer"), videre = bunnV.filter(x => x.nokkel === "videre" || x.nokkel === "videre_kjop"), avsl = bunnV.filter(x => x.nokkel === "avslutning");
+ const vilkar = bunnV.filter(x => ![ "kommentarer", "videre", "videre_kjop", "avslutning", "gyldighet" ].includes(x.nokkel));
  h += kom.map(x => `<h2>${T(x.overskrift || "Kommentarer")}</h2><div class="blokk">${pkTekstHtml(x.tekst, f)}</div>`).join("");
  if (vilkar.length) h += `<h2>Vilkår</h2><div class="vilkar">${vilkar.map(x => `<div>${x.overskrift ? `<b>${T(x.overskrift)}</b>` : ""}${pkTekstHtml(x.tekst, f)}</div>`).join("")}</div>`;
  const vH = videre.map(x => `<div class="videre"><b>${T(x.overskrift || "Slik går dere videre")}</b>${pkTekstHtml(x.tekst, f)}</div>`).join(""), aH = avsl.map(x => `<div class="hilsen">${pkTekstHtml(x.tekst, f)}</div>`).join("");
@@ -22671,6 +22699,12 @@ const PK_STARTTEKSTER = [ {
  plassering: "Bunn",
  sortering: 95,
  tekst: "Svar på denne e-posten eller ring meg på {selger_telefon}. Da klargjør vi alt, og leieavtalen fra Ikano kommer til digital signering på e-post."
+}, {
+ nokkel: "videre_kjop",
+ overskrift: "Slik går dere videre",
+ plassering: "Bunn",
+ sortering: 96,
+ tekst: "Svar på denne e-posten eller ring meg på {selger_telefon}, så sender vi ordrebekreftelse og avtaler levering."
 }, {
  nokkel: "kommentarer",
  tilbudstype: "Kasse",
@@ -23719,7 +23753,7 @@ function ptKundeValg() {
 function ptEditorHode(a, dis) {
  const k = a.kunde;
  const kundeInfo = !k ? '<span style="color:#6b7280">Søk opp en kunde, eller skriv navnet på et nytt firma. Nye firma velges fra Brreg når tilbudet lagres.</span>' : k.kNr ? `✓ Eksisterende ${String(k.kNr).startsWith("LEAD-") ? "prospekt" : "kunde"} <b>${jsEscapeHtml(k.navn)}</b>${k.klasse ? ` · kundeprofil ${jsEscapeHtml(k.klasse)}` : ""}` : `Nytt firma <b>${jsEscapeHtml(k.navn)}</b> – velges fra Brreg eller registreres manuelt når tilbudet lagres.`;
- return `<h3>🧾 ${a.sakId ? a.versjon > 1 ? `Tilbud – ny versjon (v${a.versjon})` : "Tilbud på saken" : "Nytt tilbud"}${a.sakId && ptSakFor(a.sakId) ? ` <span style="font-weight:400;color:#6b7280;font-size:14px">«${jsEscapeHtml(ptSakFor(a.sakId).tittel || "")}»</span>` : ""}${a.kladdId ? ' <span class="pk-merke pk-merke-gul">kladd</span>' : ""}${a.pakke ? ` <span style="font-weight:400;color:#6b7280;font-size:14px">fra pakken «${jsEscapeHtml(a.pakke)}»</span>` : ""}</h3>\n    <div style="display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:10px;margin-bottom:4px">\n      <div class="fgrp"><label>Mottaker (kunde eller firma)</label><input type="text" data-auto="kunde" autocomplete="off" value="${jsEscapeHtml(k?.navn || "")}" ${dis || (a.sakId ? "disabled" : "")} placeholder="Søk kunde, eller skriv firmanavn" onchange="ptSettKunde(this.value)"></div>\n      <div class="fgrp"><label>Kontaktperson</label><input type="text" value="${jsEscapeHtml(a.kontaktperson)}" ${dis} oninput="pkApenPakke.kontaktperson=this.value" placeholder="F.eks. Kari Nordmann"></div>\n      <div class="fgrp"><label>Ditt telefonnummer</label><input type="text" id="pt-selger-tlf" value="${jsEscapeHtml(a.selgerTlf)}" ${dis} oninput="pkApenPakke.selgerTlf=this.value;ptLagreSelgerTlf(this.value)" placeholder="Vises i hilsenen"></div>\n    </div>\n    <div id="pt-kunde-info" style="font-size:12.5px;margin:0 0 10px">${kundeInfo}</div>\n    <div style="display:grid;grid-template-columns:2fr 2fr 1.4fr;gap:10px;margin-bottom:10px">\n      <div class="fgrp"><label>Tittel (vises som «Tilbud …»)</label><input type="text" value="${jsEscapeHtml(a.navn)}" ${dis} oninput="pkApenPakke.navn=this.value"></div>\n      <div class="fgrp"><label>Undertittel</label><input type="text" value="${jsEscapeHtml(a.beskr)}" ${dis} oninput="pkApenPakke.beskr=this.value"></div>\n      <div class="fgrp"><label>Bransje (bilde og salgstekst øverst)</label><select ${dis} onchange="pkApenPakke.bransje=this.value"><option value="">Ingen</option>${pkBransjeTekster().map(x => `<option${x.navn === a.bransje ? " selected" : ""}>${jsEscapeHtml(x.navn)}</option>`).join("")}</select></div>\n    </div>\n    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:0 0 12px;padding:8px 12px;background:#f6f8fc;border:1px solid #dbe3f0;border-radius:8px;font-size:13px">\n      <b>I tilbudet til kunden:</b>\n      <label style="display:flex;gap:6px;align-items:center">Type <select ${dis} style="width:auto;padding:3px 6px" onchange="pkApenPakke.tilbudstype=this.value;pkRenderPakkeEditor()">${Object.entries(PK_TILBUDSTYPER).map(([k, t]) => `<option value="${k}"${pkTypeFor(a.tilbudstype) === k ? " selected" : ""}>${t.navn}</option>`).join("")}</select></label>\n      <span>Leie via Ikano i ${pkLeieMnd(a.tilbudstype)} mnd vises alltid</span>\n      <label class="pk-chk"><input type="checkbox" ${a.vis?.kjopspris ? "checked" : ""} ${dis} onchange="pkApenPakke.vis.kjopspris=this.checked"> Vis også kjøpspris</label>\n      <label class="pk-chk"><input type="checkbox" ${a.vis?.linjepriser ? "checked" : ""} ${dis} onchange="pkApenPakke.vis.linjepriser=this.checked"> Vis priser per linje for hardware og etablering</label>\n    </div>`;
+ return `<h3>🧾 ${a.sakId ? a.versjon > 1 ? `Tilbud – ny versjon (v${a.versjon})` : "Tilbud på saken" : "Nytt tilbud"}${a.sakId && ptSakFor(a.sakId) ? ` <span style="font-weight:400;color:#6b7280;font-size:14px">«${jsEscapeHtml(ptSakFor(a.sakId).tittel || "")}»</span>` : ""}${a.kladdId ? ' <span class="pk-merke pk-merke-gul">kladd</span>' : ""}${a.pakke ? ` <span style="font-weight:400;color:#6b7280;font-size:14px">fra pakken «${jsEscapeHtml(a.pakke)}»</span>` : ""}</h3>\n    <div style="display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:10px;margin-bottom:4px">\n      <div class="fgrp"><label>Mottaker (kunde eller firma)</label><input type="text" data-auto="kunde" autocomplete="off" value="${jsEscapeHtml(k?.navn || "")}" ${dis || (a.sakId ? "disabled" : "")} placeholder="Søk kunde, eller skriv firmanavn" onchange="ptSettKunde(this.value)"></div>\n      <div class="fgrp"><label>Kontaktperson</label><input type="text" value="${jsEscapeHtml(a.kontaktperson)}" ${dis} oninput="pkApenPakke.kontaktperson=this.value" placeholder="F.eks. Kari Nordmann"></div>\n      <div class="fgrp"><label>Ditt telefonnummer</label><input type="text" id="pt-selger-tlf" value="${jsEscapeHtml(a.selgerTlf)}" ${dis} oninput="pkApenPakke.selgerTlf=this.value;ptLagreSelgerTlf(this.value)" placeholder="Vises i hilsenen"></div>\n    </div>\n    <div id="pt-kunde-info" style="font-size:12.5px;margin:0 0 10px">${kundeInfo}</div>\n    <div style="display:grid;grid-template-columns:2fr 2fr 1.4fr;gap:10px;margin-bottom:10px">\n      <div class="fgrp"><label>Tittel (vises som «Tilbud …»)</label><input type="text" value="${jsEscapeHtml(a.navn)}" ${dis} oninput="pkApenPakke.navn=this.value"></div>\n      <div class="fgrp"><label>Undertittel</label><input type="text" value="${jsEscapeHtml(a.beskr)}" ${dis} oninput="pkApenPakke.beskr=this.value"></div>\n      <div class="fgrp"><label>Bransje (bilde og salgstekst øverst)</label><select ${dis} onchange="pkApenPakke.bransje=this.value"><option value="">Ingen</option>${pkBransjeTekster().map(x => `<option${x.navn === a.bransje ? " selected" : ""}>${jsEscapeHtml(x.navn)}</option>`).join("")}</select></div>\n    </div>\n    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:0 0 12px;padding:8px 12px;background:#f6f8fc;border:1px solid #dbe3f0;border-radius:8px;font-size:13px">\n      <b>I tilbudet til kunden:</b>\n      <label style="display:flex;gap:6px;align-items:center">Type <select ${dis} style="width:auto;padding:3px 6px" onchange="pkApenPakke.tilbudstype=this.value;pkRenderPakkeEditor()">${Object.entries(PK_TILBUDSTYPER).map(([k, t]) => `<option value="${k}"${pkTypeFor(a.tilbudstype) === k ? " selected" : ""}>${t.navn}</option>`).join("")}</select></label>\n      ${pkVisModus(a.vis) === "kjop" ? "<span>Kjøpspris og lisenser, Ikano og leie nevnes ikke</span>" : `<span>Leie via Ikano i ${pkLeieMnd(a.tilbudstype)} mnd</span>`}\n      <label style="display:flex;gap:6px;align-items:center">Pris <select ${dis} style="width:auto;padding:3px 6px" onchange="pkApenPakke.vis.modus=this.value;pkApenPakke.vis.kjopspris=this.value==='leiekjop';pkRenderPakkeEditor()">${Object.entries(PK_PRISVISNING).map(([k, t]) => `<option value="${k}"${pkVisModus(a.vis) === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>\n      <label class="pk-chk"><input type="checkbox" ${a.vis?.linjepriser ? "checked" : ""} ${dis} onchange="pkApenPakke.vis.linjepriser=this.checked"> Vis priser per linje for hardware og etablering</label>\n    </div>`;
 }
 
 function ptSettKunde(tekst) {
@@ -23855,8 +23889,9 @@ function ptOyeblikksbilde(a, b) {
    maksRabatt: b.maksRabatt || 0
   },
   vis: {
-   kjopspris: !!a.vis?.kjopspris,
-   linjepriser: !!a.vis?.linjepriser
+   kjopspris: pkVisModus(a.vis) === "leiekjop",
+   linjepriser: !!a.vis?.linjepriser,
+   modus: pkVisModus(a.vis)
   },
   tekster: tekster,
   arsak: a.arsak || "",
@@ -23915,7 +23950,7 @@ function ptTilbudSum(b) {
 }
 
 function ptInnholdTekst(a, b) {
- return `Tilbud laget i tilbudsbyggeren${a.pakke ? ` fra pakken «${a.pakke}»` : ""}: ${b.leie ? `leie ${pkKr(b.leie.mnd)}/mnd i ${b.leie.maaneder || pkLeieMnd(a.tilbudstype)} mnd via Ikano (kjøpspris ${pkKr(b.kjop)} eks. mva${a.vis?.kjopspris ? ", vist i tilbudet" : ", ikke vist i tilbudet"})` : `kjøpspris ${pkKr(b.kjop)} eks. mva`}${b.lop.length ? `, lisenser og avtaler ${pkKr(b.lopMnd)}/mnd` : ""}. DG hardware og etablering: ${b.hwDg == null ? "–" : b.hwDg.toFixed(1).replace(".", ",") + " %"}.${a.arsak ? ` Årsak til lav DG: ${a.arsak}` : ""}`;
+ return `Tilbud laget i tilbudsbyggeren${a.pakke ? ` fra pakken «${a.pakke}»` : ""}: ${b.leie && pkVisModus(a.vis) !== "kjop" ? `leie ${pkKr(b.leie.mnd)}/mnd i ${b.leie.maaneder || pkLeieMnd(a.tilbudstype)} mnd via Ikano (kjøpspris ${pkKr(b.kjop)} eks. mva${pkVisModus(a.vis) === "leiekjop" ? ", vist i tilbudet" : ", ikke vist i tilbudet"})` : `kjøpspris ${pkKr(b.kjop)} eks. mva${pkVisModus(a.vis) === "kjop" ? " (kun kjøp, uten Ikano)" : ""}`}${b.lop.length ? `, lisenser og avtaler ${pkKr(b.lopMnd)}/mnd` : ""}. DG hardware og etablering: ${b.hwDg == null ? "–" : b.hwDg.toFixed(1).replace(".", ",") + " %"}.${a.arsak ? ` Årsak til lav DG: ${a.arsak}` : ""}`;
 }
 
 let ptVenter = null;
@@ -24224,8 +24259,9 @@ function ptNyVersjon(spId) {
   visning: "rediger",
   bransje: d.bransje?.navn || "",
   vis: {
-   kjopspris: !!d.vis?.kjopspris,
-   linjepriser: !!d.vis?.linjepriser
+   kjopspris: pkVisModus(d.vis) === "leiekjop",
+   linjepriser: !!d.vis?.linjepriser,
+   modus: pkVisModus(d.vis)
   },
   oppfolging: ptStdOppfolging(),
   tilbudstype: pkTypeFor(d.tilbudstype)
@@ -28158,7 +28194,7 @@ function jobbOppdater(nokkel) {
 
 let skData = null, skLaster = false, skFeil = "", skFilter = "alle", skApen = null, skSok = "";
 
-let skValgt = new Set, skGodkjenner = false, skSisteGodkjenning = null;
+let skValgt = new Set, skGodkjenner = false, skSisteGodkjenning = null, skArsak = null, skArsakAlle = false;
 
 const SK_DOM = {
  ROD: {
@@ -28201,6 +28237,7 @@ async function skKjor(oppdater) {
  skApen = null;
  skValgt.clear();
  skSisteGodkjenning = null;
+ skArsak = null;
  jobbStart("sk", "Kontrollerer Susoft-fakturaer på vent", [ {
   t: "Leser KBDs fakturaer siste 12 måneder",
   sek: 0
@@ -28334,6 +28371,72 @@ function skDetaljHtml(f) {
  return `<div style="padding:12px 16px">\n    <div style="font-size:12.5px;color:#374151">${f.sluttkunde ? `<strong>${escHtmlEpost(f.sluttkunde)}</strong> · ` : ""}${f.periode ? `periode ${escHtmlEpost(f.periode)} (${f.periodeMnd} mnd) · ` : ""}bilag ${escHtmlEpost(f.bilag)} · fakturadato ${escHtmlEpost(f.dato || "")} · forfall ${escHtmlEpost(f.forfall || "")}</div>\n    ${arsaker}\n    <table style="font-size:12.5px;width:100%"><thead><tr><th></th><th>Susoft-linje</th><th class="tr">Antall</th><th class="tr">Susoft pris/enh.</th><th>KBD-kontrakt</th><th class="tr">KBD pris/enh.</th><th class="tr">Margin</th><th class="tr">KBD fakturerer</th><th>Avvik</th></tr></thead><tbody>${linjer || '<tr><td colspan="9" class="hint">Ingen linjer</td></tr>'}</tbody></table>\n    <div class="hint" style="margin:8px 0 0">Antall hos Susoft er enheter × måneder. Enheter = antall delt på perioden. Susoft-pris er etter Susofts rabatt.</div>\n  </div>`;
 }
 
+function skArsaker(f) {
+ const ut = new Map;
+ (f.linjer || []).forEach(l => {
+  if (l.arsak) ut.set(`${l.arsak}: ${l.tekst}`, l.dom === "ROD" ? "ROD" : "GUL");
+ });
+ (f.arsaker || []).forEach(a => {
+  const t = (a.match(/«([^»]*)»/) || [])[1] || "";
+  let k = null, d = "GUL";
+  if (/^Kontrakt .*finnes ikke/.test(a)) {
+   k = "Kontrakten finnes ikke";
+   d = "ROD";
+  } else if (/har status (\S+)/.test(a)) {
+   k = `Kontrakten har status ${a.match(/har status (\S+)/)[1]}`;
+   d = "ROD";
+  } else if (/ingen KBD-faktura/.test(a)) k = `Ingen KBD-faktura på avtalen siste 12 mnd: ${t}`; else if (/bare én KBD-faktura/.test(a)) k = `Bare én KBD-faktura på avtalen: ${t}`; else if (/Periode ikke funnet/.test(a)) k = "Periode ikke funnet i PDF-en"; else if (/PDF-en kunne ikke leses|Kontrollen feilet|Fant ikke bilaget/.test(a)) {
+   k = a.replace(/\(.*\)/, "").trim();
+   d = "ROD";
+  }
+  if (k && !ut.has(k)) ut.set(k, d);
+ });
+ return ut;
+}
+
+function skArsakOversikt(d) {
+ const g = new Map;
+ d.fakturaer.forEach(f => {
+  skArsaker(f).forEach((dom, k) => {
+   const x = g.get(k) || {
+    k: k,
+    dom: dom,
+    n: 0,
+    sum: 0
+   };
+   x.n++;
+   x.sum += Number(f.belop) || 0;
+   if (dom === "ROD") x.dom = "ROD";
+   g.set(k, x);
+  });
+ });
+ return [ ...g.values() ].sort((a, b) => (a.dom === b.dom ? 0 : a.dom === "ROD" ? -1 : 1) || b.n - a.n || a.k.localeCompare(b.k, "nb"));
+}
+
+function skEksporterCsv() {
+ if (!skData) return;
+ const q = v => {
+  const t = v == null ? "" : String(v);
+  return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+ };
+ const tall = v => v == null || v === "" ? "" : String(v).replace(".", ",");
+ const hode = [ "Susoft fakturanr", "Bilag", "Status", "Kunde", "Sluttkunde", "Kontrakt", "Kontraktstatus", "Periode", "Beløp eks. mva", "Linje", "P.no", "Susoft antall", "Susoft enheter", "Susoft pris", "KBD-vare", "Fra kontrakt", "Kobling", "KBD pris", "Margin %", "KBD enheter", "KBD periode mnd", "KBD fakturaer", "Linjeavvik", "Årsaker på fakturaen" ];
+ const rader = [ hode.join(";") ];
+ skData.fakturaer.forEach(f => {
+  const felles = [ f.susoftFakturanr, f.bilag, f.dom, f.kunde, f.sluttkunde, f.kontrakt, f.kontraktStatus, f.periode, tall(f.belop) ];
+  const ls = f.linjer && f.linjer.length ? f.linjer : [ {} ];
+  ls.forEach(l => rader.push([ ...felles, l.tekst, l.pno, tall(l.susAntall), tall(l.susEnheter), tall(l.susPris), l.kontraktVare, l.fraKontrakt, l.kobling, tall(l.kontraktPris), tall(l.marginPst), tall(l.kbdEnheter), tall(l.kbdPeriodeMnd), tall(l.kbdFakturaer), l.arsak, (f.arsaker || []).join(" | ") ].map(q).join(";")));
+ });
+ const blob = new Blob([ "\ufeff" + rader.join("\r\n") ], {
+  type: "text/csv;charset=utf-8"
+ });
+ const a = document.createElement("a");
+ a.href = URL.createObjectURL(blob);
+ a.download = `susoft-kontroll-${(new Date).toISOString().slice(0, 10)}.csv`;
+ a.click();
+ setTimeout(() => URL.revokeObjectURL(a.href), 5e3);
+}
+
 function renderSusoftKontroll() {
  const el = document.getElementById("sk-innhold");
  if (!el) return;
@@ -28355,7 +28458,7 @@ function renderSusoftKontroll() {
  }
  const d = skData;
  const sok = skSok.trim().toLowerCase();
- const rader = d.fakturaer.filter(f => (skFilter === "alle" || f.dom === skFilter) && (!sok || [ f.susoftFakturanr, f.bilag, f.kontrakt, f.kunde, f.sluttkunde ].join(" ").toLowerCase().includes(sok)));
+ const rader = d.fakturaer.filter(f => (skFilter === "alle" || f.dom === skFilter) && (!skArsak || skArsaker(f).has(skArsak)) && (!sok || [ f.susoftFakturanr, f.bilag, f.kontrakt, f.kunde, f.sluttkunde ].join(" ").toLowerCase().includes(sok)));
  const sumAlle = d.fakturaer.reduce((t, f) => t + (Number(f.belop) || 0), 0);
  const kpi = (l, v, s, farge) => `<div style="flex:1 1 150px;background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.07)"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">${l}</div><div style="font-size:20px;font-weight:700;color:${farge || "#111"};margin-top:2px">${v}</div><div style="font-size:11px;color:#9ca3af">${s}</div></div>`;
  const pills = [ [ "alle", `Alle (${d.antall})` ], [ "ROD", `🔴 Rød (${d.rod})` ], [ "GUL", `🟡 Gul (${d.gul})` ], [ "GRONN", `🟢 Grønn (${d.gronn})` ] ].map(([v, t]) => `<button class="fpill${skFilter === v ? " f-on" : " f-off"}" style="${skFilter === v ? "border-color:#1A3A6B" : ""}" onclick="skFilter='${v}';skApen=null;renderSusoftKontroll()"><span style="font-weight:600">${t}</span></button>`).join("");
@@ -28369,7 +28472,12 @@ function renderSusoftKontroll() {
   return `<tr data-sk-bilag="${escHtmlEpost(f.bilag)}" style="cursor:pointer${apen ? ";background:#f0f4ff" : ""}" onclick="skToggle('${escHtmlEpost(f.bilag)}')">\n      ${admin ? `<td onclick="event.stopPropagation()"><input type="checkbox" ${skValgt.has(f.bilag) ? "checked" : ""} onchange="skVelg('${escHtmlEpost(f.bilag)}',this.checked)"></td>` : ""}\n      <td>${skChip(f.dom)}</td>\n      <td><strong style="color:#1A3A6B">${apen ? "▾ " : "▸ "}${escHtmlEpost(f.susoftFakturanr || "—")}</strong><div class="muted" style="font-size:11px">bilag ${escHtmlEpost(f.bilag)}</div></td>\n      <td style="min-width:180px">${escHtmlEpost(f.sluttkunde || f.kunde || "—")}${f.sluttkunde && f.kunde && f.sluttkunde.toLowerCase() !== f.kunde.toLowerCase() ? `<div class="muted" style="font-size:11px">${escHtmlEpost(f.kunde)}${f.forhandler ? " (forhandler)" : ""}</div>` : ""}</td>\n      <td>${escHtmlEpost(f.kontrakt || "—")}${f.kontraktStatus && f.kontraktStatus !== "Active" ? `<div style="font-size:11px;color:#b91c1c">${escHtmlEpost(f.kontraktStatus)}</div>` : ""}</td>\n      <td style="font-size:12px;white-space:nowrap">${escHtmlEpost(f.periode || "—")}</td>\n      <td class="tr" style="white-space:nowrap">${skKr(f.belop)}</td>\n      <td style="font-size:12.5px;min-width:220px">${forsteArsak ? escHtmlEpost(forsteArsak) + flere : '<span class="muted">Ingen avvik</span>'}</td>\n      <td style="white-space:nowrap" onclick="event.stopPropagation()">${f.harPdf ? `<button class="btn-sm" style="margin:1px" onclick="skPdf('${escHtmlEpost(f.bilag)}')">📄 PDF</button>` : ""}${admin ? `<button class="btn-sm" style="margin:1px;${f.dom === "ROD" ? "" : "background:#166534;color:#fff;border-color:#166534"}" ${skGodkjenner ? "disabled" : ""} onclick="skGodkjenn(['${escHtmlEpost(f.bilag)}'])">✓ Godkjenn</button>` : ""}</td>\n    </tr>${apen ? `<tr><td colspan="${admin ? 9 : 8}" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${skDetaljHtml(f)}</td></tr>` : ""}`;
  }).join("");
  const sisteG = skSisteGodkjenning && skSisteGodkjenning.resultat.some(r => !r.ok) ? `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:10px 14px;font-size:12.5px;margin:0 0 10px"><strong>Ikke godkjent:</strong> ${skSisteGodkjenning.resultat.filter(r => !r.ok).map(r => `${escHtmlEpost(r.susoftFakturanr || r.bilag)}: ${escHtmlEpost(r.melding)}`).join(" · ")}</div>` : "";
- el.innerHTML = topp + sisteG + `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px">\n      ${kpi("På vent", d.antall, "Susoft-fakturaer")}\n      ${kpi("🟢 Grønn", d.gronn, "kan godkjennes", "#166534")}\n      ${kpi("🟡 Gul", d.gul, "se på årsaken", "#854d0e")}\n      ${kpi("🔴 Rød", d.rod, "må sjekkes", d.rod ? "#b91c1c" : "#111")}\n      ${kpi("Sum på vent", skKr(Math.round(sumAlle)), "eks. mva")}\n    </div>\n    <div class="filters" style="row-gap:8px;align-items:center">${pills}<input type="search" placeholder="Søk fakturanr, kunde, kontrakt …" value="${escHtmlEpost(skSok)}" oninput="skSok=this.value;renderSusoftKontroll();const s=document.querySelector('#sk-innhold input[type=search]');if(s){s.focus();s.setSelectionRange(s.value.length,s.value.length);}" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px">${masse}</div>\n    <div class="tbl-wrap" id="sk-tabell-boks" style="overflow:auto;max-height:72vh"><table>\n      <thead><tr>${admin ? '<th style="position:sticky;top:0;z-index:1"></th>' : ""}<th style="position:sticky;top:0;z-index:1">Status</th><th style="position:sticky;top:0;z-index:1">Susoft fakturanr</th><th style="position:sticky;top:0;z-index:1">Kunde</th><th style="position:sticky;top:0;z-index:1">Kontrakt</th><th style="position:sticky;top:0;z-index:1">Periode</th><th class="tr" style="position:sticky;top:0;z-index:1">Beløp eks. mva</th><th style="position:sticky;top:0;z-index:1">Årsak</th><th style="position:sticky;top:0;z-index:1"></th></tr></thead>\n      <tbody>${body || `<tr><td colspan="${admin ? 9 : 8}" class="hint" style="padding:14px">${d.antall ? "Ingen treff i utvalget." : "Ingen Susoft-fakturaer står på vent. 🎉"}</td></tr>`}</tbody>\n    </table></div>`;
+ el.innerHTML = topp + sisteG + `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px">\n      ${kpi("På vent", d.antall, "Susoft-fakturaer")}\n      ${kpi("🟢 Grønn", d.gronn, "kan godkjennes", "#166534")}\n      ${kpi("🟡 Gul", d.gul, "se på årsaken", "#854d0e")}\n      ${kpi("🔴 Rød", d.rod, "må sjekkes", d.rod ? "#b91c1c" : "#111")}\n      ${kpi("Sum på vent", skKr(Math.round(sumAlle)), "eks. mva")}\n    </div>\n    ${(() => {
+  const gr = skArsakOversikt(d);
+  if (!gr.length) return "";
+  const vis = skArsakAlle ? gr : gr.slice(0, 10);
+  return `<div class="card" style="padding:12px 16px;margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><strong style="font-size:13px">📊 Årsaker</strong><span class="hint" style="margin:0">Antall fakturaer per årsak. Klikk for å filtrere.</span>${skArsak ? `<button class="btn-sm" style="margin-left:auto" onclick="skArsak=null;skApen=null;renderSusoftKontroll()">✕ Vis alle årsaker</button>` : ""}</div>\n        <table style="font-size:12.5px;width:100%"><tbody>${vis.map(x => `<tr style="cursor:pointer${skArsak === x.k ? ";background:#f0f4ff;font-weight:600" : ""}" onclick="skArsak=${skArsak === x.k ? "null" : `decodeURIComponent('${encodeURIComponent(x.k).replace(/'/g, "%27")}')`};skApen=null;renderSusoftKontroll()"><td style="width:22px">${x.dom === "ROD" ? "🔴" : "🟡"}</td><td>${escHtmlEpost(x.k)}</td><td class="tr" style="white-space:nowrap">${x.n} faktura${x.n === 1 ? "" : "er"}</td><td class="tr" style="white-space:nowrap;color:#6b7280">${skKr(Math.round(x.sum))}</td></tr>`).join("")}</tbody></table>\n        ${gr.length > 10 ? `<button class="btn-sm" style="margin-top:6px" onclick="skArsakAlle=!skArsakAlle;renderSusoftKontroll()">${skArsakAlle ? "Vis færre" : `Vis alle ${gr.length} årsaker`}</button>` : ""}</div>`;
+ })()}\n    <div class="filters" style="row-gap:8px;align-items:center">${pills}<button class="btn-sm" onclick="skEksporterCsv()">⬇ CSV</button><input type="search" placeholder="Søk fakturanr, kunde, kontrakt …" value="${escHtmlEpost(skSok)}" oninput="skSok=this.value;renderSusoftKontroll();const s=document.querySelector('#sk-innhold input[type=search]');if(s){s.focus();s.setSelectionRange(s.value.length,s.value.length);}" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px">${masse}</div>\n    <div class="tbl-wrap" id="sk-tabell-boks" style="overflow:auto;max-height:72vh"><table>\n      <thead><tr>${admin ? '<th style="position:sticky;top:0;z-index:1"></th>' : ""}<th style="position:sticky;top:0;z-index:1">Status</th><th style="position:sticky;top:0;z-index:1">Susoft fakturanr</th><th style="position:sticky;top:0;z-index:1">Kunde</th><th style="position:sticky;top:0;z-index:1">Kontrakt</th><th style="position:sticky;top:0;z-index:1">Periode</th><th class="tr" style="position:sticky;top:0;z-index:1">Beløp eks. mva</th><th style="position:sticky;top:0;z-index:1">Årsak</th><th style="position:sticky;top:0;z-index:1"></th></tr></thead>\n      <tbody>${body || `<tr><td colspan="${admin ? 9 : 8}" class="hint" style="padding:14px">${d.antall ? "Ingen treff i utvalget." : "Ingen Susoft-fakturaer står på vent. 🎉"}</td></tr>`}</tbody>\n    </table></div>`;
 }
 
 function bevarRulling(boksId, tegn, radSelektor) {
