@@ -20,7 +20,7 @@
 <div id="rot"><div class="login"><div class="spinner" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></div></div></div>
 <script>"use strict";
 
-const MOBIL_VERSJON = "1.1";
+const MOBIL_VERSJON = "1.2";
 
 const CLIENT_ID = "b0ff1861-62de-4ecc-8a13-fd463cb5af45";
 
@@ -2147,6 +2147,56 @@ document.addEventListener("visibilitychange", () => {
  if (document.visibilityState === "visible" && siteId && sistLastet && Date.now() - sistLastet > 6e5 && !lasterData && !$("ark")) lastData().then(() => {
   if (!document.activeElement || !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) tegn();
  }).catch(() => {});
+});
+
+let vsMobilSist = 0, vsMobilNy = null;
+
+function vsNyere(a, b) {
+ const x = String(a || "").split(".").map(n => parseInt(n, 10) || 0), y = String(b || "").split(".").map(n => parseInt(n, 10) || 0);
+ for (let i = 0; i < Math.max(x.length, y.length); i++) {
+  const d = (x[i] || 0) - (y[i] || 0);
+  if (d) return d > 0;
+ }
+ return false;
+}
+
+function vsMobilTrygt() {
+ if ($("ark")) return false;
+ const a = document.activeElement;
+ if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false;
+ return ![ ...document.querySelectorAll("textarea") ].some(t => t.value.trim());
+}
+
+async function vsMobilSjekk() {
+ if (location.protocol !== "https:") return;
+ vsMobilSist = Date.now();
+ try {
+  const r = await fetch("versjon.json?t=" + Date.now(), {
+   cache: "no-store"
+  });
+  if (!r.ok) return;
+  const d = await r.json();
+  if (d?.mobil && vsNyere(d.mobil, MOBIL_VERSJON)) vsMobilNy = d.mobil;
+ } catch (e) {}
+ vsMobilProvOppdater();
+}
+
+function vsMobilProvOppdater() {
+ if (!vsMobilNy) return;
+ if (vsMobilTrygt()) {
+  toast("🔄 Oppdaterer til ny versjon…");
+  setTimeout(() => location.reload(), 900);
+ } else setTimeout(vsMobilProvOppdater, 15e3);
+}
+
+setTimeout(vsMobilSjekk, 2e4);
+
+setInterval(() => {
+ if (!vsMobilNy) vsMobilSjekk();
+}, 15 * 60 * 1e3);
+
+document.addEventListener("visibilitychange", () => {
+ if (document.visibilityState === "visible" && !vsMobilNy && Date.now() - vsMobilSist > 3 * 60 * 1e3) vsMobilSjekk();
 });
 
 initAuth()</script>

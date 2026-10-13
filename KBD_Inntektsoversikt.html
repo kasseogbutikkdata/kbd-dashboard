@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.280 · Oppdatert: 12. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.282 · Oppdatert: 13. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -6076,6 +6076,112 @@ function loadData() {}
 
 const SL = [], SK = [];
 
+const VS_INTERVALL_MS = 15 * 60 * 1e3, VS_FOKUS_MS = 5 * 60 * 1e3, VS_NEDTELLING_S = 60;
+
+let vsSistSjekk = 0, vsNyVersjon = null, vsTimer = null, vsNedtelling = null;
+
+function vsEgenVersjon() {
+ try {
+  if (Array.isArray(versjonslogg) && versjonslogg[0]?.versjon) return String(versjonslogg[0].versjon).replace(/^v/, "");
+ } catch (e) {}
+ return "";
+}
+
+function vsSammenlign(a, b) {
+ const x = String(a || "").split(".").map(n => parseInt(n, 10) || 0), y = String(b || "").split(".").map(n => parseInt(n, 10) || 0);
+ for (let i = 0; i < Math.max(x.length, y.length); i++) {
+  const d = (x[i] || 0) - (y[i] || 0);
+  if (d) return d;
+ }
+ return 0;
+}
+
+async function vsSjekk() {
+ if (location.protocol !== "https:") return;
+ vsSistSjekk = Date.now();
+ try {
+  const url = new URL("versjon.json", location.href);
+  url.searchParams.set("t", Date.now());
+  const r = await fetch(url, {
+   cache: "no-store"
+  });
+  if (!r.ok) return;
+  const d = await r.json();
+  if (d?.versjon && vsSammenlign(d.versjon, vsEgenVersjon()) > 0) {
+   vsNyVersjon = d.versjon;
+   vsVisBanner();
+  }
+ } catch (e) {}
+}
+
+function vsTrygt() {
+ if (document.querySelector(".modal-overlay.open")) return false;
+ const a = document.activeElement;
+ if (a && (a.tagName === "TEXTAREA" || a.isContentEditable)) return false;
+ if ([ ...document.querySelectorAll("textarea") ].some(t => t.offsetParent !== null && t.value.trim() && t.value !== t.defaultValue)) return false;
+ if ([ ...document.querySelectorAll('[contenteditable="true"]') ].some(e => e.offsetParent !== null && e.textContent.trim())) return false;
+ return true;
+}
+
+function vsLastPaNytt() {
+ try {
+  if (window._sistFane) sessionStorage.setItem("kbd-fane-etter-oppdatering", window._sistFane);
+ } catch (e) {}
+ location.reload();
+}
+
+function vsVisBanner() {
+ let b = document.getElementById("vs-banner");
+ if (!b) {
+  b = document.createElement("div");
+  b.id = "vs-banner";
+  b.style.cssText = "position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:3000;background:#1d4ed8;color:#fff;padding:9px 14px;border-radius:0 0 12px 12px;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:13.5px;display:flex;gap:12px;align-items:center;max-width:94vw";
+  document.body.appendChild(b);
+ }
+ const tegn = () => {
+  const trygt = vsTrygt();
+  const tekst = trygt && vsNedtelling != null ? `Oppdaterer om ${vsNedtelling} s` : trygt ? "" : "Oppdateres når du er ferdig med skjemaet";
+  b.innerHTML = `<span>🔄 Ny versjon av KBD CC (v${vsNyVersjon}) er klar.${tekst ? ` <span style="opacity:.8">${tekst}</span>` : ""}</span><button style="background:#fff;color:#1d4ed8;border:0;border-radius:8px;padding:5px 10px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap" onclick="vsLastPaNytt()">Oppdater nå</button>`;
+ };
+ clearInterval(vsTimer);
+ vsNedtelling = null;
+ vsTimer = setInterval(() => {
+  if (vsTrygt()) {
+   vsNedtelling = vsNedtelling == null ? VS_NEDTELLING_S : vsNedtelling - 1;
+   if (vsNedtelling <= 0) {
+    clearInterval(vsTimer);
+    vsLastPaNytt();
+    return;
+   }
+  } else vsNedtelling = null;
+  tegn();
+ }, 1e3);
+ tegn();
+}
+
+function startVersjonssjekk() {
+ setTimeout(vsSjekk, 60 * 1e3);
+ setInterval(() => {
+  if (!vsNyVersjon) vsSjekk();
+ }, VS_INTERVALL_MS);
+ document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && !vsNyVersjon && Date.now() - vsSistSjekk > VS_FOKUS_MS) vsSjekk();
+ });
+}
+
+function vsGjenopprettFane() {
+ try {
+  const f = sessionStorage.getItem("kbd-fane-etter-oppdatering");
+  if (!f) return;
+  sessionStorage.removeItem("kbd-fane-etter-oppdatering");
+  if (new URLSearchParams(location.search).toString()) return;
+  const btn = document.getElementById("tab-" + f);
+  if (document.getElementById("tp-" + f)) showTab(f, btn);
+ } catch (e) {}
+}
+
+startVersjonssjekk();
+
 async function initAuth() {
  try {
   if (typeof msal === "undefined") {
@@ -6207,6 +6313,7 @@ async function afterLogin(account) {
   refreshSrcDropdowns();
   document.getElementById("lf-m").value = "Jun";
   renderAll();
+  vsGjenopprettFane();
   handleDeepLink();
   startVarselPolling();
   renderKunngjoringMeny();
@@ -15066,6 +15173,14 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.282",
+ dato: "13.10.2026",
+ punkter: [ "KBD CC oppdaterer seg selv: har fanen stått åpen lenge og det finnes en nyere versjon, vises et blått banner øverst, og siden lastes på nytt etter ett minutt. Har du et skjema åpent eller holder på å skrive, venter den til du er ferdig. Du kommer tilbake til samme meny." ]
+}, {
+ versjon: "v1.48.281",
+ dato: "13.10.2026",
+ punkter: [ "Tilbud: telefonnummeret ditt fylles nå ut automatisk. Det hentes fra signaturen i «Send tilbudet» eller fra mobilnummeret i Microsoft 365-profilen. Før kunne «Slik går dere videre» ende med «ring meg på .» når feltet var tomt.", "Et tilbud kan ikke lagres uten telefonnummer når tekstene bruker {selger_telefon}." ]
+}, {
  versjon: "v1.48.280",
  dato: "12.10.2026",
  punkter: [ "PDF-en som legges ved e-posten: bransjebildet øverst og produktbildene blir ikke lenger strukket ut. De beskjæres som i forhåndsvisningen: toppbildet fyller boksen, og produktbildene vises hele." ]
@@ -23292,6 +23407,8 @@ function ptApneKladd(spId) {
   kjopspris: false,
   linjepriser: false
  };
+ if (!pkApenPakke.selgerTlf) pkApenPakke.selgerTlf = ptSelgerTlf();
+ ptHentSelgerTlf(pkApenPakke);
  pkPakkePrisklasse = pkApenPakke.prisklasse || "";
  pkModalBred(true);
  pkRenderPakkeEditor();
@@ -23325,10 +23442,34 @@ function ptGyldigTil() {
 
 function ptSelgerTlf() {
  try {
-  return localStorage.getItem("pt-selger-tlf") || "";
- } catch (e) {
-  return "";
- }
+  const t = localStorage.getItem("pt-selger-tlf");
+  if (t) return t;
+ } catch (e) {}
+ try {
+  const s = JSON.parse(localStorage.getItem("pt-sig") || "null");
+  if (s?.mobil) return typeof ptTlfVis === "function" ? ptTlfVis(s.mobil) : s.mobil;
+ } catch (e) {}
+ return "";
+}
+
+function ptHentSelgerTlf(a) {
+ if (!a || a.selgerTlf || typeof ptSigFraProfil !== "function") return;
+ ptSigFraProfil().then(p => {
+  if (!p?.mobil || pkApenPakke !== a || a.selgerTlf) return;
+  a.selgerTlf = typeof ptTlfVis === "function" ? ptTlfVis(p.mobil) : p.mobil;
+  ptLagreSelgerTlf(a.selgerTlf);
+  const f = document.getElementById("pt-selger-tlf");
+  if (f && !f.value) f.value = a.selgerTlf;
+ }).catch(() => {});
+}
+
+function ptTeksterBrukerTlf(a) {
+ const sjekk = t => /\{selger_telefon\}/.test(t || "");
+ return pkTeksterSortert(a.tilbudstype).some(t => {
+  const o = a.tekster?.[t.nokkel];
+  if (o?.skjul) return false;
+  return sjekk(o && typeof o.tekst === "string" ? o.tekst : t.tekst);
+ });
 }
 
 function ptLagreSelgerTlf(v) {
@@ -23470,6 +23611,7 @@ function ptNyttFraPakker(ider) {
   tilbudstype: pkTypeFor(p?.tilbudstype)
  };
  resten.forEach(x => ptSlaSammenPakke(pkApenPakke, x));
+ ptHentSelgerTlf(pkApenPakke);
  pkPakkePrisklasse = "";
  pkApenPakke.oppfolging = ptStdOppfolging();
  const sak = ptFraSakVenter;
@@ -23559,7 +23701,7 @@ function ptKundeValg() {
 function ptEditorHode(a, dis) {
  const k = a.kunde;
  const kundeInfo = !k ? '<span style="color:#6b7280">Søk opp en kunde, eller skriv navnet på et nytt firma. Nye firma velges fra Brreg når tilbudet lagres.</span>' : k.kNr ? `✓ Eksisterende ${String(k.kNr).startsWith("LEAD-") ? "prospekt" : "kunde"} <b>${jsEscapeHtml(k.navn)}</b>${k.klasse ? ` · kundeprofil ${jsEscapeHtml(k.klasse)}` : ""}` : `Nytt firma <b>${jsEscapeHtml(k.navn)}</b> – velges fra Brreg eller registreres manuelt når tilbudet lagres.`;
- return `<h3>🧾 ${a.sakId ? a.versjon > 1 ? `Tilbud – ny versjon (v${a.versjon})` : "Tilbud på saken" : "Nytt tilbud"}${a.sakId && ptSakFor(a.sakId) ? ` <span style="font-weight:400;color:#6b7280;font-size:14px">«${jsEscapeHtml(ptSakFor(a.sakId).tittel || "")}»</span>` : ""}${a.kladdId ? ' <span class="pk-merke pk-merke-gul">kladd</span>' : ""}${a.pakke ? ` <span style="font-weight:400;color:#6b7280;font-size:14px">fra pakken «${jsEscapeHtml(a.pakke)}»</span>` : ""}</h3>\n    <div style="display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:10px;margin-bottom:4px">\n      <div class="fgrp"><label>Mottaker (kunde eller firma)</label><input type="text" data-auto="kunde" autocomplete="off" value="${jsEscapeHtml(k?.navn || "")}" ${dis || (a.sakId ? "disabled" : "")} placeholder="Søk kunde, eller skriv firmanavn" onchange="ptSettKunde(this.value)"></div>\n      <div class="fgrp"><label>Kontaktperson</label><input type="text" value="${jsEscapeHtml(a.kontaktperson)}" ${dis} oninput="pkApenPakke.kontaktperson=this.value" placeholder="F.eks. Kari Nordmann"></div>\n      <div class="fgrp"><label>Ditt telefonnummer</label><input type="text" value="${jsEscapeHtml(a.selgerTlf)}" ${dis} oninput="pkApenPakke.selgerTlf=this.value;ptLagreSelgerTlf(this.value)" placeholder="Vises i hilsenen"></div>\n    </div>\n    <div id="pt-kunde-info" style="font-size:12.5px;margin:0 0 10px">${kundeInfo}</div>\n    <div style="display:grid;grid-template-columns:2fr 2fr 1.4fr;gap:10px;margin-bottom:10px">\n      <div class="fgrp"><label>Tittel (vises som «Tilbud …»)</label><input type="text" value="${jsEscapeHtml(a.navn)}" ${dis} oninput="pkApenPakke.navn=this.value"></div>\n      <div class="fgrp"><label>Undertittel</label><input type="text" value="${jsEscapeHtml(a.beskr)}" ${dis} oninput="pkApenPakke.beskr=this.value"></div>\n      <div class="fgrp"><label>Bransje (bilde og salgstekst øverst)</label><select ${dis} onchange="pkApenPakke.bransje=this.value"><option value="">Ingen</option>${pkBransjeTekster().map(x => `<option${x.navn === a.bransje ? " selected" : ""}>${jsEscapeHtml(x.navn)}</option>`).join("")}</select></div>\n    </div>\n    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:0 0 12px;padding:8px 12px;background:#f6f8fc;border:1px solid #dbe3f0;border-radius:8px;font-size:13px">\n      <b>I tilbudet til kunden:</b>\n      <label style="display:flex;gap:6px;align-items:center">Type <select ${dis} style="width:auto;padding:3px 6px" onchange="pkApenPakke.tilbudstype=this.value;pkRenderPakkeEditor()">${Object.entries(PK_TILBUDSTYPER).map(([k, t]) => `<option value="${k}"${pkTypeFor(a.tilbudstype) === k ? " selected" : ""}>${t.navn}</option>`).join("")}</select></label>\n      <span>Leie via Ikano i ${pkLeieMnd(a.tilbudstype)} mnd vises alltid</span>\n      <label class="pk-chk"><input type="checkbox" ${a.vis?.kjopspris ? "checked" : ""} ${dis} onchange="pkApenPakke.vis.kjopspris=this.checked"> Vis også kjøpspris</label>\n      <label class="pk-chk"><input type="checkbox" ${a.vis?.linjepriser ? "checked" : ""} ${dis} onchange="pkApenPakke.vis.linjepriser=this.checked"> Vis priser per linje for hardware og etablering</label>\n    </div>`;
+ return `<h3>🧾 ${a.sakId ? a.versjon > 1 ? `Tilbud – ny versjon (v${a.versjon})` : "Tilbud på saken" : "Nytt tilbud"}${a.sakId && ptSakFor(a.sakId) ? ` <span style="font-weight:400;color:#6b7280;font-size:14px">«${jsEscapeHtml(ptSakFor(a.sakId).tittel || "")}»</span>` : ""}${a.kladdId ? ' <span class="pk-merke pk-merke-gul">kladd</span>' : ""}${a.pakke ? ` <span style="font-weight:400;color:#6b7280;font-size:14px">fra pakken «${jsEscapeHtml(a.pakke)}»</span>` : ""}</h3>\n    <div style="display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:10px;margin-bottom:4px">\n      <div class="fgrp"><label>Mottaker (kunde eller firma)</label><input type="text" data-auto="kunde" autocomplete="off" value="${jsEscapeHtml(k?.navn || "")}" ${dis || (a.sakId ? "disabled" : "")} placeholder="Søk kunde, eller skriv firmanavn" onchange="ptSettKunde(this.value)"></div>\n      <div class="fgrp"><label>Kontaktperson</label><input type="text" value="${jsEscapeHtml(a.kontaktperson)}" ${dis} oninput="pkApenPakke.kontaktperson=this.value" placeholder="F.eks. Kari Nordmann"></div>\n      <div class="fgrp"><label>Ditt telefonnummer</label><input type="text" id="pt-selger-tlf" value="${jsEscapeHtml(a.selgerTlf)}" ${dis} oninput="pkApenPakke.selgerTlf=this.value;ptLagreSelgerTlf(this.value)" placeholder="Vises i hilsenen"></div>\n    </div>\n    <div id="pt-kunde-info" style="font-size:12.5px;margin:0 0 10px">${kundeInfo}</div>\n    <div style="display:grid;grid-template-columns:2fr 2fr 1.4fr;gap:10px;margin-bottom:10px">\n      <div class="fgrp"><label>Tittel (vises som «Tilbud …»)</label><input type="text" value="${jsEscapeHtml(a.navn)}" ${dis} oninput="pkApenPakke.navn=this.value"></div>\n      <div class="fgrp"><label>Undertittel</label><input type="text" value="${jsEscapeHtml(a.beskr)}" ${dis} oninput="pkApenPakke.beskr=this.value"></div>\n      <div class="fgrp"><label>Bransje (bilde og salgstekst øverst)</label><select ${dis} onchange="pkApenPakke.bransje=this.value"><option value="">Ingen</option>${pkBransjeTekster().map(x => `<option${x.navn === a.bransje ? " selected" : ""}>${jsEscapeHtml(x.navn)}</option>`).join("")}</select></div>\n    </div>\n    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:0 0 12px;padding:8px 12px;background:#f6f8fc;border:1px solid #dbe3f0;border-radius:8px;font-size:13px">\n      <b>I tilbudet til kunden:</b>\n      <label style="display:flex;gap:6px;align-items:center">Type <select ${dis} style="width:auto;padding:3px 6px" onchange="pkApenPakke.tilbudstype=this.value;pkRenderPakkeEditor()">${Object.entries(PK_TILBUDSTYPER).map(([k, t]) => `<option value="${k}"${pkTypeFor(a.tilbudstype) === k ? " selected" : ""}>${t.navn}</option>`).join("")}</select></label>\n      <span>Leie via Ikano i ${pkLeieMnd(a.tilbudstype)} mnd vises alltid</span>\n      <label class="pk-chk"><input type="checkbox" ${a.vis?.kjopspris ? "checked" : ""} ${dis} onchange="pkApenPakke.vis.kjopspris=this.checked"> Vis også kjøpspris</label>\n      <label class="pk-chk"><input type="checkbox" ${a.vis?.linjepriser ? "checked" : ""} ${dis} onchange="pkApenPakke.vis.linjepriser=this.checked"> Vis priser per linje for hardware og etablering</label>\n    </div>`;
 }
 
 function ptSettKunde(tekst) {
@@ -23782,6 +23924,11 @@ async function ptLagre() {
  }
  if (!a.navn.trim()) {
   alert("Gi tilbudet en tittel.");
+  return;
+ }
+ if (!String(a.selgerTlf || "").trim() && ptTeksterBrukerTlf(a)) {
+  alert("Fyll inn telefonnummeret ditt øverst. Det står i teksten «Slik går dere videre» («ring meg på …»).");
+  document.getElementById("pt-selger-tlf")?.focus();
   return;
  }
  if (b.hwDg !== null && b.hwDg < pkInnst.DgMin && !(a.arsak || "").trim()) {
@@ -24068,6 +24215,7 @@ function ptNyVersjon(spId) {
  pkPakkePrisklasse = d.prisklasse || "";
  pkModalBred(true);
  pkRenderPakkeEditor();
+ ptHentSelgerTlf(pkApenPakke);
  vfShowToast?.("Prisene er hentet på nytt fra katalogen. Tidligere versjoner er uendret.");
 }
 
@@ -24917,6 +25065,7 @@ async function ptMarkerSendt() {
 })();
 
 function showTab(name, btn) {
+ window._sistFane = name;
  document.querySelectorAll(".tp").forEach(t => {
   t.classList.remove("active");
   t.style.display = "none";
