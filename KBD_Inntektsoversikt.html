@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.292 · Oppdatert: 13. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.293 · Oppdatert: 13. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.293",
+ dato: "13.10.2026",
+ punkter: [ "Fakturaoppfølging: ny visning «📊 Rapport» (bare administrator). Den viser kostnad og innkrevd beløp per måned med kostnad per innkrevd krone, utviklingen i forfalt, over 90 dager og kunder på arbeidslista (graf fra den daglige statistikken), saker inn og ut per uke, hva som virker (betalt innen 7/14 dager etter telefon, e-post og automatisk purre-SMS), aktivitet per person og uke, og faste sene betalere. Velg periode øverst. Klikk på en sen betaler for å åpne kunden." ]
+}, {
  versjon: "v1.48.292",
  dato: "13.10.2026",
  punkter: [ "Min arbeidsliste: kunder under minstebeløpet kommer nå på lista når eldste faktura er forfalt et visst antall dager (standard 15). Antall dager settes under ⚙️ Innstillinger («Under minstebeløp: ta med etter (dager)»), og 0 slår regelen av." ]
@@ -18267,7 +18271,7 @@ let foPanelMap = {};
 
 try {
  const v = localStorage.getItem("kbdcc_fo_visning");
- if (v === "alle" || v === "arbeidsliste" || v === "ikkeavstemt") foVisning = v;
+ if (v === "alle" || v === "arbeidsliste" || v === "ikkeavstemt" || v === "rapport") foVisning = v;
  const g = localStorage.getItem("kbdcc_fo_grupper");
  if (g === "0") foGrupper = false;
 } catch (e) {}
@@ -18527,7 +18531,7 @@ function iaFiltrerte() {
 function iaVisningsknapper() {
  const knapp = (v, txt) => `<button class="btn-sm" onclick="setFoVisning('${v}')" style="${foVisning === v ? "background:#1A3A6B;color:#fff;border-color:#1A3A6B;font-weight:600" : ""}">${txt}</button>`;
  const n = [ ...iaKundeMap.values() ].filter(k => k.status !== "Avklart").length;
- return knapp("arbeidsliste", "📋 Min arbeidsliste") + knapp("alle", "🧾 Alle fakturaer") + knapp("ikkeavstemt", `🧮 Ikke avstemt i Visma${n ? ` <span style="background:#f59e0b;color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:2px">${n}</span>` : ""}`);
+ return knapp("arbeidsliste", "📋 Min arbeidsliste") + knapp("alle", "🧾 Alle fakturaer") + knapp("ikkeavstemt", `🧮 Ikke avstemt i Visma${n ? ` <span style="background:#f59e0b;color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:2px">${n}</span>` : ""}`) + (userRole === "admin" ? knapp("rapport", "📊 Rapport") : "");
 }
 
 function renderIkkeAvstemt() {
@@ -19864,17 +19868,23 @@ function renderFakturaoppfolging() {
   return `<button class="fpill${foBucket === "alle" ? "" : on ? " f-on" : " f-off"}" style="${on ? `border-color:${c}` : ""}" onclick="setFoBucket('${k}')">\n        <span class="fpill-dot" style="background:${on || foBucket === "alle" ? c : "#d0d5dd"}"></span>\n        <span style="color:${on || foBucket === "alle" ? c : "#9ca3af"};font-weight:600">${AGING_LABELS[i]}</span>\n      </button>`;
  }).join("");
  foOppdaterNavBadge();
- const iaVis = foVisning === "ikkeavstemt";
+ if (foVisning === "rapport" && userRole !== "admin") foVisning = "arbeidsliste";
+ const rapVis = foVisning === "rapport";
+ const iaVis = foVisning === "ikkeavstemt" || rapVis;
  [ [ "fo-bucket-filters", "flex" ], [ "fo-status-filter", "" ], [ "fo-bucket-sum", "" ] ].forEach(([id, vis]) => {
   const el = document.getElementById(id);
   if (el) el.style.display = iaVis ? "none" : vis;
  });
+ {
+  const sk = document.getElementById("fo-search");
+  if (sk) sk.style.display = rapVis ? "none" : "";
+ }
  if (iaVis) {
   [ "fo-lbl-kunforfalte", "fo-lbl-visbetalte" ].forEach(id => {
    const el = document.getElementById(id);
    if (el) el.style.display = "none";
   });
-  renderIkkeAvstemt();
+  rapVis ? foRapRender() : renderIkkeAvstemt();
   return;
  }
  const arb = foVisning === "arbeidsliste";
@@ -20197,6 +20207,388 @@ function lagreFoOppfolging(key, opts = {}) {
   setSPStatus("❌ " + e.message, false);
   alert("⚠️ Lagring til SharePoint feilet:\n" + e.message);
  });
+}
+
+let foRapPeriode = "90", foRapStat = null, foRapStatLaster = false;
+
+try {
+ const p = localStorage.getItem("kbdcc_fo_rapport_periode");
+ if ([ "28", "90", "180", "alle" ].includes(p)) foRapPeriode = p;
+} catch (e) {}
+
+function setFoRapPeriode(p) {
+ foRapPeriode = p;
+ try {
+  localStorage.setItem("kbdcc_fo_rapport_periode", p);
+ } catch (e) {}
+ renderFakturaoppfolging();
+}
+
+const FO_RAP_DAG = 864e5;
+
+function foRapDato(s) {
+ if (!s) return null;
+ const d = new Date(s);
+ return isNaN(d) ? null : d;
+}
+
+function foRapFra() {
+ if (foRapPeriode === "alle") return new Date(2e3, 0, 1);
+ const d = new Date;
+ d.setHours(0, 0, 0, 0);
+ d.setDate(d.getDate() - parseInt(foRapPeriode));
+ return d;
+}
+
+function foRapUke(d) {
+ const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+ const n = t.getUTCDay() || 7;
+ t.setUTCDate(t.getUTCDate() + 4 - n);
+ const y = t.getUTCFullYear();
+ const w = Math.ceil(((t - Date.UTC(y, 0, 1)) / FO_RAP_DAG + 1) / 7);
+ return `${y}-U${String(w).padStart(2, "0")}`;
+}
+
+function foRapMnd(d) {
+ return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+const FO_RAP_MND = [ "jan", "feb", "mar", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "des" ];
+
+function foRapMndNavn(k) {
+ const [y, m] = k.split("-");
+ return `${FO_RAP_MND[parseInt(m) - 1]} ${y}`;
+}
+
+function foRapPst(a, b) {
+ return b ? Math.round(100 * a / b) + " %" : "—";
+}
+
+async function foRapLastStatistikk() {
+ if (foRapStat || foRapStatLaster) return;
+ foRapStatLaster = true;
+ try {
+  const items = await spGetItems("FakturaoppfolgingStatistikk");
+  foRapStat = items.map(i => {
+   let d = {};
+   try {
+    d = JSON.parse(i.fields.Data || "{}");
+   } catch (e) {}
+   return {
+    dato: String(i.fields.Title || i.fields.Dato || "").slice(0, 10),
+    ...d
+   };
+  }).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x.dato)).sort((a, b) => a.dato.localeCompare(b.dato));
+ } catch (e) {
+  console.warn("FakturaoppfolgingStatistikk kunne ikke leses:", e);
+  foRapStat = [];
+ }
+ foRapStatLaster = false;
+ if (foVisning === "rapport") renderFakturaoppfolging();
+}
+
+function foRapGrunnlag() {
+ const fMap = new Map(fakturaoppfolging.map(f => [ f.fakturanr, f ]));
+ const smsNr = new Map(fakturaoppfolging.map(f => [ foNormFakturanr(f.fakturanr), f.fakturanr ]));
+ const kontakter = [], sett = new Set;
+ fakturaoppfolgingLogg.forEach(l => {
+  if (!l.dato || l.type === "Status" || l.kilde === "Automatisk") return;
+  const d = foRapDato(l.dato);
+  if (!d) return;
+  const t = l.type === "Telefon" ? "📞 Telefon" : l.type === "E-post" ? "✉️ E-post" : l.type === "SMS" ? "💬 SMS (manuell)" : "📝 Annet";
+  const k = [ l.fakturanr, t, d.toDateString() ].join("|");
+  if (sett.has(k)) return;
+  sett.add(k);
+  kontakter.push({
+   fakturanr: l.fakturanr,
+   type: t,
+   dato: d,
+   av: l.skrevetAv || "—",
+   manuell: true
+  });
+ });
+ (typeof smsPurringSendt !== "undefined" ? smsPurringSendt : []).forEach(x => {
+  const d = foRapDato(x.sendtDato);
+  if (!d) return;
+  const nr = smsNr.get(foNormFakturanr(x.fakturanummer)) || x.fakturanummer;
+  const k = [ nr, "auto", d.toDateString() ].join("|");
+  if (sett.has(k)) return;
+  sett.add(k);
+  kontakter.push({
+   fakturanr: nr,
+   type: "🤖 Purre-SMS (automatisk)",
+   dato: d,
+   av: "Purring-SMS",
+   manuell: false
+  });
+ });
+ const statusEndr = fakturaoppfolgingLogg.filter(l => l.type === "Status" && l.dato).map(l => ({
+  dato: foRapDato(l.dato),
+  av: l.skrevetAv || "—",
+  fakturanr: l.fakturanr
+ })).filter(x => x.dato);
+ return {
+  fMap: fMap,
+  kontakter: kontakter,
+  statusEndr: statusEndr
+ };
+}
+
+function foRapRender() {
+ const barEl = document.getElementById("fo-visning-bar"), target = document.getElementById("fo-tabell");
+ if (barEl) {
+  const p = (v, t) => `<button class="btn-sm" onclick="setFoRapPeriode('${v}')" style="${foRapPeriode === v ? "background:#ede9fe;border-color:#7c3aed;color:#5b21b6;font-weight:600" : ""}">${t}</button>`;
+  barEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">\n      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${iaVisningsknapper()}</div>\n      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:12px;color:#6b7280">Periode:</span>${p("28", "4 uker")}${p("90", "3 mnd")}${p("180", "6 mnd")}${p("alle", "Alt")}</div>\n      <div style="font-size:11px;color:#6b7280;margin-top:6px;width:100%">Bare for administrator. Betalingsdato registreres fra 10.09.2026 (når synken så at fakturaen var betalt), og den daglige statistikken fra 13.10.2026, så tallene blir sikrere for hver uke. «Betalt etter kontakt» viser at kunden betalte etter kontakten, ikke nødvendigvis på grunn av den.</div>\n    </div>`;
+ }
+ if (!target) return;
+ if (userRole !== "admin") {
+  target.innerHTML = '<div class="empty">Rapporten er bare tilgjengelig for administrator.</div>';
+  return;
+ }
+ if (!foRapStat) {
+  target.innerHTML = '<div class="empty">⏳ Henter statistikk…</div>';
+  foRapLastStatistikk();
+  return;
+ }
+ const fra = foRapFra(), naa = new Date;
+ const {fMap: fMap, kontakter: kontakter, statusEndr: statusEndr} = foRapGrunnlag();
+ const kIP = kontakter.filter(k => k.dato >= fra);
+ const kort = (t, v, sub, farge) => `<div class="kpi" style="margin:0"><div class="kpi-lbl">${t}</div><div style="font-size:22px;font-weight:700${farge ? ";color:" + farge : ""}">${v}</div>${sub ? `<div class="kpi-sub">${sub}</div>` : ""}</div>`;
+ const seksjon = (tittel, forkl, innhold) => `<div class="card" style="margin:0 0 16px;padding:16px 18px"><div style="font-size:15px;font-weight:700;margin-bottom:2px">${tittel}</div>${forkl ? `<div style="font-size:12px;color:#6b7280;margin-bottom:12px">${forkl}</div>` : ""}${innhold}</div>`;
+ const tabell = (hode, rader, tom) => rader.length ? `<div class="tbl-wrap"><table style="font-size:13px"><thead><tr>${hode.map(h => `<th${h.startsWith(">") ? ' class="tr"' : ""}>${h.replace(/^>/, "")}</th>`).join("")}</tr></thead><tbody>${rader.join("")}</tbody></table></div>` : `<div class="empty" style="padding:10px 0">${tom || "Ingen data i perioden."}</div>`;
+ const bar = (v, maks, farge) => `<div style="background:#f1f5f9;border-radius:4px;height:8px;min-width:80px"><div style="background:${farge || "#1A3A6B"};height:8px;border-radius:4px;width:${maks ? Math.min(100, Math.round(100 * v / maks)) : 0}%"></div></div>`;
+ const ut = [];
+ const mndSet = new Map;
+ const kostFra = mnd => {
+  const r = (foRapStat || []).filter(s => s.dato.startsWith(mnd) && s.kostnadPerMnd != null);
+  return r.length ? r[r.length - 1].kostnadPerMnd : foInnst.kostnadPerMnd || null;
+ };
+ const kontaktPerFaktura = new Map;
+ kontakter.filter(k => k.manuell).forEach(k => {
+  if (!kontaktPerFaktura.has(k.fakturanr)) kontaktPerFaktura.set(k.fakturanr, []);
+  kontaktPerFaktura.get(k.fakturanr).push(k.dato);
+ });
+ fakturaoppfolging.forEach(f => {
+  const b = foRapDato(f.betaltDato);
+  if (!b || b < fra) return;
+  const forf = parseLD(f.forfallsdato);
+  if (!forf || b <= forf) return;
+  const m = foRapMnd(b);
+  if (!mndSet.has(m)) mndSet.set(m, {
+   betaltForfalt: 0,
+   betaltEtterKontakt: 0,
+   antEtterKontakt: 0,
+   antForfalt: 0
+  });
+  const o = mndSet.get(m);
+  const bel = f.utestaende || f.belop || 0;
+  o.betaltForfalt += bel;
+  o.antForfalt++;
+  const ks = kontaktPerFaktura.get(f.fakturanr) || [];
+  if (ks.some(d => d <= b && b - d <= 30 * FO_RAP_DAG)) {
+   o.betaltEtterKontakt += bel;
+   o.antEtterKontakt++;
+  }
+ });
+ const mnder = [ ...mndSet.keys() ].sort();
+ const sumKost = mnder.reduce((s, m) => s + (kostFra(m) || 0), 0), sumKontakt = mnder.reduce((s, m) => s + mndSet.get(m).betaltEtterKontakt, 0), sumForf = mnder.reduce((s, m) => s + mndSet.get(m).betaltForfalt, 0);
+ ut.push(seksjon("💰 Kostnad og innkrevd beløp per måned", "Forfalte fakturaer som ble betalt i måneden, og hvor mye av det som ble betalt innen 30 dager etter en manuell kontakt (telefon, e-post, manuell SMS). Kostnad = «Kostnad oppfølging per mnd» fra ⚙️, slik den sto i den daglige statistikken den måneden.", `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">${kort("Kostnad i perioden", sumKost ? fF(sumKost) : "—", foInnst.kostnadPerMnd ? fF(foInnst.kostnadPerMnd) + " per mnd" : "Sett kostnad under ⚙️")}${kort("Betalt etter kontakt", fF(sumKontakt), `av ${fF(sumForf)} forfalt som ble betalt`, "#166534")}${kort("Andel etter kontakt", foRapPst(sumKontakt, sumForf), "av forfalt beløp som ble betalt")}${kort("Kostnad per innkrevd krone", sumKost && sumKontakt ? (sumKost / sumKontakt).toLocaleString("nb-NO", {
+  maximumFractionDigits: 2
+ }) + " kr" : "—", "lavere er bedre")}</div>` + tabell([ "Måned", ">Kostnad", ">Forfalt betalt", ">Betalt etter kontakt", ">Fakturaer etter kontakt", ">Kostnad per kr" ], mnder.slice().reverse().map(m => {
+  const o = mndSet.get(m), k = kostFra(m);
+  return `<tr><td>${foRapMndNavn(m)}</td><td class="tr">${k ? fF(k) : "—"}</td><td class="tr">${fF(o.betaltForfalt)}</td><td class="tr" style="color:#166534;font-weight:600">${fF(o.betaltEtterKontakt)}</td><td class="tr">${o.antEtterKontakt} av ${o.antForfalt}</td><td class="tr">${k && o.betaltEtterKontakt ? (k / o.betaltEtterKontakt).toLocaleString("nb-NO", {
+   maximumFractionDigits: 2
+  }) : "—"}</td></tr>`;
+ }), "Ingen forfalte fakturaer betalt i perioden ennå.")));
+ const uker = new Map;
+ const u = k => {
+  if (!uker.has(k)) uker.set(k, {
+   inn: 0,
+   innSum: 0,
+   ut: 0,
+   utSum: 0
+  });
+  return uker.get(k);
+ };
+ fakturaoppfolging.forEach(f => {
+  const forf = parseLD(f.forfallsdato), b = foRapDato(f.betaltDato), bel = f.utestaende || f.belop || 0;
+  if (forf && forf >= fra && forf <= naa) {
+   const o = u(foRapUke(forf));
+   o.inn++;
+   o.innSum += bel;
+  }
+  if (b && b >= fra && forf && b > forf) {
+   const o = u(foRapUke(b));
+   o.ut++;
+   o.utSum += bel;
+  }
+ });
+ const ukeListe = [ ...uker.keys() ].sort().reverse();
+ const stat = (foRapStat || []).filter(s => new Date(s.dato) >= fra);
+ const sist = stat[stat.length - 1], forst = stat[0];
+ const utv = sist ? `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">${kort("Kunder på arbeidslista", sist.arbeidslisteKunder ?? "—", forst && forst !== sist ? `${sist.arbeidslisteKunder - forst.arbeidslisteKunder >= 0 ? "+" : ""}${sist.arbeidslisteKunder - forst.arbeidslisteKunder} siden ${fDateShort(forst.dato)}` : `per ${fDateShort(sist.dato)}`)}${kort("Forfalt", fF(sist.sumForfalt || 0), forst && forst !== sist ? `${sist.sumForfalt - forst.sumForfalt >= 0 ? "+" : ""}${fF(sist.sumForfalt - forst.sumForfalt)}` : "", "#dc2626")}${kort("Over 90 dager", fF(sist.sumOver90 || 0), `${sist.antallOver90 ?? "—"} fakturaer`)}${kort("Sendt til inkasso", fF(sist.sumInkasso || 0), `${sist.antallInkasso ?? "—"} fakturaer`)}</div>${stat.length > 1 ? '<div style="position:relative;height:220px;margin-bottom:12px"><canvas id="fo-rap-trend"></canvas></div>' : '<div style="font-size:12px;color:#6b7280;margin-bottom:10px">Kurven vises når det finnes statistikk for minst to dager.</div>'}` : '<div style="font-size:12px;color:#6b7280;margin-bottom:10px">Ingen daglig statistikk i perioden ennå (samles fra 13.10.2026).</div>';
+ const maksUke = Math.max(1, ...ukeListe.map(k => Math.max(uker.get(k).inn, uker.get(k).ut)));
+ ut.push(seksjon("📈 Utvikling og saker inn/ut", "«Ble forfalt» = fakturaer med forfall i uka. «Betalt etter forfall» = forfalte fakturaer som ble betalt i uka. Når «betalt» over tid er like stort eller større enn «forfalt», og arbeidslista holder seg lav, er det tegn på at oppfølgingen kan trappes ned.", utv + tabell([ "Uke", "Ble forfalt", ">Beløp", "Betalt etter forfall", ">Beløp" ], ukeListe.map(k => {
+  const o = uker.get(k);
+  return `<tr><td>${k.replace("-U", " uke ")}</td><td><div style="display:flex;gap:8px;align-items:center"><span style="min-width:24px">${o.inn}</span>${bar(o.inn, maksUke, "#f59e0b")}</div></td><td class="tr">${fF(o.innSum)}</td><td><div style="display:flex;gap:8px;align-items:center"><span style="min-width:24px">${o.ut}</span>${bar(o.ut, maksUke, "#16a34a")}</div></td><td class="tr">${fF(o.utSum)}</td></tr>`;
+ }))));
+ const typer = new Map;
+ kIP.forEach(k => {
+  const f = fMap.get(k.fakturanr);
+  if (!f) return;
+  const b = foRapDato(f.betaltDato);
+  if (b && b < k.dato) return;
+  if (!typer.has(k.type)) typer.set(k.type, {
+   n: 0,
+   n7: 0,
+   b7: 0,
+   n14: 0,
+   b14: 0,
+   sum14: 0
+  });
+  const o = typer.get(k.type);
+  o.n++;
+  const alder = (naa - k.dato) / FO_RAP_DAG;
+  if (alder >= 7) {
+   o.n7++;
+   if (b && b - k.dato <= 7 * FO_RAP_DAG) o.b7++;
+  }
+  if (alder >= 14) {
+   o.n14++;
+   if (b && b - k.dato <= 14 * FO_RAP_DAG) {
+    o.b14++;
+    o.sum14 += f.utestaende || f.belop || 0;
+   }
+  }
+ });
+ const typeRader = [ ...typer.entries() ].sort((a, b) => b[1].n - a[1].n);
+ ut.push(seksjon("🎯 Hva virker?", "For hver kontakt på en ubetalt faktura: ble fakturaen betalt innen 7 / 14 dager etter? Bare kontakter som er minst 7 / 14 dager gamle telles i prosenten. Sammenlign manuell kontakt med automatisk purre-SMS.", tabell([ "Type kontakt", ">Antall", ">Betalt innen 7 d", ">Betalt innen 14 d", ">Beløp innen 14 d" ], typeRader.map(([t, o]) => `<tr><td>${t}</td><td class="tr">${o.n}</td><td class="tr">${foRapPst(o.b7, o.n7)} <span style="color:#9ca3af;font-size:11px">(${o.b7}/${o.n7})</span></td><td class="tr" style="font-weight:600">${foRapPst(o.b14, o.n14)} <span style="color:#9ca3af;font-size:11px;font-weight:400">(${o.b14}/${o.n14})</span></td><td class="tr">${fF(o.sum14)}</td></tr>`), "Ingen kontakter i perioden.")));
+ const akt = new Map;
+ kIP.filter(k => k.manuell).forEach(k => {
+  const key = foRapUke(k.dato) + "|" + k.av;
+  if (!akt.has(key)) akt.set(key, {
+   uke: foRapUke(k.dato),
+   av: k.av,
+   n: 0,
+   tlf: 0,
+   ep: 0,
+   ann: 0,
+   kunder: new Set,
+   status: 0
+  });
+  const o = akt.get(key);
+  o.n++;
+  if (k.type.includes("Telefon")) o.tlf++; else if (k.type.includes("E-post")) o.ep++; else o.ann++;
+  const f = fMap.get(k.fakturanr);
+  if (f) o.kunder.add(f.kundenr);
+ });
+ statusEndr.filter(s => s.dato >= fra).forEach(s => {
+  const key = foRapUke(s.dato) + "|" + s.av;
+  if (!akt.has(key)) akt.set(key, {
+   uke: foRapUke(s.dato),
+   av: s.av,
+   n: 0,
+   tlf: 0,
+   ep: 0,
+   ann: 0,
+   kunder: new Set,
+   status: 0
+  });
+  akt.get(key).status++;
+ });
+ const aktRader = [ ...akt.values() ].sort((a, b) => b.uke.localeCompare(a.uke) || b.n - a.n);
+ ut.push(seksjon("👤 Aktivitet per person og uke", "Manuelle henvendelser fra oppfølgingsloggen (purre-SMS er ikke med). Statusendringer logges fra v1.48.290 (13.10.2026).", tabell([ "Uke", "Person", ">Henvendelser", ">📞", ">✉️", ">Annet", ">Kunder", ">Statusendringer" ], aktRader.map(o => `<tr><td>${o.uke.replace("-U", " uke ")}</td><td>${iaEsc(o.av)}</td><td class="tr" style="font-weight:600">${o.n}</td><td class="tr">${o.tlf}</td><td class="tr">${o.ep}</td><td class="tr">${o.ann}</td><td class="tr">${o.kunder.size}</td><td class="tr">${o.status}</td></tr>`))));
+ const kunder = new Map;
+ fakturaoppfolging.forEach(f => {
+  const b = foRapDato(f.betaltDato), forf = parseLD(f.forfallsdato);
+  if (!b || !forf) return;
+  const k = String(f.kundenr || "").trim();
+  if (!k) return;
+  if (!kunder.has(k)) kunder.set(k, {
+   kundenr: k,
+   navn: f.kundenavn,
+   n: 0,
+   sumDager: 0,
+   over14: 0,
+   purret: 0
+  });
+  const o = kunder.get(k);
+  const dager = Math.max(0, Math.round((b - forf) / FO_RAP_DAG));
+  o.n++;
+  o.sumDager += dager;
+  if (dager > 14) o.over14++;
+  if (kontakter.some(x => x.fakturanr === f.fakturanr && x.dato <= b)) o.purret++;
+ });
+ const apne = new Map;
+ fakturaoppfolging.filter(f => !f.betaltDato && foDagerForfalt(f) > 0).forEach(f => {
+  const k = String(f.kundenr || "").trim();
+  apne.set(k, (apne.get(k) || 0) + (f.utestaende || 0));
+ });
+ const sene = [ ...kunder.values() ].filter(o => o.n >= 2 && o.sumDager / o.n > 7).sort((a, b) => b.sumDager / b.n - a.sumDager / a.n).slice(0, 20);
+ ut.push(seksjon("🐢 Faste sene betalere", "Kunder med minst 2 betalte fakturaer som i snitt betaler mer enn 7 dager etter forfall (alle data fra 10.09.2026, uavhengig av periodevalget). Kandidater for autogiro/eFaktura, kortere betalingsfrist eller forskudd.", tabell([ "Kunde", ">Betalte fakturaer", ">Snitt dager etter forfall", ">Over 14 dager", ">Måtte purres", ">Forfalt nå" ], sene.map(o => `<tr style="cursor:pointer" onclick="agApneKunde('${iaJs(o.kundenr)}')" title="Åpne kunden i Fakturaoppfølging"><td>${iaEsc(o.navn)}<div style="font-size:11px;color:#9ca3af">Kundenr ${iaEsc(o.kundenr)}</div></td><td class="tr">${o.n}</td><td class="tr" style="font-weight:600;color:${o.sumDager / o.n > 30 ? "#dc2626" : "#b45309"}">${Math.round(o.sumDager / o.n)}</td><td class="tr">${o.over14}</td><td class="tr">${o.purret}</td><td class="tr">${apne.get(o.kundenr) ? fF(apne.get(o.kundenr)) : "—"}</td></tr>`), "Ingen kunder med fast sen betaling ennå (krever minst 2 betalte fakturaer per kunde).")));
+ target.innerHTML = ut.join("");
+ const c = document.getElementById("fo-rap-trend");
+ if (c && typeof Chart !== "undefined") {
+  if (typeof charts !== "undefined" && charts["foRapTrend"]) charts["foRapTrend"].destroy();
+  const g = new Chart(c.getContext("2d"), {
+   type: "line",
+   data: {
+    labels: stat.map(s => fDateShort(s.dato)),
+    datasets: [ {
+     label: "Forfalt (kr)",
+     data: stat.map(s => Math.round(s.sumForfalt || 0)),
+     borderColor: "#dc2626",
+     backgroundColor: "#dc2626",
+     yAxisID: "y",
+     tension: .2
+    }, {
+     label: "Over 90 dager (kr)",
+     data: stat.map(s => Math.round(s.sumOver90 || 0)),
+     borderColor: "#7f1d1d",
+     backgroundColor: "#7f1d1d",
+     borderDash: [ 5, 4 ],
+     yAxisID: "y",
+     tension: .2
+    }, {
+     label: "Kunder på arbeidslista",
+     data: stat.map(s => s.arbeidslisteKunder ?? null),
+     borderColor: "#1A3A6B",
+     backgroundColor: "#1A3A6B",
+     yAxisID: "y1",
+     tension: .2
+    } ]
+   },
+   options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+     mode: "index",
+     intersect: false
+    },
+    plugins: {
+     legend: {
+      position: "bottom"
+     }
+    },
+    scales: {
+     y: {
+      position: "left",
+      ticks: {
+       callback: v => v.toLocaleString("nb-NO")
+      }
+     },
+     y1: {
+      position: "right",
+      grid: {
+       drawOnChartArea: false
+      },
+      beginAtZero: true
+     }
+    }
+   }
+  });
+  if (typeof charts !== "undefined") charts["foRapTrend"] = g;
+ }
 }
 
 let agingPeriode = "12";
