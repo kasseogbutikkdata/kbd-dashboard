@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.291 · Oppdatert: 13. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.292 · Oppdatert: 13. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.292",
+ dato: "13.10.2026",
+ punkter: [ "Min arbeidsliste: kunder under minstebeløpet kommer nå på lista når eldste faktura er forfalt et visst antall dager (standard 15). Antall dager settes under ⚙️ Innstillinger («Under minstebeløp: ta med etter (dager)»), og 0 slår regelen av." ]
+}, {
  versjon: "v1.48.291",
  dato: "13.10.2026",
  punkter: [ "Aldersfordelt, før/etter-analysen (admin): oppfølgingskostnaden i perioden regnes nå ut fra kostnaden per måned som er lagt inn under ⚙️ i Fakturaoppfølging, i stedet for et fast beløp." ]
@@ -18255,7 +18259,8 @@ let foInnst = {
  minBelop: 500,
  minDager: 7,
  nyeSakerTil: "",
- kostnadPerMnd: null
+ kostnadPerMnd: null,
+ smaDager: 15
 }, foInnstSpId = null;
 
 let foPanelMap = {};
@@ -18303,11 +18308,13 @@ async function foLastInnstillinger() {
    foInnstSpId = items[0].id;
    const b = parseFloat(f.MinBelop), d = parseInt(f.MinDager);
    const kp = parseFloat(f.KostnadPerMnd);
+   const sd = parseInt(f.MinDagerSmaBelop);
    foInnst = {
     minBelop: isNaN(b) ? 500 : b,
     minDager: isNaN(d) ? 7 : d,
     nyeSakerTil: f.NyeSakerTil || "",
-    kostnadPerMnd: isNaN(kp) ? null : kp
+    kostnadPerMnd: isNaN(kp) ? null : kp,
+    smaDager: isNaN(sd) ? 15 : sd
    };
    renderFakturaoppfolging();
   }
@@ -18334,11 +18341,18 @@ async function lagreFoInnstillinger() {
   alert("Kostnad per måned må være et tall (eller tomt).");
   return;
  }
+ const sRaa = (document.getElementById("fo-innst-smadager")?.value || "").trim();
+ const sd = sRaa === "" ? 0 : parseInt(sRaa);
+ if (isNaN(sd) || sd < 0) {
+  alert("Antall dager for små beløp må være 0 eller mer (0 = av).");
+  return;
+ }
  foInnst = {
   minBelop: b,
   minDager: d,
   nyeSakerTil: til,
-  kostnadPerMnd: kp
+  kostnadPerMnd: kp,
+  smaDager: sd
  };
  renderFakturaoppfolging();
  const felter = {
@@ -18346,7 +18360,8 @@ async function lagreFoInnstillinger() {
   MinBelop: b,
   MinDager: d,
   NyeSakerTil: til,
-  KostnadPerMnd: kp
+  KostnadPerMnd: kp,
+  MinDagerSmaBelop: sd
  };
  setSPStatus("⏳ Lagrer…");
  const skriv = async ff => {
@@ -18361,10 +18376,10 @@ async function lagreFoInnstillinger() {
   try {
    await skriv(felter);
   } catch (e1) {
-   const {KostnadPerMnd: KostnadPerMnd, ...uten} = felter;
+   const {KostnadPerMnd: KostnadPerMnd, MinDagerSmaBelop: MinDagerSmaBelop, ...uten} = felter;
    await skriv(uten);
    console.warn("KostnadPerMnd kunne ikke lagres:", e1);
-   alert("ℹ️ Tersklene er lagret, men ikke kostnaden per måned. Er kolonnen «KostnadPerMnd» (Tall) opprettet på lista FakturaoppfolgingInnstillinger?");
+   alert("ℹ️ Minstebeløp, dager og mottaker er lagret, men ikke kostnaden per måned og/eller dager for små beløp. Er kolonnene «KostnadPerMnd» og «MinDagerSmaBelop» (Tall) opprettet på lista FakturaoppfolgingInnstillinger?");
   }
   setSPStatus("✅ Lagret");
   setTimeout(() => setSPStatus(""), 3e3);
@@ -19067,14 +19082,14 @@ function foNesteForfalt(f) {
 }
 
 function foKvalifiserer(f) {
- return foArbeidsGrunnlag(f) && (foNesteForfalt(f) || foDagerForfalt(f) >= foInnst.minDager && (f.utestaende || 0) >= foInnst.minBelop);
+ return foArbeidsGrunnlag(f) && (foNesteForfalt(f) || foDagerForfalt(f) >= foInnst.minDager && (f.utestaende || 0) >= foInnst.minBelop || foInnst.smaDager > 0 && foDagerForfalt(f) >= foInnst.smaDager);
 }
 
 function foGruppeKvalifiserer(fs) {
  if (fs.some(foNesteForfalt)) return true;
  const sum = fs.reduce((s, f) => s + (f.utestaende || 0), 0);
  const maks = Math.max(0, ...fs.map(foDagerForfalt));
- return sum >= foInnst.minBelop && maks >= foInnst.minDager;
+ return sum >= foInnst.minBelop && maks >= foInnst.minDager || foInnst.smaDager > 0 && maks >= foInnst.smaDager;
 }
 
 function foGrupperPerKunde(rader) {
@@ -19896,12 +19911,12 @@ function renderFakturaoppfolging() {
   const knapp = (v, txt) => `<button class="btn-sm" onclick="setFoVisning('${v}')" style="${foVisning === v ? "background:#1A3A6B;color:#fff;border-color:#1A3A6B;font-weight:600" : ""}">${txt}</button>`;
   const enhet = foGrupper ? visRader.length === 1 ? "kunde" : "kunder" : visRader.length === 1 ? "faktura" : "fakturaer";
   const teller = arb ? `<span style="font-size:14px;color:#111"><b style="font-size:18px;color:#dc2626">${visRader.length}</b> ${enhet} å følge opp i dag · ${fF(sumVis)}${foGrupper ? ` <span style="color:#6b7280;font-size:12px">(${antFakt} fakturaer)</span>` : ""}</span>` : `<span style="font-size:13px;color:#6b7280">${visRader.length} ${enhet}${foGrupper ? ` (${antFakt} fakturaer)` : ""} · ${fF(sumVis)}</span>`;
-  const regel = arb ? `<div style="font-size:11px;color:#6b7280;margin-top:6px;width:100%">Listen viser ${foGrupper ? "kunder med" : "fakturaer med"} minst <b>${fF(foInnst.minBelop)}</b> utestående${foGrupper ? " (samlet)" : ""} og minst <b>${foInnst.minDager} dager</b> forfalt, pluss alt med neste oppfølging i dag eller tidligere. Ikke med: neste oppfølging fram i tid, «Sendt til inkasso» og kunder med kreditnota/innbetaling som ikke er avstemt i Visma (se 🧮). Mindre beløp tas av purring-SMS.</div>${(() => {
+  const regel = arb ? `<div style="font-size:11px;color:#6b7280;margin-top:6px;width:100%">Listen viser ${foGrupper ? "kunder med" : "fakturaer med"} minst <b>${fF(foInnst.minBelop)}</b> utestående${foGrupper ? " (samlet)" : ""} og minst <b>${foInnst.minDager} dager</b> forfalt, pluss alt med neste oppfølging i dag eller tidligere. Ikke med: neste oppfølging fram i tid, «Sendt til inkasso» og kunder med kreditnota/innbetaling som ikke er avstemt i Visma (se 🧮). ${foInnst.smaDager > 0 ? `Mindre beløp tas først av purring-SMS, og kommer på lista når eldste faktura er <b>${foInnst.smaDager} dager</b> forfalt.` : "Mindre beløp tas av purring-SMS."}</div>${(() => {
    const n = [ ...iaKundeMap.values() ].filter(k => k.status !== "Avklart" && fakturaoppfolging.some(f => !f.betaltDato && String(f.kundenr || "").trim() === k.kundenr && foDagerForfalt(f) > 0)).length;
    return n ? `<div style="width:100%;margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;display:flex;gap:10px;align-items:center;flex-wrap:wrap">🧮 <span><b>${n}</b> ${n === 1 ? "kunde" : "kunder"} med forfalte fakturaer holdes utenfor fordi de har kreditnota/innbetaling som ikke er avstemt i Visma.</span> <button class="btn-sm" onclick="setFoVisning('ikkeavstemt')">Vis dem</button></div>` : "";
   })()}` : "";
   const tannhjul = userRole === "admin" ? `<button class="btn-sm" onclick="foVisInnst=!foVisInnst;renderFakturaoppfolging()" title="Terskler for arbeidslisten">⚙️ Innstillinger</button>` : "";
-  const innst = userRole === "admin" && foVisInnst ? `<div style="width:100%;margin-top:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">\n        <div class="fgrp" style="margin:0"><label>Minstebeløp utestående (kr)</label><input type="number" min="0" step="50" id="fo-innst-belop" value="${foInnst.minBelop}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Minst antall dager forfalt</label><input type="number" min="0" step="1" id="fo-innst-dager" value="${foInnst.minDager}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Varsel om nye saker går til</label><select id="fo-innst-mottaker" style="min-width:220px"><option value="">Alle med tilgang</option>${(typeof brukere !== "undefined" ? brukere : []).filter(x => x.epost).sort((x, y) => x.navn.localeCompare(y.navn)).map(x => `<option value="${x.epost}"${foLc(x.epost) === foLc(foInnst.nyeSakerTil) ? " selected" : ""}>${x.navn}${x.tilgang && x.tilgang.fakturaoppfolging ? "" : " (mangler tilgang)"}</option>`).join("")}</select></div>\n        <div class="fgrp" style="margin:0"><label>Kostnad oppfølging per mnd (kr)</label><input type="text" inputmode="numeric" id="fo-innst-kostnad" value="${foInnst.kostnadPerMnd ?? ""}" placeholder="kr eks. mva" style="width:150px" title="Fast månedskostnad for fakturaoppfølging (Mirrow). Lagres i den daglige statistikken, så rapporter kan regne kostnad mot innkrevd beløp over tid."/></div>\n        <button class="prim" onclick="lagreFoInnstillinger()">💾 Lagre innstillinger</button>\n        <span style="font-size:11px;color:#6b7280;flex-basis:100%">Gjelder arbeidslisten for alle brukere. Endres bare av administrator. Oppfølginger noen allerede har skrevet i loggen på, varsles til den som skrev sist.${foInnstSpId ? "" : " (Ikke lagret i SharePoint ennå, standardverdier brukes.)"}</span>\n      </div>` : "";
+  const innst = userRole === "admin" && foVisInnst ? `<div style="width:100%;margin-top:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">\n        <div class="fgrp" style="margin:0"><label>Minstebeløp utestående (kr)</label><input type="number" min="0" step="50" id="fo-innst-belop" value="${foInnst.minBelop}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Minst antall dager forfalt</label><input type="number" min="0" step="1" id="fo-innst-dager" value="${foInnst.minDager}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Under minstebeløp: ta med etter (dager)</label><input type="number" min="0" step="1" id="fo-innst-smadager" value="${foInnst.smaDager}" style="width:150px" title="Kunder under minstebeløpet kommer likevel på lista når eldste faktura er forfalt så mange dager. 0 = av."/></div>\n        <div class="fgrp" style="margin:0"><label>Varsel om nye saker går til</label><select id="fo-innst-mottaker" style="min-width:220px"><option value="">Alle med tilgang</option>${(typeof brukere !== "undefined" ? brukere : []).filter(x => x.epost).sort((x, y) => x.navn.localeCompare(y.navn)).map(x => `<option value="${x.epost}"${foLc(x.epost) === foLc(foInnst.nyeSakerTil) ? " selected" : ""}>${x.navn}${x.tilgang && x.tilgang.fakturaoppfolging ? "" : " (mangler tilgang)"}</option>`).join("")}</select></div>\n        <div class="fgrp" style="margin:0"><label>Kostnad oppfølging per mnd (kr)</label><input type="text" inputmode="numeric" id="fo-innst-kostnad" value="${foInnst.kostnadPerMnd ?? ""}" placeholder="kr eks. mva" style="width:150px" title="Fast månedskostnad for fakturaoppfølging (Mirrow). Lagres i den daglige statistikken, så rapporter kan regne kostnad mot innkrevd beløp over tid."/></div>\n        <button class="prim" onclick="lagreFoInnstillinger()">💾 Lagre innstillinger</button>\n        <span style="font-size:11px;color:#6b7280;flex-basis:100%">Gjelder arbeidslisten for alle brukere. Endres bare av administrator. Oppfølginger noen allerede har skrevet i loggen på, varsles til den som skrev sist.${foInnstSpId ? "" : " (Ikke lagret i SharePoint ennå, standardverdier brukes.)"}</span>\n      </div>` : "";
   barEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">\n        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">\n          ${iaVisningsknapper()}\n          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:8px"><input type="checkbox" ${foGrupper ? "checked" : ""} onchange="setFoGrupper(this.checked)"/> Grupper per kunde</label>\n          ${arb ? `<select onchange="setFoEierFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px" title="Eier = den som sist skrev i loggen">\n            <option value="alle"${foEierFilter === "alle" ? " selected" : ""}>Alle på lista (${eierTall.alle})</option>\n            <option value="mine"${foEierFilter === "mine" ? " selected" : ""}>👤 Mine oppfølginger (${eierTall.mine})</option>\n            <option value="nye"${foEierFilter === "nye" ? " selected" : ""}>🆕 Nye, ingen har tatt dem (${eierTall.nye})</option>\n          </select>` : ""}\n        </div>\n        <div style="display:flex;gap:10px;align-items:center">${teller}${tannhjul}</div>\n        ${(() => {
    const ink = fakturaoppfolging.filter(foNevnerInkasso);
    if (foInkassoFilter) return `<div style="width:100%;margin-top:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">⚠️ Viser bare fakturaer der Visma-notatet nevner inkasso/namsmann (${ink.length}). <button class="btn-sm" onclick="setFoInkassoFilter(false)">✕ Fjern filter</button>${userRole === "admin" && ink.length ? '<button class="btn-sm" onclick="foRyddInkassoAlle()">Sett alle til «Sendt til inkasso»</button>' : ""}</div>`;
