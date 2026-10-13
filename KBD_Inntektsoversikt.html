@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.287 · Oppdatert: 13. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.288 · Oppdatert: 13. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.288",
+ dato: "13.10.2026",
+ punkter: [ "Susoft-kontroll: grønne fakturaer viser nå hvorfor Visma trolig stoppet dem, som ℹ️ naturlige forskjeller: KBD fakturerer flere enheter, KBD-pris over Susofts listepris, ulik periode, delt fakturering eller annet antall på kontrakten. De står i Årsak-kolonnen, i detaljene og som egne linjer i «📊 Årsaker»." ]
+}, {
  versjon: "v1.48.287",
  dato: "13.10.2026",
  punkter: [ "Susoft-kontroll: «Godkjenn» gjør nå begge stegene som i Visma: fjerner «På vent» og trykker «Oppdater», så fakturaen blir «Åpen» og kommer med til betaling. Lykkes bare det første steget, vises fakturaen under «Må sjekkes i Visma»." ]
@@ -28370,11 +28374,52 @@ async function skGodkjenn(bilagListe) {
  renderSusoftKontroll();
 }
 
+function skNaturlig(l, f) {
+ const ut = [], n = v => v == null || v === "" || isNaN(Number(v)) ? null : Number(v), fmt = v => Number(v).toLocaleString("nb-NO", {
+  maximumFractionDigits: 2
+ });
+ if (l.arsak === "Ikke på kontrakten") return ut;
+ const kbdE = n(l.kbdEnheter), susE = n(l.susEnheter), kp = n(l.kontraktPris), liste = n(l.susListepris), inc = n(l.included), ant = n(l.susAntall);
+ if (kbdE != null && susE != null && kbdE > susE + .01) ut.push({
+  t: "KBD fakturerer flere enheter",
+  d: `${fmt(kbdE)} mot ${fmt(susE)}`
+ });
+ if (kp != null && liste != null && Math.abs(kp - liste) > .01) ut.push({
+  t: kp > liste ? "KBD-pris over Susofts listepris" : "KBD-pris under Susofts listepris",
+  d: `${fmt(kp)} mot ${fmt(liste)} kr`
+ });
+ if (n(l.kbdPeriodeMnd) && n(f.periodeMnd) && n(l.kbdPeriodeMnd) !== n(f.periodeMnd)) ut.push({
+  t: "Ulik periode",
+  d: `KBD hver ${l.kbdPeriodeMnd}. mnd, Susoft ${f.periodeMnd} mnd`
+ });
+ if (String(l.kobling || "").includes("annen kontrakt")) ut.push({
+  t: "Delt fakturering",
+  d: `på kontrakt ${l.fraKontrakt}`
+ });
+ if (!ut.length && inc != null && ant != null && Math.abs(inc - ant) > .01) ut.push({
+  t: "Annet antall på kontrakten",
+  d: `${fmt(inc)} mot ${fmt(ant)}`
+ });
+ return ut;
+}
+
+function skNaturligFaktura(f) {
+ const ut = [];
+ (f.linjer || []).forEach(l => skNaturlig(l, f).forEach(x => ut.push({
+  ...x,
+  tekst: l.tekst
+ })));
+ return ut;
+}
+
 function skDetaljHtml(f) {
- const arsaker = (f.arsaker || []).length ? `<ul style="margin:6px 0 10px 18px;padding:0">${f.arsaker.map(a => `<li>${escHtmlEpost(a)}</li>`).join("")}</ul>` : '<div class="hint" style="margin:6px 0 10px">Ingen avvik funnet.</div>';
+ const arsaker = (f.arsaker || []).length ? `<ul style="margin:6px 0 10px 18px;padding:0">${f.arsaker.map(a => `<li>${escHtmlEpost(a)}</li>`).join("")}</ul>` : (() => {
+  const nat = skNaturligFaktura(f);
+  return nat.length ? `<div style="margin:6px 0 10px;font-size:12.5px;color:#374151"><strong>Ingen avvik etter KBDs regel.</strong> Visma stoppet den trolig på grunn av naturlige forskjeller:<ul style="margin:4px 0 0 18px;padding:0">${nat.map(x => `<li>ℹ️ ${escHtmlEpost(x.t)}: «${escHtmlEpost(x.tekst)}» (${escHtmlEpost(x.d)})</li>`).join("")}</ul></div>` : '<div class="hint" style="margin:6px 0 10px">Ingen avvik funnet.</div>';
+ })();
  const linjer = (f.linjer || []).map(l => {
   const domTxt = l.dom === "ROD" ? "🔴" : l.dom === "GUL" ? "🟡" : "🟢";
-  return `<tr>\n      <td>${domTxt}</td>\n      <td><strong>${escHtmlEpost(l.tekst)}</strong>${l.pno ? `<div class="muted" style="font-size:11px">${escHtmlEpost(l.pno)}</div>` : ""}</td>\n      <td class="tr">${l.susAntall}<div class="muted" style="font-size:11px">${l.susEnheter} enh.</div></td>\n      <td class="tr">${skKr(l.susPris)}<div class="muted" style="font-size:11px">liste ${skKr(l.susListepris)}</div></td>\n      <td>${l.kontraktVare ? `${escHtmlEpost(l.kontraktBeskrivelse || l.kontraktVare)}<div class="muted" style="font-size:11px">vare ${escHtmlEpost(l.kontraktVare)} · kontrakt ${escHtmlEpost(l.fraKontrakt)}${l.kobling && l.kobling !== "kryssreferanse" ? " · " + escHtmlEpost(l.kobling) : ""}</div>` : '<span style="color:#b91c1c">Ikke funnet</span>'}</td>\n      <td class="tr">${l.kontraktPris != null ? skKr(l.kontraktPris) : "—"}</td>\n      <td class="tr">${l.marginPst != null ? `<span style="color:${l.marginPst < (skData?.margingrense || 20) ? "#b91c1c" : "#374151"}">${Math.round(l.marginPst)} %</span>` : "—"}</td>\n      <td class="tr">${l.kbdEnheter != null ? `${l.kbdEnheter} enh.` : "—"}<div class="muted" style="font-size:11px">${l.kbdPeriodeMnd ? `hver ${l.kbdPeriodeMnd}. mnd` : l.kbdFakturaer ? `${l.kbdFakturaer} faktura` : "ingen fakturaer"}</div></td>\n      <td style="font-size:12px">${escHtmlEpost(l.arsak || "")}</td></tr>`;
+  return `<tr>\n      <td>${domTxt}</td>\n      <td><strong>${escHtmlEpost(l.tekst)}</strong>${l.pno ? `<div class="muted" style="font-size:11px">${escHtmlEpost(l.pno)}</div>` : ""}</td>\n      <td class="tr">${l.susAntall}<div class="muted" style="font-size:11px">${l.susEnheter} enh.</div></td>\n      <td class="tr">${skKr(l.susPris)}<div class="muted" style="font-size:11px">liste ${skKr(l.susListepris)}</div></td>\n      <td>${l.kontraktVare ? `${escHtmlEpost(l.kontraktBeskrivelse || l.kontraktVare)}<div class="muted" style="font-size:11px">vare ${escHtmlEpost(l.kontraktVare)} · kontrakt ${escHtmlEpost(l.fraKontrakt)}${l.kobling && l.kobling !== "kryssreferanse" ? " · " + escHtmlEpost(l.kobling) : ""}</div>` : '<span style="color:#b91c1c">Ikke funnet</span>'}</td>\n      <td class="tr">${l.kontraktPris != null ? skKr(l.kontraktPris) : "—"}</td>\n      <td class="tr">${l.marginPst != null ? `<span style="color:${l.marginPst < (skData?.margingrense || 20) ? "#b91c1c" : "#374151"}">${Math.round(l.marginPst)} %</span>` : "—"}</td>\n      <td class="tr">${l.kbdEnheter != null ? `${l.kbdEnheter} enh.` : "—"}<div class="muted" style="font-size:11px">${l.kbdPeriodeMnd ? `hver ${l.kbdPeriodeMnd}. mnd` : l.kbdFakturaer ? `${l.kbdFakturaer} faktura` : "ingen fakturaer"}</div></td>\n      <td style="font-size:12px">${l.arsak ? escHtmlEpost(l.arsak) : skNaturlig(l, f).map(x => `<div style="color:#6b7280">ℹ️ ${escHtmlEpost(x.t)} (${escHtmlEpost(x.d)})</div>`).join("")}</td></tr>`;
  }).join("");
  return `<div style="padding:12px 16px">\n    <div style="font-size:12.5px;color:#374151">${f.sluttkunde ? `<strong>${escHtmlEpost(f.sluttkunde)}</strong> · ` : ""}${f.periode ? `periode ${escHtmlEpost(f.periode)} (${f.periodeMnd} mnd) · ` : ""}bilag ${escHtmlEpost(f.bilag)} · fakturadato ${escHtmlEpost(f.dato || "")} · forfall ${escHtmlEpost(f.forfall || "")}</div>\n    ${arsaker}\n    <table style="font-size:12.5px;width:100%"><thead><tr><th></th><th>Susoft-linje</th><th class="tr">Antall</th><th class="tr">Susoft pris/enh.</th><th>KBD-kontrakt</th><th class="tr">KBD pris/enh.</th><th class="tr">Margin</th><th class="tr">KBD fakturerer</th><th>Avvik</th></tr></thead><tbody>${linjer || '<tr><td colspan="9" class="hint">Ingen linjer</td></tr>'}</tbody></table>\n    <div class="hint" style="margin:8px 0 0">Antall hos Susoft er enheter × måneder. Enheter = antall delt på perioden. Susoft-pris er etter Susofts rabatt.</div>\n  </div>`;
 }
@@ -28399,6 +28444,10 @@ function skArsaker(f) {
   }
   if (k && !ut.has(k)) ut.set(k, d);
  });
+ if (f.dom !== "ROD") skNaturligFaktura(f).forEach(x => {
+  const k = `${x.t}: ${x.tekst}`;
+  if (!ut.has(k)) ut.set(k, "INFO");
+ });
  return ut;
 }
 
@@ -28418,7 +28467,12 @@ function skArsakOversikt(d) {
    g.set(k, x);
   });
  });
- return [ ...g.values() ].sort((a, b) => (a.dom === b.dom ? 0 : a.dom === "ROD" ? -1 : 1) || b.n - a.n || a.k.localeCompare(b.k, "nb"));
+ const rang = {
+  ROD: 0,
+  GUL: 1,
+  INFO: 2
+ };
+ return [ ...g.values() ].sort((a, b) => rang[a.dom] - rang[b.dom] || b.n - a.n || a.k.localeCompare(b.k, "nb"));
 }
 
 function skEksporterCsv() {
@@ -28477,14 +28531,17 @@ function renderSusoftKontroll() {
   const apen = skApen === f.bilag;
   const forsteArsak = (f.arsaker || [])[0] || "";
   const flere = (f.arsaker || []).length > 1 ? ` <span class="muted">(+${f.arsaker.length - 1})</span>` : "";
-  return `<tr data-sk-bilag="${escHtmlEpost(f.bilag)}" style="cursor:pointer${apen ? ";background:#f0f4ff" : ""}" onclick="skToggle('${escHtmlEpost(f.bilag)}')">\n      ${admin ? `<td onclick="event.stopPropagation()"><input type="checkbox" ${skValgt.has(f.bilag) ? "checked" : ""} onchange="skVelg('${escHtmlEpost(f.bilag)}',this.checked)"></td>` : ""}\n      <td>${skChip(f.dom)}</td>\n      <td><strong style="color:#1A3A6B">${apen ? "▾ " : "▸ "}${escHtmlEpost(f.susoftFakturanr || "—")}</strong><div class="muted" style="font-size:11px">bilag ${escHtmlEpost(f.bilag)}</div></td>\n      <td style="min-width:180px">${escHtmlEpost(f.sluttkunde || f.kunde || "—")}${f.sluttkunde && f.kunde && f.sluttkunde.toLowerCase() !== f.kunde.toLowerCase() ? `<div class="muted" style="font-size:11px">${escHtmlEpost(f.kunde)}${f.forhandler ? " (forhandler)" : ""}</div>` : ""}</td>\n      <td>${escHtmlEpost(f.kontrakt || "—")}${f.kontraktStatus && f.kontraktStatus !== "Active" ? `<div style="font-size:11px;color:#b91c1c">${escHtmlEpost(f.kontraktStatus)}</div>` : ""}</td>\n      <td style="font-size:12px;white-space:nowrap">${escHtmlEpost(f.periode || "—")}</td>\n      <td class="tr" style="white-space:nowrap">${skKr(f.belop)}</td>\n      <td style="font-size:12.5px;min-width:220px">${forsteArsak ? escHtmlEpost(forsteArsak) + flere : '<span class="muted">Ingen avvik</span>'}</td>\n      <td style="white-space:nowrap" onclick="event.stopPropagation()">${f.harPdf ? `<button class="btn-sm" style="margin:1px" onclick="skPdf('${escHtmlEpost(f.bilag)}')">📄 PDF</button>` : ""}${admin ? `<button class="btn-sm" style="margin:1px;${f.dom === "ROD" ? "" : "background:#166534;color:#fff;border-color:#166534"}" ${skGodkjenner ? "disabled" : ""} onclick="skGodkjenn(['${escHtmlEpost(f.bilag)}'])">✓ Godkjenn</button>` : ""}</td>\n    </tr>${apen ? `<tr><td colspan="${admin ? 9 : 8}" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${skDetaljHtml(f)}</td></tr>` : ""}`;
+  return `<tr data-sk-bilag="${escHtmlEpost(f.bilag)}" style="cursor:pointer${apen ? ";background:#f0f4ff" : ""}" onclick="skToggle('${escHtmlEpost(f.bilag)}')">\n      ${admin ? `<td onclick="event.stopPropagation()"><input type="checkbox" ${skValgt.has(f.bilag) ? "checked" : ""} onchange="skVelg('${escHtmlEpost(f.bilag)}',this.checked)"></td>` : ""}\n      <td>${skChip(f.dom)}</td>\n      <td><strong style="color:#1A3A6B">${apen ? "▾ " : "▸ "}${escHtmlEpost(f.susoftFakturanr || "—")}</strong><div class="muted" style="font-size:11px">bilag ${escHtmlEpost(f.bilag)}</div></td>\n      <td style="min-width:180px">${escHtmlEpost(f.sluttkunde || f.kunde || "—")}${f.sluttkunde && f.kunde && f.sluttkunde.toLowerCase() !== f.kunde.toLowerCase() ? `<div class="muted" style="font-size:11px">${escHtmlEpost(f.kunde)}${f.forhandler ? " (forhandler)" : ""}</div>` : ""}</td>\n      <td>${escHtmlEpost(f.kontrakt || "—")}${f.kontraktStatus && f.kontraktStatus !== "Active" ? `<div style="font-size:11px;color:#b91c1c">${escHtmlEpost(f.kontraktStatus)}</div>` : ""}</td>\n      <td style="font-size:12px;white-space:nowrap">${escHtmlEpost(f.periode || "—")}</td>\n      <td class="tr" style="white-space:nowrap">${skKr(f.belop)}</td>\n      <td style="font-size:12.5px;min-width:220px">${forsteArsak ? escHtmlEpost(forsteArsak) + flere : (() => {
+   const nat = skNaturligFaktura(f);
+   return nat.length ? `<span style="color:#6b7280">ℹ️ ${escHtmlEpost(nat[0].t)}: ${escHtmlEpost(nat[0].tekst)} (${escHtmlEpost(nat[0].d)})${nat.length > 1 ? ` <span class="muted">(+${nat.length - 1})</span>` : ""}</span>` : '<span class="muted">Ingen avvik</span>';
+  })()}</td>\n      <td style="white-space:nowrap" onclick="event.stopPropagation()">${f.harPdf ? `<button class="btn-sm" style="margin:1px" onclick="skPdf('${escHtmlEpost(f.bilag)}')">📄 PDF</button>` : ""}${admin ? `<button class="btn-sm" style="margin:1px;${f.dom === "ROD" ? "" : "background:#166534;color:#fff;border-color:#166534"}" ${skGodkjenner ? "disabled" : ""} onclick="skGodkjenn(['${escHtmlEpost(f.bilag)}'])">✓ Godkjenn</button>` : ""}</td>\n    </tr>${apen ? `<tr><td colspan="${admin ? 9 : 8}" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${skDetaljHtml(f)}</td></tr>` : ""}`;
  }).join("");
  const sisteG = skSisteGodkjenning && skSisteGodkjenning.resultat.some(r => !r.ok || r.delvis) ? `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:10px 14px;font-size:12.5px;margin:0 0 10px"><strong>Må sjekkes i Visma:</strong> ${skSisteGodkjenning.resultat.filter(r => !r.ok || r.delvis).map(r => `${escHtmlEpost(r.susoftFakturanr || r.bilag)}: ${escHtmlEpost(r.melding)}`).join(" · ")}</div>` : "";
  el.innerHTML = topp + sisteG + `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px">\n      ${kpi("På vent", d.antall, "Susoft-fakturaer")}\n      ${kpi("🟢 Grønn", d.gronn, "kan godkjennes", "#166534")}\n      ${kpi("🟡 Gul", d.gul, "se på årsaken", "#854d0e")}\n      ${kpi("🔴 Rød", d.rod, "må sjekkes", d.rod ? "#b91c1c" : "#111")}\n      ${kpi("Sum på vent", skKr(Math.round(sumAlle)), "eks. mva")}\n    </div>\n    ${(() => {
   const gr = skArsakOversikt(d);
   if (!gr.length) return "";
   const vis = skArsakAlle ? gr : gr.slice(0, 10);
-  return `<div class="card" style="padding:12px 16px;margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><strong style="font-size:13px">📊 Årsaker</strong><span class="hint" style="margin:0">Antall fakturaer per årsak. Klikk for å filtrere.</span>${skArsak ? `<button class="btn-sm" style="margin-left:auto" onclick="skArsak=null;skApen=null;renderSusoftKontroll()">✕ Vis alle årsaker</button>` : ""}</div>\n        <table style="font-size:12.5px;width:100%"><tbody>${vis.map(x => `<tr style="cursor:pointer${skArsak === x.k ? ";background:#f0f4ff;font-weight:600" : ""}" onclick="skArsak=${skArsak === x.k ? "null" : `decodeURIComponent('${encodeURIComponent(x.k).replace(/'/g, "%27")}')`};skApen=null;renderSusoftKontroll()"><td style="width:22px">${x.dom === "ROD" ? "🔴" : "🟡"}</td><td>${escHtmlEpost(x.k)}</td><td class="tr" style="white-space:nowrap">${x.n} faktura${x.n === 1 ? "" : "er"}</td><td class="tr" style="white-space:nowrap;color:#6b7280">${skKr(Math.round(x.sum))}</td></tr>`).join("")}</tbody></table>\n        ${gr.length > 10 ? `<button class="btn-sm" style="margin-top:6px" onclick="skArsakAlle=!skArsakAlle;renderSusoftKontroll()">${skArsakAlle ? "Vis færre" : `Vis alle ${gr.length} årsaker`}</button>` : ""}</div>`;
+  return `<div class="card" style="padding:12px 16px;margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><strong style="font-size:13px">📊 Årsaker</strong><span class="hint" style="margin:0">Antall fakturaer per årsak. ℹ️ = naturlig forskjell, ikke avvik. Klikk for å filtrere.</span>${skArsak ? `<button class="btn-sm" style="margin-left:auto" onclick="skArsak=null;skApen=null;renderSusoftKontroll()">✕ Vis alle årsaker</button>` : ""}</div>\n        <table style="font-size:12.5px;width:100%"><tbody>${vis.map(x => `<tr style="cursor:pointer${skArsak === x.k ? ";background:#f0f4ff;font-weight:600" : ""}" onclick="skArsak=${skArsak === x.k ? "null" : `decodeURIComponent('${encodeURIComponent(x.k).replace(/'/g, "%27")}')`};skApen=null;renderSusoftKontroll()"><td style="width:22px">${x.dom === "ROD" ? "🔴" : x.dom === "GUL" ? "🟡" : "ℹ️"}</td><td${x.dom === "INFO" ? ' style="color:#6b7280"' : ""}>${escHtmlEpost(x.k)}</td><td class="tr" style="white-space:nowrap">${x.n} faktura${x.n === 1 ? "" : "er"}</td><td class="tr" style="white-space:nowrap;color:#6b7280">${skKr(Math.round(x.sum))}</td></tr>`).join("")}</tbody></table>\n        ${gr.length > 10 ? `<button class="btn-sm" style="margin-top:6px" onclick="skArsakAlle=!skArsakAlle;renderSusoftKontroll()">${skArsakAlle ? "Vis færre" : `Vis alle ${gr.length} årsaker`}</button>` : ""}</div>`;
  })()}\n    <div class="filters" style="row-gap:8px;align-items:center">${pills}<button class="btn-sm" onclick="skEksporterCsv()">⬇ CSV</button><input type="search" placeholder="Søk fakturanr, kunde, kontrakt …" value="${escHtmlEpost(skSok)}" oninput="skSok=this.value;renderSusoftKontroll();const s=document.querySelector('#sk-innhold input[type=search]');if(s){s.focus();s.setSelectionRange(s.value.length,s.value.length);}" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px">${masse}</div>\n    <div class="tbl-wrap" id="sk-tabell-boks" style="overflow:auto;max-height:72vh"><table>\n      <thead><tr>${admin ? '<th style="position:sticky;top:0;z-index:1"></th>' : ""}<th style="position:sticky;top:0;z-index:1">Status</th><th style="position:sticky;top:0;z-index:1">Susoft fakturanr</th><th style="position:sticky;top:0;z-index:1">Kunde</th><th style="position:sticky;top:0;z-index:1">Kontrakt</th><th style="position:sticky;top:0;z-index:1">Periode</th><th class="tr" style="position:sticky;top:0;z-index:1">Beløp eks. mva</th><th style="position:sticky;top:0;z-index:1">Årsak</th><th style="position:sticky;top:0;z-index:1"></th></tr></thead>\n      <tbody>${body || `<tr><td colspan="${admin ? 9 : 8}" class="hint" style="padding:14px">${d.antall ? "Ingen treff i utvalget." : "Ingen Susoft-fakturaer står på vent. 🎉"}</td></tr>`}</tbody>\n    </table></div>`;
 }
 
