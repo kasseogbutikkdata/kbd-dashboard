@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.286 · Oppdatert: 13. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.287 · Oppdatert: 13. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.287",
+ dato: "13.10.2026",
+ punkter: [ "Susoft-kontroll: «Godkjenn» gjør nå begge stegene som i Visma: fjerner «På vent» og trykker «Oppdater», så fakturaen blir «Åpen» og kommer med til betaling. Lykkes bare det første steget, vises fakturaen under «Må sjekkes i Visma»." ]
+}, {
  versjon: "v1.48.286",
  dato: "13.10.2026",
  punkter: [ "Send tilbudet: emnet i e-posten starter med kundens navn, f.eks. «Eksempel AS – tilbud fra KBD: Verifone P630 og skanner». Emnet kan fortsatt endres før utkastet lages." ]
@@ -28324,7 +28328,7 @@ async function skGodkjenn(bilagListe) {
  if (!valgte.length) return;
  const sum = valgte.reduce((t, f) => t + (Number(f.belop) || 0), 0);
  const roede = valgte.filter(f => f.dom === "ROD").length;
- const tekst = `Fjerne «På vent» på ${valgte.length} Susoft-faktura${valgte.length === 1 ? "" : "er"} (sum ${skKr(sum)} eks. mva) i Visma?` + (roede ? `\n\n⚠ ${roede} av dem er RØDE. Godkjenn bare hvis du har sjekket avviket.` : "") + (skData.dryRun ? "\n\nTestmodus er på: ingenting endres i Visma." : "\n\nFakturaene går videre til betaling.");
+ const tekst = `Fjerne «På vent» på ${valgte.length} Susoft-faktura${valgte.length === 1 ? "" : "er"} (sum ${skKr(sum)} eks. mva) i Visma?` + (roede ? `\n\n⚠ ${roede} av dem er RØDE. Godkjenn bare hvis du har sjekket avviket.` : "") + (skData.dryRun ? "\n\nTestmodus er på: ingenting endres i Visma." : "\n\n«På vent» fjernes og fakturaene oppdateres (bokføres), som når du trykker «Oppdater» i Visma. De går videre til betaling.");
  if (!confirm(tekst)) return;
  skGodkjenner = true;
  renderSusoftKontroll();
@@ -28358,7 +28362,7 @@ async function skGodkjenn(bilagListe) {
    skData.antall = skData.fakturaer.length;
   }
   skValgt.clear();
-  vfShowToast(data.dryRun ? `Testmodus: ${ok.length} av ${data.resultat.length} ville blitt godkjent. Ingenting er endret i Visma.` : `✓ ${ok.length} av ${data.resultat.length} godkjent i Visma`, 6e3);
+  vfShowToast(data.dryRun ? `Testmodus: ${ok.length} av ${data.resultat.length} ville blitt godkjent. Ingenting er endret i Visma.` : `✓ ${ok.filter(r => !r.delvis).length} av ${data.resultat.length} godkjent og oppdatert i Visma${ok.some(r => r.delvis) ? ` · ${ok.filter(r => r.delvis).length} må oppdateres manuelt` : ""}`, 8e3);
  } catch (e) {
   vfShowToast("⚠ Godkjenningen feilet: " + e.message + ". Sjekk status i Visma.", 8e3);
  }
@@ -28475,7 +28479,7 @@ function renderSusoftKontroll() {
   const flere = (f.arsaker || []).length > 1 ? ` <span class="muted">(+${f.arsaker.length - 1})</span>` : "";
   return `<tr data-sk-bilag="${escHtmlEpost(f.bilag)}" style="cursor:pointer${apen ? ";background:#f0f4ff" : ""}" onclick="skToggle('${escHtmlEpost(f.bilag)}')">\n      ${admin ? `<td onclick="event.stopPropagation()"><input type="checkbox" ${skValgt.has(f.bilag) ? "checked" : ""} onchange="skVelg('${escHtmlEpost(f.bilag)}',this.checked)"></td>` : ""}\n      <td>${skChip(f.dom)}</td>\n      <td><strong style="color:#1A3A6B">${apen ? "▾ " : "▸ "}${escHtmlEpost(f.susoftFakturanr || "—")}</strong><div class="muted" style="font-size:11px">bilag ${escHtmlEpost(f.bilag)}</div></td>\n      <td style="min-width:180px">${escHtmlEpost(f.sluttkunde || f.kunde || "—")}${f.sluttkunde && f.kunde && f.sluttkunde.toLowerCase() !== f.kunde.toLowerCase() ? `<div class="muted" style="font-size:11px">${escHtmlEpost(f.kunde)}${f.forhandler ? " (forhandler)" : ""}</div>` : ""}</td>\n      <td>${escHtmlEpost(f.kontrakt || "—")}${f.kontraktStatus && f.kontraktStatus !== "Active" ? `<div style="font-size:11px;color:#b91c1c">${escHtmlEpost(f.kontraktStatus)}</div>` : ""}</td>\n      <td style="font-size:12px;white-space:nowrap">${escHtmlEpost(f.periode || "—")}</td>\n      <td class="tr" style="white-space:nowrap">${skKr(f.belop)}</td>\n      <td style="font-size:12.5px;min-width:220px">${forsteArsak ? escHtmlEpost(forsteArsak) + flere : '<span class="muted">Ingen avvik</span>'}</td>\n      <td style="white-space:nowrap" onclick="event.stopPropagation()">${f.harPdf ? `<button class="btn-sm" style="margin:1px" onclick="skPdf('${escHtmlEpost(f.bilag)}')">📄 PDF</button>` : ""}${admin ? `<button class="btn-sm" style="margin:1px;${f.dom === "ROD" ? "" : "background:#166534;color:#fff;border-color:#166534"}" ${skGodkjenner ? "disabled" : ""} onclick="skGodkjenn(['${escHtmlEpost(f.bilag)}'])">✓ Godkjenn</button>` : ""}</td>\n    </tr>${apen ? `<tr><td colspan="${admin ? 9 : 8}" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${skDetaljHtml(f)}</td></tr>` : ""}`;
  }).join("");
- const sisteG = skSisteGodkjenning && skSisteGodkjenning.resultat.some(r => !r.ok) ? `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:10px 14px;font-size:12.5px;margin:0 0 10px"><strong>Ikke godkjent:</strong> ${skSisteGodkjenning.resultat.filter(r => !r.ok).map(r => `${escHtmlEpost(r.susoftFakturanr || r.bilag)}: ${escHtmlEpost(r.melding)}`).join(" · ")}</div>` : "";
+ const sisteG = skSisteGodkjenning && skSisteGodkjenning.resultat.some(r => !r.ok || r.delvis) ? `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:10px 14px;font-size:12.5px;margin:0 0 10px"><strong>Må sjekkes i Visma:</strong> ${skSisteGodkjenning.resultat.filter(r => !r.ok || r.delvis).map(r => `${escHtmlEpost(r.susoftFakturanr || r.bilag)}: ${escHtmlEpost(r.melding)}`).join(" · ")}</div>` : "";
  el.innerHTML = topp + sisteG + `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px">\n      ${kpi("På vent", d.antall, "Susoft-fakturaer")}\n      ${kpi("🟢 Grønn", d.gronn, "kan godkjennes", "#166534")}\n      ${kpi("🟡 Gul", d.gul, "se på årsaken", "#854d0e")}\n      ${kpi("🔴 Rød", d.rod, "må sjekkes", d.rod ? "#b91c1c" : "#111")}\n      ${kpi("Sum på vent", skKr(Math.round(sumAlle)), "eks. mva")}\n    </div>\n    ${(() => {
   const gr = skArsakOversikt(d);
   if (!gr.length) return "";
