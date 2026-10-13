@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.293 · Oppdatert: 13. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.294 · Oppdatert: 13. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.294",
+ dato: "13.10.2026",
+ punkter: [ "Rapport, kostnad og innkrevd: teller nå bare sene betalinger (betalt minst like mange dager etter forfall som grensen for arbeidslisten). Tallene starter ved første logg i KBD CC, og kostnaden for inneværende måned gjelder bare dagene som har gått. Det gir et riktigere bilde enn alle forfalte fakturaer, der mange blir betalt rett etter forfall uten oppfølging." ]
+}, {
  versjon: "v1.48.293",
  dato: "13.10.2026",
  punkter: [ "Fakturaoppfølging: ny visning «📊 Rapport» (bare administrator). Den viser kostnad og innkrevd beløp per måned med kostnad per innkrevd krone, utviklingen i forfalt, over 90 dager og kunder på arbeidslista (graf fra den daglige statistikken), saker inn og ut per uke, hva som virker (betalt innen 7/14 dager etter telefon, e-post og automatisk purre-SMS), aktivitet per person og uke, og faste sene betalere. Velg periode øverst. Klikk på en sen betaler for å åpne kunden." ]
@@ -20358,10 +20362,21 @@ function foRapRender() {
  const tabell = (hode, rader, tom) => rader.length ? `<div class="tbl-wrap"><table style="font-size:13px"><thead><tr>${hode.map(h => `<th${h.startsWith(">") ? ' class="tr"' : ""}>${h.replace(/^>/, "")}</th>`).join("")}</tr></thead><tbody>${rader.join("")}</tbody></table></div>` : `<div class="empty" style="padding:10px 0">${tom || "Ingen data i perioden."}</div>`;
  const bar = (v, maks, farge) => `<div style="background:#f1f5f9;border-radius:4px;height:8px;min-width:80px"><div style="background:${farge || "#1A3A6B"};height:8px;border-radius:4px;width:${maks ? Math.min(100, Math.round(100 * v / maks)) : 0}%"></div></div>`;
  const ut = [];
+ const grenseDager = Math.max(1, foInnst.minDager || 7);
+ const forsteLogg = kontakter.filter(k => k.manuell).map(k => k.dato).sort((a, b) => a - b)[0] || null;
+ const mndFra = forsteLogg ? new Date(forsteLogg.getFullYear(), forsteLogg.getMonth(), 1) : null;
  const mndSet = new Map;
  const kostFra = mnd => {
   const r = (foRapStat || []).filter(s => s.dato.startsWith(mnd) && s.kostnadPerMnd != null);
-  return r.length ? r[r.length - 1].kostnadPerMnd : foInnst.kostnadPerMnd || null;
+  const full = r.length ? r[r.length - 1].kostnadPerMnd : foInnst.kostnadPerMnd || null;
+  if (!full) return null;
+  const [y, m] = mnd.split("-").map(Number);
+  const dIM = new Date(y, m, 0).getDate();
+  const iDag = new Date;
+  let fraDag = 1, tilDag = dIM;
+  if (y === iDag.getFullYear() && m === iDag.getMonth() + 1) tilDag = iDag.getDate();
+  if (forsteLogg && y === forsteLogg.getFullYear() && m === forsteLogg.getMonth() + 1) fraDag = forsteLogg.getDate();
+  return full * Math.max(0, tilDag - fraDag + 1) / dIM;
  };
  const kontaktPerFaktura = new Map;
  kontakter.filter(k => k.manuell).forEach(k => {
@@ -20370,9 +20385,9 @@ function foRapRender() {
  });
  fakturaoppfolging.forEach(f => {
   const b = foRapDato(f.betaltDato);
-  if (!b || b < fra) return;
+  if (!b || b < fra || forsteLogg && b < forsteLogg) return;
   const forf = parseLD(f.forfallsdato);
-  if (!forf || b <= forf) return;
+  if (!forf || b - forf < grenseDager * FO_RAP_DAG) return;
   const m = foRapMnd(b);
   if (!mndSet.has(m)) mndSet.set(m, {
    betaltForfalt: 0,
@@ -20392,14 +20407,14 @@ function foRapRender() {
  });
  const mnder = [ ...mndSet.keys() ].sort();
  const sumKost = mnder.reduce((s, m) => s + (kostFra(m) || 0), 0), sumKontakt = mnder.reduce((s, m) => s + mndSet.get(m).betaltEtterKontakt, 0), sumForf = mnder.reduce((s, m) => s + mndSet.get(m).betaltForfalt, 0);
- ut.push(seksjon("💰 Kostnad og innkrevd beløp per måned", "Forfalte fakturaer som ble betalt i måneden, og hvor mye av det som ble betalt innen 30 dager etter en manuell kontakt (telefon, e-post, manuell SMS). Kostnad = «Kostnad oppfølging per mnd» fra ⚙️, slik den sto i den daglige statistikken den måneden.", `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">${kort("Kostnad i perioden", sumKost ? fF(sumKost) : "—", foInnst.kostnadPerMnd ? fF(foInnst.kostnadPerMnd) + " per mnd" : "Sett kostnad under ⚙️")}${kort("Betalt etter kontakt", fF(sumKontakt), `av ${fF(sumForf)} forfalt som ble betalt`, "#166534")}${kort("Andel etter kontakt", foRapPst(sumKontakt, sumForf), "av forfalt beløp som ble betalt")}${kort("Kostnad per innkrevd krone", sumKost && sumKontakt ? (sumKost / sumKontakt).toLocaleString("nb-NO", {
+ ut.push(seksjon("💰 Kostnad og innkrevd beløp per måned", `Sene betalinger = fakturaer betalt minst ${grenseDager} dager etter forfall (samme grense som arbeidslisten). «Etter kontakt» = betalt innen 30 dager etter telefon, e-post eller manuell SMS i KBD CC. Tallene starter ${forsteLogg ? fDateShort(forsteLogg.toISOString()) : "ved første logg"} (første logg i KBD CC). Oppfølging som før det ble skrevet i Visma-notater, kan ikke telles. Kostnaden for inneværende måned gjelder bare dagene som har gått.`, `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">${kort("Kostnad i perioden", sumKost ? fF(sumKost) : "—", foInnst.kostnadPerMnd ? fF(foInnst.kostnadPerMnd) + " per mnd" : "Sett kostnad under ⚙️")}${kort("Betalt etter kontakt", fF(sumKontakt), `av ${fF(sumForf)} i sene betalinger`, "#166534")}${kort("Andel etter kontakt", foRapPst(sumKontakt, sumForf), "av sene betalinger")}${kort("Kostnad per innkrevd krone", sumKost && sumKontakt ? (sumKost / sumKontakt).toLocaleString("nb-NO", {
   maximumFractionDigits: 2
- }) + " kr" : "—", "lavere er bedre")}</div>` + tabell([ "Måned", ">Kostnad", ">Forfalt betalt", ">Betalt etter kontakt", ">Fakturaer etter kontakt", ">Kostnad per kr" ], mnder.slice().reverse().map(m => {
+ }) + " kr" : "—", "lavere er bedre")}</div>` + tabell([ "Måned", ">Kostnad", ">Sene betalinger", ">Betalt etter kontakt", ">Fakturaer etter kontakt", ">Kostnad per kr" ], mnder.slice().reverse().map(m => {
   const o = mndSet.get(m), k = kostFra(m);
-  return `<tr><td>${foRapMndNavn(m)}</td><td class="tr">${k ? fF(k) : "—"}</td><td class="tr">${fF(o.betaltForfalt)}</td><td class="tr" style="color:#166534;font-weight:600">${fF(o.betaltEtterKontakt)}</td><td class="tr">${o.antEtterKontakt} av ${o.antForfalt}</td><td class="tr">${k && o.betaltEtterKontakt ? (k / o.betaltEtterKontakt).toLocaleString("nb-NO", {
+  return `<tr><td>${foRapMndNavn(m)}</td><td class="tr">${k ? fF(k) : "—"}</td><td class="tr">${fF(o.betaltForfalt)} <span style="color:#9ca3af;font-size:11px">(${o.antForfalt})</span></td><td class="tr" style="color:#166534;font-weight:600">${fF(o.betaltEtterKontakt)}</td><td class="tr">${o.antEtterKontakt} av ${o.antForfalt}</td><td class="tr">${k && o.betaltEtterKontakt ? (k / o.betaltEtterKontakt).toLocaleString("nb-NO", {
    maximumFractionDigits: 2
   }) : "—"}</td></tr>`;
- }), "Ingen forfalte fakturaer betalt i perioden ennå.")));
+ }), "Ingen sene betalinger i perioden ennå.")) + `<div style="font-size:11px;color:#6b7280;margin-top:8px">Tallene blir først meningsfulle når oppfølgingen logges i KBD CC i noen uker. Lav andel «etter kontakt» nå betyr mest at få kontakter er logget ennå.</div>`);
  const uker = new Map;
  const u = k => {
   if (!uker.has(k)) uker.set(k, {
