@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.289 · Oppdatert: 13. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.291 · Oppdatert: 13. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,14 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.291",
+ dato: "13.10.2026",
+ punkter: [ "Aldersfordelt, før/etter-analysen (admin): oppfølgingskostnaden i perioden regnes nå ut fra kostnaden per måned som er lagt inn under ⚙️ i Fakturaoppfølging, i stedet for et fast beløp." ]
+}, {
+ versjon: "v1.48.290",
+ dato: "13.10.2026",
+ punkter: [ "Fakturaoppfølging: statusendringer logges nå alltid i oppfølgingsloggen (🏷️ «Status: «Kontaktet» → «Lovet betaling»»), også uten kommentar. De teller ikke som «Sist kontakt».", "Fakturaoppfølging ⚙️ Innstillinger: nytt felt «Kostnad oppfølging per mnd (kr)», den faste månedskostnaden for Mirrow. Den lagres i den daglige statistikken, så rapporter senere kan regne kostnad mot innkrevd beløp." ]
+}, {
  versjon: "v1.48.289",
  dato: "13.10.2026",
  punkter: [ "Susoft-kontroll: etableringsfakturer (engangsfaktura, ikke lisens) kontrolleres mot kundekontraktens egenskaper. Står Susoft-fakturanummeret der, blir fakturaen grønn og kontrakten vises med en pil i Kontrakt-kolonnen. Ved godkjenning settes «Kjøpers ordrenr» til kundekontrakten. Står nummeret ikke på noen kontrakt, blir fakturaen gul." ]
@@ -15377,7 +15385,7 @@ const versjonslogg = [ {
 }, {
  versjon: "v1.48.242",
  dato: "09.10.2026",
- punkter: [ "Ikke avstemt i Visma: nytt notatfelt. Større felt i vanlig skrift som vokser når du skriver, og Ctrl+Enter lagrer. Hurtigvalg «📞 Ringt kunden», «✉️ E-post», «🧾 Sendt regnskapsfører», «✅ Kunde bekreftet» og «✔️ Avklart» lagrer med en gang (tekst i feltet tas med, og to av dem setter status).", "Loggen har ikon per linje (📝 notat, 🏷️ status, ✉️ saldobekreftelse), og Pureservice-saker som «PS#36613» vises som merke. Saldobekreftelse og «Vis fakturaene» står på egen linje under notatet." ]
+ punkter: [ "Ikke avstemt i Visma: nytt notatfelt. Større felt i vanlig skrift som vokser når du skriver, og Ctrl+Enter lagrer. Hurtigvalg «📞 Ringt kunden», «✉️ E-post», «🧾 Sendt regnskapsfører», «✅ Kunde bekreftet» og «✔️ Avklart» lagrer med en gang (tekst i feltet tas med, og to av dem setter status).", "Loggen har ikon per linje (📝 notat, 🏷️ status, ✉️ saldobekreftelse), og Pureservice-saker som «PS#12345» vises som merke. Saldobekreftelse og «Vis fakturaene» står på egen linje under notatet." ]
 }, {
  versjon: "v1.48.241",
  dato: "08.10.2026",
@@ -18246,7 +18254,8 @@ let foVisning = "arbeidsliste", foGrupper = true, foVisInnst = false, foEierFilt
 let foInnst = {
  minBelop: 500,
  minDager: 7,
- nyeSakerTil: ""
+ nyeSakerTil: "",
+ kostnadPerMnd: null
 }, foInnstSpId = null;
 
 let foPanelMap = {};
@@ -18293,10 +18302,12 @@ async function foLastInnstillinger() {
    const f = items[0].fields || {};
    foInnstSpId = items[0].id;
    const b = parseFloat(f.MinBelop), d = parseInt(f.MinDager);
+   const kp = parseFloat(f.KostnadPerMnd);
    foInnst = {
     minBelop: isNaN(b) ? 500 : b,
     minDager: isNaN(d) ? 7 : d,
-    nyeSakerTil: f.NyeSakerTil || ""
+    nyeSakerTil: f.NyeSakerTil || "",
+    kostnadPerMnd: isNaN(kp) ? null : kp
    };
    renderFakturaoppfolging();
   }
@@ -18317,25 +18328,43 @@ async function lagreFoInnstillinger() {
   return;
  }
  const til = document.getElementById("fo-innst-mottaker")?.value || "";
+ const kRaa = (document.getElementById("fo-innst-kostnad")?.value || "").trim();
+ const kp = kRaa === "" ? null : parseFloat(kRaa.replace(/\s/g, "").replace(",", "."));
+ if (kp !== null && (isNaN(kp) || kp < 0)) {
+  alert("Kostnad per måned må være et tall (eller tomt).");
+  return;
+ }
  foInnst = {
   minBelop: b,
   minDager: d,
-  nyeSakerTil: til
+  nyeSakerTil: til,
+  kostnadPerMnd: kp
  };
  renderFakturaoppfolging();
  const felter = {
   Title: "Innstillinger",
   MinBelop: b,
   MinDager: d,
-  NyeSakerTil: til
+  NyeSakerTil: til,
+  KostnadPerMnd: kp
  };
  setSPStatus("⏳ Lagrer…");
- try {
+ const skriv = async ff => {
   if (foInnstSpId) {
-   await spUpdate("FakturaoppfolgingInnstillinger", foInnstSpId, felter);
+   await spUpdate("FakturaoppfolgingInnstillinger", foInnstSpId, ff);
   } else {
-   const r = await spCreate("FakturaoppfolgingInnstillinger", felter);
+   const r = await spCreate("FakturaoppfolgingInnstillinger", ff);
    foInnstSpId = r.id;
+  }
+ };
+ try {
+  try {
+   await skriv(felter);
+  } catch (e1) {
+   const {KostnadPerMnd: KostnadPerMnd, ...uten} = felter;
+   await skriv(uten);
+   console.warn("KostnadPerMnd kunne ikke lagres:", e1);
+   alert("ℹ️ Tersklene er lagret, men ikke kostnaden per måned. Er kolonnen «KostnadPerMnd» (Tall) opprettet på lista FakturaoppfolgingInnstillinger?");
   }
   setSPStatus("✅ Lagret");
   setTimeout(() => setSPStatus(""), 3e3);
@@ -18514,7 +18543,7 @@ function renderIkkeAvstemt() {
     return `<tr><td>${iaTypeIkon(d.type)} ${iaEsc(d.type)}</td><td>${iaEsc(d.dokumentnr)}</td><td>${fDateShort(d.dato)}</td><td class="tr">${fF(d.belop)}</td><td class="tr">${fF(d.ubrukt)}</td><td style="font-size:12px;color:#166534">${m ? "↔ faktura " + iaEsc(m.f.fakturanr) : ""}</td></tr>`;
    }).join("");
    const fRader = r.fs.map(f => `<tr><td>📄 Faktura</td><td>${iaEsc(f.fakturanr)}</td><td>forfall ${fDateShort(f.forfallsdato)}</td><td class="tr">${fF(f.belop || 0)}</td><td class="tr">${fF(f.utestaende || 0)}</td><td></td></tr>`).join("");
-   rows.push(`<tr style="background:#fffbeb"><td colspan="9" style="border-left:3px solid #f59e0b;padding:12px 14px">\n          <table style="width:100%;font-size:13px;margin-bottom:12px"><thead><tr style="color:#6b7280;font-size:11px"><th>Type</th><th>Dokumentnr</th><th>Dato</th><th class="tr">Beløp</th><th class="tr">Ubrukt / utestående</th><th></th></tr></thead><tbody>${docRader}${fRader}</tbody></table>\n          ${iaLoggHtml(r.kommentar)}\n          ${iaFoLoggHtml(r)}\n          ${kanRedigere ? `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px">\n            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">\n              <div style="font-size:13px;font-weight:600;color:#111">✍️ Nytt notat</div>\n              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:11px;color:#6b7280">Hurtigvalg:</span>${IA_HURTIG.map(h => `<button class="btn-sm" style="font-size:12px;padding:4px 10px" onclick="iaLagre('${k}',this,'${h.id}')" title="${iaEsc(h.tittel)}">${h.ikon} ${h.navn}</button>`).join("")}</div>\n            </div>\n            <textarea id="ia-kommentar" rows="3" placeholder="Skriv hva som er gjort eller avtalt, f.eks. «Er i dialog med kunden på PS#36613». Ctrl+Enter lagrer." style="width:100%;min-height:72px;font-family:inherit;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid #d0d5dd;border-radius:8px;resize:vertical;box-sizing:border-box" oninput="this.style.height='auto';this.style.height=Math.max(72,this.scrollHeight+2)+'px'" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();iaLagre('${k}',document.getElementById('ia-lagre-knapp'))}"></textarea>\n            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:8px">\n              <div style="display:flex;align-items:center;gap:8px"><label for="ia-status" style="font-size:12px;color:#6b7280;margin:0">Status</label><select id="ia-status" style="width:auto;padding:6px 10px">${IA_STATUSER.map(s => `<option${r.status === s ? " selected" : ""}>${s}</option>`).join("")}</select><span style="font-size:11px;color:#9ca3af">Endret status logges automatisk.</span></div>\n              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">\n                ${r.fs.length ? `<button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button>` : ""}\n                ${r.docs.some(d => d.type !== "Refusjon") ? `<button class="btn-sm" style="${iaBareIntern(r) ? "" : "border-color:#f59e0b;color:#92400e;background:#fffbeb;font-weight:600"}" onclick="iaSendSaldo('${k}',this)" title="Lager et Outlook-utkast fra ${IA_FRA_EPOST} med saldo og faktura-PDF. Ingenting sendes før du trykker Send i Outlook.">✉️ Saldobekreftelse</button>` : ""}\n                <button class="prim" id="ia-lagre-knapp" onclick="iaLagre('${k}',this)">💾 Lagre</button>\n              </div>\n            </div>\n            ${r.docs.some(d => d.type !== "Refusjon") ? (() => {
+   rows.push(`<tr style="background:#fffbeb"><td colspan="9" style="border-left:3px solid #f59e0b;padding:12px 14px">\n          <table style="width:100%;font-size:13px;margin-bottom:12px"><thead><tr style="color:#6b7280;font-size:11px"><th>Type</th><th>Dokumentnr</th><th>Dato</th><th class="tr">Beløp</th><th class="tr">Ubrukt / utestående</th><th></th></tr></thead><tbody>${docRader}${fRader}</tbody></table>\n          ${iaLoggHtml(r.kommentar)}\n          ${iaFoLoggHtml(r)}\n          ${kanRedigere ? `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px">\n            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">\n              <div style="font-size:13px;font-weight:600;color:#111">✍️ Nytt notat</div>\n              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:11px;color:#6b7280">Hurtigvalg:</span>${IA_HURTIG.map(h => `<button class="btn-sm" style="font-size:12px;padding:4px 10px" onclick="iaLagre('${k}',this,'${h.id}')" title="${iaEsc(h.tittel)}">${h.ikon} ${h.navn}</button>`).join("")}</div>\n            </div>\n            <textarea id="ia-kommentar" rows="3" placeholder="Skriv hva som er gjort eller avtalt, f.eks. «Er i dialog med kunden på PS#12345». Ctrl+Enter lagrer." style="width:100%;min-height:72px;font-family:inherit;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid #d0d5dd;border-radius:8px;resize:vertical;box-sizing:border-box" oninput="this.style.height='auto';this.style.height=Math.max(72,this.scrollHeight+2)+'px'" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();iaLagre('${k}',document.getElementById('ia-lagre-knapp'))}"></textarea>\n            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:8px">\n              <div style="display:flex;align-items:center;gap:8px"><label for="ia-status" style="font-size:12px;color:#6b7280;margin:0">Status</label><select id="ia-status" style="width:auto;padding:6px 10px">${IA_STATUSER.map(s => `<option${r.status === s ? " selected" : ""}>${s}</option>`).join("")}</select><span style="font-size:11px;color:#9ca3af">Endret status logges automatisk.</span></div>\n              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">\n                ${r.fs.length ? `<button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button>` : ""}\n                ${r.docs.some(d => d.type !== "Refusjon") ? `<button class="btn-sm" style="${iaBareIntern(r) ? "" : "border-color:#f59e0b;color:#92400e;background:#fffbeb;font-weight:600"}" onclick="iaSendSaldo('${k}',this)" title="Lager et Outlook-utkast fra ${IA_FRA_EPOST} med saldo og faktura-PDF. Ingenting sendes før du trykker Send i Outlook.">✉️ Saldobekreftelse</button>` : ""}\n                <button class="prim" id="ia-lagre-knapp" onclick="iaLagre('${k}',this)">💾 Lagre</button>\n              </div>\n            </div>\n            ${r.docs.some(d => d.type !== "Refusjon") ? (() => {
     const mt = iaMottaker(r);
     return `<div style="font-size:11px;color:#6b7280;margin-top:8px">✉️ Saldobekreftelse går til ${mt.epost ? `<b>${iaEsc(mt.epost)}</b> (${iaEsc(mt.navn ? mt.navn + ", " : "")}${iaEsc(mt.kilde)})` : '<span style="color:#b45309">ingen e-post funnet, fyll inn i Outlook</span>'}, fra og svar til ${IA_FRA_EPOST}.${iaBareIntern(r) ? ' <span style="color:#b45309">Innbetalingen dekker fakturaen nøyaktig, så dette ser ut som en intern kobling i Visma. Vurder å sende til regnskapsfører i stedet for kunden.</span>' : ""}${r.refusjon ? " Refusjonen tas ikke med." : ""}</div>`;
    })() : ""}\n            <div style="font-size:11px;color:#6b7280;margin-top:4px">Hurtigvalgene lagrer med en gang, og tekst i feltet tas med. «Avklart» = kunden kommer tilbake på arbeidslisten og purring-SMS selv om posten fortsatt står åpen i Visma. Selve koblingen må gjøres i Visma.</div>\n          </div>` : `<div style="font-size:12px;margin-bottom:10px">Status: ${iaStatusBadge(r.status)}</div>`}\n          ${!kanRedigere && r.fs.length ? `<div style="margin-bottom:6px"><button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button></div>` : ""}\n        </td></tr>`);
@@ -19529,12 +19558,12 @@ function foAvvisInkasso(key) {
 
 function foSistKontakt(fs) {
  const nr = new Set(fs.map(f => f.fakturanr));
- const kand = [ ...fakturaoppfolgingLogg.filter(l => nr.has(l.fakturanr) && l.dato), ...fs.flatMap(f => foSmsForFaktura(f.fakturanr)).filter(l => l.dato) ];
+ const kand = [ ...fakturaoppfolgingLogg.filter(l => nr.has(l.fakturanr) && l.dato && l.type !== "Status"), ...fs.flatMap(f => foSmsForFaktura(f.fakturanr)).filter(l => l.dato) ];
  return kand.sort((a, b) => new Date(b.dato) - new Date(a.dato))[0] || null;
 }
 
 function foKontaktIkon(type) {
- return type === "SMS" ? "📱" : type === "Telefon" ? "📞" : type === "E-post" ? "✉️" : "📝";
+ return type === "SMS" ? "📱" : type === "Telefon" ? "📞" : type === "E-post" ? "✉️" : type === "Status" ? "🏷️" : "📝";
 }
 
 function foMarkerInkasso(tekst) {
@@ -19872,7 +19901,7 @@ function renderFakturaoppfolging() {
    return n ? `<div style="width:100%;margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;display:flex;gap:10px;align-items:center;flex-wrap:wrap">🧮 <span><b>${n}</b> ${n === 1 ? "kunde" : "kunder"} med forfalte fakturaer holdes utenfor fordi de har kreditnota/innbetaling som ikke er avstemt i Visma.</span> <button class="btn-sm" onclick="setFoVisning('ikkeavstemt')">Vis dem</button></div>` : "";
   })()}` : "";
   const tannhjul = userRole === "admin" ? `<button class="btn-sm" onclick="foVisInnst=!foVisInnst;renderFakturaoppfolging()" title="Terskler for arbeidslisten">⚙️ Innstillinger</button>` : "";
-  const innst = userRole === "admin" && foVisInnst ? `<div style="width:100%;margin-top:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">\n        <div class="fgrp" style="margin:0"><label>Minstebeløp utestående (kr)</label><input type="number" min="0" step="50" id="fo-innst-belop" value="${foInnst.minBelop}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Minst antall dager forfalt</label><input type="number" min="0" step="1" id="fo-innst-dager" value="${foInnst.minDager}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Varsel om nye saker går til</label><select id="fo-innst-mottaker" style="min-width:220px"><option value="">Alle med tilgang</option>${(typeof brukere !== "undefined" ? brukere : []).filter(x => x.epost).sort((x, y) => x.navn.localeCompare(y.navn)).map(x => `<option value="${x.epost}"${foLc(x.epost) === foLc(foInnst.nyeSakerTil) ? " selected" : ""}>${x.navn}${x.tilgang && x.tilgang.fakturaoppfolging ? "" : " (mangler tilgang)"}</option>`).join("")}</select></div>\n        <button class="prim" onclick="lagreFoInnstillinger()">💾 Lagre innstillinger</button>\n        <span style="font-size:11px;color:#6b7280;flex-basis:100%">Gjelder arbeidslisten for alle brukere. Endres bare av administrator. Oppfølginger noen allerede har skrevet i loggen på, varsles til den som skrev sist.${foInnstSpId ? "" : " (Ikke lagret i SharePoint ennå, standardverdier brukes.)"}</span>\n      </div>` : "";
+  const innst = userRole === "admin" && foVisInnst ? `<div style="width:100%;margin-top:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">\n        <div class="fgrp" style="margin:0"><label>Minstebeløp utestående (kr)</label><input type="number" min="0" step="50" id="fo-innst-belop" value="${foInnst.minBelop}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Minst antall dager forfalt</label><input type="number" min="0" step="1" id="fo-innst-dager" value="${foInnst.minDager}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Varsel om nye saker går til</label><select id="fo-innst-mottaker" style="min-width:220px"><option value="">Alle med tilgang</option>${(typeof brukere !== "undefined" ? brukere : []).filter(x => x.epost).sort((x, y) => x.navn.localeCompare(y.navn)).map(x => `<option value="${x.epost}"${foLc(x.epost) === foLc(foInnst.nyeSakerTil) ? " selected" : ""}>${x.navn}${x.tilgang && x.tilgang.fakturaoppfolging ? "" : " (mangler tilgang)"}</option>`).join("")}</select></div>\n        <div class="fgrp" style="margin:0"><label>Kostnad oppfølging per mnd (kr)</label><input type="text" inputmode="numeric" id="fo-innst-kostnad" value="${foInnst.kostnadPerMnd ?? ""}" placeholder="kr eks. mva" style="width:150px" title="Fast månedskostnad for fakturaoppfølging (Mirrow). Lagres i den daglige statistikken, så rapporter kan regne kostnad mot innkrevd beløp over tid."/></div>\n        <button class="prim" onclick="lagreFoInnstillinger()">💾 Lagre innstillinger</button>\n        <span style="font-size:11px;color:#6b7280;flex-basis:100%">Gjelder arbeidslisten for alle brukere. Endres bare av administrator. Oppfølginger noen allerede har skrevet i loggen på, varsles til den som skrev sist.${foInnstSpId ? "" : " (Ikke lagret i SharePoint ennå, standardverdier brukes.)"}</span>\n      </div>` : "";
   barEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">\n        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">\n          ${iaVisningsknapper()}\n          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:8px"><input type="checkbox" ${foGrupper ? "checked" : ""} onchange="setFoGrupper(this.checked)"/> Grupper per kunde</label>\n          ${arb ? `<select onchange="setFoEierFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px" title="Eier = den som sist skrev i loggen">\n            <option value="alle"${foEierFilter === "alle" ? " selected" : ""}>Alle på lista (${eierTall.alle})</option>\n            <option value="mine"${foEierFilter === "mine" ? " selected" : ""}>👤 Mine oppfølginger (${eierTall.mine})</option>\n            <option value="nye"${foEierFilter === "nye" ? " selected" : ""}>🆕 Nye, ingen har tatt dem (${eierTall.nye})</option>\n          </select>` : ""}\n        </div>\n        <div style="display:flex;gap:10px;align-items:center">${teller}${tannhjul}</div>\n        ${(() => {
    const ink = fakturaoppfolging.filter(foNevnerInkasso);
    if (foInkassoFilter) return `<div style="width:100%;margin-top:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">⚠️ Viser bare fakturaer der Visma-notatet nevner inkasso/namsmann (${ink.length}). <button class="btn-sm" onclick="setFoInkassoFilter(false)">✕ Fjern filter</button>${userRole === "admin" && ink.length ? '<button class="btn-sm" onclick="foRyddInkassoAlle()">Sett alle til «Sendt til inkasso»</button>' : ""}</div>`;
@@ -20082,6 +20111,31 @@ function lagreFoOppfolging(key, opts = {}) {
  const naa = (new Date).toISOString();
  const type = typeEl ? typeEl.value : "Annet";
  fs.forEach(f => {
+  const gammelStatus = f.status;
+  if (statusEndret && gammelStatus !== nyStatus) {
+   const sTekst = `Status: «${gammelStatus || "—"}» → «${nyStatus}»`;
+   const sRad = {
+    id: `temp${uid()}`,
+    fakturanr: f.fakturanr,
+    skrevetAv: skrevetAv,
+    type: "Status",
+    kilde: "KBD CC",
+    dato: naa,
+    kommentar: sTekst
+   };
+   fakturaoppfolgingLogg.push(sRad);
+   oppgaver.push(spCreate("FakturaoppfolgingLogg", {
+    Fakturanummer: f.fakturanr,
+    SkrevetAv: skrevetAv,
+    HenvendelseType: "Status",
+    Kilde: "KBD CC",
+    Dato: naa,
+    Kommentar: sTekst
+   }).then(r => {
+    sRad.id = `sp${r.id}`;
+    sRad.spId = r.id;
+   }));
+  }
   if (kommentar) {
    const nyLoggRad = {
     id: `temp${uid()}`,
@@ -20319,7 +20373,7 @@ function renderAgingAnalyse() {
     const d = (parseLD(f.betaltDato) - forsteKontakt.get(f.fakturanr)) / 864e5;
     return d >= -1 && d <= 14;
    });
-   innhold = `<div style="font-size:12px;color:#374151;margin-bottom:10px">Start: <b>${start.toLocaleDateString("nb-NO")}</b> (første logg i KBD CC${mLogg.length ? ` av ${agEsc(mottaker.navn)}` : ""}). Sammenligner snittet av de 12 ukene før med ukene etter (${etter.length} uke${etter.length === 1 ? "" : "r"} så langt).</div>\n        <div class="tbl-wrap" style="margin:0 0 12px"><table><thead><tr><th>Ukesnitt</th><th class="tr">Før</th><th class="tr">Etter</th><th class="tr">Endring</th></tr></thead><tbody>\n          ${rad("Forfalt totalt", snitt(for_, "tot"), snitt(etter, "tot"), fF)}\n          ${rad("Forfalt over 30 dager", snitt(for_, "o30"), snitt(etter, "o30"), fF)}\n          ${rad("Over 90 dager", snitt(for_, "o90"), snitt(etter, "o90"), fF)}\n          ${rad("Andel over 90 dager", andel(for_), andel(etter), v => v.toFixed(1) + " %")}\n        </tbody></table></div>\n        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">\n          <div class="kpi" style="margin:0"><div class="kpi-lbl">Henvendelser i KBD CC</div><div style="font-size:22px;font-weight:700">${etterStart.length}</div><div class="kpi-sub">${(etterStart.length / uker).toFixed(1)} per uke · ${Object.entries(perType).map(([t, n]) => `${t} ${n}`).join(", ") || "—"}</div></div>\n          <div class="kpi" style="margin:0"><div class="kpi-lbl">Betalt innen 14 dager etter kontakt</div><div style="font-size:22px;font-weight:700;color:#1baf7a">${betaltInnen14.length} av ${kontaktet.length}</div><div class="kpi-sub">${fF(betaltInnen14.reduce((s, f) => s + (f.belop || 0), 0))} innbetalt</div></div>\n          <div class="kpi" style="margin:0"><div class="kpi-lbl">Mirrow-kostnad i perioden</div><div style="font-size:22px;font-weight:700">${fF(21e3 * uker / 4.345)}</div><div class="kpi-sub">ca. 21 000 kr/mnd</div></div>\n        </div>`;
+   innhold = `<div style="font-size:12px;color:#374151;margin-bottom:10px">Start: <b>${start.toLocaleDateString("nb-NO")}</b> (første logg i KBD CC${mLogg.length ? ` av ${agEsc(mottaker.navn)}` : ""}). Sammenligner snittet av de 12 ukene før med ukene etter (${etter.length} uke${etter.length === 1 ? "" : "r"} så langt).</div>\n        <div class="tbl-wrap" style="margin:0 0 12px"><table><thead><tr><th>Ukesnitt</th><th class="tr">Før</th><th class="tr">Etter</th><th class="tr">Endring</th></tr></thead><tbody>\n          ${rad("Forfalt totalt", snitt(for_, "tot"), snitt(etter, "tot"), fF)}\n          ${rad("Forfalt over 30 dager", snitt(for_, "o30"), snitt(etter, "o30"), fF)}\n          ${rad("Over 90 dager", snitt(for_, "o90"), snitt(etter, "o90"), fF)}\n          ${rad("Andel over 90 dager", andel(for_), andel(etter), v => v.toFixed(1) + " %")}\n        </tbody></table></div>\n        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">\n          <div class="kpi" style="margin:0"><div class="kpi-lbl">Henvendelser i KBD CC</div><div style="font-size:22px;font-weight:700">${etterStart.length}</div><div class="kpi-sub">${(etterStart.length / uker).toFixed(1)} per uke · ${Object.entries(perType).map(([t, n]) => `${t} ${n}`).join(", ") || "—"}</div></div>\n          <div class="kpi" style="margin:0"><div class="kpi-lbl">Betalt innen 14 dager etter kontakt</div><div style="font-size:22px;font-weight:700;color:#1baf7a">${betaltInnen14.length} av ${kontaktet.length}</div><div class="kpi-sub">${fF(betaltInnen14.reduce((s, f) => s + (f.belop || 0), 0))} innbetalt</div></div>\n          <div class="kpi" style="margin:0"><div class="kpi-lbl">Mirrow-kostnad i perioden</div><div style="font-size:22px;font-weight:700">${foInnst.kostnadPerMnd ? fF(foInnst.kostnadPerMnd * uker / 4.345) : "—"}</div><div class="kpi-sub">${foInnst.kostnadPerMnd ? fF(foInnst.kostnadPerMnd) + " per mnd (⚙️ Fakturaoppfølging)" : "Sett kostnad per mnd under ⚙️ i Fakturaoppfølging"}</div></div>\n        </div>`;
   }
   deler.push(kort("📊 Før og etter oppfølging i KBD CC", "Kun synlig for administrator. Grunnlag for å vurdere Mirrow-avtalen.", innhold, "grid-column:1/-1"));
  }
