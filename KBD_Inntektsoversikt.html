@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.294 · Oppdatert: 13. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.295 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.295",
+ dato: "14.10.2026",
+ punkter: [ "Hjem, «Trenger oppmerksomhet»: fakturaoppfølging vises nå som én samlelinje, ikke én linje per faktura. Du ser bare dine egne oppfølginger («3 av dine oppfølginger i dag»), og nye saker vises bare for den som får varsel om dem. Klikk åpner Min arbeidsliste med riktig filter. Linja forsvinner når du har fulgt opp og satt ny dato." ]
+}, {
  versjon: "v1.48.294",
  dato: "13.10.2026",
  punkter: [ "Rapport, kostnad og innkrevd: teller nå bare sene betalinger (betalt minst like mange dager etter forfall som grensen for arbeidslisten). Tallene starter ved første logg i KBD CC, og kostnaden for inneværende måned gjelder bare dagene som har gått. Det gir et riktigere bilde enn alle forfalte fakturaer, der mange blir betalt rett etter forfall uten oppfølging." ]
@@ -17619,16 +17623,17 @@ function hentTrengerOppmerksomhet() {
    });
   });
  }
- if (harTilgangTilModul("fakturaoppfolging")) {
-  fakturaoppfolging.filter(f => {
-   const d = parseLD(f.nesteOppfolging);
-   return d && !f.betaltDato && d <= idag;
-  }).forEach(f => {
-   punkter.push({
-    ikon: "🧾",
-    tekst: `Faktura ${f.fakturanr} – ${f.kundenavn || "(uten navn)"} – oppfølging forfalt`,
-    handling: () => jumpToFakturaoppfolging(f.fakturanr)
-   });
+ if (harTilgangTilModul("fakturaoppfolging") && typeof foArbeidslisteAntall === "function") {
+  const a = foArbeidslisteAntall();
+  if (a.mine.antall) punkter.push({
+   ikon: "🧾",
+   tekst: `Fakturaoppfølging – ${a.mine.antall} av dine oppfølginger i dag (${fF(a.mine.sum)})`,
+   handling: () => gaTilFakturaoppfolgingFraVarsel("mine")
+  });
+  if (a.nye.antall && foJegFarNyeSaker()) punkter.push({
+   ikon: "🧾",
+   tekst: `Fakturaoppfølging – ${a.nye.antall} ${a.nye.antall === 1 ? "ny" : "nye"} ${a.ent(a.nye.antall)} som ingen har tatt (${fF(a.nye.sum)})`,
+   handling: () => gaTilFakturaoppfolgingFraVarsel("nye")
   });
  }
  if (harTilgangTilModul("utleie")) {
