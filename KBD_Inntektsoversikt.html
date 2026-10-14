@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.298 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.299 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -14070,7 +14070,10 @@ function lagreNotatHelt(n, hva) {
 }
 
 function vinnTilbud(id) {
- krevLeadKilde(id, () => lukkTilbudMedUtfall(id, "Vunnet"));
+ krevLeadKilde(id, () => {
+  lukkTilbudMedUtfall(id, "Vunnet");
+  if (typeof ptEtterVunnet === "function") ptEtterVunnet(id);
+ });
 }
 
 let utsettId = null;
@@ -15187,6 +15190,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.299",
+ dato: "14.10.2026",
+ punkter: [ "Tilbud: ny knapp «🧮 Ordregrunnlag» på lagrede tilbud. Den viser utregningen internt (ikke for kunden) som grunnlag for salgsordre i Visma: engangslinjer med varenr, Visma-navn, antall, listepris, rabatt, nettopris, sum, kost og DG, løpende linjer til kontrakt med pris per måned og per faktureringsperiode, og en oppsummering med DB, DG, leie og hva Ikano betaler KBD.", "Ordregrunnlaget kan kopieres (lim inn i Excel), lastes ned som Excel eller skrives ut.", "Når en salgssak med tilbud markeres som ✅ Vunnet, åpnes ordregrunnlaget for siste versjon, og saken får en loggpost om hvilken versjon som ble vunnet." ]
+}, {
  versjon: "v1.48.298",
  dato: "14.10.2026",
  punkter: [ "Fakturaoppfølging, «Ny registrering»: type-knappene (Telefon, E-post, SMS, Annet) står nå til høyre på samme linje som hurtigvalgene." ]
@@ -24885,7 +24892,7 @@ function ptApneVisning(spId, versjonSpId) {
   })}</div>`;
  }
  const lys = pkDgLys(v.hwDg);
- document.getElementById("pk-modal-innhold").innerHTML = `<h3>🧾 ${jsEscapeHtml(v.kundeNavn)} – ${jsEscapeHtml(d?.navn || v.pakke)}</h3>\n    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">\n      <select onchange="ptApneVisning('${v0.spId}',this.value)" style="width:auto">${alle.map(x => `<option value="${x.spId}"${x.spId === v.spId ? " selected" : ""}>Versjon ${x.versjon} · ${x.opprettet ? new Date(x.opprettet).toLocaleDateString("nb-NO") : ""} · ${jsEscapeHtml(x.selger)}</option>`).join("")}</select>\n      <span>🔒 Låst</span><span style="color:${lys.farge}">${lys.ikon} DG ${v.hwDg == null ? "–" : v.hwDg.toFixed(1).replace(".", ",") + " %"}</span>\n      ${v.arsak ? `<span title="Årsak til lav DG">💬 ${jsEscapeHtml(v.arsak)}</span>` : ""}\n      <span>Prisklasse: ${jsEscapeHtml(v.prisklasse || "listepris")}</span>\n      ${sak ? `<span>Sak: ${jsEscapeHtml(sak.status === "Åpen" ? typeof salgFase === "function" ? salgFase(sak) : "Åpen" : sak.tilbudUtfall || "Lukket")} · totalsum ${pkKr(sak.tilbudSum || 0)}</span>` : '<span class="pk-merke pk-merke-gul">fant ikke saken</span>'}\n    </div>\n    ${innhold}\n    <div class="modal-footer">\n      ${sak ? `<button class="btn-sm" onclick="ptGaTilSak('${v.sakId}')">↗ Gå til saken</button>` : ""}\n      <button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare()">Lukk</button>\n      ${d?.linjer ? `<button class="btn-sm" onclick="ptSkrivUtPdf(window._ptPdfHtml,'${jsEscapeHtml(`Tilbud ${v.kundeNavn} ${d.navn} v${v.versjon}`.replace(/['\\]/g, ""))}')">📄 Last ned PDF</button>` : ""}\n      ${kan && d?.linjer ? `<button class="btn-sm" onclick="ptApneSend('${v.spId}')" title="Lag e-post i Outlook med PDF-en vedlagt">✉️ Send tilbudet</button>` : ""}\n      ${kan && d?.linjer ? `<button class="prim" onclick="ptNyVersjon('${v.spId}')">✎ Lag ny versjon</button>` : ""}\n    </div>`;
+ document.getElementById("pk-modal-innhold").innerHTML = `<h3>🧾 ${jsEscapeHtml(v.kundeNavn)} – ${jsEscapeHtml(d?.navn || v.pakke)}</h3>\n    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">\n      <select onchange="ptApneVisning('${v0.spId}',this.value)" style="width:auto">${alle.map(x => `<option value="${x.spId}"${x.spId === v.spId ? " selected" : ""}>Versjon ${x.versjon} · ${x.opprettet ? new Date(x.opprettet).toLocaleDateString("nb-NO") : ""} · ${jsEscapeHtml(x.selger)}</option>`).join("")}</select>\n      <span>🔒 Låst</span><span style="color:${lys.farge}">${lys.ikon} DG ${v.hwDg == null ? "–" : v.hwDg.toFixed(1).replace(".", ",") + " %"}</span>\n      ${v.arsak ? `<span title="Årsak til lav DG">💬 ${jsEscapeHtml(v.arsak)}</span>` : ""}\n      <span>Prisklasse: ${jsEscapeHtml(v.prisklasse || "listepris")}</span>\n      ${sak ? `<span>Sak: ${jsEscapeHtml(sak.status === "Åpen" ? typeof salgFase === "function" ? salgFase(sak) : "Åpen" : sak.tilbudUtfall || "Lukket")} · totalsum ${pkKr(sak.tilbudSum || 0)}</span>` : '<span class="pk-merke pk-merke-gul">fant ikke saken</span>'}\n    </div>\n    ${innhold}\n    <div class="modal-footer">\n      ${sak ? `<button class="btn-sm" onclick="ptGaTilSak('${v.sakId}')">↗ Gå til saken</button>` : ""}\n      <button class="btn-sm" style="margin-left:auto" onclick="pkLukkVare()">Lukk</button>\n      ${d?.linjer ? `<button class="btn-sm" onclick="ptSkrivUtPdf(window._ptPdfHtml,'${jsEscapeHtml(`Tilbud ${v.kundeNavn} ${d.navn} v${v.versjon}`.replace(/['\\]/g, ""))}')">📄 Last ned PDF</button>` : ""}\n      ${ptKanSelge() && d?.linjer && typeof ptApneOrdregrunnlag === "function" ? `<button class="btn-sm" onclick="ptApneOrdregrunnlag('${v.spId}')" title="Internt grunnlag for salgsordre: varenr, antall, priser, kost og DG">🧮 Ordregrunnlag</button>` : ""}\n      ${kan && d?.linjer ? `<button class="btn-sm" onclick="ptApneSend('${v.spId}')" title="Lag e-post i Outlook med PDF-en vedlagt">✉️ Send tilbudet</button>` : ""}\n      ${kan && d?.linjer ? `<button class="prim" onclick="ptNyVersjon('${v.spId}')">✎ Lag ny versjon</button>` : ""}\n    </div>`;
  document.getElementById("pk-modal-innhold").scrollTop = 0;
  document.getElementById("pk-modal").classList.add("open");
 }
@@ -25775,6 +25782,290 @@ async function ptMarkerSendt() {
  pkLukkVare();
  ptSend = null;
  vfShowToast?.("✅ Sendingen er ført i saksloggen");
+}
+
+const PT_PERIODE = {
+ "Månedlig": {
+  mnd: 1,
+  navn: "per måned"
+ },
+ Kvartalsvis: {
+  mnd: 3,
+  navn: "per kvartal"
+ },
+ "Årlig": {
+  mnd: 12,
+  navn: "per år"
+ }
+};
+
+let ptOrdre = null;
+
+function ptOrdreData(v) {
+ const d = v?.data;
+ if (!d || !d.linjer) return null;
+ const med = d.linjer.filter(x => x.med && x.antall > 0), ikke = d.linjer.filter(x => !x.med);
+ const kat = x => {
+  const k = typeof pkVare === "function" ? pkVare(x.varenr) : null;
+  return {
+   vismaNavn: k?.vismaBeskr || x.navn || "",
+   enhet: k?.enhet || ""
+  };
+ };
+ const rad = x => {
+  const k = kat(x);
+  const dg = x.sum > 0 && (x.kost > 0 || x.egen) ? (x.sum - (x.kost || 0)) / x.sum * 100 : null;
+  return {
+   ...x,
+   ...k,
+   dg: dg,
+   tilbudsnavn: x.navn && x.navn !== k.vismaNavn ? x.navn : ""
+  };
+ };
+ const engang = med.filter(x => !x.lopende && !x.perBytte).map(rad), lop = med.filter(x => x.lopende).map(rad), bytte = med.filter(x => x.perBytte).map(rad);
+ const s = a => a.reduce((n, x) => n + (x.sum || 0), 0), k = a => a.reduce((n, x) => n + (x.kost || 0), 0);
+ const modus = typeof pkVisModus === "function" ? pkVisModus(d.vis) : "leie";
+ return {
+  v: v,
+  d: d,
+  engang: engang,
+  lop: lop,
+  bytte: bytte,
+  ikke: ikke.map(rad),
+  sumEngang: s(engang),
+  kostEngang: k(engang),
+  sumLop: s(lop),
+  kostLop: k(lop),
+  sumBytte: s(bytte),
+  modus: modus,
+  leieMnd: d.sum?.leieMnd || 0,
+  anskaffelse: d.sum?.anskaffelse || 0,
+  leieMaaneder: d.innst?.LeieMaaneder || 0,
+  hwDg: v.hwDg,
+  arsak: d.arsak || v.arsak || ""
+ };
+}
+
+function ptPst(x) {
+ return x == null ? "–" : x.toFixed(1).replace(".", ",") + " %";
+}
+
+function ptOrdreHtml(o) {
+ const e = jsEscapeHtml, v = o.v, d = o.d, sak = typeof ptSakFor === "function" ? ptSakFor(v.sakId) : null;
+ const navnCelle = x => `${e(x.vismaNavn)}${x.tilbudsnavn ? `<div class="pk-under">I tilbudet: ${e(x.tilbudsnavn)}</div>` : ""}`;
+ const tab = (rader, kol) => `<div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr>${kol.map(c => `<th${c.h ? ' style="text-align:right"' : ""}>${c.t}</th>`).join("")}</tr></thead><tbody>${rader}</tbody></table></div>`;
+ const db = o.sumEngang - o.kostEngang, dg = o.sumEngang > 0 && o.kostEngang > 0 ? db / o.sumEngang * 100 : null;
+ let h = `<h3>🧮 Ordregrunnlag – ${e(v.kundeNavn)}</h3>\n    <div class="hint" style="margin:-4px 0 10px">Internt grunnlag for salgsordre i Visma. Bygger på den låste versjonen kunden fikk. Visma-navn og enhet er fra dagens produktkatalog.</div>\n    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 16px;font-size:13px;margin-bottom:12px;padding:10px 12px;background:#f6f8fc;border:1px solid #dbe3f0;border-radius:8px">\n      <div>Kunde: <b>${e(v.kundeNavn)}</b>${v.kNr ? ` (${e(v.kNr)})` : ""}</div>\n      <div>Tilbud: <b>${e(d.navn || v.pakke)}</b> · versjon ${v.versjon}</div>\n      <div>Dato: ${v.opprettet ? new Date(v.opprettet).toLocaleDateString("nb-NO") : "–"} · gyldig til ${v.gyldigTil ? new Date(v.gyldigTil).toLocaleDateString("nb-NO") : "–"}</div>\n      <div>Selger: ${e(v.selger || d.selger || "–")}</div>\n      <div>Prisklasse: ${e(v.prisklasse || "listepris")}</div>\n      <div>Prisvisning: ${e(typeof PK_PRISVISNING !== "undefined" && PK_PRISVISNING[o.modus] || o.modus)}${d.tilbudstype && d.tilbudstype !== "Kasse" ? ` · ${e(pkTypeInfo(d.tilbudstype).navn)}` : ""}</div>\n      ${sak ? `<div>Sak: ${e(sak.status === "Åpen" ? typeof salgFase === "function" ? salgFase(sak) : "Åpen" : sak.tilbudUtfall || "Lukket")}</div>` : ""}\n    </div>`;
+ h += `<div style="font-weight:700;margin:6px 0">1. Til salgsordre (engangs)</div>`;
+ h += o.engang.length ? tab(o.engang.map(x => `<tr><td>${e(x.varenr)}</td><td>${navnCelle(x)}</td><td style="text-align:right">${pkAntall(x.antall)}${x.enhet ? ` ${e(x.enhet)}` : ""}</td><td style="text-align:right">${pkKr(x.pris)}</td><td style="text-align:right">${x.rabattPst ? String(x.rabattPst).replace(".", ",") + " %" : ""}</td><td style="text-align:right">${pkKr(x.netto)}</td><td style="text-align:right"><b>${pkKr(x.sum)}</b></td><td style="text-align:right">${x.kost ? pkKr(Math.round(x.kost * 100) / 100) : "–"}</td><td style="text-align:right">${ptPst(x.dg)}</td></tr>`).join("") + `<tr style="font-weight:700;background:#f8fafc"><td></td><td>Sum</td><td></td><td></td><td></td><td></td><td style="text-align:right">${pkKr(o.sumEngang)}</td><td style="text-align:right">${pkKr(Math.round(o.kostEngang))}</td><td style="text-align:right">${ptPst(dg)}</td></tr>`, [ {
+  t: "Varenr"
+ }, {
+  t: "Visma-navn"
+ }, {
+  t: "Antall",
+  h: 1
+ }, {
+  t: "Listepris",
+  h: 1
+ }, {
+  t: "Rabatt",
+  h: 1
+ }, {
+  t: "Nettopris",
+  h: 1
+ }, {
+  t: "Sum",
+  h: 1
+ }, {
+  t: "Kost",
+  h: 1
+ }, {
+  t: "DG",
+  h: 1
+ } ]) : '<div class="hint">Ingen engangslinjer.</div>';
+ h += `<div style="font-weight:700;margin:14px 0 6px">2. Til kontrakt (løpende)</div>`;
+ h += o.lop.length ? tab(o.lop.map(x => {
+  const p = PT_PERIODE[x.fakturering] || PT_PERIODE.Månedlig;
+  return `<tr><td>${e(x.varenr)}</td><td>${navnCelle(x)}</td><td style="text-align:right">${pkAntall(x.antall)}</td><td style="text-align:right">${pkKr(x.netto)}</td><td style="text-align:right"><b>${pkKr(x.sum)}</b></td><td>${e(x.fakturering || "Månedlig")}</td><td style="text-align:right">${pkKr(x.sum * p.mnd)} ${p.navn}</td><td style="text-align:right">${x.kost ? pkKr(Math.round(x.kost)) : "–"}</td></tr>`;
+ }).join("") + `<tr style="font-weight:700;background:#f8fafc"><td></td><td>Sum per måned</td><td></td><td></td><td style="text-align:right">${pkKr(o.sumLop)}</td><td></td><td></td><td style="text-align:right">${pkKr(Math.round(o.kostLop))}</td></tr>`, [ {
+  t: "Varenr"
+ }, {
+  t: "Visma-navn"
+ }, {
+  t: "Antall",
+  h: 1
+ }, {
+  t: "Pris/mnd",
+  h: 1
+ }, {
+  t: "Sum/mnd",
+  h: 1
+ }, {
+  t: "Fakturering"
+ }, {
+  t: "Per periode",
+  h: 1
+ }, {
+  t: "Kost/mnd",
+  h: 1
+ } ]) : '<div class="hint">Ingen løpende linjer.</div>';
+ if (o.bytte.length) {
+  h += `<div style="font-weight:700;margin:14px 0 6px">3. Per bytte (etter behov)</div>` + tab(o.bytte.map(x => `<tr><td>${e(x.varenr)}</td><td>${navnCelle(x)}</td><td style="text-align:right">${pkAntall(x.antall)}</td><td style="text-align:right">${pkKr(x.netto)}</td><td style="text-align:right"><b>${pkKr(x.sum)}</b></td></tr>`).join(""), [ {
+   t: "Varenr"
+  }, {
+   t: "Visma-navn"
+  }, {
+   t: "Antall",
+   h: 1
+  }, {
+   t: "Pris/stk",
+   h: 1
+  }, {
+   t: "Per bytte",
+   h: 1
+  } ]);
+ }
+ const utenKost = o.engang.filter(x => !(x.kost > 0) && !x.egen).length;
+ if (utenKost) h += `<div style="color:#b45309;font-size:12.5px;margin-top:6px">⚠ ${utenKost} linje${utenKost > 1 ? "r" : ""} uten kostpris er regnet med kost 0, så DG blir for høy. Er det egen tjeneste, huk av «Egen tjeneste» på varen.</div>`;
+ if (o.ikke.length) h += `<div style="font-size:12.5px;color:#6b7280;margin-top:10px">Ikke med (tilvalg kunden kan velge): ${o.ikke.map(x => `${e(x.varenr)} ${e(x.vismaNavn)}`).join(" · ")}</div>`;
+ const lopDb = o.sumLop - o.kostLop;
+ h += `<div style="font-weight:700;margin:14px 0 6px">Oppsummering</div>\n    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 16px;font-size:13px">\n      <div>Kjøpspris (engangs): <b>${pkKr(o.sumEngang)}</b> eks. mva</div>\n      <div>DB / DG hardware og etablering: <b>${pkKr(Math.round(db))}</b> / ${ptPst(o.hwDg != null ? o.hwDg : dg)}</div>\n      <div>Løpende: <b>${pkKr(o.sumLop)}</b> /mnd · DB ${pkKr(Math.round(lopDb))} /mnd</div>\n      <div>Verdi første år: <b>${pkKr(Math.round(o.sumEngang + 12 * o.sumLop))}</b></div>\n      ${o.modus !== "kjop" && o.leieMnd ? `<div>Leie: <b>${pkKr(o.leieMnd)}</b> /mnd i ${o.leieMaaneder} mnd via Ikano</div><div>Ikano betaler KBD: <b>${pkKr(Math.round(o.anskaffelse))}</b></div>` : ""}\n      ${o.sumBytte ? `<div>Per bytte: <b>${pkKr(o.sumBytte)}</b></div>` : ""}\n      ${o.arsak ? `<div style="grid-column:1/-1">Årsak lav DG/rabatt: ${e(o.arsak)}</div>` : ""}\n    </div>`;
+ return h;
+}
+
+function ptApneOrdregrunnlag(versjonSpId) {
+ const v = ptVersjoner.find(x => x.spId === String(versjonSpId) && x.versjon > 0);
+ if (!v) {
+  alert("Fant ikke tilbudet.");
+  return;
+ }
+ const o = ptOrdreData(v);
+ if (!o) {
+  alert("Tilbudet mangler innhold.");
+  return;
+ }
+ ptOrdre = o;
+ pkModalBred(true);
+ document.getElementById("pk-modal-innhold").innerHTML = `<div id="pt-ordre-innhold">${ptOrdreHtml(o)}</div>\n    <div class="modal-footer">\n      <button class="btn-sm" onclick="ptApneVisning('${v.spId}')">← Til tilbudet</button>\n      <button class="btn-sm" style="margin-left:auto" onclick="ptOrdreKopier()">📋 Kopier</button>\n      <button class="btn-sm" onclick="ptOrdreExcel()">📥 Last ned Excel</button>\n      <button class="btn-sm" onclick="ptOrdreSkrivUt()">🖨 Skriv ut</button>\n      <button class="prim" onclick="pkLukkVare();ptOrdre=null">Lukk</button>\n    </div>`;
+ document.getElementById("pk-modal-innhold").scrollTop = 0;
+ document.getElementById("pk-modal").classList.add("open");
+}
+
+function ptOrdreRader(o) {
+ const v = o.v, r = [];
+ r.push([ "Ordregrunnlag", v.kundeNavn, v.kNr || "", `${o.d.navn || v.pakke} v${v.versjon}`, v.opprettet ? new Date(v.opprettet).toLocaleDateString("nb-NO") : "" ]);
+ r.push([]);
+ r.push([ "TIL SALGSORDRE (ENGANGS)" ]);
+ r.push([ "Varenr", "Visma-navn", "Antall", "Enhet", "Listepris", "Rabatt %", "Nettopris", "Sum", "Kost", "DG %" ]);
+ o.engang.forEach(x => r.push([ x.varenr, x.vismaNavn, x.antall, x.enhet, x.pris, x.rabattPst || 0, x.netto, x.sum, Math.round((x.kost || 0) * 100) / 100, x.dg == null ? "" : Math.round(x.dg * 10) / 10 ]));
+ r.push([ "", "Sum", "", "", "", "", "", o.sumEngang, Math.round(o.kostEngang * 100) / 100 ]);
+ r.push([]);
+ r.push([ "TIL KONTRAKT (LØPENDE)" ]);
+ r.push([ "Varenr", "Visma-navn", "Antall", "Pris/mnd", "Sum/mnd", "Fakturering", "Per periode", "Kost/mnd" ]);
+ o.lop.forEach(x => {
+  const p = PT_PERIODE[x.fakturering] || PT_PERIODE.Månedlig;
+  r.push([ x.varenr, x.vismaNavn, x.antall, x.netto, x.sum, x.fakturering || "Månedlig", x.sum * p.mnd, Math.round(x.kost || 0) ]);
+ });
+ r.push([ "", "Sum per måned", "", "", o.sumLop ]);
+ if (o.bytte.length) {
+  r.push([]);
+  r.push([ "PER BYTTE" ]);
+  r.push([ "Varenr", "Visma-navn", "Antall", "Pris/stk", "Per bytte" ]);
+  o.bytte.forEach(x => r.push([ x.varenr, x.vismaNavn, x.antall, x.netto, x.sum ]));
+ }
+ r.push([]);
+ if (o.modus !== "kjop" && o.leieMnd) r.push([ "Leie via Ikano", `${o.leieMaaneder} mnd`, o.leieMnd, "Ikano betaler KBD", Math.round(o.anskaffelse) ]);
+ if (o.arsak) r.push([ "Årsak", o.arsak ]);
+ return r;
+}
+
+async function ptOrdreKopier() {
+ if (!ptOrdre) return;
+ const tsv = ptOrdreRader(ptOrdre).map(r => r.map(c => typeof c === "number" ? String(c).replace(".", ",") : String(c ?? "")).join("\t")).join("\n");
+ try {
+  await navigator.clipboard.writeText(tsv);
+  vfShowToast?.("📋 Kopiert. Lim inn i Excel eller et notat.");
+ } catch (e) {
+  const t = document.createElement("textarea");
+  t.value = tsv;
+  document.body.appendChild(t);
+  t.select();
+  try {
+   document.execCommand("copy");
+   vfShowToast?.("📋 Kopiert");
+  } catch (x) {
+   alert("Kunne ikke kopiere.");
+  }
+  t.remove();
+ }
+}
+
+function ptOrdreExcel() {
+ if (!ptOrdre) return;
+ if (typeof XLSX === "undefined") {
+  alert("Excel-verktøyet er ikke lastet. Last siden på nytt.");
+  return;
+ }
+ const ws = XLSX.utils.aoa_to_sheet(ptOrdreRader(ptOrdre));
+ ws["!cols"] = [ {
+  wch: 14
+ }, {
+  wch: 46
+ }, {
+  wch: 9
+ }, {
+  wch: 10
+ }, {
+  wch: 12
+ }, {
+  wch: 12
+ }, {
+  wch: 14
+ }, {
+  wch: 12
+ }, {
+  wch: 12
+ }, {
+  wch: 8
+ } ];
+ const wb = XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb, ws, "Ordregrunnlag");
+ const v = ptOrdre.v;
+ XLSX.writeFile(wb, `Ordregrunnlag ${String(v.kundeNavn || "").replace(/[\\/:*?"<>|]+/g, " ").trim()} v${v.versjon}.xlsx`);
+}
+
+function ptOrdreSkrivUt() {
+ if (!ptOrdre) return;
+ const w = window.open("", "_blank");
+ if (!w) {
+  alert("Nettleseren blokkerte vinduet. Tillat sprettoppvinduer for dashbordet.");
+  return;
+ }
+ const css = [ ...document.querySelectorAll("style") ].map(s => s.textContent).join("\n");
+ w.document.open();
+ w.document.write(`<!doctype html><html lang="nb"><head><meta charset="utf-8"><title>Ordregrunnlag ${jsEscapeHtml(ptOrdre.v.kundeNavn)}</title><style>${css}\n    body{background:#fff;padding:16px;font-family:Arial,sans-serif}@page{size:A4 landscape;margin:12mm}</style></head><body>${ptOrdreHtml(ptOrdre)}</body></html>`);
+ w.document.close();
+ setTimeout(() => {
+  try {
+   w.focus();
+   w.print();
+  } catch (e) {}
+ }, 300);
+}
+
+async function ptEtterVunnet(id) {
+ try {
+  const n = (typeof kundeNotater !== "undefined" ? kundeNotater : []).find(x => x.id === id);
+  if (!n || n.type !== "Tilbud" || !ptKanSelge()) return;
+  if (!pkLastet && !await ptVentPaKatalog()) return;
+  const t = ptSakTilbud(n);
+  if (!t.length) return;
+  const v = t[0];
+  if (typeof ptLoggPaSak === "function") await ptLoggPaSak(v, `✅ Vunnet på tilbud v${v.versjon} (${pkKr(v.kjop)} kjøp${v.lisensMnd ? `, ${pkKr(v.lisensMnd)}/mnd` : ""}). Ordregrunnlag: åpne tilbudet og trykk «🧮 Ordregrunnlag».`);
+  ptApneOrdregrunnlag(v.spId);
+ } catch (e) {
+  console.warn("Ordregrunnlag etter vunnet", e);
+ }
 }
 
 (function() {
