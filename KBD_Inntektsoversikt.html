@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.304 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.306 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -10472,7 +10472,7 @@ async function kontaktFraRegistrering(kNr, kundeNavn, kontakt) {
 }
 
 function renderProspektKundeKort(k) {
- const html = `\n    <div class="card">\n      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">\n        <div>\n          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">\n            <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn || "(uten navn)"}</div>\n            <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">\n              ${seProffKnappHtml(k.orgNr, k.navn)}\n              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn || "").replace(/'/g, "\\'")}')">🔍 Gule Sider</button>\n              ${salgTilgang ? `<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn || "").replace(/'/g, "\\'")}','${normTlf(hovedkontaktFor(k)?.mobil)}',0)">📱 Send SMS</button>` : ""}\n              ${onbKundekortKnappHtml(k)}\n            </div>\n          </div>\n          <div class="muted">Org.nr ${k.orgNr || "ukjent"} · ${k.manueltOpprettet ? "📞 Manuelt registrert" : "🆕 Ny etablering"} — ikke registrert som kunde i Visma ennå${kundeSelgerHtml(k)}</div>\n        </div>\n      </div>\n\n      ${renderKontakterHTML(k)}\n\n      <div class="hint" style="margin-bottom:16px">${k.manueltOpprettet ? "Opprettet manuelt (f.eks. en kunde som tok kontakt selv) — ikke hentet fra Nyetableringer/Brønnøysund." : "Overført fra «🏢 Nyetableringer» under Kunde 360."} Viser derfor ikke omsetning, avtaler eller Visma-kontaktinfo — det finnes ikke ennå. Den dagen selskapet faktisk blir Visma-kunde, dukker et ordinært kundekort opp ved neste nattlige synk, og notatene under kan flyttes manuelt over til riktig Visma-kundenummer.</div>\n\n      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">\n        <div>\n          <p class="sec-title">Kontaktinfo</p>\n          <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet ? "Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig." : "Adressen er hentet fra Brønnøysundregisteret."} Kontaktpersoner legges inn i «👥 Kontaktpersoner» over.</div>\n          <div class="tbl-wrap" style="margin-bottom:0">\n            <table><tbody>\n              ${!k.orgNr && salgTilgang ? `<tr><td class="muted" style="width:160px">Org.nr</td><td>\n                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><input type="text" id="prospekt-orgnr" inputmode="numeric" placeholder="9 siffer" maxlength="11" style="width:140px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter'){event.preventDefault();prospektOrgnrSjekk('${k.nyetableringId}');}"/>\n                <button class="btn-sm" onclick="prospektOrgnrSjekk('${k.nyetableringId}')">🔎 Sjekk i Brreg</button>\n                <span class="hint" style="margin:0">Legg inn når selskapet har fått org.nr</span></div>\n                <div id="prospekt-orgnr-forhand" style="margin-top:8px"></div></td></tr>` : ""}\n              <tr><td class="muted" style="width:160px">Adresse${k.manueltOpprettet ? "" : " (Brreg)"}</td><td>${k.adresse || "—"}${k.postnr || k.sted ? `, ${k.postnr || ""} ${k.sted || ""}` : ""}</td></tr>\n            </tbody></table>\n          </div>\n        </div>\n        <div>\n          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">\n            <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>\n            <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>\n          </div>\n          <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>\n        </div>\n      </div>\n\n      \x3c!-- k360-nokkeltall (lagt til her 10.09.2026) — fantes fra før KUN på\n           det ordinære Visma-kundekortet (renderKundeKort()), ikke her. Feilen\n           ble oppdaget da Thomas testet på nettopp et manuelt/prospekt-kort og\n           ikke så panelet i det hele tatt. Nøkkeltallene kommer fra\n           Regnskapsregisteret via org.nr, helt uavhengig av Visma-status, så\n           det er ingen grunn til at det skal mangle her — fylles av samme\n           hentBrregInfo()/renderNokkeltall() som resten av kortet, trigges av\n           «Hent fra Brønnøysundregistrene»-knappen over, akkurat som\n           k360-brreg. --\x3e\n      <div id="k360-nokkeltall"></div>\n\n      ${renderKundeNotaterHTML(k)}\n    </div>\n  `;
+ const html = `\n    <div class="card">\n      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">\n        <div>\n          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">\n            <div style="font-size:34px;font-weight:700;color:#111;line-height:1.15">${k.navn || "(uten navn)"}</div>\n            <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">\n              ${seProffKnappHtml(k.orgNr, k.navn)}\n              <button class="btn-sm" title="Søk opp firmaet på Gule Sider (åpner i ny fane, ingen automatisk henting)" onclick="apneGuleSider('${(k.navn || "").replace(/'/g, "\\'")}')">🔍 Gule Sider</button>\n              ${salgTilgang ? `<button class="btn-sm" title="Send SMS til kontaktpersonens/kundens telefonnummer" onclick="openSmsModal('${(k.navn || "").replace(/'/g, "\\'")}','${normTlf(hovedkontaktFor(k)?.mobil)}',0)">📱 Send SMS</button>` : ""}\n              ${onbKundekortKnappHtml(k)}\n              ${typeof vkKnappHtml === "function" ? vkKnappHtml(k) : ""}\n            </div>\n          </div>\n          <div class="muted">Org.nr ${k.orgNr || "ukjent"} · ${k.manueltOpprettet ? "📞 Manuelt registrert" : "🆕 Ny etablering"} — ikke registrert som kunde i Visma ennå${kundeSelgerHtml(k)}</div>\n        </div>\n      </div>\n\n      ${renderKontakterHTML(k)}\n\n      <div class="hint" style="margin-bottom:16px">${k.manueltOpprettet ? "Opprettet manuelt (f.eks. en kunde som tok kontakt selv) — ikke hentet fra Nyetableringer/Brønnøysund." : "Overført fra «🏢 Nyetableringer» under Kunde 360."} Viser derfor ikke omsetning, avtaler eller Visma-kontaktinfo — det finnes ikke ennå. Den dagen selskapet faktisk blir Visma-kunde, dukker et ordinært kundekort opp ved neste nattlige synk, og notatene under kan flyttes manuelt over til riktig Visma-kundenummer.</div>\n\n      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">\n        <div>\n          <p class="sec-title">Kontaktinfo</p>\n          <div class="hint" style="margin-bottom:8px">${k.manueltOpprettet ? "Adressen under er det som ble fylt inn ved opprettelse — bruk «🔎 Hent fra Brønnøysundregistrene» under for å hente/bekrefte mot org.nr om ønskelig." : "Adressen er hentet fra Brønnøysundregisteret."} Kontaktpersoner legges inn i «👥 Kontaktpersoner» over.</div>\n          <div class="tbl-wrap" style="margin-bottom:0">\n            <table><tbody>\n              ${!k.orgNr && salgTilgang ? `<tr><td class="muted" style="width:160px">Org.nr</td><td>\n                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><input type="text" id="prospekt-orgnr" inputmode="numeric" placeholder="9 siffer" maxlength="11" style="width:140px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter'){event.preventDefault();prospektOrgnrSjekk('${k.nyetableringId}');}"/>\n                <button class="btn-sm" onclick="prospektOrgnrSjekk('${k.nyetableringId}')">🔎 Sjekk i Brreg</button>\n                <span class="hint" style="margin:0">Legg inn når selskapet har fått org.nr</span></div>\n                <div id="prospekt-orgnr-forhand" style="margin-top:8px"></div></td></tr>` : ""}\n              <tr><td class="muted" style="width:160px">Adresse${k.manueltOpprettet ? "" : " (Brreg)"}</td><td>${k.adresse || "—"}${k.postnr || k.sted ? `, ${k.postnr || ""} ${k.sted || ""}` : ""}</td></tr>\n            </tbody></table>\n          </div>\n        </div>\n        <div>\n          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:2px">\n            <p class="sec-title" style="margin-bottom:0">Brønnøysundregistrene</p>\n            <button class="btn-sm" onclick="hentBrregInfo('${k.orgNr}')">🔎 Hent fra Brønnøysundregistrene</button>\n          </div>\n          <div id="k360-brreg" class="tbl-wrap" style="margin-bottom:0"><div class="empty">Trykk «Hent fra Brønnøysundregistrene» over for offentlig informasjon og roller (styre, daglig leder m.m.). Hentes live ved klikk, lagres ikke.</div></div>\n        </div>\n      </div>\n\n      \x3c!-- k360-nokkeltall (lagt til her 10.09.2026) — fantes fra før KUN på\n           det ordinære Visma-kundekortet (renderKundeKort()), ikke her. Feilen\n           ble oppdaget da Thomas testet på nettopp et manuelt/prospekt-kort og\n           ikke så panelet i det hele tatt. Nøkkeltallene kommer fra\n           Regnskapsregisteret via org.nr, helt uavhengig av Visma-status, så\n           det er ingen grunn til at det skal mangle her — fylles av samme\n           hentBrregInfo()/renderNokkeltall() som resten av kortet, trigges av\n           «Hent fra Brønnøysundregistrene»-knappen over, akkurat som\n           k360-brreg. --\x3e\n      <div id="k360-nokkeltall"></div>\n\n      ${renderKundeNotaterHTML(k)}\n    </div>\n  `;
  document.getElementById("k360-kort").innerHTML = html;
  if (typeof aktiveKontrakter !== "undefined" && aktiveKontrakter.length) fyllLisensCeller("k360lis", aktiveKontrakter.map(c => c.kontraktId));
 }
@@ -15192,6 +15192,14 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.306",
+ dato: "14.10.2026",
+ punkter: [ "Opprett kunde i Visma: alle kundeprofilene kan velges (Norske direkte, NHO, KNIF, Systemkjøp, Samarbeidspartner, Storkunde, Lakkbar og A-, B- og C-forhandler). Betalingsbetingelsen følger profilen (14 eller 15 dager netto), som i Visma." ]
+}, {
+ versjon: "v1.48.305",
+ dato: "14.10.2026",
+ punkter: [ "Kundekort for prospekt: ny knapp «🏢 Opprett kunde i Visma». Navn, org.nr, adresse (kan hentes fra Brreg), kontaktperson og e-post fylles ut, og du velger kundeprofil. Resten av oppsettet (14 dager netto, faktura som EHF, purring og kontoutdrag på e-post) kopieres fra en mal-kunde. Org.nr og e-post er påkrevd for EHF. Org.nr sjekkes mot Visma så det ikke blir dobbelt. Saker, kontakter og tilbud følger med til det nye kundenummeret, og kundelista oppdateres med en gang.", "Salgsordre fra tilbud virker nå også rett etter at et prospekt er opprettet som kunde.", "Innstillinger for tilbud: hvilke kundeprofiler som kan velges." ]
+}, {
  versjon: "v1.48.304",
  dato: "14.10.2026",
  punkter: [ "Tilbud: leieprisen regnes nå bare av linjene som går til Ikano. Frakt, miljøgebyr, kassaruller o.l. faktureres kunden direkte og vises som «Faktureres ved levering» i prisboksen. Hvilke grupper som går til Ikano, settes med «Inngår i leiegrunnlag (Ikano)» under Grupper og regler (automatisk = følger hardware-DG).", "Ordregrunnlag: ny knapp «🧾 Opprett salgsordre i Visma». Ved leie lages to ordrer (utstyr til Ikano, resten til kunden), ved kjøp én. Ordrene opprettes med status «Hold». Mangler ordren kassaruller, foreslås kassarull-varene først. SO-numrene lagres på tilbudet, og Ikanos avtalenummer kan legges inn etterpå.", "Innstillinger for tilbud: Ikanos kundenummer i Visma og hvilke varer som er kassaruller." ]
@@ -21985,12 +21993,14 @@ const PK_INNST_TEKST = {
 
 const PK_TEKST_INNST = {
  IkanoKundenr: "13697",
- KassarullVarer: "3030, 3040"
+ KassarullVarer: "3030, 3040",
+ KundeprofilValg: "1=Norske direkte kunder avgiftspliktige|14; 9=NHO IK medlem / kunde|15; 10=KNIF-medlem / kunde|15; 11=Systemkjøp medlem / kunde|15; 12=Samarbeidspartner / kunde|15; 13=Storkunde|15; 14=Lakkbar|14; 4=A-forhandler (Selected Ones)|15; 5=B-forhandler|15; 6=C-forhandler|15"
 };
 
 const PK_TEKST_INNST_NAVN = {
  IkanoKundenr: "Ikanos kundenr. i Visma (salgsordre ved leie)",
- KassarullVarer: "Kassarull-varer (varenr, kommaseparert) for mersalg på salgsordre"
+ KassarullVarer: "Kassarull-varer (varenr, kommaseparert) for mersalg på salgsordre",
+ KundeprofilValg: "Kundeprofiler ved «Opprett kunde i Visma» (id=navn|betalingsdager; …, første er standard)"
 };
 
 let pkGrupper = [], pkGrupperFinnes = false, pkInnst = {
@@ -26179,8 +26189,9 @@ function ptSoStart() {
   alert(`Salgsordre er allerede opprettet fra versjon ${andre.map(x => x.versjon).join(", ")} av tilbudet (${andre.flatMap(x => x.salgsordrer).map(x => "SO " + x.nr).join(", ")}). Sjekk i Visma.`);
   return;
  }
- if (!/^\d{1,10}$/.test(String(v.kNr || "").trim())) {
-  alert("Kunden finnes ikke i Visma ennå (prospekt/lead). Opprett kunden i Visma først. Når nattsynken har hentet den, kan salgsordren lages herfra.");
+ const kNrV = typeof effektivKundenr === "function" ? effektivKundenr(v.kNr) : String(v.kNr || "").trim();
+ if (!/^\d{1,10}$/.test(kNrV)) {
+  alert("Kunden finnes ikke i Visma ennå (prospekt/lead). Bruk «🏢 Opprett kunde i Visma» på kundekortet først.");
   return;
  }
  if (!o.engang.length) {
@@ -26255,7 +26266,7 @@ function ptSoOrdrer() {
  const tittel = `${d.navn || v.pakke || "Tilbud"} v${v.versjon}`;
  const kunde = (rader, medIkano) => ({
   rolle: "Kunde",
-  kundenr: String(v.kNr).trim(),
+  kundenr: typeof effektivKundenr === "function" ? effektivKundenr(v.kNr) : String(v.kNr).trim(),
   referanse: (d.kontaktperson || "").slice(0, 40),
   beskrivelse: `Tilbud ${tittel}${medIkano ? " – utstyret leies via Ikano (egen ordre)" : ""}`.slice(0, 255),
   notat: `Fra KBD Command Center: tilbud ${tittel}${v.selger ? `, selger ${v.selger}` : ""}.`,
@@ -26268,7 +26279,7 @@ function ptSoOrdrer() {
    kundenr: String(pkInnst.IkanoKundenr || "13697").trim(),
    referanse: navn.slice(0, 40),
    beskrivelse: `Leie via Ikano – ${navn} – tilbud ${tittel}`.slice(0, 255),
-   notat: `Sluttkunde: ${navn}${v.kNr ? ` (Visma-nr ${v.kNr})` : ""}. Leie ${pkKr(o.leieMnd)}/mnd i ${o.leieMaaneder} mnd. Ikanos avtalenr. legges inn når det kommer.`,
+   notat: `Sluttkunde: ${navn}${v.kNr ? ` (Visma-nr ${typeof effektivKundenr === "function" ? effektivKundenr(v.kNr) : v.kNr})` : ""}. Leie ${pkKr(o.leieMnd)}/mnd i ${o.leieMaaneder} mnd. Ikanos avtalenr. legges inn når det kommer.`,
    linjer: ik.map(linje)
   });
   if (dir.length) ut.push(kunde(dir, ik.length > 0));
@@ -26463,6 +26474,230 @@ async function onbObLastNed() {
    k.disabled = false;
    k.textContent = "📄 Last ned PDF";
   }
+ }
+}
+
+let vkAapen = null;
+
+const VK_STD_PROFILER = "1=Norske direkte kunder avgiftspliktige|14; 9=NHO IK medlem / kunde|15; 10=KNIF-medlem / kunde|15; 11=Systemkjøp medlem / kunde|15; 12=Samarbeidspartner / kunde|15; 13=Storkunde|15; 14=Lakkbar|14; 4=A-forhandler (Selected Ones)|15; 5=B-forhandler|15; 6=C-forhandler|15";
+
+function vkProfiler() {
+ return String(pkInnst?.KundeprofilValg || VK_STD_PROFILER).split(/[;\n]+/).map(s => s.trim()).filter(Boolean).map(s => {
+  const i = s.indexOf("=");
+  const id = i > 0 ? s.slice(0, i).trim() : s;
+  const [navn, bet] = (i > 0 ? s.slice(i + 1) : s).split("|").map(x => x.trim());
+  return {
+   id: id,
+   navn: navn || id,
+   betingelse: /^\d{1,3}$/.test(bet || "") ? bet : ""
+  };
+ }).filter(p => p.id);
+}
+
+function vkKnappHtml(k) {
+ if (!k?.erProspekt || !k.nyetableringId || !(typeof salgTilgang !== "undefined" && salgTilgang)) return "";
+ return `<button class="btn-sm" title="Opprett selskapet som kunde i Visma (oppsett fra malkunden i Visma, EHF)" onclick="vkApne('${k.nyetableringId}')">🏢 Opprett kunde i Visma</button>`;
+}
+
+function vkFinnesIVisma(orgnr) {
+ const nr = normOrgNr(orgnr);
+ return nr.length === 9 ? vismaKunder.filter(x => normOrgNr(x.orgNr) === nr) : [];
+}
+
+function vkApne(nyId) {
+ const k = hentProspektKunder().find(x => x.nyetableringId === nyId);
+ if (!k) {
+  alert("Fant ikke prospektet. Er det allerede opprettet i Visma?");
+  return;
+ }
+ const fra = vkFinnesIVisma(k.orgNr);
+ if (fra.length) {
+  alert(`Org.nr ${k.orgNr} finnes allerede i Visma: ${fra.map(x => `${x.vismaNummer} ${x.navn}`).join(", ")}. Kundekortet kobles automatisk.`);
+  return;
+ }
+ const h = hovedkontaktFor(k) || {};
+ vkAapen = {
+  k: k,
+  nyId: nyId,
+  sender: false
+ };
+ const e = jsEscapeHtml, inp = (id, lbl, val, ekstra) => `<div class="fgrp"><label for="${id}">${lbl}</label><input type="text" id="${id}" value="${e(val || "")}" autocomplete="off" ${ekstra || ""}></div>`;
+ pkModalBred(false);
+ document.getElementById("pk-modal-innhold").innerHTML = `<h3>🏢 Opprett kunde i Visma</h3>\n    <div class="hint" style="margin:-4px 0 12px">Betalingsbetingelsen følger kundeprofilen. Resten kopieres fra malkunden «KUNDE_MAL_NR» i Visma: faktura som EHF (krever org.nr og e-post), purring og kontoutdrag på e-post.</div>\n    ${inp("vk-navn", "Kundenavn *", k.navn)}\n    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${inp("vk-orgnr", "Org.nr *", k.orgNr, 'inputmode="numeric" maxlength="11"')}\n      <div class="fgrp"><label for="vk-profil">Kundeprofil *</label><select id="vk-profil">${vkProfiler().map((p, i) => `<option value="${e(p.id)}"${i === 0 ? " selected" : ""}>${e(p.id)} – ${e(p.navn)}${p.betingelse ? ` (${e(p.betingelse)} dager netto)` : ""}</option>`).join("")}</select></div></div>\n    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">${inp("vk-adresse", "Adresse *", k.adresse)}<button class="btn-sm" style="margin-bottom:12px" onclick="vkHentBrreg()">🔎 Fra Brreg</button></div>\n    <div style="display:grid;grid-template-columns:120px 1fr;gap:10px">${inp("vk-postnr", "Postnr *", k.postnr, 'inputmode="numeric" maxlength="4"')}${inp("vk-sted", "Poststed *", k.sted)}</div>\n    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${inp("vk-kontakt", "Kontaktperson", h.navn || k.kontaktNavn)}${inp("vk-tlf", "Telefon", h.mobil || k.kontaktTelefon, 'inputmode="tel"')}</div>\n    ${inp("vk-epost", "E-post * (EHF, purring og kontoutdrag)", h.epost || k.kontaktEpost, 'inputmode="email"')}\n    <div id="vk-resultat"></div>\n    <div class="modal-footer"><button class="btn-sm" onclick="pkLukkVare();vkAapen=null">Avbryt</button>\n      <button class="prim" id="vk-send" style="margin-left:auto" onclick="vkSend()">🏢 Opprett i Visma</button></div>`;
+ document.getElementById("pk-modal").classList.add("open");
+}
+
+async function vkHentBrreg() {
+ const nr = normOrgNr(document.getElementById("vk-orgnr")?.value);
+ if (nr.length !== 9) {
+  alert("Skriv inn org.nr (9 siffer) først.");
+  return;
+ }
+ let d = null;
+ try {
+  for (const ep of [ "enheter", "underenheter" ]) {
+   const r = await fetch(`https://data.brreg.no/enhetsregisteret/api/${ep}/${nr}`);
+   if (r.ok) {
+    d = await r.json();
+    break;
+   }
+  }
+ } catch (err) {
+  console.warn("Brreg", err);
+ }
+ if (!d) {
+  alert("Fant ikke org.nr i Brønnøysundregistrene.");
+  return;
+ }
+ const a = d.forretningsadresse || d.beliggenhetsadresse || {}, sett = (id, v) => {
+  const el = document.getElementById(id);
+  if (el && v) el.value = v;
+ };
+ sett("vk-navn", d.navn);
+ sett("vk-adresse", (a.adresse || []).join(", "));
+ sett("vk-postnr", a.postnummer);
+ sett("vk-sted", a.poststed);
+ vfShowToast?.("✅ Navn og adresse hentet fra Brreg");
+}
+
+function vkLesSkjema() {
+ const g = id => (document.getElementById(id)?.value || "").trim();
+ const prof = vkProfiler().find(p => p.id === g("vk-profil"));
+ return {
+  navn: g("vk-navn"),
+  orgnr: normOrgNr(g("vk-orgnr")),
+  kundeprofil: g("vk-profil"),
+  betingelse: prof?.betingelse || "",
+  adresse: g("vk-adresse"),
+  postnr: g("vk-postnr"),
+  sted: g("vk-sted"),
+  kontaktperson: g("vk-kontakt"),
+  telefon: g("vk-tlf"),
+  epost: g("vk-epost")
+ };
+}
+
+async function vkSend() {
+ const a = vkAapen;
+ if (!a || a.sender) return;
+ const b = vkLesSkjema(), res = document.getElementById("vk-resultat"), k = document.getElementById("vk-send"), e = jsEscapeHtml;
+ const feil = [];
+ if (b.navn.length < 2) feil.push("kundenavn");
+ if (b.orgnr.length !== 9) feil.push("org.nr (9 siffer)");
+ if (!/^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test(b.epost)) feil.push("e-post");
+ if (!/^\d{4}$/.test(b.postnr)) feil.push("postnr (4 siffer)");
+ if (!b.adresse || !b.sted) feil.push("adresse og poststed");
+ if (feil.length) {
+  res.innerHTML = `<div class="onb-advarsel">Fyll ut: ${feil.join(", ")}.</div>`;
+  return;
+ }
+ const fra = vkFinnesIVisma(b.orgnr);
+ if (fra.length) {
+  res.innerHTML = `<div class="onb-advarsel">Org.nr finnes allerede i Visma: ${fra.map(x => e(x.vismaNummer + " " + x.navn)).join(", ")}.</div>`;
+  return;
+ }
+ a.sender = true;
+ if (k) {
+  k.disabled = true;
+  k.textContent = "Oppretter i Visma …";
+ }
+ let data, status = 0;
+ try {
+  const token = await vfGetApiToken();
+  const resp = await fetch(vfApiUrl("/api/visma_kunde_opprett"), {
+   method: "POST",
+   headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json"
+   },
+   body: JSON.stringify(b)
+  });
+  status = resp.status;
+  data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+ } catch (err) {
+  a.sender = false;
+  if (k) {
+   k.disabled = false;
+   k.textContent = "🏢 Prøv igjen";
+  }
+  res.innerHTML = `<div class="onb-advarsel">${status === 409 ? "Finnes allerede i Visma: " : "Kunden ble ikke opprettet: "}${e(err.message || String(err))}</div>`;
+  return;
+ }
+ if (data.dryRun) {
+  a.sender = false;
+  if (k) {
+   k.disabled = false;
+   k.textContent = "🏢 Opprett i Visma";
+  }
+  res.innerHTML = `<div style="padding:10px 12px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;margin-top:6px"><b>🧪 Testmodus:</b> ingenting er opprettet i Visma (KUNDE_OPPRETT_DRY_RUN er på i Azure). Duplikatsjekk: ingen treff på org.nr (Visma returnerte ${data.duplikatsjekk?.raderFraVisma ?? "?"} rader).\n      <details style="margin-top:6px"><summary style="cursor:pointer">Vis data til Visma</summary><pre style="white-space:pre-wrap;font-size:11.5px;max-height:260px;overflow:auto">${e(JSON.stringify({
+   payload: data.payload,
+   mal: data.mal
+  }, null, 2))}</pre></details></div>`;
+  return;
+ }
+ const nr = String(data.kundenr);
+ const profil = vkProfiler().find(p => p.id === b.kundeprofil);
+ const ny = {
+  id: "vk-" + nr,
+  spId: null,
+  vismaNummer: nr,
+  navn: b.navn,
+  orgNr: b.orgnr,
+  status: "Active",
+  kundeklasse: profil?.navn || "",
+  adresse: b.adresse,
+  postnr: b.postnr,
+  sted: b.sted,
+  kontaktNavn: b.kontaktperson,
+  kontaktEpost: b.epost,
+  kontaktTelefon: b.telefon,
+  kredittgrense: 0,
+  kredittDagerForfalt: 0,
+  saldo: 0,
+  saldoForfalt: 0,
+  sistOppdatertVisma: (new Date).toISOString(),
+  sistSynkronisert: "",
+  naceKode: a.k.naceKode || "",
+  naceBeskrivelse: a.k.naceBeskrivelse || "",
+  bransjeOverstyrt: a.k.bransjeOverstyrt || "",
+  nyOpprettet: true
+ };
+ vismaKunder.push(ny);
+ const tekst = `🏢 Opprettet som kunde ${nr} i Visma (kundeprofil ${b.kundeprofil}).`, bruker = currentUser?.name || currentUser?.username || "Ukjent";
+ for (const sak of kundeNotater.filter(x => x.status === "Åpen" && samKundenr(x.vismaKundeNummer, nr))) {
+  if (!Array.isArray(sak.logg)) sak.logg = [];
+  sak.logg.push({
+   dato: (new Date).toISOString(),
+   tekst: tekst,
+   forfatter: bruker
+  });
+  try {
+   if (sak.spId) await spLagreMedMykFallback(f => spUpdate("KundeNotater", sak.spId, f), notatFieldsPayload(sak), NOTAT_MYKE_FELTER);
+  } catch (err) {
+   console.warn("Loggpost", err);
+  }
+ }
+ try {
+  const token = await vfGetApiToken();
+  await fetch(vfApiUrl("/api/synk_naa?jobb=KundeSync"), {
+   method: "POST",
+   headers: {
+    Authorization: `Bearer ${token}`
+   }
+  });
+ } catch (err) {
+  console.warn("KundeSync kunne ikke startes", err);
+ }
+ pkLukkVare();
+ vkAapen = null;
+ vfShowToast?.(`✅ ${b.navn} er opprettet som kunde ${nr} i Visma. Kundelista oppdateres om et par minutter.`);
+ try {
+  showTab("kunder", document.getElementById("tab-kunder"));
+  document.getElementById("k360-search").value = ny.navn;
+  velgKunde360(ny);
+ } catch (err) {
+  console.warn(err);
  }
 }
 
