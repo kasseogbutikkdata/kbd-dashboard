@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.301 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.302 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4566,8 +4566,7 @@ onbStartFil("regnskap", event.dataTransfer.files[0])'>
     <div class="modal">
       <div class="kp-hode"><div class="kp-avatar">👤</div><div><h3 id="kp-tittel">Ny kontaktperson</h3><div class="kp-kunde" id="kp-kunde"></div></div></div>
       <div class="fgrp"><label for="kp-navn">Navn *</label><input type="text" id="kp-navn" placeholder="Fornavn Etternavn" autocomplete="off"></div>
-      <div class="fgrp"><label for="kp-rolle">Rolle / tittel</label><input type="text" id="kp-rolle" list="kp-roller" placeholder="Velg eller skriv, f.eks. Daglig leder" autocomplete="off">
-        <datalist id="kp-roller"><option>Daglig leder</option><option>Innehaver</option><option>Butikksjef</option><option>IT / teknisk</option><option>Økonomi / faktura</option><option>Kontaktperson</option></datalist></div>
+      <div class="fgrp"><label for="kp-rolle">Rolle / tittel</label><input type="text" id="kp-rolle" data-auto="rolle" placeholder="Velg eller skriv, f.eks. Daglig leder" autocomplete="off"></div>
       <div class="kp-to">
         <div class="fgrp"><label for="kp-mobil">Mobil</label><input type="tel" id="kp-mobil" placeholder="12345678" autocomplete="off"></div>
         <div class="fgrp"><label for="kp-epost">E-post</label><input type="email" id="kp-epost" placeholder="navn@firma.no" autocomplete="off"></div>
@@ -15190,6 +15189,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.302",
+ dato: "14.10.2026",
+ punkter: [ "Kontaktpersoner: «Rolle / tittel» har fått en vanlig lys forslagsliste under feltet, samme bredde som feltet, i stedet for Chromes mørke systemliste. Du kan fortsatt skrive en egen rolle." ]
+}, {
  versjon: "v1.48.301",
  dato: "14.10.2026",
  punkter: [ "Onboarding: ny knapp «📄 Ordrebekreftelse» på hver salgsordre. Den henter ordren fra Visma med adresser, betingelser, linjer med pris, rabatt og beløp, mva og total, og viser den med KBD-oppsett. Den kan lastes ned som PDF eller skrives ut. Visma har ikke utskrift av salgsordre i API-et, derfor lager KBD CC dokumentet selv." ]
@@ -23861,6 +23864,7 @@ function pkAutoKilde(type) {
  if (type === "gruppe") return [ ...new Set([ ...pkProduktgrupper(), ...pkGrupper.map(g => g.navn), ...pkVareprofiler().map(x => x[1]) ].filter(Boolean)) ].sort((a, b) => a.localeCompare(b, "nb"));
  if (type === "vare") return pkVarer.filter(v => pkErAktiv(v)).map(v => pkVareValgTekst(v));
  if (type === "kunde" && typeof ptKundeValg === "function") return ptKundeValg().map(k => k.tekst);
+ if (type === "rolle" && typeof KONTAKT_ROLLER !== "undefined") return KONTAKT_ROLLER.slice();
  return [];
 }
 
