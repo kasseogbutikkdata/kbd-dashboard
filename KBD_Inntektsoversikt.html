@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.302 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.303 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3416,17 +3416,20 @@ toggleInnstillingerSub(true)'>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="card-title" style="margin:0">🚀 Onboarding av nye kunder</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="text" placeholder="Søk kunde eller SO-nr…" oninput="onbSok = this.value.trim();
-
-onbValgtId = null;
-
-renderOnboarding()" style="min-width:200px">
           <button class="btn-sm" id="onb-mal-btn" style="display:none" onclick="apneOnbMal()">⚙️ Mal og varer</button>
           <button class="prim" id="onb-start-btn" style="display:none" onclick="apneOnbStart({})">🚀 Start onboarding</button>
         </div>
       </div>
       <div class="hint" style="margin:6px 0 0">Selger sender kunden hit fra salgssaken eller kundekortet. Håvard, Casper eller Thomas tar saken og følger tidslinjen: klargjøring → levering → installasjon → oppfølging → etablert kunde.</div>
-      <div class="filters" id="onb-filter" style="margin-top:12px"></div>
+      
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <div class="filters" id="onb-filter" style="margin:0;flex:0 1 auto;min-width:0"></div>
+        <input type="text" id="onb-sok" placeholder="🔍 Søk kunde, SO-nr eller ONB-nr…" oninput="onbSok = this.value.trim();
+
+onbValgtId = null;
+
+renderOnboarding()" style="width:240px;min-width:180px;max-width:100%;flex:0 1 240px;margin-left:auto">
+      </div>
     </div>
     <div id="onb-innhold" style="margin-top:16px"></div>
   </div>
@@ -15189,6 +15192,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.303",
+ dato: "14.10.2026",
+ punkter: [ "Onboarding: søkefeltet står nå på samme linje som filtrene (status og ansvarlig), helt til høyre." ]
+}, {
  versjon: "v1.48.302",
  dato: "14.10.2026",
  punkter: [ "Kontaktpersoner: «Rolle / tittel» har fått en vanlig lys forslagsliste under feltet, samme bredde som feltet, i stedet for Chromes mørke systemliste. Du kan fortsatt skrive en egen rolle." ]
