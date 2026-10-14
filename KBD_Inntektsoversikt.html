@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.309 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.310 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15192,6 +15192,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.310",
+ dato: "14.10.2026",
+ punkter: [ "Kundesaker: ny knapp «🧾 Salgsordre» ved siden av «🧾 Tilbud» på saker med tilbud, så salgsordren kan lages uten å markere saken som vunnet først. Etter at ordren er opprettet, spør dashbordet om saken skal markeres som vunnet. Når ordren finnes, viser knappen SO-nummeret («📦 SO …») og åpner ordregrunnlaget." ]
+}, {
  versjon: "v1.48.309",
  dato: "14.10.2026",
  punkter: [ "Produktkatalog: ny innstilling «Miljøgebyr på salgsordre» per vare (MG1–MG6), også i masseoppdatering. Når en salgsordre lages fra et tilbud, legges riktig miljøgebyr til automatisk på kundens ordre, ett per enhet (f.eks. 2 × Telpo M10 gir 2 × gebyr). Det vises ikke i tilbudet (der står det allerede at miljøgebyr kommer i tillegg). Står gebyret allerede i tilbudet, legges det ikke til på nytt." ]
@@ -25101,7 +25105,7 @@ function ptSakKnappInnhold(n) {
  const t = ptSakTilbud(n), kl = ptKladder().find(k => k.sakId === String(n.spId));
  const klKnapp = kl && n.status === "Åpen" ? `<button class="btn-sm" style="white-space:nowrap;color:#b45309;border-color:#f59e0b" onclick="ptApneKladd('${kl.spId}')" title="Fortsett kladden (lagret ${pkDatoTekst(new Date(kl.endret || kl.opprettet))})">📝 Kladd${t.length ? ` v${t[0].versjon + 1}` : ""}</button>` : "";
  if (kl && !t.length) return klKnapp;
- if (t.length) return klKnapp + `<button class="btn-sm" style="white-space:nowrap;color:#6d28d9" onclick="ptApneVisning('${t[0].spId}')" title="Åpne tilbudet (${t.length} versjon${t.length > 1 ? "er" : ""})">🧾 Tilbud v${t[0].versjon}</button>`;
+ if (t.length) return klKnapp + `<button class="btn-sm" style="white-space:nowrap;color:#6d28d9" onclick="ptApneVisning('${t[0].spId}')" title="Åpne tilbudet (${t.length} versjon${t.length > 1 ? "er" : ""})">🧾 Tilbud v${t[0].versjon}</button>` + (typeof ptSoSakKnapp === "function" ? ptSoSakKnapp(n, t) : "");
  return n.status === "Åpen" ? `<button class="btn-sm" style="white-space:nowrap" onclick="ptFraSak('${n.id}')" title="Lag tilbud på denne saken">🧾 Lag tilbud</button>` : "";
 }
 
@@ -26173,6 +26177,30 @@ function ptOrdreSkrivUt() {
 
 let ptSo = null;
 
+function ptSoSakKnapp(n, t) {
+ const so = t.flatMap(v => (v.salgsordrer || []).map(x => ({
+  ...x,
+  v: v
+ })));
+ if (so.length) return ` <button class="btn-sm" style="white-space:nowrap;color:#15803d" onclick="ptApneOrdregrunnlag('${so[0].v.spId}')" title="Salgsordre i Visma (status Hold ved opprettelse)">📦 ${so.map(x => "SO " + jsEscapeHtml(x.nr)).join(" + ")}</button>`;
+ if (!ptKanSelge()) return "";
+ return ` <button class="btn-sm" style="white-space:nowrap" onclick="ptSoFraSak('${n.id}')" title="Opprett salgsordre i Visma fra siste tilbudsversjon">🧾 Salgsordre</button>`;
+}
+
+async function ptSoFraSak(id) {
+ const n = (typeof kundeNotater !== "undefined" ? kundeNotater : []).find(x => x.id === id);
+ if (!n) return;
+ if (!pkLastet && !await ptVentPaKatalog()) return;
+ const t = ptSakTilbud(n);
+ if (!t.length) {
+  alert("Saken har ikke noe lagret tilbud.");
+  return;
+ }
+ ptApneOrdregrunnlag(t[0].spId);
+ if (t.length > 1) vfShowToast?.(`Bruker siste versjon (v${t[0].versjon}).`);
+ ptSoStart();
+}
+
 function ptSoAlle(v) {
  return ptVersjoner.filter(x => x.sakId && x.sakId === v.sakId && x.salgsordrer?.length);
 }
@@ -26495,6 +26523,15 @@ async function ptSoSend() {
  vfShowToast?.(`✅ ${laget.map(x => "SO " + x.nr).join(" og ")} opprettet i Visma (Hold)`);
  ptApneOrdregrunnlag(s.v.spId);
  ptSo = null;
+ const sak = typeof ptSakFor === "function" ? ptSakFor(s.v.sakId) : null;
+ if (sak && sak.status === "Åpen" && typeof lukkTilbudMedUtfall === "function" && confirm(`Salgsordren er opprettet (${laget.map(x => "SO " + x.nr).join(", ")}).\n\nVil du markere saken «${sak.tittel || s.v.kundeNavn || ""}» som vunnet nå?`)) {
+  const vinn = () => {
+   lukkTilbudMedUtfall(sak.id, "Vunnet");
+   vfShowToast?.("✅ Saken er markert som vunnet");
+  };
+  if (typeof krevLeadKilde === "function") krevLeadKilde(sak.id, vinn); else vinn();
+ }
+ if (typeof ptOppdaterSak === "function") ptOppdaterSak();
 }
 
 async function ptEtterVunnet(id) {
