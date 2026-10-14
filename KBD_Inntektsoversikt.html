@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.295 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.296 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.296",
+ dato: "14.10.2026",
+ punkter: [ "Fakturaoppfølging og «Ikke avstemt i Visma» har nå samme oppsett: øverst hva saken gjelder, så én felles 📋 Logg for kunden, og til slutt «✍️ Ny registrering» med hurtigvalg, et stort tekstfelt (Ctrl+Enter lagrer), og status og knapper på samme linje.", "Loggen viser alt om kunden på ett sted: fakturaoppfølging (🧾), «Ikke avstemt» (🧮) og purre-SMS (🤖), nyeste øverst, med dato, person og faktura.", "«Type» i fakturapanelet er erstattet av knapper (📞 Telefon, ✉️ E-post, 💬 SMS, 📝 Annet).", "«Ringt kunden» og «E-post» i «Ikke avstemt» logges også på kundens åpne fakturaer, så «Sist kontakt» og rapporten blir riktige." ]
+}, {
  versjon: "v1.48.295",
  dato: "14.10.2026",
  punkter: [ "Hjem, «Trenger oppmerksomhet»: fakturaoppfølging vises nå som én samlelinje, ikke én linje per faktura. Du ser bare dine egne oppfølginger («3 av dine oppfølginger i dag»), og nye saker vises bare for den som får varsel om dem. Klikk åpner Min arbeidsliste med riktig filter. Linja forsvinner når du har fulgt opp og satt ny dato." ]
@@ -18571,10 +18575,18 @@ function renderIkkeAvstemt() {
     return `<tr><td>${iaTypeIkon(d.type)} ${iaEsc(d.type)}</td><td>${iaEsc(d.dokumentnr)}</td><td>${fDateShort(d.dato)}</td><td class="tr">${fF(d.belop)}</td><td class="tr">${fF(d.ubrukt)}</td><td style="font-size:12px;color:#166534">${m ? "↔ faktura " + iaEsc(m.f.fakturanr) : ""}</td></tr>`;
    }).join("");
    const fRader = r.fs.map(f => `<tr><td>📄 Faktura</td><td>${iaEsc(f.fakturanr)}</td><td>forfall ${fDateShort(f.forfallsdato)}</td><td class="tr">${fF(f.belop || 0)}</td><td class="tr">${fF(f.utestaende || 0)}</td><td></td></tr>`).join("");
-   rows.push(`<tr style="background:#fffbeb"><td colspan="9" style="border-left:3px solid #f59e0b;padding:12px 14px">\n          <table style="width:100%;font-size:13px;margin-bottom:12px"><thead><tr style="color:#6b7280;font-size:11px"><th>Type</th><th>Dokumentnr</th><th>Dato</th><th class="tr">Beløp</th><th class="tr">Ubrukt / utestående</th><th></th></tr></thead><tbody>${docRader}${fRader}</tbody></table>\n          ${iaLoggHtml(r.kommentar)}\n          ${iaFoLoggHtml(r)}\n          ${kanRedigere ? `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px">\n            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">\n              <div style="font-size:13px;font-weight:600;color:#111">✍️ Nytt notat</div>\n              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:11px;color:#6b7280">Hurtigvalg:</span>${IA_HURTIG.map(h => `<button class="btn-sm" style="font-size:12px;padding:4px 10px" onclick="iaLagre('${k}',this,'${h.id}')" title="${iaEsc(h.tittel)}">${h.ikon} ${h.navn}</button>`).join("")}</div>\n            </div>\n            <textarea id="ia-kommentar" rows="3" placeholder="Skriv hva som er gjort eller avtalt, f.eks. «Er i dialog med kunden på PS#12345». Ctrl+Enter lagrer." style="width:100%;min-height:72px;font-family:inherit;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid #d0d5dd;border-radius:8px;resize:vertical;box-sizing:border-box" oninput="this.style.height='auto';this.style.height=Math.max(72,this.scrollHeight+2)+'px'" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();iaLagre('${k}',document.getElementById('ia-lagre-knapp'))}"></textarea>\n            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:8px">\n              <div style="display:flex;align-items:center;gap:8px"><label for="ia-status" style="font-size:12px;color:#6b7280;margin:0">Status</label><select id="ia-status" style="width:auto;padding:6px 10px">${IA_STATUSER.map(s => `<option${r.status === s ? " selected" : ""}>${s}</option>`).join("")}</select><span style="font-size:11px;color:#9ca3af">Endret status logges automatisk.</span></div>\n              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">\n                ${r.fs.length ? `<button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button>` : ""}\n                ${r.docs.some(d => d.type !== "Refusjon") ? `<button class="btn-sm" style="${iaBareIntern(r) ? "" : "border-color:#f59e0b;color:#92400e;background:#fffbeb;font-weight:600"}" onclick="iaSendSaldo('${k}',this)" title="Lager et Outlook-utkast fra ${IA_FRA_EPOST} med saldo og faktura-PDF. Ingenting sendes før du trykker Send i Outlook.">✉️ Saldobekreftelse</button>` : ""}\n                <button class="prim" id="ia-lagre-knapp" onclick="iaLagre('${k}',this)">💾 Lagre</button>\n              </div>\n            </div>\n            ${r.docs.some(d => d.type !== "Refusjon") ? (() => {
-    const mt = iaMottaker(r);
-    return `<div style="font-size:11px;color:#6b7280;margin-top:8px">✉️ Saldobekreftelse går til ${mt.epost ? `<b>${iaEsc(mt.epost)}</b> (${iaEsc(mt.navn ? mt.navn + ", " : "")}${iaEsc(mt.kilde)})` : '<span style="color:#b45309">ingen e-post funnet, fyll inn i Outlook</span>'}, fra og svar til ${IA_FRA_EPOST}.${iaBareIntern(r) ? ' <span style="color:#b45309">Innbetalingen dekker fakturaen nøyaktig, så dette ser ut som en intern kobling i Visma. Vurder å sende til regnskapsfører i stedet for kunden.</span>' : ""}${r.refusjon ? " Refusjonen tas ikke med." : ""}</div>`;
-   })() : ""}\n            <div style="font-size:11px;color:#6b7280;margin-top:4px">Hurtigvalgene lagrer med en gang, og tekst i feltet tas med. «Avklart» = kunden kommer tilbake på arbeidslisten og purring-SMS selv om posten fortsatt står åpen i Visma. Selve koblingen må gjøres i Visma.</div>\n          </div>` : `<div style="font-size:12px;margin-bottom:10px">Status: ${iaStatusBadge(r.status)}</div>`}\n          ${!kanRedigere && r.fs.length ? `<div style="margin-bottom:6px"><button class="btn-sm" onclick="iaGaTilFakturaer('${k}')">🧾 Vis fakturaene</button></div>` : ""}\n        </td></tr>`);
+   rows.push(`<tr style="background:#fffbeb"><td colspan="9" style="border-left:3px solid #f59e0b;padding:12px 14px">\n          <table style="width:100%;font-size:13px;margin-bottom:12px"><thead><tr style="color:#6b7280;font-size:11px"><th>Type</th><th>Dokumentnr</th><th>Dato</th><th class="tr">Beløp</th><th class="tr">Ubrukt / utestående</th><th></th></tr></thead><tbody>${docRader}${fRader}</tbody></table>\n          ${tidslinjeHtml(kundeTidslinje(r.kundenr), {
+    hoyre: `<span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280">${iaStatusBadge(r.status)}${r.status === "Sendt kunde" && r.sendtKunde ? `<span>sendt ${fDateShort(r.sendtKunde)}</span>` : ""}${r.fs.length ? `<button class="btn-sm" style="font-size:11px;padding:2px 8px" onclick="iaGaTilFakturaer('${k}')">Åpne i Fakturaoppfølging →</button>` : ""}</span>`
+   })}\n          ${kanRedigere ? regBoksHtml({
+    hurtig: IA_HURTIG.map(h => `<button class="btn-sm" style="font-size:12px;padding:4px 10px" onclick="iaLagre('${k}',this,'${h.id}')" title="${iaEsc(h.tittel)}">${h.ikon} ${h.navn}</button>`).join(""),
+    tekstfelt: `<textarea id="ia-kommentar" rows="3" placeholder="Skriv hva som er gjort eller avtalt, f.eks. «Er i dialog med kunden på PS#12345». Ctrl+Enter lagrer." style="${REG_TEKST_STIL}" oninput="${REG_TEKST_VOKS}" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();iaLagre('${k}',document.getElementById('ia-lagre-knapp'))}"></textarea>`,
+    bunnVenstre: `<div class="fgrp" style="margin:0"><label>Status</label><select id="ia-status" style="width:auto;padding:6px 10px">${IA_STATUSER.map(s => `<option${r.status === s ? " selected" : ""}>${s}</option>`).join("")}</select></div>`,
+    bunnHoyre: `${r.docs.some(d => d.type !== "Refusjon") ? `<button class="btn-sm" style="${iaBareIntern(r) ? "" : "border-color:#f59e0b;color:#92400e;background:#fffbeb;font-weight:600"}" onclick="iaSendSaldo('${k}',this)" title="Lager et Outlook-utkast fra ${IA_FRA_EPOST} med saldo og faktura-PDF. Ingenting sendes før du trykker Send i Outlook.">✉️ Saldobekreftelse</button>` : ""}<button class="prim" id="ia-lagre-knapp" onclick="iaLagre('${k}',this)">💾 Lagre</button>`,
+    under: `${r.docs.some(d => d.type !== "Refusjon") ? (() => {
+     const mt = iaMottaker(r);
+     return `<div style="font-size:11px;color:#6b7280;margin-top:8px">✉️ Saldobekreftelse går til ${mt.epost ? `<b>${iaEsc(mt.epost)}</b> (${iaEsc(mt.navn ? mt.navn + ", " : "")}${iaEsc(mt.kilde)})` : '<span style="color:#b45309">ingen e-post funnet, fyll inn i Outlook</span>'}, fra og svar til ${IA_FRA_EPOST}.${iaBareIntern(r) ? ' <span style="color:#b45309">Innbetalingen dekker fakturaen nøyaktig, så dette ser ut som en intern kobling i Visma. Vurder å sende til regnskapsfører i stedet for kunden.</span>' : ""}${r.refusjon ? " Refusjonen tas ikke med." : ""}</div>`;
+    })() : ""}<div style="font-size:11px;color:#6b7280;margin-top:4px">Hurtigvalgene lagrer med en gang, og tekst i feltet tas med. «Ringt kunden» og «E-post» logges også på kundens åpne fakturaer. Endret status logges automatisk. «Avklart» = kunden kommer tilbake på arbeidslisten og purring-SMS, selv om posten fortsatt står åpen i Visma.</div>`
+   }) : `<div style="font-size:12px;margin-bottom:10px">Status: ${iaStatusBadge(r.status)}</div>`}\n        </td></tr>`);
   }
   return rows.join("");
  }).join("")}</tbody></table></div>`;
@@ -18650,7 +18662,7 @@ function iaPanelHtml(kundenr) {
  if (!k) return "";
  const ubrukt = k.docs.filter(d => d.type !== "Refusjon").reduce((s, d) => s + d.ubrukt, 0);
  const typer = [ ...new Set(k.docs.map(d => d.type)) ].join(", ").toLowerCase();
- const linjer = String(k.kommentar || "").split("\n").map(x => x.trim()).filter(Boolean).slice(-3).reverse();
+ const linjer = [];
  return `<div style="margin-bottom:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px">\n    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:${linjer.length ? 6 : 0}px">\n      <span style="font-size:13px;color:#92400e">🧮 <b>Ikke avstemt i Visma</b>: ${iaEsc(typer)} ${fF(ubrukt)} ikke koblet mot faktura · ${iaStatusBadge(k.status)}${k.status === "Sendt kunde" && k.sendtKunde ? ` <span style="font-size:11px;color:${iaVenterSvar(k) ? "#dc2626" : "#6b7280"}">${iaVenterSvar(k) ? "⏰ " : ""}sendt ${fDateShort(k.sendtKunde)}</span>` : ""}</span>\n      <button class="btn-sm" onclick="event.stopPropagation();iaVisKunde('${iaJs(k.kundenr)}')">Åpne i «Ikke avstemt» →</button>\n    </div>\n    ${linjer.map(l => {
   const m = /^(\d{2}\.\d{2}\.\d{2,4}):\s*(.*)$/.exec(l);
   const t = m ? m[2] : l;
@@ -18722,6 +18734,34 @@ async function iaLagre(kundenr, knapp, hurtig) {
  if (statusEndret && !(h && h.status)) nye.push(`${dato}: Status satt til «${status}»${hvem ? " (" + hvem + ")" : ""}.`);
  if (nytt) nye.push(`${dato}: ${nytt}${hvem ? " (" + hvem + ")" : ""}`);
  const kommentar = [ k.kommentar, ...nye ].filter(Boolean).join("\n");
+ const foOppg = [];
+ if (h && (hurtig === "ring" || hurtig === "epost")) {
+  const apne = fakturaoppfolging.filter(f => !f.betaltDato && String(f.kundenr || "").trim() === kundenr);
+  const naaIso = (new Date).toISOString(), skrevetAv = currentUser?.name || currentUser?.username || "Ukjent", type = hurtig === "ring" ? "Telefon" : "E-post";
+  apne.forEach(f => {
+   const rad = {
+    id: `temp${uid()}`,
+    fakturanr: f.fakturanr,
+    skrevetAv: skrevetAv,
+    type: type,
+    kilde: "KBD CC",
+    dato: naaIso,
+    kommentar: nytt
+   };
+   fakturaoppfolgingLogg.push(rad);
+   foOppg.push(() => spCreate("FakturaoppfolgingLogg", {
+    Fakturanummer: f.fakturanr,
+    SkrevetAv: skrevetAv,
+    HenvendelseType: type,
+    Kilde: "KBD CC",
+    Dato: naaIso,
+    Kommentar: nytt
+   }).then(x => {
+    rad.id = `sp${x.id}`;
+    rad.spId = x.id;
+   }));
+  });
+ }
  const gammel = k.docs.map(d => ({
   d: d,
   status: d.status,
@@ -18735,10 +18775,10 @@ async function iaLagre(kundenr, knapp, hurtig) {
  renderFakturaoppfolging();
  setSPStatus("⏳ Lagrer…");
  try {
-  await foKjorPorsjonsvis(k.docs.map(d => () => spUpdate("IkkeAvstemt", d.spId, {
+  await foKjorPorsjonsvis([ ...k.docs.map(d => () => spUpdate("IkkeAvstemt", d.spId, {
    OppfolgingStatus: status,
    Kommentar: kommentar
-  })));
+  })), ...foOppg ]);
   setSPStatus("✅ Lagret");
   setTimeout(() => setSPStatus(""), 3e3);
  } catch (e) {
@@ -20052,7 +20092,18 @@ function renderFoDetaljPanel(r) {
  const fellesStatus = foFellesStatus(fs);
  const nesteVerdi = r.nesteOppfolging ? String(r.nesteOppfolging).split("T")[0] : "";
  const hk = (akt, txt, tittel) => `<button class="btn-sm" onclick="foHurtig('${key}','${akt}')" title="${tittel}">${txt}</button>`;
- return `<div style="padding:14px 16px">\n      ${inkassoHtml}${fakturaListe}${notatHtml}${typeof iaPanelHtml === "function" ? iaPanelHtml(r.kundenr) : ""}\n      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">\n        <div style="font-size:12px;font-weight:600;color:#6b7280">Oppfølgingslogg</div>\n        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;white-space:nowrap">\n          ${foStatusBadge(fellesStatus)}\n          <span>Sist kontakt: ${sistK ? foKontaktIkon(sistK.type) + " " + fDateShort(sistK.dato) + " (" + sistK.type + ")" : "—"}</span>\n          <span>Neste: ${r.nesteOppfolging ? fDateShort(r.nesteOppfolging) : "—"}</span>\n        </div>\n      </div>\n      <div style="max-height:220px;overflow:auto;margin-bottom:12px">${historikkHtml}</div>\n      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">\n        <span style="font-size:12px;color:#6b7280;font-weight:600">📄 Faktura-PDF:</span>\n        ${fs.map(f => `<button class="btn-sm" onclick="foLastNedPdf('${String(f.fakturanr).replace(/'/g, "")}',this)" title="Last ned fakturaen fra Visma som PDF">${f.fakturanr}</button>`).join("")}\n        <span style="font-size:11px;color:#9ca3af">Lastes ned, så du kan legge den ved e-posten.</span>\n        <button class="btn-sm" style="margin-left:auto" onclick="foRedigerAmili('${key}')" title="Sett «Sendt til inkasso» og Amili saksnr per faktura">🏛️ Inkasso / Amili saksnr</button>\n      </div>\n      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">\n        <span style="font-size:12px;color:#6b7280;font-weight:600">Hurtigvalg:</span>\n        ${hk("ingensvar", "📞 Ingen svar", "Lagrer «Ringt – ingen svar» og ny oppfølging om 3 virkedager")}\n        ${hk("epost", "✉️ E-post sendt", "Lagrer «Purring sendt på e-post», status Kontaktet og ny oppfølging om 5 virkedager")}\n        ${hk("lovet", "🤝 Lovet betaling", "Fyller ut skjemaet. Velg datoen kunden har lovet å betale, og trykk Lagre")}\n        ${hk("frist", "📅 Ny frist", "Fyller ut skjemaet med ny frist om en uke. Juster og trykk Lagre")}\n        <span style="font-size:11px;color:#9ca3af">Tekst i kommentarfeltet tas med.</span>\n      </div>\n      <div class="fg" style="grid-template-columns:140px 1fr;margin-bottom:8px">\n        <div class="fgrp"><label>Type</label><select id="fo-type-${id}"><option>Telefon</option><option>E-post</option><option>SMS</option><option>Annet</option></select></div>\n        <div class="fgrp"><label>Kommentar${flere ? ` <span style="font-weight:400;color:#6b7280">(lagres på alle ${fs.length} fakturaene)</span>` : ""}</label><textarea id="fo-kommentar-${id}" rows="2" style="width:100%;font-family:inherit;font-size:14px;padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;resize:vertical"></textarea></div>\n      </div>\n      <div class="fg" style="grid-template-columns:170px 170px auto 1fr;align-items:end">\n        <div class="fgrp"><label>Status</label><select id="fo-statusvalg-${id}" onchange="const w=document.getElementById('fo-amili-wrap-${id}');if(w)w.style.display=this.value==='Sendt til inkasso'?'':'none'">${FO_STATUSER.map(s => `<option${s === fellesStatus ? " selected" : ""}>${s}</option>`).join("")}</select></div>\n        <div class="fgrp"><label>Neste oppfølging</label><input type="date" id="fo-neste-${id}" value="${nesteVerdi}"/></div>\n        ${flere ? "" : `<div class="fgrp" id="fo-amili-wrap-${id}" style="${fellesStatus === "Sendt til inkasso" ? "" : "display:none"}"><label>Amili saksnr</label><input type="text" inputmode="numeric" id="fo-amili-${id}" value="${(fs.find(f => f.inkassoSaksnr) || {}).inkassoSaksnr || ""}" placeholder="f.eks. 1234567" style="width:140px"/></div>`}\n        <div style="text-align:right"><span id="fo-hint-${id}" style="font-size:12px;color:#d97706;margin-right:10px"></span><button class="prim" onclick="lagreFoOppfolging('${key}')">💾 Lagre</button></div>\n      </div>\n    </div>`;
+ const typeKnapp = (t, ik) => `<button class="btn-sm" type="button" data-type="${t}" style="font-size:12px;padding:4px 10px${t === "Telefon" ? ";background:#1A3A6B;color:#fff;border-color:#1A3A6B" : ""}" onclick="foSettType('${id}','${t}',this)">${ik} ${t}</button>`;
+ const statusHoyre = `<span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;flex-wrap:wrap">${foStatusBadge(fellesStatus)}<span>Sist kontakt: ${sistK ? foKontaktIkon(sistK.type) + " " + fDateShort(sistK.dato) : "—"}</span><span>Neste: ${r.nesteOppfolging ? fDateShort(r.nesteOppfolging) : "—"}</span></span>`;
+ return `<div style="padding:14px 16px">\n      ${inkassoHtml}${fakturaListe}${notatHtml}${typeof iaPanelHtml === "function" ? iaPanelHtml(r.kundenr) : ""}\n      ${tidslinjeHtml(kundeTidslinje(r.kundenr), {
+  hoyre: statusHoyre
+ })}\n      ${regBoksHtml({
+  tittelHoyre: `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;color:#6b7280">Type:</span><input type="hidden" id="fo-type-${id}" value="Telefon"/>${typeKnapp("Telefon", "📞")}${typeKnapp("E-post", "✉️")}${typeKnapp("SMS", "💬")}${typeKnapp("Annet", "📝")}</div>`,
+  hurtig: `${hk("ingensvar", "📞 Ingen svar", "Lagrer «Ringt – ingen svar» og ny oppfølging om 3 virkedager")}${hk("epost", "✉️ E-post sendt", "Lagrer «Purring sendt på e-post», status Kontaktet og ny oppfølging om 5 virkedager")}${hk("lovet", "🤝 Lovet betaling", "Fyller ut skjemaet. Velg datoen kunden har lovet å betale, og trykk Lagre")}${hk("frist", "📅 Ny frist", "Fyller ut skjemaet med ny frist om en uke. Juster og trykk Lagre")}`,
+  tekstfelt: `<textarea id="fo-kommentar-${id}" rows="3" placeholder="Skriv hva som er gjort eller avtalt${flere ? ` (lagres på alle ${fs.length} fakturaene)` : ""}. Ctrl+Enter lagrer." style="${REG_TEKST_STIL}" oninput="${REG_TEKST_VOKS}" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();lagreFoOppfolging('${key}')}"></textarea>`,
+  bunnVenstre: `<div class="fgrp" style="margin:0"><label>Status</label><select id="fo-statusvalg-${id}" style="width:auto;padding:6px 10px" onchange="const w=document.getElementById('fo-amili-wrap-${id}');if(w)w.style.display=this.value==='Sendt til inkasso'?'':'none'">${FO_STATUSER.map(s => `<option${s === fellesStatus ? " selected" : ""}>${s}</option>`).join("")}</select></div>\n          <div class="fgrp" style="margin:0"><label>Neste oppfølging</label><input type="date" id="fo-neste-${id}" value="${nesteVerdi}"/></div>\n          ${flere ? "" : `<div class="fgrp" id="fo-amili-wrap-${id}" style="margin:0;${fellesStatus === "Sendt til inkasso" ? "" : "display:none"}"><label>Amili saksnr</label><input type="text" inputmode="numeric" id="fo-amili-${id}" value="${(fs.find(f => f.inkassoSaksnr) || {}).inkassoSaksnr || ""}" placeholder="f.eks. 1234567" style="width:140px"/></div>`}`,
+  bunnHoyre: `<span id="fo-hint-${id}" style="font-size:12px;color:#d97706"></span><button class="btn-sm" onclick="foRedigerAmili('${key}')" title="Sett «Sendt til inkasso» og Amili saksnr per faktura">🏛️ Inkasso / Amili</button><button class="prim" onclick="lagreFoOppfolging('${key}')">💾 Lagre</button>`,
+  under: `<div style="font-size:11px;color:#6b7280;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">📄 Faktura-PDF: ${fs.map(f => `<button class="btn-sm" style="font-size:11px;padding:2px 8px" onclick="foLastNedPdf('${String(f.fakturanr).replace(/'/g, "")}',this)" title="Last ned fakturaen fra Visma som PDF">${f.fakturanr}</button>`).join("")} <span style="color:#9ca3af">Hurtigvalg «Ingen svar» og «E-post sendt» lagrer med en gang, og tekst i feltet tas med. Klikk på e-postadressen for e-post med PDF vedlagt.</span></div>`
+ })}\n    </div>`;
 }
 
 function foVirkedager(n) {
@@ -20215,6 +20266,127 @@ function lagreFoOppfolging(key, opts = {}) {
  }).catch(e => {
   setSPStatus("❌ " + e.message, false);
   alert("⚠️ Lagring til SharePoint feilet:\n" + e.message);
+ });
+}
+
+function ktNorm(t) {
+ return String(t || "").replace(/\s*\([^()]*\)\.?\s*$/, "").replace(/[^\p{L}\p{N} ]/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function ktTypeIkon(type, auto) {
+ return auto ? "🤖" : type === "Telefon" ? "📞" : type === "E-post" ? "✉️" : type === "SMS" ? "💬" : type === "Status" ? "🏷️" : "📝";
+}
+
+function kundeTidslinje(kundenr) {
+ const k = String(kundenr || "").trim();
+ const fs = fakturaoppfolging.filter(f => String(f.kundenr || "").trim() === k);
+ const nrSet = new Set(fs.map(f => f.fakturanr));
+ const ut = [];
+ const slatt = new Map;
+ fakturaoppfolgingLogg.filter(l => nrSet.has(l.fakturanr)).forEach(l => {
+  const key = [ String(l.dato || "").slice(0, 16), l.type, l.skrevetAv, l.kommentar ].join("|");
+  if (!slatt.has(key)) slatt.set(key, {
+   ...l,
+   nrListe: [ l.fakturanr ]
+  }); else slatt.get(key).nrListe.push(l.fakturanr);
+ });
+ slatt.forEach(l => {
+  const d = l.dato ? new Date(l.dato) : null;
+  if (!d || isNaN(d)) return;
+  ut.push({
+   dato: d,
+   harTid: true,
+   ikon: ktTypeIkon(l.type),
+   tekst: l.kommentar || "",
+   av: l.skrevetAv || "",
+   kilde: l.kilde === "Automatisk" ? "auto" : "faktura",
+   fakturaer: l.nrListe,
+   type: l.type
+  });
+ });
+ fs.forEach(f => (typeof foSmsForFaktura === "function" ? foSmsForFaktura(f.fakturanr) : []).forEach(x => {
+  const d = x.dato ? new Date(x.dato) : null;
+  if (!d || isNaN(d)) return;
+  ut.push({
+   dato: d,
+   harTid: true,
+   ikon: "🤖",
+   tekst: x.kommentar,
+   av: "Purre-SMS",
+   kilde: "sms",
+   fakturaer: [ f.fakturanr ],
+   type: "SMS"
+  });
+ }));
+ const ia = typeof iaKundeMap !== "undefined" ? iaKundeMap.get(k) : null;
+ if (ia) {
+  const fakturaNokler = new Set(ut.filter(e => e.kilde === "faktura").map(e => fDateShort(e.dato.toISOString()) + "|" + ktNorm(e.tekst)));
+  String(ia.kommentar || "").split("\n").map(x => x.trim()).filter(Boolean).forEach((l, i) => {
+   const m = /^(\d{2})\.(\d{2})\.(\d{2,4}):\s*(.*)$/.exec(l);
+   let d = null, tekst = l;
+   if (m) {
+    const y = m[3].length === 2 ? 2e3 + parseInt(m[3]) : parseInt(m[3]);
+    d = new Date(y, parseInt(m[2]) - 1, parseInt(m[1]), 12, 0, i);
+    tekst = m[4];
+   }
+   if (!d) return;
+   if (fakturaNokler.has(fDateShort(d.toISOString()) + "|" + ktNorm(tekst))) return;
+   const pm = /\s*\(([^()]+)\)\.?\s*$/.exec(tekst);
+   const av = pm ? pm[1] : "";
+   if (pm) tekst = tekst.slice(0, pm.index);
+   const ik = iaLinjeIkon(tekst);
+   ut.push({
+    dato: d,
+    harTid: false,
+    ikon: ik || "",
+    tekst: tekst,
+    av: av,
+    kilde: "ia",
+    fakturaer: [],
+    type: ""
+   });
+  });
+ }
+ return ut.sort((a, b) => b.dato - a.dato);
+}
+
+const KT_KILDE = {
+ faktura: [ "🧾", "Faktura", "#eef2ff", "#3730a3" ],
+ ia: [ "🧮", "Ikke avstemt", "#fef3c7", "#92400e" ],
+ sms: [ "🤖", "Purre-SMS", "#f1f5f9", "#475569" ],
+ auto: [ "🤖", "Automatisk", "#f1f5f9", "#475569" ]
+};
+
+function tidslinjeHtml(liste, opts = {}) {
+ const hode = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px"><span style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.4px">📋 Logg</span>${opts.hoyre || ""}</div>`;
+ if (!liste.length) return `<div style="margin-bottom:12px">${hode}<div style="font-size:12px;color:#9ca3af;background:#fff;border:1px dashed #e5e7eb;border-radius:8px;padding:8px 10px">Ingen registreringer ennå.</div></div>`;
+ return `<div style="margin-bottom:12px">${hode}<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:2px 12px;max-height:${opts.maks || 260}px;overflow:auto">${liste.map((e, i) => {
+  const kd = KT_KILDE[e.kilde] || KT_KILDE.faktura;
+  const tid = e.harTid ? ` <span style="color:#9ca3af;font-weight:400">${e.dato.toLocaleTimeString("nb-NO", {
+   hour: "2-digit",
+   minute: "2-digit"
+  })}</span>` : "";
+  const fakt = e.fakturaer && e.fakturaer.length ? e.fakturaer.length > 1 ? ` · ${e.fakturaer.length} fakturaer` : ` · faktura ${iaEsc(e.fakturaer[0])}` : "";
+  return `<div style="display:flex;gap:10px;padding:7px 0;${i < liste.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}align-items:baseline">\n      <span style="min-width:74px;font-size:12px;color:#92400e;font-weight:600;white-space:nowrap">${fDateShort(e.dato.toISOString())}${tid}</span>\n      <span style="flex:1;min-width:0"><span style="font-size:13px;color:#111;line-height:1.45;white-space:pre-wrap">${e.ikon && !/^\p{Extended_Pictographic}/u.test(e.tekst) ? e.ikon + " " : ""}${iaNotatHtml(e.tekst)}</span>\n        <span style="display:block;font-size:11px;color:#9ca3af;margin-top:1px">${e.av ? iaEsc(e.av) : ""}${fakt} <span style="background:${kd[2]};color:${kd[3]};border-radius:8px;padding:0 6px;margin-left:4px;white-space:nowrap">${kd[0]} ${kd[1]}</span></span></span>\n    </div>`;
+ }).join("")}</div></div>`;
+}
+
+function regBoksHtml({tittelHoyre: tittelHoyre = "", hurtig: hurtig = "", tekstfelt: tekstfelt = "", bunnVenstre: bunnVenstre = "", bunnHoyre: bunnHoyre = "", under: under = ""}) {
+ return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px">\n    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:#111">✍️ Ny registrering</div>${tittelHoyre}</div>\n    ${hurtig ? `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px"><span style="font-size:11px;color:#6b7280">Hurtigvalg:</span>${hurtig}</div>` : ""}\n    ${tekstfelt}\n    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-top:8px"><div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">${bunnVenstre}</div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${bunnHoyre}</div></div>\n    ${under}\n  </div>`;
+}
+
+const REG_TEKST_STIL = "width:100%;min-height:72px;font-family:inherit;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid #d0d5dd;border-radius:8px;resize:vertical;box-sizing:border-box";
+
+const REG_TEKST_VOKS = "this.style.height='auto';this.style.height=Math.max(72,this.scrollHeight+2)+'px'";
+
+function foSettType(id, type, knapp) {
+ const el = document.getElementById(`fo-type-${id}`);
+ if (el) el.value = type;
+ knapp?.parentElement?.querySelectorAll("button[data-type]").forEach(b => {
+  const p = b.dataset.type === type;
+  b.style.background = p ? "#1A3A6B" : "";
+  b.style.color = p ? "#fff" : "";
+  b.style.borderColor = p ? "#1A3A6B" : "";
  });
 }
 
