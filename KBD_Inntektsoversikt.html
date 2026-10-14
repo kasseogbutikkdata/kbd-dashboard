@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.306 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.307 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15192,6 +15192,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.307",
+ dato: "14.10.2026",
+ punkter: [ "Salgsordre fra tilbud: lisensene er nå med på første ordre til kunden. Lisenser med årlig fakturering (betalingsterminaler) får de første 12 månedene, andre lisenser de første 3. Deretter fakturerer kundekontrakten. Linjene merkes «første 12/3 mnd, deretter via avtale»." ]
+}, {
  versjon: "v1.48.306",
  dato: "14.10.2026",
  punkter: [ "Opprett kunde i Visma: alle kundeprofilene kan velges (Norske direkte, NHO, KNIF, Systemkjøp, Samarbeidspartner, Storkunde, Lakkbar og A-, B- og C-forhandler). Betalingsbetingelsen følger profilen (14 eller 15 dager netto), som i Visma." ]
@@ -25970,7 +25974,7 @@ function ptOrdreHtml(o) {
   t: "DG",
   h: 1
  } ]) : '<div class="hint">Ingen engangslinjer.</div>';
- h += `<div style="font-weight:700;margin:14px 0 6px">2. Til kontrakt (løpende)</div>`;
+ h += `<div style="font-weight:700;margin:14px 0 6px">2. Til kontrakt (løpende) <span class="hint" style="font-weight:400;margin:0">· første periode er med på salgsordren (12 mnd for årlig, ellers 3 mnd), kontrakten fakturerer fra neste periode</span></div>`;
  h += o.lop.length ? tab(o.lop.map(x => {
   const p = PT_PERIODE[x.fakturering] || PT_PERIODE.Månedlig;
   return `<tr><td>${e(x.varenr)}</td><td>${navnCelle(x)}</td><td style="text-align:right">${pkAntall(x.antall)}</td><td style="text-align:right">${pkKr(x.netto)}</td><td style="text-align:right"><b>${pkKr(x.sum)}</b></td><td>${e(x.fakturering || "Månedlig")}</td><td style="text-align:right">${pkKr(x.sum * p.mnd)} ${p.navn}</td><td style="text-align:right">${x.kost ? pkKr(Math.round(x.kost)) : "–"}</td></tr>`;
@@ -26194,8 +26198,8 @@ function ptSoStart() {
   alert("Kunden finnes ikke i Visma ennå (prospekt/lead). Bruk «🏢 Opprett kunde i Visma» på kundekortet først.");
   return;
  }
- if (!o.engang.length) {
-  alert("Tilbudet har ingen engangslinjer. Løpende lisenser legges i kontrakt i Visma.");
+ if (!o.engang.length && !o.lop.length) {
+  alert("Tilbudet har ingen linjer som skal på salgsordre.");
   return;
  }
  const valg = o.modus === "kjop" || !o.leieMnd ? "kjop" : o.modus === "leie" ? "leie" : null;
@@ -26251,14 +26255,36 @@ function ptSoLeggTilRuller() {
  ptSoVisForhand();
 }
 
+function ptSoLisensMnd(x) {
+ return x.fakturering === "Årlig" ? 12 : 3;
+}
+
+function ptSoLisensLinje(x) {
+ const v = typeof pkVare === "function" ? pkVare(x.varenr) : null;
+ const enhetMnd = v && typeof pkMndFaktor === "function" ? Math.round(1 / pkMndFaktor(v)) : 1;
+ const mnd = ptSoLisensMnd(x), antall = Math.round(x.antall * mnd / enhetMnd * 1e4) / 1e4, pris = Math.round(x.pris * enhetMnd * 100) / 100;
+ const navn = x.vismaNavn || x.navn || "";
+ return {
+  ...x,
+  antall: antall,
+  pris: pris,
+  sum: Math.round(antall * pris * (1 - (x.rabattPst || 0) / 100) * 100) / 100,
+  lisensMnd: mnd,
+  beskrivelse: `${navn} – første ${mnd} mnd, deretter via avtale`.slice(0, 256)
+ };
+}
+
 function ptSoOrdrer() {
  const s = ptSo, o = s.o, v = s.v, d = o.d, navn = String(v.kundeNavn || "").trim();
+ const lis = o.lop.map(ptSoLisensLinje);
  const linje = x => ({
   varenr: x.varenr,
   antall: x.antall,
   pris: x.pris,
   rabattPst: x.rabattPst || 0,
-  _navn: x.vismaNavn || x.navn || "",
+  beskrivelse: x.beskrivelse || "",
+  _lisens: x.lisensMnd || 0,
+  _navn: x.beskrivelse || x.vismaNavn || x.navn || "",
   _sum: x.sum,
   _mangler: !(typeof pkVare === "function" && pkVare(x.varenr)),
   _ekstra: !!x.ekstra
@@ -26273,7 +26299,7 @@ function ptSoOrdrer() {
   linjer: rader.map(linje)
  });
  if (s.valg === "leie") {
-  const ik = o.engang.filter(x => x.iLeie), dir = [ ...o.engang.filter(x => !x.iLeie), ...s.ekstra ], ut = [];
+  const ik = o.engang.filter(x => x.iLeie), dir = [ ...o.engang.filter(x => !x.iLeie), ...lis, ...s.ekstra ], ut = [];
   if (ik.length) ut.push({
    rolle: "Ikano",
    kundenr: String(pkInnst.IkanoKundenr || "13697").trim(),
@@ -26285,7 +26311,7 @@ function ptSoOrdrer() {
   if (dir.length) ut.push(kunde(dir, ik.length > 0));
   return ut;
  }
- return [ kunde([ ...o.engang, ...s.ekstra ], false) ];
+ return [ kunde([ ...o.engang, ...lis, ...s.ekstra ], false) ];
 }
 
 function ptSoVisForhand() {
@@ -26301,10 +26327,10 @@ function ptSoVisForhand() {
  }
  const ordrer = ptSoOrdrer();
  s.ordrer = ordrer;
- h += `<div class="hint" style="margin:0 0 10px">${ordrer.length === 2 ? "To ordrer: utstyret til Ikano, resten direkte til kunden." : "Én ordre til " + (ordrer[0].rolle === "Ikano" ? "Ikano" : "kunden") + "."} Status <b>Hold</b> (ses over og åpnes i Visma). Løpende lisenser legges i kontrakt som før${o.bytte.length ? ", og brikkebytte er ikke med" : ""}.</div>`;
+ h += `<div class="hint" style="margin:0 0 10px">${ordrer.length === 2 ? "To ordrer: utstyret til Ikano, resten direkte til kunden." : "Én ordre til " + (ordrer[0].rolle === "Ikano" ? "Ikano" : "kunden") + "."} Status <b>Hold</b> (ses over og åpnes i Visma). ${o.lop.length ? "Lisensene er med for første periode (12 mnd for årlig fakturering, ellers 3 mnd). Legg dem inn i kundekontrakten med fakturering fra neste periode." : ""}${o.bytte.length ? " Brikkebytte er ikke med." : ""}</div>`;
  ordrer.forEach((r, i) => {
   const sum = r.linjer.reduce((n, x) => n + (x._sum ?? x.antall * x.pris * (1 - x.rabattPst / 100)), 0);
-  h += `<div style="border:1px solid #dbe3f0;border-radius:8px;padding:10px 12px;margin-bottom:12px">\n      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px"><b>Ordre ${i + 1}: ${r.rolle === "Ikano" ? `🏦 Ikano Bank AB (kundenr ${e(r.kundenr)})` : `👤 ${e(v.kundeNavn)} (kundenr ${e(r.kundenr)})`}</b><b>${pkKr(Math.round(sum * 100) / 100)} eks. mva</b></div>\n      <div class="muted" style="font-size:12.5px;margin-bottom:6px">${e(r.beskrivelse)}${r.referanse ? ` · Deres ref.: ${e(r.referanse)}` : ""}</div>\n      <div class="tbl-wrap"><table class="pk-tabell pk-liten"><thead><tr><th>Varenr</th><th>Vare</th><th style="text-align:right">Antall</th><th style="text-align:right">Pris</th><th style="text-align:right">Rabatt</th><th style="text-align:right">Sum</th></tr></thead><tbody>\n      ${r.linjer.map(x => `<tr><td>${e(x.varenr)}</td><td>${e(x._navn)}${x._ekstra ? ' <span class="pk-merke pk-merke-gronn">lagt til</span>' : ""}${x._mangler ? ' <span style="color:#b45309">⚠ ikke i katalogen</span>' : ""}</td><td style="text-align:right">${pkAntall(x.antall)}</td><td style="text-align:right">${pkKr(x.pris)}</td><td style="text-align:right">${x.rabattPst ? String(x.rabattPst).replace(".", ",") + " %" : ""}</td><td style="text-align:right">${pkKr(Math.round((x._sum ?? x.antall * x.pris * (1 - x.rabattPst / 100)) * 100) / 100)}</td></tr>`).join("")}\n      </tbody></table></div></div>`;
+  h += `<div style="border:1px solid #dbe3f0;border-radius:8px;padding:10px 12px;margin-bottom:12px">\n      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px"><b>Ordre ${i + 1}: ${r.rolle === "Ikano" ? `🏦 Ikano Bank AB (kundenr ${e(r.kundenr)})` : `👤 ${e(v.kundeNavn)} (kundenr ${e(r.kundenr)})`}</b><b>${pkKr(Math.round(sum * 100) / 100)} eks. mva</b></div>\n      <div class="muted" style="font-size:12.5px;margin-bottom:6px">${e(r.beskrivelse)}${r.referanse ? ` · Deres ref.: ${e(r.referanse)}` : ""}</div>\n      <div class="tbl-wrap"><table class="pk-tabell pk-liten"><thead><tr><th>Varenr</th><th>Vare</th><th style="text-align:right">Antall</th><th style="text-align:right">Pris</th><th style="text-align:right">Rabatt</th><th style="text-align:right">Sum</th></tr></thead><tbody>\n      ${r.linjer.map(x => `<tr><td>${e(x.varenr)}</td><td>${e(x._navn)}${x._ekstra ? ' <span class="pk-merke pk-merke-gronn">lagt til</span>' : ""}${x._lisens ? ` <span class="pk-merke pk-merke-gra">lisens · ${x._lisens} mnd</span>` : ""}${x._mangler ? ' <span style="color:#b45309">⚠ ikke i katalogen</span>' : ""}</td><td style="text-align:right">${pkAntall(x.antall)}</td><td style="text-align:right">${pkKr(x.pris)}</td><td style="text-align:right">${x.rabattPst ? String(x.rabattPst).replace(".", ",") + " %" : ""}</td><td style="text-align:right">${pkKr(Math.round((x._sum ?? x.antall * x.pris * (1 - x.rabattPst / 100)) * 100) / 100)}</td></tr>`).join("")}\n      </tbody></table></div></div>`;
  });
  h += `<div id="pt-so-resultat"></div>\n    <div class="modal-footer"><button class="btn-sm" onclick="ptApneOrdregrunnlag('${v.spId}')">← Tilbake</button>\n      ${ptSoKassarullVarer().length ? `<button class="btn-sm" onclick="ptSoVisKassaruller()">🧻 Kassaruller${s.ekstra.length ? ` (${s.ekstra.length})` : ""}</button>` : ""}\n      <button class="prim" id="pt-so-send" style="margin-left:auto" onclick="ptSoSend()">🧾 Opprett ${ordrer.length === 2 ? "2 ordrer" : "ordren"} i Visma (Hold)</button></div>`;
  document.getElementById("pk-modal-innhold").innerHTML = h;
@@ -26333,7 +26359,10 @@ async function ptSoSend() {
     varenr: x.varenr,
     antall: x.antall,
     pris: x.pris,
-    rabattPst: x.rabattPst
+    rabattPst: x.rabattPst,
+    ...x.beskrivelse ? {
+     beskrivelse: x.beskrivelse
+    } : {}
    }))
   }))
  };
