@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.297 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.298 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15187,6 +15187,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.298",
+ dato: "14.10.2026",
+ punkter: [ "Fakturaoppfølging, «Ny registrering»: type-knappene (Telefon, E-post, SMS, Annet) står nå til høyre på samme linje som hurtigvalgene." ]
+}, {
  versjon: "v1.48.297",
  dato: "14.10.2026",
  punkter: [ "Fakturaoppfølging, «Ny registrering»: hjelpeteksten om hurtigvalgene står nå ved hurtigvalgene, ikke ved PDF-knappene. Faktura-PDF-knappene har fått 📄 og egen forklaring." ]
@@ -20101,12 +20105,12 @@ function renderFoDetaljPanel(r) {
  return `<div style="padding:14px 16px">\n      ${inkassoHtml}${fakturaListe}${notatHtml}${typeof iaPanelHtml === "function" ? iaPanelHtml(r.kundenr) : ""}\n      ${tidslinjeHtml(kundeTidslinje(r.kundenr), {
   hoyre: statusHoyre
  })}\n      ${regBoksHtml({
-  tittelHoyre: `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;color:#6b7280">Type:</span><input type="hidden" id="fo-type-${id}" value="Telefon"/>${typeKnapp("Telefon", "📞")}${typeKnapp("E-post", "✉️")}${typeKnapp("SMS", "💬")}${typeKnapp("Annet", "📝")}</div>`,
-  hurtig: `${hk("ingensvar", "📞 Ingen svar", "Lagrer «Ringt – ingen svar» og ny oppfølging om 3 virkedager")}${hk("epost", "✉️ E-post sendt", "Lagrer «Purring sendt på e-post», status Kontaktet og ny oppfølging om 5 virkedager")}${hk("lovet", "🤝 Lovet betaling", "Fyller ut skjemaet. Velg datoen kunden har lovet å betale, og trykk Lagre")}${hk("frist", "📅 Ny frist", "Fyller ut skjemaet med ny frist om en uke. Juster og trykk Lagre")}<span style="font-size:11px;color:#9ca3af">«Ingen svar» og «E-post sendt» lagrer med en gang. Tekst i feltet tas med.</span>`,
+  hurtigHoyre: `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;color:#6b7280">Type:</span><input type="hidden" id="fo-type-${id}" value="Telefon"/>${typeKnapp("Telefon", "📞")}${typeKnapp("E-post", "✉️")}${typeKnapp("SMS", "💬")}${typeKnapp("Annet", "📝")}</div>`,
+  hurtig: `${hk("ingensvar", "📞 Ingen svar", "Lagrer «Ringt – ingen svar» og ny oppfølging om 3 virkedager")}${hk("epost", "✉️ E-post sendt", "Lagrer «Purring sendt på e-post», status Kontaktet og ny oppfølging om 5 virkedager")}${hk("lovet", "🤝 Lovet betaling", "Fyller ut skjemaet. Velg datoen kunden har lovet å betale, og trykk Lagre")}${hk("frist", "📅 Ny frist", "Fyller ut skjemaet med ny frist om en uke. Juster og trykk Lagre")}`,
   tekstfelt: `<textarea id="fo-kommentar-${id}" rows="3" placeholder="Skriv hva som er gjort eller avtalt${flere ? ` (lagres på alle ${fs.length} fakturaene)` : ""}. Ctrl+Enter lagrer." style="${REG_TEKST_STIL}" oninput="${REG_TEKST_VOKS}" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();lagreFoOppfolging('${key}')}"></textarea>`,
   bunnVenstre: `<div class="fgrp" style="margin:0"><label>Status</label><select id="fo-statusvalg-${id}" style="width:auto;padding:6px 10px" onchange="const w=document.getElementById('fo-amili-wrap-${id}');if(w)w.style.display=this.value==='Sendt til inkasso'?'':'none'">${FO_STATUSER.map(s => `<option${s === fellesStatus ? " selected" : ""}>${s}</option>`).join("")}</select></div>\n          <div class="fgrp" style="margin:0"><label>Neste oppfølging</label><input type="date" id="fo-neste-${id}" value="${nesteVerdi}"/></div>\n          ${flere ? "" : `<div class="fgrp" id="fo-amili-wrap-${id}" style="margin:0;${fellesStatus === "Sendt til inkasso" ? "" : "display:none"}"><label>Amili saksnr</label><input type="text" inputmode="numeric" id="fo-amili-${id}" value="${(fs.find(f => f.inkassoSaksnr) || {}).inkassoSaksnr || ""}" placeholder="f.eks. 1234567" style="width:140px"/></div>`}`,
   bunnHoyre: `<span id="fo-hint-${id}" style="font-size:12px;color:#d97706"></span><button class="btn-sm" onclick="foRedigerAmili('${key}')" title="Sett «Sendt til inkasso» og Amili saksnr per faktura">🏛️ Inkasso / Amili</button><button class="prim" onclick="lagreFoOppfolging('${key}')">💾 Lagre</button>`,
-  under: `<div style="font-size:11px;color:#6b7280;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">Faktura-PDF: ${fs.map(f => `<button class="btn-sm" style="font-size:11px;padding:2px 8px" onclick="event.stopPropagation();foLastNedPdf('${String(f.fakturanr).replace(/'/g, "")}',this)" title="Last ned fakturaen fra Visma som PDF">📄 ${f.fakturanr}</button>`).join("")} <span style="color:#9ca3af">Lastes ned som PDF. Vil du sende den, klikker du på e-postadressen øverst, så legges PDF-en ved automatisk.</span></div>`
+  under: `<div style="font-size:11px;color:#6b7280;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">Faktura-PDF: ${fs.map(f => `<button class="btn-sm" style="font-size:11px;padding:2px 8px" onclick="event.stopPropagation();foLastNedPdf('${String(f.fakturanr).replace(/'/g, "")}',this)" title="Last ned fakturaen fra Visma som PDF">📄 ${f.fakturanr}</button>`).join("")} <span style="color:#9ca3af">Lastes ned som PDF. Vil du sende den, klikker du på e-postadressen øverst, så legges PDF-en ved automatisk.</span></div><div style="font-size:11px;color:#9ca3af;margin-top:4px">«Ingen svar» og «E-post sendt» lagrer med en gang, og tekst i feltet tas med.</div>`
  })}\n    </div>`;
 }
 
@@ -20375,8 +20379,8 @@ function tidslinjeHtml(liste, opts = {}) {
  }).join("")}</div></div>`;
 }
 
-function regBoksHtml({tittelHoyre: tittelHoyre = "", hurtig: hurtig = "", tekstfelt: tekstfelt = "", bunnVenstre: bunnVenstre = "", bunnHoyre: bunnHoyre = "", under: under = ""}) {
- return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px">\n    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:#111">✍️ Ny registrering</div>${tittelHoyre}</div>\n    ${hurtig ? `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px"><span style="font-size:11px;color:#6b7280">Hurtigvalg:</span>${hurtig}</div>` : ""}\n    ${tekstfelt}\n    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-top:8px"><div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">${bunnVenstre}</div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${bunnHoyre}</div></div>\n    ${under}\n  </div>`;
+function regBoksHtml({tittelHoyre: tittelHoyre = "", hurtig: hurtig = "", hurtigHoyre: hurtigHoyre = "", tekstfelt: tekstfelt = "", bunnVenstre: bunnVenstre = "", bunnHoyre: bunnHoyre = "", under: under = ""}) {
+ return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px">\n    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:#111">✍️ Ny registrering</div>${tittelHoyre}</div>\n    ${hurtig || hurtigHoyre ? `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:11px;color:#6b7280">Hurtigvalg:</span>${hurtig}</div>${hurtigHoyre}</div>` : ""}\n    ${tekstfelt}\n    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-top:8px"><div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">${bunnVenstre}</div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${bunnHoyre}</div></div>\n    ${under}\n  </div>`;
 }
 
 const REG_TEKST_STIL = "width:100%;min-height:72px;font-family:inherit;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid #d0d5dd;border-radius:8px;resize:vertical;box-sizing:border-box";
