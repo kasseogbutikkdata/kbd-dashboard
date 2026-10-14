@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.299 · Oppdatert: 14. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.300 · Oppdatert: 14. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3845,7 +3845,7 @@ renderOnboarding()" style="min-width:200px">
         <div class="hdr-bar"></div>
         <div>
           <div class="hdr-title">Lisens- og servicekontroll</div>
-          <div class="hdr-sub">Kontrollerer at hver terminal på leverandørens lisens-/servicefaktura har en aktiv kundekontrakt i Visma med riktig tjeneste, antall og margin. Det opprettes ingen salgsordre. Verifone og Nets nå, Softpay senere.</div>
+          <div class="hdr-sub">Kontrollerer at hver terminal på leverandørens lisens-/servicefaktura har en aktiv kundekontrakt i Visma med riktig tjeneste, antall og margin. Det opprettes ingen salgsordre. Verifone, Nets og Softpay.</div>
         </div>
       </div>
     </div>
@@ -15190,6 +15190,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.300",
+ dato: "14.10.2026",
+ punkter: [ "Lisenskontrollen kontrollerer nå også Softpay. Last opp den månedlige Softpay-fakturaen (med «License Usage Report»). Hvert navn på fakturaen kobles via Softpay til kundens organisasjonsnummer og videre til kunden i Visma. Deretter sjekkes det at kunden har en aktiv kontrakt med Softpay-linje som dekker antall fakturerte lisenser, med god nok margin.", "Avvikene havner i samme avviksliste som Verifone og Nets, med notater og status. Detaljene viser hvordan kunden ble funnet, hvilke Softpay-tenants og -merchants det gjelder, bestilte og aktive lisenser, og kontraktlinjene. Kunder med flere organisasjonsnummer under samme navn kontrolleres samlet." ]
+}, {
  versjon: "v1.48.299",
  dato: "14.10.2026",
  punkter: [ "Tilbud: ny knapp «🧮 Ordregrunnlag» på lagrede tilbud. Den viser utregningen internt (ikke for kunden) som grunnlag for salgsordre i Visma: engangslinjer med varenr, Visma-navn, antall, listepris, rabatt, nettopris, sum, kost og DG, løpende linjer til kontrakt med pris per måned og per faktureringsperiode, og en oppsummering med DB, DG, leie og hva Ikano betaler KBD.", "Ordregrunnlaget kan kopieres (lim inn i Excel), lastes ned som Excel eller skrives ut.", "Når en salgssak med tilbud markeres som ✅ Vunnet, åpnes ordregrunnlaget for siste versjon, og saken får en loggpost om hvilken versjon som ble vunnet." ]
@@ -29683,7 +29687,7 @@ function lkRenderResultat() {
   return `<tr data-lk-bax="${escHtmlEpost(r.bax)}" style="cursor:pointer${apen ? ";background:#f0f4ff" : ""}" onclick="lkToggle('${r.bax}')">\n      <td>${chip(r._status)}</td>\n      <td style="min-width:200px"><strong style="color:#1A3A6B">${apen ? "▾ " : "▸ "}${escHtmlEpost(r.brukersted || "(uten navn)")}</strong>${r.orgnr ? `<div class="muted" style="font-size:11px">orgnr ${escHtmlEpost(r.orgnr)}</div>` : ""}</td>\n      <td>${escHtmlEpost(r.bax)}</td>\n      <td style="font-size:12.5px">${prod}</td>\n      <td class="tr">${lkKr(r.kostnadAar)}</td>\n      <td style="font-size:12.5px">${kontraktTxt}</td>\n      <td class="tr">${r.fakturertAar ? lkKr(r.fakturertAar) : "—"}</td>\n      <td class="tr">${r.margin == null ? "—" : `<span style="color:${r.margin < d.margingrense ? "#b91c1c" : "#374151"}">${Math.round(r.margin)} %</span>`}</td>\n      <td class="tr" style="color:${r.iFareAar > 0 && LK_AVVIK.includes(r._status) ? "#b91c1c" : "#9ca3af"}">${r.iFareAar > 0 ? lkKr(r.iFareAar) : "—"}</td>\n      <td style="min-width:130px">${handl}</td></tr>${apen ? `<tr><td colspan="10" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${lkDetaljHtml(r)}</td></tr>` : ""}`;
  }).join("");
  const info = d.info || [];
- el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0">\n      ${kpi("Kontrollert", ant, d.leverandor === "Nets" ? "varemottakere/BAX" : "BAX")}\n      ${kpi("✅ OK", ok, ant ? Math.round(ok / ant * 100) + " %" : "")}\n      ${kpi("Avvik", avvik.length, `${tell("INGEN_KONTRAKT")} uten kontrakt · ${avvik.length - tell("INGEN_KONTRAKT")} andre`, avvik.length ? "#b91c1c" : "#111")}\n      ${kpi("Godtatte unntak", tell("UNNTAK"), "vises ikke som avvik")}\n      ${kpi("Beløp i fare per år", lkKr(iFare), "kostnad uten dekning i kontrakt", iFare > 0 ? "#b91c1c" : "#111")}\n    </div>\n    <div class="filters" style="row-gap:8px">${pills}<span style="margin-left:auto"><button class="btn-sm" onclick="lkEksporterCsv()">⬇ CSV</button></span></div>\n    <div class="tbl-wrap" id="lk-tabell-boks" style="overflow:auto;max-height:72vh"><table>\n      <thead><tr>${[ [ "Status", "status" ], [ "Kunde / brukersted", "navn" ], [ "BAX", "bax" ], [ "Leverandør fakturerer", "lev" ], [ "Kostnad/år", "kostnad", 1 ], [ "Kontrakt i Visma", "kontrakt" ], [ "Fakturert/år", "fakturert", 1 ], [ "Margin", "margin", 1 ], [ "I fare/år", "fare", 1 ] ].map(([h, f, hoyre]) => lkSortTh(h, f, lkResSort, "lkResSorter", hoyre)).join("")}<th style="position:sticky;top:0;z-index:1;white-space:nowrap">Handling</th></tr></thead>\n      <tbody>${body || '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px">Ingen rader med valgt filter.</td></tr>'}</tbody>\n    </table></div>\n    ${info.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Ikke vurdert (${info.length} linjer: engangskjøp, linjer uten BAX og ukjente produkter)</summary><div class="tbl-wrap" style="margin-top:6px"><table><thead><tr><th>Grunn</th><th>Brukersted</th><th>BAX</th><th>Produkt</th><th class="tr">Beløp</th></tr></thead><tbody>${info.map(i => `<tr><td>${escHtmlEpost(i.grunn)}</td><td>${escHtmlEpost(i.brukersted || "")}</td><td>${escHtmlEpost(i.bax || "")}</td><td>${escHtmlEpost(i.kode + " " + i.tekst)}</td><td class="tr">${vfKr(i.belop)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}\n    <div class="hint" style="margin-top:6px">${d.leverandor === "Nets" ? "Nets-beløp er månedlige og ganges med 12." : "Verifone-beløp er årlige (fra aktiveringsdato)."} Antall på kontrakten summeres over alle aktive kontrakter med samme BAX. Margin = (fakturert/år − kostnad/år) / fakturert/år, grense ${d.margingrense} %. Ekspedisjonsgebyr telles ikke.</div>\n    <details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Hva betyr statusene?</summary><div style="font-size:12.5px;line-height:1.6;margin-top:6px">\n      <div>🔴 <strong>Ingen kontrakt</strong>: leverandøren tar betalt, men ingen aktiv kontrakt i Visma har denne BAX-en. KBD fakturerer ikke kunden.</div>\n      <div>🟠 <strong>Mangler tjeneste</strong>: kontrakten finnes, men en av tjenestene (f.eks. bytteservice) står ikke på den.</div>\n      <div>🟠 <strong>For få terminaler</strong>: kontrakten dekker færre enheter enn leverandøren tar betalt for.</div>\n      <div>🟡 <strong>Lav margin</strong>: alt er dekket, men KBD tjener mindre enn ${d.margingrense} % på det.</div>\n      <div>⚪ <strong>Kontrakt ikke lest</strong>: linjene på kontrakten kunne ikke hentes fra Visma. Kjør kontrollen på nytt.</div>\n      <div>✅ <strong>OK</strong>: alt er dekket med god margin. <strong>Unntak</strong>: avviket er godtatt med en begrunnelse.</div>\n    </div></details>`;
+ el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0">\n      ${kpi("Kontrollert", ant, d.leverandor === "Nets" ? "varemottakere/BAX" : d.leverandor === "Softpay" ? "kunder (orgnr)" : "BAX")}\n      ${kpi("✅ OK", ok, ant ? Math.round(ok / ant * 100) + " %" : "")}\n      ${kpi("Avvik", avvik.length, `${tell("INGEN_KONTRAKT")} uten kontrakt · ${avvik.length - tell("INGEN_KONTRAKT")} andre`, avvik.length ? "#b91c1c" : "#111")}\n      ${kpi("Godtatte unntak", tell("UNNTAK"), "vises ikke som avvik")}\n      ${kpi("Beløp i fare per år", lkKr(iFare), "kostnad uten dekning i kontrakt", iFare > 0 ? "#b91c1c" : "#111")}\n    </div>\n    <div class="filters" style="row-gap:8px">${pills}<span style="margin-left:auto"><button class="btn-sm" onclick="lkEksporterCsv()">⬇ CSV</button></span></div>\n    <div class="tbl-wrap" id="lk-tabell-boks" style="overflow:auto;max-height:72vh"><table>\n      <thead><tr>${[ [ "Status", "status" ], [ "Kunde / brukersted", "navn" ], [ "BAX", "bax" ], [ "Leverandør fakturerer", "lev" ], [ "Kostnad/år", "kostnad", 1 ], [ "Kontrakt i Visma", "kontrakt" ], [ "Fakturert/år", "fakturert", 1 ], [ "Margin", "margin", 1 ], [ "I fare/år", "fare", 1 ] ].map(([h, f, hoyre]) => lkSortTh(h, f, lkResSort, "lkResSorter", hoyre)).join("")}<th style="position:sticky;top:0;z-index:1;white-space:nowrap">Handling</th></tr></thead>\n      <tbody>${body || '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px">Ingen rader med valgt filter.</td></tr>'}</tbody>\n    </table></div>\n    ${info.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Ikke vurdert (${info.length} linjer: engangskjøp, linjer uten BAX og ukjente produkter)</summary><div class="tbl-wrap" style="margin-top:6px"><table><thead><tr><th>Grunn</th><th>Brukersted</th><th>BAX</th><th>Produkt</th><th class="tr">Beløp</th></tr></thead><tbody>${info.map(i => `<tr><td>${escHtmlEpost(i.grunn)}</td><td>${escHtmlEpost(i.brukersted || "")}</td><td>${escHtmlEpost(i.bax || "")}</td><td>${escHtmlEpost(i.kode + " " + i.tekst)}</td><td class="tr">${vfKr(i.belop)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}\n    <div class="hint" style="margin-top:6px">${d.leverandor === "Softpay" ? `Softpay: fakturerte lisenser × ${String(d.prisPerLisens || "").replace(".", ",")} kr × 12 mot Softpay-linjene på kundens aktive kontrakter (inkludert ÷ 3 = enheter). Kunden er funnet via navn → Softpay-merchant → orgnr → Visma-kunde.` : d.leverandor === "Nets" ? "Nets-beløp er månedlige og ganges med 12." : "Verifone-beløp er årlige (fra aktiveringsdato)."} Antall på kontrakten summeres over alle aktive kontrakter med samme BAX. Margin = (fakturert/år − kostnad/år) / fakturert/år, grense ${d.margingrense} %. Ekspedisjonsgebyr telles ikke.</div>\n    <details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Hva betyr statusene?</summary><div style="font-size:12.5px;line-height:1.6;margin-top:6px">\n      <div>🔴 <strong>Ingen kontrakt</strong>: leverandøren tar betalt, men ingen aktiv kontrakt i Visma har denne BAX-en. KBD fakturerer ikke kunden.</div>\n      <div>🟠 <strong>Mangler tjeneste</strong>: kontrakten finnes, men en av tjenestene (f.eks. bytteservice) står ikke på den.</div>\n      <div>🟠 <strong>For få terminaler</strong>: kontrakten dekker færre enheter enn leverandøren tar betalt for.</div>\n      <div>🟡 <strong>Lav margin</strong>: alt er dekket, men KBD tjener mindre enn ${d.margingrense} % på det.</div>\n      <div>⚪ <strong>Kontrakt ikke lest</strong>: linjene på kontrakten kunne ikke hentes fra Visma. Kjør kontrollen på nytt.</div>\n      <div>✅ <strong>OK</strong>: alt er dekket med god margin. <strong>Unntak</strong>: avviket er godtatt med en begrunnelse.</div>\n    </div></details>`;
 }
 
 let lkAvvik = [], lkAvvikFeil = "", lkSynkRes = null, lkVisResultat = false, lkAvFilter = "apne", lkAvApen = null, lkAvSok = "", lkAvLev = "Alle";
@@ -29855,7 +29859,7 @@ async function lkSynkAvvik(d) {
    continue;
   }
   if (LK_AV_LAGRES.includes(r.status)) {
-   const softpay = lkErSoftpay(r);
+   const softpay = lev !== "Softpay" && lkErSoftpay(r);
    const felles = {
     brukersted: r.brukersted || "",
     orgnr: r.orgnr || "",
@@ -29950,8 +29954,8 @@ async function lkSynkAvvik(d) {
    res.lost++;
   }
  }
- if (lev === "Nets" && fdato) {
-  lkAvvik.filter(a => a.leverandor === "Nets" && (LK_AV_APNE.includes(a.status) || a.status === "SOFTPAY") && !paFaktura.has(a.bax) && a.sistDato && fdato > a.sistDato).forEach(eks => {
+ if ((lev === "Nets" || lev === "Softpay") && fdato) {
+  lkAvvik.filter(a => a.leverandor === lev && (LK_AV_APNE.includes(a.status) || a.status === "SOFTPAY") && !paFaktura.has(a.bax) && a.sistDato && fdato > a.sistDato).forEach(eks => {
    endringer.push({
     a: {
      ...eks,
@@ -30396,6 +30400,23 @@ function lkOppsummering(r, d) {
   setning: `Avviket er godtatt som unntak: «${escHtmlEpost(r._unntak.begrunnelse)}».`,
   gjor: "Ingen handling nødvendig. Fjern unntaket hvis det ikke gjelder lenger."
  };
+ if (r.softpay && (st === "INGEN_KONTRAKT" || st === "MANGLER_TJENESTE")) {
+  const sp = r.softpay;
+  const lis = `<strong>${sp.fakturert} Softpay-lisens${sp.fakturert === 1 ? "" : "er"}</strong> hos <strong>${navn}</strong> (${lkKr(r.kostnadAar)} per år)`;
+  if (st === "MANGLER_TJENESTE") return {
+   farge: "#ffedd5",
+   kant: "#9a3412",
+   setning: `Softpay tar betalt for ${lis}, men kundens aktive kontrakt${aktive.length > 1 ? "er" : ""} (${kNr}) har ingen Softpay-linje.${fare}`,
+   gjor: "Legg Softpay-linjen (CI00000156) på kontrakten, eller godta avviket hvis Softpay faktureres på en annen måte."
+  };
+  const ingenKunde = !sp.kunder || !sp.kunder.length;
+  return {
+   farge: "#fee2e2",
+   kant: "#991b1b",
+   setning: `Softpay tar betalt for ${lis}, men ${ingenKunde ? "kunden ble ikke funnet i Visma" : "kunden har <strong>ingen aktiv kontrakt</strong> i Visma"}. ${escHtmlEpost(sp.kobling || "")}`,
+   gjor: ingenKunde ? "Sjekk organisasjonsnummeret under «Kobling». Mangler kunden i Visma, eller har den et annet orgnr? Er Softpay avsluttet, må lisensen sies opp hos Softpay." : "Opprett kontrakt med Softpay-linje, eller sjekk om kunden er fakturert på en annen kundekonto. Er Softpay avsluttet, må lisensen sies opp hos Softpay."
+  };
+ }
  if (st === "INGEN_KONTRAKT") {
   const avsl = r.kontrakter.length;
   return {
@@ -30477,7 +30498,7 @@ function lkDetaljHtml(r, dX, utenKnapper) {
  const knapp = (txt, klikk, primar) => `<button class="btn-sm" style="${primar ? "background:#1A3A6B;color:#fff;border-color:#1A3A6B;" : ""}margin:2px" onclick="event.stopPropagation();${klikk}">${txt}</button>`;
  const st = r._status || r.status;
  const knapper = utenKnapper || st === "OK" || st === "UNNTAK" ? "" : `${salgTilgang ? knapp("+ Oppfølging", `lkOppfolging('${r.bax}')`, true) : ""}${lkKanStyre() && !lkListeFeil ? knapp("Godta unntak", `lkApneUnntak('${r.bax}')`) : ""}`;
- const mulige = lkMuligKunde(r, d);
+ const mulige = r.softpay ? [] : lkMuligKunde(r, d);
  const muligHtml = mulige.length ? `<div class="lk-gjor"><strong>Mulig kunde (samme orgnr ${escHtmlEpost(r.orgnr)}):</strong> ${mulige.map(m => `${m.vk ? `<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${m.vk.id}');return false" style="color:#1A3A6B;font-weight:600">${escHtmlEpost(m.navn)}</a>` : `<strong>${escHtmlEpost(m.navn)}</strong>`} (kundenr ${escHtmlEpost(m.kundenr)}, ${escHtmlEpost(m.grunn)})`).join("; ")}</div>` : "";
  const topp = `<div class="lk-oppsummering" style="background:${o.farge};border-left:4px solid ${o.kant}">\n      <div class="lk-setning">${o.setning}${o.gjor ? `<div class="lk-gjor"><strong>Hva bør gjøres:</strong> ${o.gjor}</div>` : ""}${muligHtml}</div>\n      ${knapper ? `<div style="flex:0 0 auto">${knapper}</div>` : ""}</div>`;
  const statusTxt = {
@@ -30517,9 +30538,20 @@ function lkDetaljHtml(r, dX, utenKnapper) {
    Draft: "utkast",
    Suspended: "suspendert"
   }[k.status] || escHtmlEpost(k.status)}</span> · ${escHtmlEpost(k.kundenr)} ${vk ? `<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${vk.id}');return false" style="color:#1A3A6B">${escHtmlEpost(k.kundenavn)}</a>` : escHtmlEpost(k.kundenavn)}<div class="muted" style="font-size:11px">${escHtmlEpost(k.beskrivelse)}</div></div>`;
- }).join("") || `<div class="hint">Ingen kontrakter i Visma har «Bax: ${escHtmlEpost(r.bax)}» i beskrivelsen.</div>`;
+ }).join("") || (r.softpay ? `<div class="hint">Ingen kontrakter funnet for kunden${r.softpay.kunder && r.softpay.kunder.length ? "" : " (ingen Visma-kunde med orgnr " + escHtmlEpost(r.orgnr || "?") + ")"}.</div>` : `<div class="hint">Ingen kontrakter i Visma har «Bax: ${escHtmlEpost(r.bax)}» i beskrivelsen.</div>`);
  const andre = (r.andreKontraktVarer || []).length ? `<div style="font-weight:600;color:#111;margin:12px 0 4px">Andre linjer på kontrakten (ikke gjenkjent som lisens/service)</div><div style="font-size:12px;color:#6b7280">${r.andreKontraktVarer.map(escHtmlEpost).join("<br>")}</div>` : "";
- return `<div style="padding:14px 16px" onclick="event.stopPropagation()">\n    ${topp}\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:18px">\n      <div><div style="font-weight:600;color:#111;margin-bottom:6px">Tjeneste for tjeneste</div>${tjTabell}</div>\n      <div><div style="font-weight:600;color:#111;margin-bottom:6px">Kontrakter med BAX ${escHtmlEpost(r.bax)}</div>${kontr}${andre}</div>\n    </div>\n    <details style="margin-top:12px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Vis linjene fra ${escHtmlEpost(lev)}-fakturaen (${r.produkter.length} linje${r.produkter.length === 1 ? "" : "r"}${grp.size < r.produkter.length ? `, slått sammen til ${grp.size}` : ""})</summary>\n      <table style="margin-top:6px"><thead><tr><th>Produkt</th><th>Tekst</th><th class="tr">Antall</th><th class="tr">Beløp</th><th>Terminal</th></tr></thead><tbody>${prod}</tbody></table></details>\n  </div>`;
+ return `<div style="padding:14px 16px" onclick="event.stopPropagation()">\n    ${topp}\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:18px">\n      <div><div style="font-weight:600;color:#111;margin-bottom:6px">Tjeneste for tjeneste</div>${tjTabell}</div>\n      <div><div style="font-weight:600;color:#111;margin-bottom:6px">${r.softpay ? "Kontrakter hos kunden" : `Kontrakter med BAX ${escHtmlEpost(r.bax)}`}</div>${kontr}${andre}</div>\n    </div>\n    ${r.softpay ? lkSoftpayDetalj(r) : ""}\n    <details style="margin-top:12px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Vis linjene fra ${escHtmlEpost(lev)}-fakturaen (${r.produkter.length} linje${r.produkter.length === 1 ? "" : "r"}${grp.size < r.produkter.length ? `, slått sammen til ${grp.size}` : ""})</summary>\n      <table style="margin-top:6px"><thead><tr><th>Produkt</th><th>Tekst</th><th class="tr">Antall</th><th class="tr">Beløp</th><th>Terminal</th></tr></thead><tbody>${prod}</tbody></table></details>\n  </div>`;
+}
+
+function lkSoftpayDetalj(r) {
+ const sp = r.softpay || {};
+ const kunder = (sp.kunder || []).map(k => {
+  const vk = vismaKunder.find(x => samKundenr(x.vismaNummer, k.kundenr));
+  return `${vk ? `<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${vk.id}');return false" style="color:#1A3A6B">${escHtmlEpost(k.navn || vk.navn)}</a>` : escHtmlEpost(k.navn)} (kundenr ${escHtmlEpost(k.kundenr)}, orgnr ${escHtmlEpost(k.orgnr)})`;
+ }).join("<br>") || '<span style="color:#b91c1c">Ingen Visma-kunde med dette orgnr</span>';
+ const merch = (sp.merchants || []).map(m => `<tr><td>${escHtmlEpost(m.navn)}</td><td>${escHtmlEpost(m.orgnr)}</td><td class="tr">${m.lisenserBestilt}</td><td>${escHtmlEpost(m.konto)}${m.state && m.state !== "ACTIVE" ? " · " + escHtmlEpost(m.state) : ""}</td></tr>`).join("");
+ const ten = (sp.tenants || []).map(t => `<tr><td>${escHtmlEpost(t.tenant)}</td><td>${escHtmlEpost(t.navn)}</td><td class="tr">${t.fakturert}</td><td class="tr">${t.bestilt}</td><td class="tr">${t.aktive}</td><td class="tr">${t.trx}</td></tr>`).join("");
+ return `<div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fff">\n    <div style="font-weight:700;color:#111;margin-bottom:4px">💳 Softpay – kobling og lisenser</div>\n    <div class="hint" style="margin:0 0 8px">${escHtmlEpost(sp.kobling || "")}</div>\n    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin-bottom:10px">\n      <span>Fakturert: <strong>${sp.fakturert ?? "—"}</strong></span><span>Aktive: <strong>${sp.aktive ?? "—"}</strong></span>\n      <span>Bestilt (faktura): <strong>${sp.bestilt ?? "—"}</strong></span><span>Bestilt (Softpay API): <strong>${sp.lisenserBestiltApi ?? "—"}</strong></span>\n      <span>Kontrakten dekker: <strong>${sp.kontraktEnheter ?? 0}</strong> enhet${sp.kontraktEnheter === 1 ? "" : "er"}</span></div>\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">\n      <div><div style="font-weight:600;font-size:12.5px;margin-bottom:4px">Visma-kunde(r)</div><div style="font-size:12.5px">${kunder}</div>\n        <div style="font-weight:600;font-size:12.5px;margin:10px 0 4px">Softpay-merchants</div>\n        <table><thead><tr><th>Navn</th><th>Orgnr</th><th class="tr">Lisenser bestilt</th><th>Konto</th></tr></thead><tbody>${merch || '<tr><td colspan="4" class="muted">Ingen</td></tr>'}</tbody></table></div>\n      <div><div style="font-weight:600;font-size:12.5px;margin-bottom:4px">Tenants på fakturaen</div>\n        <table><thead><tr><th>Tenant</th><th>Navn</th><th class="tr">Fakt.</th><th class="tr">Best.</th><th class="tr">Aktive</th><th class="tr">Trx</th></tr></thead><tbody>${ten}</tbody></table></div>\n    </div></div>`;
 }
 
 function lkLaasOpplasting(laast) {
@@ -30675,8 +30707,14 @@ function lkOppfolging(bax, rX, dX) {
  let vk = k ? vismaKunder.find(x => samKundenr(x.vismaNummer, k.kundenr)) : null;
  let kilde = vk ? k.status === "Active" || k.status === "Aktiv" ? "kontrakt" : "avsluttet" : "";
  let orgTreff = [];
+ if (!vk && r.softpay && (r.softpay.kunder || []).length) {
+  orgTreff = r.softpay.kunder.map(k => vismaKunder.find(x => samKundenr(x.vismaNummer, k.kundenr))).filter(Boolean);
+  vk = orgTreff[0] || null;
+  if (vk) kilde = "orgnr";
+ }
  if (!vk && r.orgnr) {
-  orgTreff = vismaKunder.filter(x => normOrgNr(x.orgNr) === normOrgNr(r.orgnr));
+  const o1 = String(r.orgnr).split(",")[0];
+  orgTreff = vismaKunder.filter(x => normOrgNr(x.orgNr) === normOrgNr(o1));
   vk = orgTreff[0] || null;
   if (vk) kilde = "orgnr";
  }
