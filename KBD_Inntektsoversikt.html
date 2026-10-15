@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.323 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.324 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15215,6 +15215,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.324",
+ dato: "15.10.2026",
+ punkter: [ "Provisjon: i Excel-fila står «Å utbetale» nå sist i sammendraget, etter «Fakturert», og i fet skrift. Overskriftene er også i fet skrift, og beløpene har tusenskille og to desimaler." ]
+}, {
  versjon: "v1.48.323",
  dato: "15.10.2026",
  punkter: [ "Provisjon: ny status «📁 Historikk (utbetalt via Excel)» for måneder som ble utbetalt før KBD CC. Måneden låses som en godkjent måned, men teller ikke som utbetaling fra KBD CC og vises ikke i provisjonsgrafen.", "«💰 Min provisjon» på Hjem viser nå også fakturert mot budsjett for historikk-månedene, så hele året kommer med i grafen. Provisjonsbeløpet vises bare for måneder som er godkjent i KBD CC." ]
@@ -27724,27 +27728,112 @@ async function pvGjenapne() {
  } catch (e) {}
 }
 
-function pvExcel() {
- const res = pvBeregn();
- if (!res || typeof XLSX === "undefined") {
-  alert("Excel-verktøyet er ikke lastet.");
-  return;
- }
- const wb = XLSX.utils.book_new(), sum = [ [ "Provisjon", pvPeriodeTekst(pvPeriode), pvUtkast.status === "godkjent" ? "Godkjent" : pvUtkast.status === "historikk" ? "Historikk (utbetalt via Excel)" : "Utkast" ], [], [ "Person", "Grunnlag", "Sats %", "Provisjon", "3-årsverdi", "3-års provisjon", "Justering", "Å utbetale", "Fakturert" ] ];
- Object.values(res).forEach(x => sum.push([ x.p.navn, Math.round(x.grunnlag * 100) / 100, x.p.sats, Math.round(x.provisjon * 100) / 100, Math.round(x.treaarVerdi * 100) / 100, Math.round(x.treaarProv * 100) / 100, x.justering, x.sum, Math.round(x.fakturert * 100) / 100 ]));
- (pvUtkast.justeringer || []).forEach(j => sum.push([ "Justering: " + (res[j.personId]?.p.navn || j.personId), j.tekst, "", "", "", "", j.belop ]));
- XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), "Sammendrag");
- Object.values(res).forEach(x => {
-  const rader = [ [ "Dok", "Nr", "Dato", "Kunde", "Varenr", "Beskrivelse", "Antall", "Enhet", "Beløp eks. mva", "Behandling", "Grunnlag/3-årsverdi" ] ];
-  x.linjer.forEach(z => rader.push([ z.d.type, z.d.nr, z.d.dato, z.d.kunde.navn, z.l.varenr, z.l.beskrivelse, z.l.antall, z.l.enhet, z.l.belop, {
+let pvExcelJsLaster = null;
+
+function pvLastExcelJs() {
+ if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+ if (!pvExcelJsLaster) pvExcelJsLaster = new Promise((ok, feil) => {
+  const sc = document.createElement("script");
+  sc.src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+  sc.onload = () => ok(window.ExcelJS);
+  sc.onerror = () => {
+   pvExcelJsLaster = null;
+   feil(new Error("Klarte ikke laste ExcelJS"));
+  };
+  document.head.appendChild(sc);
+ });
+ return pvExcelJsLaster;
+}
+
+function pvExcelData(res) {
+ const status = pvUtkast.status === "godkjent" ? "Godkjent" : pvUtkast.status === "historikk" ? "Historikk (utbetalt via Excel)" : "Utkast";
+ const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
+ const hode = [ "Person", "Grunnlag", "Sats %", "Provisjon", "3-årsverdi", "3-års provisjon", "Justering", "Fakturert", "Å utbetale" ];
+ const rader = Object.values(res).map(x => [ x.p.navn, r2(x.grunnlag), x.p.sats, r2(x.provisjon), r2(x.treaarVerdi), r2(x.treaarProv), x.justering, r2(x.fakturert), x.sum ]);
+ const just = (pvUtkast.justeringer || []).map(j => [ "Justering: " + (res[j.personId]?.p.navn || j.personId), j.tekst, "", "", "", "", j.belop ]);
+ const detaljer = Object.values(res).map(x => ({
+  navn: x.p.navn.slice(0, 30),
+  hode: [ "Dok", "Nr", "Dato", "Kunde", "Varenr", "Beskrivelse", "Antall", "Enhet", "Beløp eks. mva", "Behandling", "Grunnlag/3-årsverdi" ],
+  rader: x.linjer.map(z => [ z.d.type, z.d.nr, z.d.dato, z.d.kunde.navn, z.l.varenr, z.l.beskrivelse, z.l.antall, z.l.enhet, z.l.belop, {
    vanlig: "Vanlig",
    timer: "Timer",
    unntak: "Unntatt",
    treaar: "3-årsverdi"
-  }[z.hva], z.hva === "treaar" ? Math.round(z.verdi * 100) / 100 : z.grunnlag ]));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rader), x.p.navn.slice(0, 30));
- });
- XLSX.writeFile(wb, `Provisjon ${pvPeriode}.xlsx`);
+  }[z.hva], z.hva === "treaar" ? r2(z.verdi) : z.grunnlag ])
+ }));
+ return {
+  status: status,
+  hode: hode,
+  rader: rader,
+  just: just,
+  detaljer: detaljer
+ };
+}
+
+async function pvExcel() {
+ const res = pvBeregn();
+ if (!res) {
+  alert("Hent eller velg en periode først.");
+  return;
+ }
+ const d = pvExcelData(res), fil = `Provisjon ${pvPeriode}.xlsx`;
+ try {
+  const ExcelJS = await pvLastExcelJs(), wb = new ExcelJS.Workbook, kr = "#,##0.00";
+  const ws = wb.addWorksheet("Sammendrag");
+  ws.addRow([ "Provisjon", pvPeriodeTekst(pvPeriode), d.status ]).font = {
+   bold: true
+  };
+  ws.addRow([]);
+  ws.addRow(d.hode).font = {
+   bold: true
+  };
+  d.rader.forEach(r => ws.addRow(r));
+  d.just.forEach(r => ws.addRow(r));
+  ws.columns.forEach((c, ci) => {
+   c.width = ci === 0 ? 22 : 15;
+   if (ci > 0 && ci !== 2) c.numFmt = kr;
+  });
+  ws.getColumn(9).font = {
+   bold: true
+  };
+  ws.getRow(1).font = {
+   bold: true
+  };
+  d.detaljer.forEach(t => {
+   const w = wb.addWorksheet(t.navn);
+   w.addRow(t.hode).font = {
+    bold: true
+   };
+   t.rader.forEach(r => w.addRow(r));
+   [ 8, 10, 12, 10, 10, 40, 9, 8, 15, 12, 18 ].forEach((b, ci) => {
+    w.getColumn(ci + 1).width = b;
+   });
+   w.getColumn(9).numFmt = kr;
+   w.getColumn(11).numFmt = kr;
+  });
+  const blob = new Blob([ await wb.xlsx.writeBuffer() ], {
+   type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fil;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+   URL.revokeObjectURL(a.href);
+   a.remove();
+  }, 1e3);
+ } catch (err) {
+  console.warn("ExcelJS", err);
+  if (typeof XLSX === "undefined") {
+   alert("Excel-verktøyet er ikke lastet.");
+   return;
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([ [ "Provisjon", pvPeriodeTekst(pvPeriode), d.status ], [], d.hode, ...d.rader, ...d.just ]), "Sammendrag");
+  d.detaljer.forEach(t => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([ t.hode, ...t.rader ]), t.navn));
+  XLSX.writeFile(wb, fil);
+ }
 }
 
 function pvInnstHtml(r) {
