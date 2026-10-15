@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.318 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.319 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15212,6 +15212,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.319",
+ dato: "15.10.2026",
+ punkter: [ "Fakturaoppfølging: KBD CC foreslår nå «Konkurs» når Brønnøysundregistrene viser at kunden er konkurs, eller når Visma-notatet nevner konkurs. Kunden får merket «⚠️ Konkurs?» i lista, og panelet har knappene «⚠️ Sett Konkurs» (setter status på alle åpne fakturaer og oppretter konkurssaken) og «Ikke konkurs» (fjerner forslaget, grunnen lagres i loggen)." ]
+}, {
  versjon: "v1.48.318",
  dato: "15.10.2026",
  punkter: [ "Fakturaoppfølging: panelet viser nå «💳 Betalt og kreditert», altså innbetalinger, kreditnotaer og avskrivninger som er koblet mot fakturaene i Visma, med bilagsnummer, dato og beløp. Hentes fra Visma når panelet åpnes." ]
@@ -20298,7 +20302,10 @@ function renderFakturaoppfolging() {
   const rows = [ `<tr${radStil}>\n        <td${forsteCelleStil}>${r.kundenavn}<div style="font-size:11px;color:#9ca3af">Kundenr ${r.kundenr}</div></td>\n        <td style="font-size:12px;color:#374151">${foKontaktHtml(r)}</td>\n        <td>${flere ? `<b>${r.fs.length} fakturaer</b><div style="font-size:11px;color:#9ca3af">${r.fs.slice(0, 3).map(f => f.fakturanr).join(", ")}${r.fs.length > 3 ? " …" : ""}</div>` : r.fs[0].fakturanr}${harKommentar ? ' <span title="Har kommentarer/logg" style="cursor:default">💬</span>' : ""}</td>\n        <td class="tr">${fF(r.belop)}</td>\n        <td class="tr">${fF(r.utestaende)}</td>\n        <td>${fDateShort(r.forfallsdato)}${flere ? '<div style="font-size:10px;color:#9ca3af">eldste</div>' : ""}${r.dager > 0 ? `<div style="color:#dc2626;font-size:11px">${r.dager} dager forfalt</div>` : ""}${r.betaltDato ? `<div style="color:#1baf7a;font-size:11px">✓ Betalt ${fDateShort(r.betaltDato)}</div>` : ""}</td>\n        <td class="tr">${r.score > 0 ? Math.round(r.score).toLocaleString("nb-NO") : "—"}</td>\n        <td>${statuser.map(foStatusBadge).join(" ")}${(() => {
    const sk = foSistKontakt(r.fs);
    return sk ? `<div style="font-size:11px;color:#2563eb;margin-top:2px" title="Siste kontakt (logg i KBD CC eller purring-SMS)">${foKontaktIkon(sk.type)} Sist kontakt ${fDateShort(sk.dato)}</div>` : "";
-  })()}${r.fs.some(foNevnerInkasso) ? '<div style="font-size:11px;color:#b45309;margin-top:2px" title="Visma-notatet nevner inkasso/namsmann">⚠️ Inkasso i Visma-notat</div>' : ""}${foIkkeAvstemt(r.kundenr) ? `<div style="font-size:11px;color:#b45309;margin-top:2px;cursor:pointer" title="Kunden har kreditnota/innbetaling som ikke er koblet mot faktura i Visma. Klikk for å se." onclick="event.stopPropagation();iaApen='${String(r.kundenr).replace(/'/g, "\\'")}';setFoVisning('ikkeavstemt')">⚠️ Ikke avstemt i Visma</div>` : ""}${[ ...new Set(r.fs.map(f => f.inkassoSaksnr).filter(Boolean)) ].map(n => `<div style="font-size:11px;margin-top:2px">${foAmiliLenke(n)}</div>`).join("")}</td>\n        <td><span${nesteForfalt ? ' style="color:#dc2626;font-weight:600"' : ""}>${r.nesteOppfolging ? fDateShort(r.nesteOppfolging) : "—"}</span>${r.eier ? `<div style="font-size:11px;color:${r.eierType === "mine" ? "#1A3A6B" : "#9ca3af"}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g, "")}">👤 ${String(r.eier).split(" ")[0].replace(/</g, "&lt;")}</div>` : ""}</td>\n        <td><button class="btn-sm" onclick="event.stopPropagation();toggleFoDetalj('${r.key.replace(/'/g, "\\'")}')">${apen ? "▲ Lukk" : "📝 Logg"}</button></td>\n      </tr>` ];
+  })()}${r.fs.some(foNevnerInkasso) ? '<div style="font-size:11px;color:#b45309;margin-top:2px" title="Visma-notatet nevner inkasso/namsmann">⚠️ Inkasso i Visma-notat</div>' : ""}${(() => {
+   const kk = foKonkursForslag(r.kundenr);
+   return kk ? `<div style="font-size:11px;color:#b91c1c;font-weight:600;margin-top:2px" title="${kk === "brreg" ? "Brønnøysundregistrene viser at kunden er konkurs" : "Visma-notatet nevner konkurs"}. Åpne raden for å sette status Konkurs.">⚠️ Konkurs?</div>` : "";
+  })()}${foIkkeAvstemt(r.kundenr) ? `<div style="font-size:11px;color:#b45309;margin-top:2px;cursor:pointer" title="Kunden har kreditnota/innbetaling som ikke er koblet mot faktura i Visma. Klikk for å se." onclick="event.stopPropagation();iaApen='${String(r.kundenr).replace(/'/g, "\\'")}';setFoVisning('ikkeavstemt')">⚠️ Ikke avstemt i Visma</div>` : ""}${[ ...new Set(r.fs.map(f => f.inkassoSaksnr).filter(Boolean)) ].map(n => `<div style="font-size:11px;margin-top:2px">${foAmiliLenke(n)}</div>`).join("")}</td>\n        <td><span${nesteForfalt ? ' style="color:#dc2626;font-weight:600"' : ""}>${r.nesteOppfolging ? fDateShort(r.nesteOppfolging) : "—"}</span>${r.eier ? `<div style="font-size:11px;color:${r.eierType === "mine" ? "#1A3A6B" : "#9ca3af"}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g, "")}">👤 ${String(r.eier).split(" ")[0].replace(/</g, "&lt;")}</div>` : ""}</td>\n        <td><button class="btn-sm" onclick="event.stopPropagation();toggleFoDetalj('${r.key.replace(/'/g, "\\'")}')">${apen ? "▲ Lukk" : "📝 Logg"}</button></td>\n      </tr>` ];
   if (apen) {
    rows.push(`<tr style="background:#eef2ff"><td colspan="10" style="border-left:3px solid #1A3A6B;padding:0">${renderFoDetaljPanel(r)}</td></tr>`);
   }
@@ -20344,6 +20351,8 @@ function renderFoDetaljPanel(r) {
  const notatHtml = medNotat.length ? `\n    <div style="margin-bottom:14px">\n      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:12px;font-weight:600;color:#6b7280">Historikk fra Visma (før KBD CC)</span>${alleLinjer.length > 4 ? `<button class="btn-sm" style="padding:2px 8px;font-size:11px" onclick="foToggleNotat('${key}')">${notatApen ? "Vis bare de siste" : "Vis alle (" + alleLinjer.length + " linjer)"}</button>` : ""}</div>\n      <div style="font-size:12px;white-space:pre-wrap;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;${notatApen ? "max-height:260px;overflow:auto" : ""}">${!notatApen && alleLinjer.length > 4 ? '<span style="color:#9ca3af">…</span>\n' : ""}${visLinjer.join("\n")}</div>\n    </div>` : "";
  const inkFs = fs.filter(foNevnerInkasso);
  const inkassoHtml = inkFs.length ? `<div style="margin-bottom:12px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">\n      <span>⚠️ Visma-notatet nevner inkasso/namsmann${flere ? ` (faktura ${inkFs.map(f => f.fakturanr).join(", ")})` : ""}, men status er ikke «Sendt til inkasso».</span>\n      <span style="display:flex;gap:8px"><button class="btn-sm" onclick="foAvvisInkasso('${key}')" title="Fjern varselet, f.eks. hvis saken er trukket fra Amili">Ikke inkasso</button><button class="btn-sm" onclick="foSettInkasso('${key}')">Sett «Sendt til inkasso»</button></span></div>` : "";
+ const konkKilde = foKonkursForslag(r.kundenr);
+ const konkursHtml = konkKilde ? `<div style="margin-bottom:12px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:13px;color:#991b1b;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">\n      <span>⚠️ ${konkKilde === "brreg" ? "<b>Brønnøysundregistrene</b> viser at kunden er registrert konkurs" : "Visma-notatet nevner <b>konkurs</b>"}, men status er ikke «Konkurs».</span>\n      <span style="display:flex;gap:8px"><button class="btn-sm" onclick="event.stopPropagation();foAvvisKonkurs('${iaJs(r.kundenr)}')" title="Fjern forslaget, f.eks. hvis det gjelder et annet selskap">Ikke konkurs</button><button class="prim" style="background:#b91c1c;border-color:#b91c1c" onclick="event.stopPropagation();foSettKonkurs('${iaJs(r.kundenr)}')">⚠️ Sett Konkurs</button></span></div>` : "";
  const sistK = foSistKontakt(fs);
  const fakturaListe = flere ? `\n    <div style="margin-bottom:14px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;overflow:auto">\n      <table style="width:100%;font-size:12px"><thead><tr><th>Faktura</th><th class="tr">Beløp</th><th class="tr">Utestående</th><th>Forfall</th><th>Status</th><th>Neste</th></tr></thead><tbody>\n      ${fs.map(f => `<tr><td>${f.fakturanr}</td><td class="tr">${fF(f.belop || 0)}</td><td class="tr">${fF(f.utestaende || 0)}</td><td>${fDateShort(f.forfallsdato)}${foDagerForfalt(f) > 0 ? ` <span style="color:#dc2626">(${foDagerForfalt(f)} d)</span>` : ""}</td><td>${foStatusBadge(f.status)}${f.inkassoSaksnr ? " " + foAmiliLenke(f.inkassoSaksnr) : ""}</td><td>${f.nesteOppfolging ? fDateShort(f.nesteOppfolging) : "—"}</td></tr>`).join("")}\n      </tbody></table>\n    </div>` : "";
  const fellesStatus = foFellesStatus(fs);
@@ -20351,7 +20360,7 @@ function renderFoDetaljPanel(r) {
  const hk = (akt, txt, tittel) => `<button class="btn-sm" onclick="foHurtig('${key}','${akt}')" title="${tittel}">${txt}</button>`;
  const typeKnapp = (t, ik) => `<button class="btn-sm" type="button" data-type="${t}" style="font-size:12px;padding:4px 10px${t === "Telefon" ? ";background:#1A3A6B;color:#fff;border-color:#1A3A6B" : ""}" onclick="foSettType('${id}','${t}',this)">${ik} ${t}</button>`;
  const statusHoyre = `<span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;flex-wrap:wrap">${foStatusBadge(fellesStatus)}<span>Sist kontakt: ${sistK ? foKontaktIkon(sistK.type) + " " + fDateShort(sistK.dato) : "—"}</span><span>Neste: ${r.nesteOppfolging ? fDateShort(r.nesteOppfolging) : "—"}</span></span>`;
- return `<div style="padding:14px 16px">\n      ${inkassoHtml}${fakturaListe}${notatHtml}${typeof iaPanelHtml === "function" ? iaPanelHtml(r.kundenr) : ""}${foBetHtml(r.kundenr, fs)}\n      ${tidslinjeHtml(kundeTidslinje(r.kundenr), {
+ return `<div style="padding:14px 16px">\n      ${konkursHtml}${inkassoHtml}${fakturaListe}${notatHtml}${typeof iaPanelHtml === "function" ? iaPanelHtml(r.kundenr) : ""}${foBetHtml(r.kundenr, fs)}\n      ${tidslinjeHtml(kundeTidslinje(r.kundenr), {
   hoyre: statusHoyre
  })}\n      ${regBoksHtml({
   hurtigHoyre: `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;color:#6b7280">Type:</span><input type="hidden" id="fo-type-${id}" value="Telefon"/>${typeKnapp("Telefon", "📞")}${typeKnapp("E-post", "✉️")}${typeKnapp("SMS", "💬")}${typeKnapp("Annet", "📝")}</div>`,
@@ -20532,6 +20541,134 @@ function lagreFoOppfolging(key, opts = {}) {
   setSPStatus("✅ Lagret");
   setTimeout(() => setSPStatus(""), 3e3);
   if (konkursNy) foKonkursSak(fs);
+ }).catch(e => {
+  setSPStatus("❌ " + e.message, false);
+  alert("⚠️ Lagring til SharePoint feilet:\n" + e.message);
+ });
+}
+
+const FO_IKKE_KONKURS = "[Ikke konkurs]";
+
+const FO_KONKURS_RE = /konkurs|bobestyrer|tvangsavvikl/i;
+
+let foKonkAvvistCache = {
+ arr: null,
+ n: -1,
+ set: new Set
+};
+
+function foKonkursAvvist() {
+ if (foKonkAvvistCache.arr !== fakturaoppfolgingLogg || foKonkAvvistCache.n !== fakturaoppfolgingLogg.length) {
+  const nr = new Set(fakturaoppfolgingLogg.filter(l => String(l.kommentar || "").startsWith(FO_IKKE_KONKURS)).map(l => l.fakturanr));
+  foKonkAvvistCache = {
+   arr: fakturaoppfolgingLogg,
+   n: fakturaoppfolgingLogg.length,
+   set: new Set(fakturaoppfolging.filter(f => nr.has(f.fakturanr)).map(f => String(f.kundenr || "").trim()))
+  };
+ }
+ return foKonkAvvistCache.set;
+}
+
+function foKonkursForslag(kundenr) {
+ const k = String(kundenr || "").trim();
+ if (!k) return null;
+ const apne = fakturaoppfolging.filter(f => String(f.kundenr || "").trim() === k && !f.betaltDato);
+ if (!apne.length || apne.every(f => f.status === "Konkurs")) return null;
+ if (foKonkursAvvist().has(k)) return null;
+ const vk = (typeof vismaKunder !== "undefined" ? vismaKunder : []).find(x => String(x.vismaNummer || "").trim() === k);
+ if (vk && vk.brregKonkursVarslet === true) return "brreg";
+ if (apne.some(f => FO_KONKURS_RE.test(f.notatImportert || ""))) return "notat";
+ return null;
+}
+
+function foSettKonkurs(kundenr) {
+ const k = String(kundenr || "").trim();
+ const fs = fakturaoppfolging.filter(f => String(f.kundenr || "").trim() === k && !f.betaltDato && f.status !== "Konkurs");
+ if (!fs.length) return;
+ const sum = fs.reduce((a, f) => a + (f.utestaende || 0), 0);
+ if (!confirm(`Sette «Konkurs» på ${fs.length} åpne ${fs.length === 1 ? "faktura" : "fakturaer"} hos ${fs[0].kundenavn || k} (${fF(sum)})?\n\nKunden tas ut av arbeidslisten og purre-SMS, og det opprettes en konkurssak i Kundesaker.`)) return;
+ const kilde = foKonkursForslag(k);
+ const skrevetAv = currentUser?.name || currentUser?.username || "Ukjent";
+ const naa = (new Date).toISOString();
+ const oppgaver = [];
+ setSPStatus("⏳ Lagrer…");
+ fs.forEach(f => {
+  const tekst = `Status: «${f.status || "—"}» → «Konkurs»${kilde === "brreg" ? " (forslag fra Brønnøysundregistrene)" : kilde === "notat" ? " (Visma-notatet nevner konkurs)" : ""}`;
+  const rad = {
+   id: `temp${uid()}`,
+   fakturanr: f.fakturanr,
+   skrevetAv: skrevetAv,
+   type: "Status",
+   kilde: "KBD CC",
+   dato: naa,
+   kommentar: tekst
+  };
+  fakturaoppfolgingLogg.push(rad);
+  oppgaver.push(spCreate("FakturaoppfolgingLogg", {
+   Fakturanummer: f.fakturanr,
+   SkrevetAv: skrevetAv,
+   HenvendelseType: "Status",
+   Kilde: "KBD CC",
+   Dato: naa,
+   Kommentar: tekst
+  }).then(r => {
+   rad.id = `sp${r.id}`;
+   rad.spId = r.id;
+  }));
+  f.status = "Konkurs";
+  if (f.spId) oppgaver.push(spUpdate("Fakturaoppfolging", f.spId, {
+   Status: "Konkurs"
+  }));
+ });
+ renderFakturaoppfolging();
+ Promise.all(oppgaver).then(() => {
+  setSPStatus("✅ Lagret");
+  setTimeout(() => setSPStatus(""), 3e3);
+  foKonkursSak(fs);
+ }).catch(e => {
+  setSPStatus("❌ " + e.message, false);
+  alert("⚠️ Lagring til SharePoint feilet:\n" + e.message);
+ });
+}
+
+function foAvvisKonkurs(kundenr) {
+ const k = String(kundenr || "").trim();
+ const fs = fakturaoppfolging.filter(f => String(f.kundenr || "").trim() === k && !f.betaltDato);
+ if (!fs.length) return;
+ const grunn = prompt(`Ikke konkurs: ${fs[0].kundenavn || k}\n\nForslaget fjernes for kunden, og grunnen lagres i loggen. Hvorfor? (f.eks. «annet selskap», «konkursen er avsluttet, kunden driver videre»)`, "");
+ if (grunn === null) return;
+ const skrevetAv = currentUser?.name || currentUser?.username || "Ukjent";
+ const naa = (new Date).toISOString();
+ const kommentar = `${FO_IKKE_KONKURS} ${grunn.trim() || "Forslaget om konkurs er avvist."}`;
+ const oppgaver = [];
+ setSPStatus("⏳ Lagrer…");
+ fs.forEach(f => {
+  const rad = {
+   id: `temp${uid()}`,
+   fakturanr: f.fakturanr,
+   skrevetAv: skrevetAv,
+   type: "Annet",
+   kilde: "KBD CC",
+   dato: naa,
+   kommentar: kommentar
+  };
+  fakturaoppfolgingLogg.push(rad);
+  oppgaver.push(spCreate("FakturaoppfolgingLogg", {
+   Fakturanummer: f.fakturanr,
+   SkrevetAv: skrevetAv,
+   HenvendelseType: "Annet",
+   Kilde: "KBD CC",
+   Dato: naa,
+   Kommentar: kommentar
+  }).then(r => {
+   rad.id = `sp${r.id}`;
+   rad.spId = r.id;
+  }));
+ });
+ renderFakturaoppfolging();
+ Promise.all(oppgaver).then(() => {
+  setSPStatus("✅ Lagret");
+  setTimeout(() => setSPStatus(""), 3e3);
  }).catch(e => {
   setSPStatus("❌ " + e.message, false);
   alert("⚠️ Lagring til SharePoint feilet:\n" + e.message);
