@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.316 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.317 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5141,13 +5141,14 @@ onbStartFil("regnskap", event.dataTransfer.files[0])'>
           <input type="text" id="fo-search" placeholder="Søk faktura, kunde eller kundenr…" oninput="setFoSearch(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px">
           <div id="fo-bucket-filters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"></div>
           <select id="fo-status-filter" onchange="setFoStatusFilter(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
-            <option value="utenInkasso" selected="selected">Alle utenom inkasso</option>
+            <option value="utenInkasso" selected="selected">Alle utenom inkasso og konkurs</option>
             <option value="alle">Alle statuser</option>
             <option value="Ikke kontaktet">Ikke kontaktet</option>
             <option value="Kontaktet">Kontaktet</option>
             <option value="Lovet betaling">Lovet betaling</option>
             <option value="Nedbetaling">Nedbetaling</option>
             <option value="Sendt til inkasso">Sendt til inkasso</option>
+            <option value="Konkurs">Konkurs</option>
             <option value="Bestridt">Bestridt</option>
           </select>
           <span id="fo-bucket-sum" style="font-size:12px;color:#6b7280;white-space:nowrap"></span>
@@ -5690,7 +5691,7 @@ let foSort = {
  dir: "desc"
 }, foVisBetalte = false, foKunForfalte = true, foSearch = "", foStatusFilter = "utenInkasso", foApenRad = null, foBucket = "alle";
 
-const FO_STATUSER = [ "Ikke kontaktet", "Kontaktet", "Lovet betaling", "Nedbetaling", "Sendt til inkasso", "Bestridt" ];
+const FO_STATUSER = [ "Ikke kontaktet", "Kontaktet", "Lovet betaling", "Nedbetaling", "Sendt til inkasso", "Konkurs", "Bestridt" ];
 
 let forsteTilgangssjekkGjort = false;
 
@@ -15211,6 +15212,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.317",
+ dato: "15.10.2026",
+ punkter: [ "Fakturaoppfølging: ny status «Konkurs». Den kan settes på alle kundens åpne fakturaer samtidig, og kunden tas ut av arbeidslisten og purre-SMS-en.", "Når en kunde settes til «Konkurs», opprettes en konkurssak i Kundesaker med fakturaliste og sjekkliste for oppryddingen (meld krav, stopp kontrakter og lisenser, hent utstyr, avskriv i Visma). Saken vises under «Trenger oppmerksomhet» til den lukkes.", "Standardfilteret heter nå «Alle utenom inkasso og konkurs»." ]
+}, {
  versjon: "v1.48.316",
  dato: "15.10.2026",
  punkter: [ "Fakturaoppfølging: ny status «Nedbetaling» for kunder som har avtalt å betale ned i avdrag. Den krever dato for neste avdrag (Neste oppfølging), så kunden kommer tilbake på arbeidslisten den dagen." ]
@@ -18369,6 +18374,7 @@ function foStatusBadge(s) {
   "Lovet betaling": "#d97706",
   Nedbetaling: "#0d9488",
   "Sendt til inkasso": "#dc2626",
+  Konkurs: "#7f1d1d",
   Bestridt: "#7c3aed"
  };
  const c = farger[s] || "#6b7280";
@@ -19241,9 +19247,13 @@ function foNesteDato(f) {
  return f.nesteOppfolging ? parseLD(f.nesteOppfolging) : null;
 }
 
+function foErStoppet(f) {
+ return f.status === "Sendt til inkasso" || f.status === "Konkurs";
+}
+
 function foArbeidsGrunnlag(f) {
  if (f.betaltDato) return false;
- if (f.status === "Sendt til inkasso") return false;
+ if (foErStoppet(f)) return false;
  if (foIkkeAvstemt(f.kundenr)) return false;
  if (foDagerForfalt(f) <= 0) return false;
  const n = foNesteDato(f);
@@ -19487,7 +19497,7 @@ function foTelHref(t) {
 const FO_SVAR_EPOST = "mirrow@kbd.as";
 
 function foEpostFakturaer(rad) {
- const a = rad.fs.filter(f => f.status !== "Sendt til inkasso");
+ const a = rad.fs.filter(f => !foErStoppet(f));
  return a.length ? a : rad.fs;
 }
 
@@ -19784,7 +19794,7 @@ let foInkassoFilter = false;
 const foNotatApen = new Set;
 
 function foNevnerInkasso(f) {
- return !f.betaltDato && f.status !== "Sendt til inkasso" && !!f.notatImportert && FO_INKASSO_RE.test(f.notatImportert) && !foInkassoAvvist().has(f.fakturanr);
+ return !f.betaltDato && !foErStoppet(f) && !!f.notatImportert && FO_INKASSO_RE.test(f.notatImportert) && !foInkassoAvvist().has(f.fakturanr);
 }
 
 const FO_IKKE_INKASSO = "[Ikke inkasso]";
@@ -20184,7 +20194,7 @@ function renderFakturaoppfolging() {
   const el = document.getElementById(id);
   if (el) el.style.display = arb ? "none" : "flex";
  });
- const fellesFilter = f => (foBucket === "alle" || foInBucket(f, foBucket)) && (foStatusFilter === "alle" || (foStatusFilter === "utenInkasso" ? f.status !== "Sendt til inkasso" : f.status === foStatusFilter)) && (!foSearch || f.fakturanr.toLowerCase().includes(foSearch) || f.kundenavn.toLowerCase().includes(foSearch) || String(f.kundenr).toLowerCase().includes(foSearch)) && (!foInkassoFilter || foNevnerInkasso(f));
+ const fellesFilter = f => (foBucket === "alle" || foInBucket(f, foBucket)) && (foStatusFilter === "alle" || (foStatusFilter === "utenInkasso" ? !foErStoppet(f) : f.status === foStatusFilter)) && (!foSearch || f.fakturanr.toLowerCase().includes(foSearch) || f.kundenavn.toLowerCase().includes(foSearch) || String(f.kundenr).toLowerCase().includes(foSearch)) && (!foInkassoFilter || foNevnerInkasso(f));
  let visRader;
  if (arb) {
   const grunnlag = fakturaoppfolging.filter(f => foArbeidsGrunnlag(f) && fellesFilter(f));
@@ -20398,7 +20408,7 @@ function foHurtig(key, akt) {
 }
 
 function lagreFoOppfolging(key, opts = {}) {
- const fs = foFsForKey(key);
+ let fs = foFsForKey(key);
  if (!fs.length) return;
  const id = foKeyId(key);
  const typeEl = document.getElementById(`fo-type-${id}`);
@@ -20437,6 +20447,12 @@ function lagreFoOppfolging(key, opts = {}) {
   alert("Velg datoen for neste avdrag (Neste oppfølging).");
   nesteEl?.focus();
   return;
+ }
+ const konkursNy = statusEndret && nyStatus === "Konkurs" && fs.some(f => f.status !== "Konkurs");
+ if (konkursNy) {
+  const kNr = String(fs[0].kundenr || "").trim();
+  const andre = fakturaoppfolging.filter(f => String(f.kundenr || "").trim() === kNr && !f.betaltDato && !fs.includes(f));
+  if (andre.length && confirm(`Kunden har ${andre.length} andre åpne fakturaer (${fF(andre.reduce((a, f) => a + (f.utestaende || 0), 0))}).\n\nSette «Konkurs» på alle?`)) fs = [ ...fs, ...andre ];
  }
  setSPStatus("⏳ Lagrer…");
  const oppgaver = [];
@@ -20511,10 +20527,70 @@ function lagreFoOppfolging(key, opts = {}) {
  Promise.all(oppgaver).then(() => {
   setSPStatus("✅ Lagret");
   setTimeout(() => setSPStatus(""), 3e3);
+  if (konkursNy) foKonkursSak(fs);
  }).catch(e => {
   setSPStatus("❌ " + e.message, false);
   alert("⚠️ Lagring til SharePoint feilet:\n" + e.message);
  });
+}
+
+const FO_KONKURS_EIER = "Thomas Hassel";
+
+const FO_KONKURS_TITTEL = "⚠️ Konkurs – ";
+
+function foKonkursSakFor(kundenr) {
+ const k = String(kundenr || "").trim();
+ return kundeNotater.find(n => n.status === "Åpen" && String(n.vismaKundeNummer || "").trim() === k && String(n.tittel || "").startsWith(FO_KONKURS_TITTEL)) || null;
+}
+
+async function foKonkursSak(fs) {
+ try {
+  const f0 = fs[0];
+  if (!f0) return;
+  const kNr = String(f0.kundenr || "").trim();
+  if (!kNr || foKonkursSakFor(kNr)) return;
+  const eier = brukere.find(b => b.navn === FO_KONKURS_EIER);
+  const eierNavn = eier ? eier.navn : currentUser?.name || currentUser?.username || "Ukjent";
+  const eierEpost = eier ? eier.epost : currentUser?.username || "";
+  const apne = fakturaoppfolging.filter(f => String(f.kundenr || "").trim() === kNr && !f.betaltDato);
+  const sum = apne.reduce((a, f) => a + (f.utestaende || 0), 0);
+  const hvem = currentUser?.name || currentUser?.username || "Ukjent";
+  const innhold = `Kunden er satt til «Konkurs» i Fakturaoppfølging av ${hvem} ${(new Date).toLocaleDateString("nb-NO")}.\n\nKonkursdato: \nBobestyrer: \nFristdag for krav: \n\nÅpne fakturaer (${apne.length}, utestående ${fF(sum)}):\n${apne.map(f => `- Faktura ${f.fakturanr}, forfall ${fDateShort(f.forfallsdato)}: ${fF(f.utestaende || 0)}`).join("\n")}\n\nSjekkliste (skriv ✅ foran det som er gjort, lukk saken når alt er ferdig):\n☐ Meld krav til bobestyrer innen fristdagen (beløp og fakturaliste over)\n☐ Stopp faste fakturaer og kontrakter i Visma (lisenser, terminalleie)\n☐ Si opp eller flytt lisenser hos Verifone, Nets og Susoft\n☐ Hent inn utleieutstyr og terminaler\n☐ Krediter eller avskriv fakturaene i Visma (tap på fordringer), og tilbakefør mva når tapet er endelig\n☐ Stopp SMS-utsendelser til kunden`;
+  const naa = (new Date).toISOString();
+  const n = {
+   id: "tmp" + Math.random().toString(36).slice(2),
+   spId: null,
+   vismaKundeNummer: kNr,
+   kundeNavn: f0.kundenavn || "",
+   type: "Oppfølging",
+   tittel: FO_KONKURS_TITTEL + (f0.kundenavn || kNr),
+   innhold: innhold,
+   status: "Åpen",
+   forfallsdato: naa,
+   varsleEpost: true,
+   varsleDashbord: true,
+   varselSendt: false,
+   opprettetAv: eierNavn,
+   opprettetAvEpost: eierEpost,
+   opprettetDato: naa,
+   logg: [ {
+    dato: naa,
+    tekst: "Opprettet automatisk fra Fakturaoppfølging (status Konkurs).",
+    forfatter: hvem
+   } ],
+   sistAktivitet: naa
+  };
+  const r = await spLagreMedMykFallback(f => spCreate("KundeNotater", f), notatFieldsPayload(n), NOTAT_MYKE_FELTER);
+  n.spId = r.id;
+  n.id = `sp${r.id}`;
+  kundeNotater.push(n);
+  if (typeof renderVarselMeny === "function") renderVarselMeny();
+  setSPStatus(`✅ Konkurssak opprettet i Kundesaker (eier: ${eierNavn})`);
+  setTimeout(() => setSPStatus(""), 4e3);
+ } catch (e) {
+  console.error("Konkurssak", e);
+  alert("⚠️ Statusen er lagret, men konkurssaken i Kundesaker ble ikke opprettet:\n" + (e.message || e));
+ }
 }
 
 function ktNorm(t) {
@@ -21142,7 +21218,7 @@ function renderAgingAnalyse() {
   bestridt: []
  };
  over90.forEach(f => {
-  (f.status === "Sendt til inkasso" ? grp.inkasso : f.status === "Bestridt" ? grp.bestridt : grp.aktiv).push(f);
+  (foErStoppet(f) ? grp.inkasso : f.status === "Bestridt" ? grp.bestridt : grp.aktiv).push(f);
  });
  const sum = a => a.reduce((s, f) => s + (f.utestaende || 0), 0);
  const tot90 = sum(over90) || 0;
@@ -21150,7 +21226,7 @@ function renderAgingAnalyse() {
   const s = sum(arr), pct = tot90 ? s / tot90 * 100 : 0;
   return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${navn} <span style="color:#9ca3af;font-size:11px">(${arr.length} fakturaer)</span></span><b>${fF(s)}</b></div><div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${pct.toFixed(1)}%;background:${farge}"></div></div>${hint ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px">${hint}</div>` : ""}</div>`;
  };
- deler.push(kort("🔴 Over 90 dager – hva står fast?", `Åpne fakturaer forfalt over 90 dager akkurat nå: ${fF(tot90)}. Fordelt på status i Fakturaoppfølging.`, linje("I aktiv oppfølging", "#dc2626", grp.aktiv, "Her kan dere fortsatt gjøre noe.") + linje("Sendt til inkasso", "#6b7280", grp.inkasso, "Ligger hos inkasso/namsmann.") + linje("Bestridt", "#7c3aed", grp.bestridt, "") + (grp.inkasso.length === 0 && over90.length ? `<div style="font-size:11px;color:#b45309;margin-top:6px">Ingen er satt til «Sendt til inkasso» ennå. Sett status i Fakturaoppfølging på saker som er hos inkasso eller namsmann, så blir tallene riktige.</div>` : "")));
+ deler.push(kort("🔴 Over 90 dager – hva står fast?", `Åpne fakturaer forfalt over 90 dager akkurat nå: ${fF(tot90)}. Fordelt på status i Fakturaoppfølging.`, linje("I aktiv oppfølging", "#dc2626", grp.aktiv, "Her kan dere fortsatt gjøre noe.") + linje("Sendt til inkasso / konkurs", "#6b7280", grp.inkasso, "Ligger hos inkasso, namsmann eller bobestyrer.") + linje("Bestridt", "#7c3aed", grp.bestridt, "") + (grp.inkasso.length === 0 && over90.length ? `<div style="font-size:11px;color:#b45309;margin-top:6px">Ingen er satt til «Sendt til inkasso» ennå. Sett status i Fakturaoppfølging på saker som er hos inkasso eller namsmann, så blir tallene riktige.</div>` : "")));
  const betalt = fo.filter(f => f.betaltDato && f.forfallsdato).map(f => ({
   f: f,
   dager: agDagerMellom(f.forfallsdato, f.betaltDato),
