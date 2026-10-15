@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.313 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.314 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5141,6 +5141,7 @@ onbStartFil("regnskap", event.dataTransfer.files[0])'>
           <input type="text" id="fo-search" placeholder="Søk faktura, kunde eller kundenr…" oninput="setFoSearch(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px">
           <div id="fo-bucket-filters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"></div>
           <select id="fo-status-filter" onchange="setFoStatusFilter(this.value)" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+            <option value="utenInkasso" selected="selected">Alle utenom inkasso</option>
             <option value="alle">Alle statuser</option>
             <option value="Ikke kontaktet">Ikke kontaktet</option>
             <option value="Kontaktet">Kontaktet</option>
@@ -5686,7 +5687,7 @@ let ikkeAvstemt = [], iaListeFinnes = true, iaKundeMap = new Map;
 let foSort = {
  col: "score",
  dir: "desc"
-}, foVisBetalte = false, foKunForfalte = true, foSearch = "", foStatusFilter = "alle", foApenRad = null, foBucket = "alle";
+}, foVisBetalte = false, foKunForfalte = true, foSearch = "", foStatusFilter = "utenInkasso", foApenRad = null, foBucket = "alle";
 
 const FO_STATUSER = [ "Ikke kontaktet", "Kontaktet", "Lovet betaling", "Sendt til inkasso", "Bestridt" ];
 
@@ -15209,6 +15210,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.314",
+ dato: "15.10.2026",
+ punkter: [ "Fakturaoppfølging: statusfilteret har fått valget «Alle utenom inkasso», og det er nå standard. Fakturaer som er sendt til inkasso vises fortsatt med «Alle statuser» eller «Sendt til inkasso»." ]
+}, {
  versjon: "v1.48.313",
  dato: "15.10.2026",
  punkter: [ "Fakturaoppfølging: e-post til kunden (klikk på e-postadressen) og saldobekreftelse i «Ikke avstemt i Visma» legges nå som utkast rett i Utkast i Outlook, med faktura-PDF-ene vedlagt. Fungerer også på Mac der .eml-filer åpnet seg i Apple Mail.", "Saldobekreftelsen får Fra og Svar-til satt til fellesadressen. Purre-e-posten har fortsatt fellesadressen på kopi og som Svar-til.", "Hvis utkastet ikke kan lages i Outlook, lastes e-posten ned som .eml-fil som før." ]
@@ -19864,6 +19869,9 @@ function setFoInkassoFilter(v) {
  foApenRad = null;
  if (v) {
   foVisning = "alle";
+  foStatusFilter = "alle";
+  const sfi = document.getElementById("fo-status-filter");
+  if (sfi) sfi.value = "alle";
   foGrupper = true;
   foKunForfalte = false;
   const kf = document.getElementById("fo-kun-forfalte");
@@ -20157,7 +20165,7 @@ function renderFakturaoppfolging() {
   const el = document.getElementById(id);
   if (el) el.style.display = arb ? "none" : "flex";
  });
- const fellesFilter = f => (foBucket === "alle" || foInBucket(f, foBucket)) && (foStatusFilter === "alle" || f.status === foStatusFilter) && (!foSearch || f.fakturanr.toLowerCase().includes(foSearch) || f.kundenavn.toLowerCase().includes(foSearch) || String(f.kundenr).toLowerCase().includes(foSearch)) && (!foInkassoFilter || foNevnerInkasso(f));
+ const fellesFilter = f => (foBucket === "alle" || foInBucket(f, foBucket)) && (foStatusFilter === "alle" || (foStatusFilter === "utenInkasso" ? f.status !== "Sendt til inkasso" : f.status === foStatusFilter)) && (!foSearch || f.fakturanr.toLowerCase().includes(foSearch) || f.kundenavn.toLowerCase().includes(foSearch) || String(f.kundenr).toLowerCase().includes(foSearch)) && (!foInkassoFilter || foNevnerInkasso(f));
  let visRader;
  if (arb) {
   const grunnlag = fakturaoppfolging.filter(f => foArbeidsGrunnlag(f) && fellesFilter(f));
