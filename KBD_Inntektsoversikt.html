@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.317 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.318 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15212,6 +15212,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.318",
+ dato: "15.10.2026",
+ punkter: [ "Fakturaoppfølging: panelet viser nå «💳 Betalt og kreditert», altså innbetalinger, kreditnotaer og avskrivninger som er koblet mot fakturaene i Visma, med bilagsnummer, dato og beløp. Hentes fra Visma når panelet åpnes." ]
+}, {
  versjon: "v1.48.317",
  dato: "15.10.2026",
  punkter: [ "Fakturaoppfølging: ny status «Konkurs». Den kan settes på alle kundens åpne fakturaer samtidig, og kunden tas ut av arbeidslisten og purre-SMS-en.", "Når en kunde settes til «Konkurs», opprettes en konkurssak i Kundesaker med fakturaliste og sjekkliste for oppryddingen (meld krav, stopp kontrakter og lisenser, hent utstyr, avskriv i Visma). Saken vises under «Trenger oppmerksomhet» til den lukkes.", "Standardfilteret heter nå «Alle utenom inkasso og konkurs»." ]
@@ -20347,7 +20351,7 @@ function renderFoDetaljPanel(r) {
  const hk = (akt, txt, tittel) => `<button class="btn-sm" onclick="foHurtig('${key}','${akt}')" title="${tittel}">${txt}</button>`;
  const typeKnapp = (t, ik) => `<button class="btn-sm" type="button" data-type="${t}" style="font-size:12px;padding:4px 10px${t === "Telefon" ? ";background:#1A3A6B;color:#fff;border-color:#1A3A6B" : ""}" onclick="foSettType('${id}','${t}',this)">${ik} ${t}</button>`;
  const statusHoyre = `<span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;flex-wrap:wrap">${foStatusBadge(fellesStatus)}<span>Sist kontakt: ${sistK ? foKontaktIkon(sistK.type) + " " + fDateShort(sistK.dato) : "—"}</span><span>Neste: ${r.nesteOppfolging ? fDateShort(r.nesteOppfolging) : "—"}</span></span>`;
- return `<div style="padding:14px 16px">\n      ${inkassoHtml}${fakturaListe}${notatHtml}${typeof iaPanelHtml === "function" ? iaPanelHtml(r.kundenr) : ""}\n      ${tidslinjeHtml(kundeTidslinje(r.kundenr), {
+ return `<div style="padding:14px 16px">\n      ${inkassoHtml}${fakturaListe}${notatHtml}${typeof iaPanelHtml === "function" ? iaPanelHtml(r.kundenr) : ""}${foBetHtml(r.kundenr, fs)}\n      ${tidslinjeHtml(kundeTidslinje(r.kundenr), {
   hoyre: statusHoyre
  })}\n      ${regBoksHtml({
   hurtigHoyre: `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;color:#6b7280">Type:</span><input type="hidden" id="fo-type-${id}" value="Telefon"/>${typeKnapp("Telefon", "📞")}${typeKnapp("E-post", "✉️")}${typeKnapp("SMS", "💬")}${typeKnapp("Annet", "📝")}</div>`,
@@ -20591,6 +20595,78 @@ async function foKonkursSak(fs) {
   console.error("Konkurssak", e);
   alert("⚠️ Statusen er lagret, men konkurssaken i Kundesaker ble ikke opprettet:\n" + (e.message || e));
  }
+}
+
+const FO_BET_CACHE = new Map;
+
+const FO_BET_IKON = {
+ Payment: "💳",
+ CreditNote: "🧾",
+ SmallBalanceWo: "✂️",
+ Prepayment: "💳",
+ Refund: "↩️"
+};
+
+function foBetHtml(kundenr, fs) {
+ const k = String(kundenr || "").trim();
+ if (!k) return "";
+ const nrs = fs.map(f => f.fakturanr).join(",");
+ const c = FO_BET_CACHE.get(k);
+ if (!c || !c.laster && Date.now() - c.t > 6e5) setTimeout(() => foBetLast(k), 0);
+ return `<div data-fobet="${iaEsc(k)}" data-nrs="${iaEsc(nrs)}" style="margin-bottom:12px">${foBetInnhold(k, nrs)}</div>`;
+}
+
+function foBetInnhold(k, nrs) {
+ const c = FO_BET_CACHE.get(k);
+ const hode = `<div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">💳 Betalt og kreditert (fra Visma)</div>`;
+ const boks = inn => `${hode}<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:6px 12px;font-size:13px">${inn}</div>`;
+ if (!c || c.laster && !c.data) return boks('<span style="color:#9ca3af">⏳ Henter betalinger fra Visma…</span>');
+ if (c.feil && !c.data) return boks(`<span style="color:#b45309">⚠️ Kunne ikke hente betalinger (${iaEsc(c.feil)}).</span> <button class="btn-sm" style="font-size:11px;padding:2px 8px" onclick="event.stopPropagation();FO_BET_CACHE.delete('${iaJs(k)}');foBetLast('${iaJs(k)}')">Prøv igjen</button>`);
+ const per = c.data.perFaktura || {};
+ const fs = String(nrs).split(",").filter(Boolean).map(nr => fakturaoppfolging.find(f => f.fakturanr === nr)).filter(Boolean);
+ const rader = fs.map(f => {
+  const kob = per[f.fakturanr] || [];
+  const betalt = Math.max(0, (f.belop || 0) - (f.utestaende || 0));
+  const sumKob = kob.reduce((a, x) => a + x.belop, 0);
+  if (!kob.length && betalt < .5) return "";
+  const chips = kob.map(x => `<span style="display:inline-block;background:#f0fdf4;color:#166534;border-radius:8px;padding:1px 8px;margin:2px 6px 2px 0;font-size:12px;white-space:nowrap">${FO_BET_IKON[x.bilagType] || "📄"} ${iaEsc(x.bilagTypeNavn)} ${iaEsc(x.bilagNr)} · ${fDateShort(x.dato)} · ${fF(x.belop)}</span>`).join("");
+  const rest = betalt - sumKob > .5 ? `<span style="font-size:12px;color:#9ca3af">${kob.length ? "+ " : ""}${fF(betalt - sumKob)} ikke funnet i Visma-bilagene</span>` : "";
+  return `<div style="padding:5px 0;border-bottom:1px solid #f1f5f9"><div><b>Faktura ${iaEsc(f.fakturanr)}</b> <span style="color:#6b7280">· ${fF(betalt)} av ${fF(f.belop || 0)} betalt/kreditert${f.utestaende > .5 ? `, ${fF(f.utestaende)} utestående` : ""}</span></div><div>${chips}${rest}</div></div>`;
+ }).filter(Boolean);
+ if (!rader.length) return boks(`<span style="color:#6b7280">Ingen innbetalinger eller kreditnotaer er koblet mot ${fs.length > 1 ? "fakturaene" : "fakturaen"} ennå.</span>`);
+ return boks(rader.join(""));
+}
+
+async function foBetLast(k) {
+ const gammel = FO_BET_CACHE.get(k);
+ if (gammel?.laster) return;
+ FO_BET_CACHE.set(k, {
+  ...gammel || {},
+  laster: true,
+  t: Date.now()
+ });
+ try {
+  const token = await vfGetApiToken();
+  const resp = await fetch(vfApiUrl(`/api/faktura_betalinger?kundenr=${encodeURIComponent(k)}`), {
+   headers: {
+    Authorization: `Bearer ${token}`
+   }
+  });
+  const d = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+  FO_BET_CACHE.set(k, {
+   t: Date.now(),
+   data: d
+  });
+ } catch (e) {
+  FO_BET_CACHE.set(k, {
+   t: Date.now(),
+   feil: e.message || String(e)
+  });
+ }
+ document.querySelectorAll(`[data-fobet="${CSS.escape(k)}"]`).forEach(el => {
+  el.innerHTML = foBetInnhold(k, el.dataset.nrs || "");
+ });
 }
 
 function ktNorm(t) {
