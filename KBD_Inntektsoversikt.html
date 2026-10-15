@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.320 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.321 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15212,6 +15212,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.321",
+ dato: "15.10.2026",
+ punkter: [ "Lisenskontroll, Softpay: kontrakten blir nå også funnet når den ligger på en annen kunde enn den Softpay har registrert, for eksempel når en regnskapsfører eller et morselskap betaler. Det skjer når kontraktbeskrivelsen har samme navn som Softpay-kunden. Detaljene viser da hvilken kunde og kontrakt som ble brukt.", "Lisenskontroll, Softpay: lagrede avvik viser nå Softpay-teksten og -detaljene også etter at siden er lastet på nytt. Før kom det en tekst om BAX, som ikke gjelder Softpay." ]
+}, {
  versjon: "v1.48.320",
  dato: "15.10.2026",
  punkter: [ "Fakturaoppfølging: oppfølging fra Mirrow-kontoen vises nå som «Mirrow» i Neste-kolonnen og i loggen, ikke som «Kasse»." ]
@@ -31590,12 +31594,21 @@ function lkDetaljerJson(r, d) {
   perAar: d.perAar,
   margingrense: d.margingrense,
   fakturanr: d.fakturanr,
-  fakturadato: d.fakturadato
+  fakturadato: d.fakturadato,
+  softpay: r.softpay || undefined,
+  prisPerLisens: d.prisPerLisens || undefined
  };
  let t = JSON.stringify(o);
  if (t.length > 4e4) {
   o.produkter = o.produkter.slice(0, 40);
   o.kontrakter = o.kontrakter.slice(0, 10);
+  if (o.softpay) {
+   o.softpay = {
+    ...o.softpay,
+    tenants: (o.softpay.tenants || []).slice(0, 40),
+    merchants: (o.softpay.merchants || []).slice(0, 40)
+   };
+  }
   t = JSON.stringify(o);
  }
  return t;
@@ -31804,7 +31817,8 @@ function lkAvSomRad(a) {
   kategorier: x.kategorier || [],
   produkter: x.produkter || [],
   kontrakter: x.kontrakter || [],
-  andreKontraktVarer: x.andreKontraktVarer || []
+  andreKontraktVarer: x.andreKontraktVarer || [],
+  softpay: x.softpay || undefined
  };
  const d = {
   leverandor: a.leverandor,
@@ -31812,6 +31826,7 @@ function lkAvSomRad(a) {
   fakturadato: x.fakturadato || "",
   perAar: x.perAar != null ? x.perAar : a.leverandor !== "Nets",
   margingrense: x.margingrense || 20,
+  prisPerLisens: x.prisPerLisens,
   rader: lkData && lkData.leverandor === a.leverandor ? lkData.rader : []
  };
  return {
