@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.312 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.313 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15209,6 +15209,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.313",
+ dato: "15.10.2026",
+ punkter: [ "Fakturaoppfølging: e-post til kunden (klikk på e-postadressen) og saldobekreftelse i «Ikke avstemt i Visma» legges nå som utkast rett i Utkast i Outlook, med faktura-PDF-ene vedlagt. Fungerer også på Mac der .eml-filer åpnet seg i Apple Mail.", "Saldobekreftelsen får Fra og Svar-til satt til fellesadressen. Purre-e-posten har fortsatt fellesadressen på kopi og som Svar-til.", "Hvis utkastet ikke kan lages i Outlook, lastes e-posten ned som .eml-fil som før." ]
+}, {
  versjon: "v1.48.312",
  dato: "15.10.2026",
  punkter: [ "Kunngjøringer: lange kunngjøringer kan nå rulles i vinduet, og knappen «Jeg har lest dette» er alltid synlig. Før havnet knappen under skjermkanten når teksten var lang.", "Provisjon: merket viser nå «⚠ Ikke lagret» til måneden er lagret, og «💾 Utkast lagret» etterpå." ]
@@ -19054,10 +19058,11 @@ async function iaSendSaldo(kundenr, knapp) {
  const gammel = knapp ? knapp.innerHTML : "";
  if (knapp) {
   knapp.disabled = true;
-  knapp.innerHTML = "⏳ Henter faktura-PDF…";
+  knapp.innerHTML = "⏳ Lager utkast i Outlook…";
  }
+ const mt = await ouToken();
  const vedlegg = [];
- let pdfFeil = "";
+ let pdfFeil = "", utkast = null;
  try {
   if (r.fs.length) {
    const token = await vfGetApiToken();
@@ -19080,34 +19085,41 @@ async function iaSendSaldo(kundenr, knapp) {
  } catch (e) {
   pdfFeil = e.message;
   vedlegg.length = 0;
+ }
+ const m = iaSaldoTekst(r, mott, vedlegg.length > 0);
+ try {
+  if (mt.token) {
+   try {
+    utkast = await ouLagUtkast(mt.token, m, vedlegg, {
+     fra: IA_FRA_EPOST,
+     svarTil: IA_FRA_EPOST
+    });
+   } catch (e) {
+    console.warn("Outlook-utkast feilet", e);
+    utkast = {
+     feil: e.message || String(e)
+    };
+   }
+  } else utkast = {
+   feil: mt.feil
+  };
+  if (utkast.feil) ouLastNedEml(iaLagEml(m, vedlegg), `Saldobekreftelse_${String(r.kundenavn || r.kundenr).replace(/[^A-Za-z0-9ÆØÅæøå_-]+/g, "_").slice(0, 40)}.eml`);
  } finally {
   if (knapp) {
    knapp.disabled = false;
    knapp.innerHTML = gammel;
   }
  }
- const m = iaSaldoTekst(r, mott, vedlegg.length > 0);
- const blob = new Blob([ iaLagEml(m, vedlegg) ], {
-  type: "message/rfc822"
- });
- const url = URL.createObjectURL(blob);
- const a = document.createElement("a");
- a.href = url;
- a.download = `Saldobekreftelse_${String(r.kundenavn || r.kundenr).replace(/[^A-Za-z0-9ÆØÅæøå_-]+/g, "_").slice(0, 40)}.eml`;
- document.body.appendChild(a);
- a.click();
- a.remove();
- setTimeout(() => URL.revokeObjectURL(url), 6e4);
- iaSendtSporsmal(r, m.til, pdfFeil);
+ iaSendtSporsmal(r, m.til, pdfFeil, utkast);
 }
 
-function iaSendtSporsmal(r, til, pdfFeil) {
+function iaSendtSporsmal(r, til, pdfFeil, utkast) {
  document.getElementById("ia-sendt-sporsmal")?.remove();
  const el = document.createElement("div");
  el.id = "ia-sendt-sporsmal";
  el.style.cssText = "position:fixed;inset:0;z-index:2000;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;padding:16px";
  const k = iaJs(r.kundenr);
- el.innerHTML = `<div style="background:#fff;border-radius:12px;border-top:4px solid #f59e0b;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:460px;font-size:14px;color:#111">\n    <div style="font-weight:700;font-size:16px;margin-bottom:6px">✉️ Sendte du saldobekreftelsen?</div>\n    <div style="color:#4b5563;margin-bottom:12px;line-height:1.45"><b>${iaEsc(r.kundenavn)}</b>${til ? ` · til ${iaEsc(til)}` : ' · <span style="color:#b45309">ingen e-postadresse funnet, fyll inn mottaker i Outlook</span>'}.<br>Sjekk at <b>Fra</b> er ${IA_FRA_EPOST} før du sender.<br>«Ja» setter status «Sendt kunde». Har dere ikke fått svar etter ${IA_SVAR_DAGER} dager, merkes kunden med ⏰.</div>\n    ${pdfFeil ? `<div style="font-size:12px;color:#b45309;background:#fffbeb;border-radius:6px;padding:6px 8px;margin-bottom:12px">⚠️ Faktura-PDF kunne ikke hentes (${iaEsc(pdfFeil)}). E-posten er laget uten vedlegg.</div>` : ""}\n    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn-sm" style="padding:8px 16px;font-size:14px" onclick="document.getElementById('ia-sendt-sporsmal').remove()">Nei</button><button class="prim" onclick="document.getElementById('ia-sendt-sporsmal').remove();iaMarkerSendt('${k}','${iaJs(til)}')">Ja, sett «Sendt kunde»</button></div></div>`;
+ el.innerHTML = `<div style="background:#fff;border-radius:12px;border-top:4px solid #f59e0b;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:460px;font-size:14px;color:#111">\n    <div style="font-weight:700;font-size:16px;margin-bottom:6px">✉️ Sendte du saldobekreftelsen?</div>\n    <div style="color:#4b5563;margin-bottom:12px;line-height:1.45"><b>${iaEsc(r.kundenavn)}</b>${til ? ` · til ${iaEsc(til)}` : ' · <span style="color:#b45309">ingen e-postadresse funnet, fyll inn mottaker i Outlook</span>'}.<br>Sjekk at <b>Fra</b> er ${IA_FRA_EPOST} før du sender.<br>«Ja» setter status «Sendt kunde». Har dere ikke fått svar etter ${IA_SVAR_DAGER} dager, merkes kunden med ⏰.</div>\n    ${typeof ouUtkastInfo === "function" ? ouUtkastInfo(utkast) : ""}\n    ${pdfFeil ? `<div style="font-size:12px;color:#b45309;background:#fffbeb;border-radius:6px;padding:6px 8px;margin-bottom:12px">⚠️ Faktura-PDF kunne ikke hentes (${iaEsc(pdfFeil)}). E-posten er laget uten vedlegg.</div>` : ""}\n    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn-sm" style="padding:8px 16px;font-size:14px" onclick="document.getElementById('ia-sendt-sporsmal').remove()">Nei</button><button class="prim" onclick="document.getElementById('ia-sendt-sporsmal').remove();iaMarkerSendt('${k}','${iaJs(til)}')">Ja, sett «Sendt kunde»</button></div></div>`;
  document.body.appendChild(el);
 }
 
@@ -19502,14 +19514,126 @@ function foLagEml(m, vedlegg) {
  return hode.join("\r\n") + "\r\n\r\n" + deler.join("\r\n");
 }
 
+const OU_INLINE_MAKS = 2.8 * 1024 * 1024;
+
+async function ouVedlegg(token, id, v) {
+ const str = v.data.byteLength;
+ if (str <= OU_INLINE_MAKS) {
+  await ptGraph(token, "POST", `/me/messages/${id}/attachments`, {
+   "@odata.type": "#microsoft.graph.fileAttachment",
+   name: v.navn,
+   contentType: "application/pdf",
+   contentBytes: foB64Bytes(v.data)
+  });
+  return;
+ }
+ const sesjon = await ptGraph(token, "POST", `/me/messages/${id}/attachments/createUploadSession`, {
+  AttachmentItem: {
+   attachmentType: "file",
+   name: v.navn,
+   size: str,
+   contentType: "application/pdf"
+  }
+ });
+ const bit = 3 * 1024 * 1024, blob = new Blob([ v.data ]);
+ for (let start = 0; start < str; start += bit) {
+  const slutt = Math.min(start + bit, str);
+  const r = await fetch(sesjon.uploadUrl, {
+   method: "PUT",
+   headers: {
+    "Content-Range": `bytes ${start}-${slutt - 1}/${str}`,
+    "Content-Type": "application/octet-stream"
+   },
+   body: blob.slice(start, slutt)
+  });
+  if (!r.ok) throw new Error(`Opplasting av ${v.navn} feilet (HTTP ${r.status})`);
+ }
+}
+
+async function ouLagUtkast(token, m, vedlegg, opt = {}) {
+ const adr = a => ({
+  emailAddress: {
+   address: a
+  }
+ });
+ const melding = {
+  subject: m.emne,
+  body: {
+   contentType: "Text",
+   content: m.tekst
+  },
+  toRecipients: m.til ? [ adr(m.til) ] : []
+ };
+ if (opt.cc) melding.ccRecipients = [ adr(opt.cc) ];
+ if (opt.svarTil) melding.replyTo = [ adr(opt.svarTil) ];
+ if (opt.fra) melding.from = {
+  emailAddress: {
+   address: opt.fra,
+   name: "Kasse og Butikkdata AS"
+  }
+ };
+ const sum = vedlegg.reduce((a, v) => a + v.data.byteLength, 0);
+ let msg;
+ if (sum <= OU_INLINE_MAKS) {
+  melding.attachments = vedlegg.map(v => ({
+   "@odata.type": "#microsoft.graph.fileAttachment",
+   name: v.navn,
+   contentType: "application/pdf",
+   contentBytes: foB64Bytes(v.data)
+  }));
+  msg = await ptGraph(token, "POST", "/me/messages", melding);
+ } else {
+  msg = await ptGraph(token, "POST", "/me/messages", melding);
+  for (const v of vedlegg) await ouVedlegg(token, msg.id, v);
+ }
+ return {
+  id: msg.id,
+  webLink: msg.webLink || ""
+ };
+}
+
+async function ouToken() {
+ try {
+  return {
+   token: await ptMailToken()
+  };
+ } catch (e) {
+  console.warn("Mail.ReadWrite-token", e);
+  return {
+   feil: /consent|AADSTS65001|AADSTS90094/i.test(String(e?.message || e)) ? "Dashbordet har ikke tillatelse til å lage e-postutkast (Mail.ReadWrite)." : "Innloggingen til Outlook ble avbrutt."
+  };
+ }
+}
+
+function ouLastNedEml(innhold, filnavn) {
+ const url = URL.createObjectURL(new Blob([ innhold ], {
+  type: "message/rfc822"
+ }));
+ const a = document.createElement("a");
+ a.href = url;
+ a.download = filnavn;
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ setTimeout(() => URL.revokeObjectURL(url), 6e4);
+}
+
+function ouUtkastInfo(u) {
+ if (!u) return "";
+ if (u.webLink || u.id) return `<div style="font-size:13px;color:#065f46;background:#ecfdf5;border-radius:6px;padding:8px 10px;margin-bottom:12px;line-height:1.45">📥 Utkastet ligger i <b>Utkast</b> i Outlook (appen og nett). Åpne det, se over og trykk Send.${u.webLink ? `<br><a href="${String(u.webLink).replace(/"/g, "&quot;")}" target="_blank" rel="noopener" style="color:#065f46;font-weight:600">Åpne utkastet i Outlook på nett ↗</a>` : ""}</div>`;
+ return `<div style="font-size:12px;color:#b45309;background:#fffbeb;border-radius:6px;padding:6px 8px;margin-bottom:12px">⚠️ Kunne ikke legge utkastet i Outlook (${String(u.feil || "").replace(/</g, "&lt;")}). E-posten ble lastet ned som .eml-fil i stedet.</div>`;
+}
+
 async function foEpostMedVedlegg(key, lenke) {
  const fs = foFsForKey(key);
  if (!fs.length) return;
  const rad = fs.length > 1 ? foGruppeObj(fs[0].kundenr, fs) : foFakturaObj(fs[0]);
  const m = foMailInnhold(rad, true);
  const gammelTekst = lenke ? lenke.innerHTML : "";
- if (lenke) lenke.innerHTML = "⏳ Henter faktura-PDF…";
+ if (lenke) lenke.innerHTML = "⏳ Lager utkast i Outlook…";
+ let utkast = null;
  try {
+  const mt = await ouToken();
   const token = await vfGetApiToken();
   const vedlegg = [];
   for (const f of foEpostFakturaer(rad)) {
@@ -19527,24 +19651,30 @@ async function foEpostMedVedlegg(key, lenke) {
     data: await resp.arrayBuffer()
    });
   }
-  const blob = new Blob([ foLagEml(m, vedlegg) ], {
-   type: "message/rfc822"
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Purring_${String(rad.kundenavn || rad.fs[0].fakturanr).replace(/[^A-Za-z0-9ÆØÅæøå_-]+/g, "_").slice(0, 40)}.eml`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 6e4);
+  if (mt.token) {
+   try {
+    utkast = await ouLagUtkast(mt.token, m, vedlegg, {
+     cc: FO_SVAR_EPOST,
+     svarTil: FO_SVAR_EPOST
+    });
+   } catch (e) {
+    console.warn("Outlook-utkast feilet", e);
+    utkast = {
+     feil: e.message || String(e)
+    };
+   }
+  } else utkast = {
+   feil: mt.feil
+  };
+  if (utkast.feil) ouLastNedEml(foLagEml(m, vedlegg), `Purring_${String(rad.kundenavn || rad.fs[0].fakturanr).replace(/[^A-Za-z0-9ÆØÅæøå_-]+/g, "_").slice(0, 40)}.eml`);
  } catch (e) {
   alert(`⚠️ Klarte ikke legge ved faktura-PDF (${e.message}).\n\nE-posten åpnes uten vedlegg i stedet.`);
+  utkast = null;
   window.location.href = foMailHref(rad);
  } finally {
   if (lenke) lenke.innerHTML = gammelTekst;
  }
- foEpostKlikk(key);
+ foEpostKlikk(key, utkast);
 }
 
 function foKontaktHtml(rad) {
@@ -19553,7 +19683,7 @@ function foKontaktHtml(rad) {
  return `${esc(rad.kontaktNavn)}${rad.kontaktTelefon ? `<div><a href="${foTelHref(rad.kontaktTelefon)}" onclick="event.stopPropagation()" style="color:#2563eb;text-decoration:none" title="Ring">📞 ${esc(rad.kontaktTelefon)}</a></div>` : ""}${pk.epost ? `<div><a href="${foMailHref(rad)}" onclick="event.stopPropagation();event.preventDefault();foEpostMedVedlegg('${String(rad.key).replace(/'/g, "\\'")}',this)" style="color:#2563eb;text-decoration:none" title="Lager e-post i Outlook med faktura-PDF vedlagt (til ${esc(pk.kilde)})">✉️ ${esc(pk.epost)}</a>${pk.kilde !== "fra Visma" ? `<div style="font-size:10px;color:#6b7280">${esc(pk.navn)} · ${esc(pk.kilde)}</div>` : ""}</div>` : ""}`;
 }
 
-function foEpostKlikk(key) {
+function foEpostKlikk(key, utkast) {
  const fs = foFsForKey(key);
  if (!fs.length) return;
  let el = document.getElementById("fo-epost-sporsmal");
@@ -19565,7 +19695,7 @@ function foEpostKlikk(key) {
  el.style.cssText = "position:fixed;inset:0;z-index:2000;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;padding:16px";
  const navn = String(fs[0].kundenavn || "").replace(/</g, "&lt;");
  const k = String(key).replace(/'/g, "\\'");
- el.innerHTML = `<div style="background:#fff;border-radius:12px;border-top:4px solid #1A3A6B;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:420px;font-size:14px;color:#111">\n    <div style="font-weight:700;font-size:16px;margin-bottom:6px">✉️ Sendte du e-posten?</div>\n    <div style="color:#4b5563;margin-bottom:16px;line-height:1.45"><b>${navn}</b> · ${fs.length === 1 ? "faktura " + fs[0].fakturanr : fs.length + " fakturaer"}.<br>«Ja» logger «Purring sendt på e-post» og ny oppfølging om 5 virkedager.</div>\n    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn-sm" style="padding:8px 16px;font-size:14px" onclick="foEpostSvar(null)">Nei</button><button class="prim" onclick="foEpostSvar('${k}')">Ja, logg</button></div></div>`;
+ el.innerHTML = `<div style="background:#fff;border-radius:12px;border-top:4px solid #1A3A6B;box-shadow:0 16px 40px rgba(0,0,0,.25);padding:20px 22px;width:100%;max-width:420px;font-size:14px;color:#111">\n    <div style="font-weight:700;font-size:16px;margin-bottom:6px">✉️ Sendte du e-posten?</div>\n    <div style="color:#4b5563;margin-bottom:16px;line-height:1.45"><b>${navn}</b> · ${fs.length === 1 ? "faktura " + fs[0].fakturanr : fs.length + " fakturaer"}.<br>«Ja» logger «Purring sendt på e-post» og ny oppfølging om 5 virkedager.</div>\n    ${typeof ouUtkastInfo === "function" ? ouUtkastInfo(utkast) : ""}\n    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn-sm" style="padding:8px 16px;font-size:14px" onclick="foEpostSvar(null)">Nei</button><button class="prim" onclick="foEpostSvar('${k}')">Ja, logg</button></div></div>`;
 }
 
 function foEpostSvar(key) {
