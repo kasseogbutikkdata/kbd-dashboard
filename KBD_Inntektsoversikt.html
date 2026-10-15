@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.325 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.326 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15215,6 +15215,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.326",
+ dato: "15.10.2026",
+ punkter: [ "Lisenskontroll, Softpay: utleie fra Utleie-modulen vises nå til info på samme kunde. Har kunden leid en enhet i fakturamåneden, får raden merket «📦 Utleie». Detaljene viser enheten og perioden, og at lisensen kan skyldes utleien (det lages ikke kontrakt for utleie). Er det riktig, setter du avviket til «Godtatt» med en kort begrunnelse." ]
+}, {
  versjon: "v1.48.325",
  dato: "15.10.2026",
  punkter: [ "Menyen: underpunktene står nå på én linje, også «Verifone trans.avgift»." ]
@@ -32349,7 +32353,10 @@ function lkAvvikHtml() {
   const apen = lkAvApen === a.key;
   const ty = LK_AV_TYPE[a.avvikstype] || [ a.avvikstype || "—", "#374151" ];
   const sn = (a.logg || [])[0];
-  return `<tr data-lk-key="${escHtmlEpost(a.key)}" style="cursor:pointer${apen ? ";background:#f0f4ff" : ""}" onclick="lkAvToggle('${escHtmlEpost(a.key).replace(/'/g, "&#39;")}')">\n      <td>${lkAvChip(a.status)}</td>\n      <td style="min-width:190px"><strong style="color:#1A3A6B">${apen ? "▾ " : "▸ "}${escHtmlEpost(a.brukersted || "(uten navn)")}</strong>${a.status === "NY" ? ' <span style="font-size:10px;font-weight:700;background:#1e40af;color:#fff;border-radius:8px;padding:1px 6px">NY</span>' : ""}${a.orgnr ? `<div class="muted" style="font-size:11px">orgnr ${escHtmlEpost(a.orgnr)}</div>` : ""}</td>\n      <td>${escHtmlEpost(a.bax)}<div class="muted" style="font-size:11px">${escHtmlEpost(a.leverandor)}</div></td>\n      <td style="color:${ty[1]};font-weight:600;white-space:nowrap;font-size:12.5px">${ty[0]}</td>\n      <td class="tr" style="color:${LK_AV_APNE.includes(a.status) && a.belop > 0 ? "#b91c1c" : "#9ca3af"}">${a.belop > 0 ? lkKr(a.belop) : "—"}</td>\n      <td style="font-size:12.5px">${a.ansvarlig ? escHtmlEpost(a.ansvarlig) : '<span class="muted">ingen</span>'}</td>\n      <td style="font-size:12px;max-width:280px">${sn ? `${escHtmlEpost(sn.t.length > 90 ? sn.t.slice(0, 90) + " …" : sn.t)}<div class="muted" style="font-size:11px">${escHtmlEpost(sn.n)} · ${escHtmlEpost(String(sn.d).slice(0, 10))}${a.logg.length > 1 ? ` · ${a.logg.length} i loggen` : ""}</div>` : '<span class="muted">Ingen notater</span>'}</td>\n      <td class="muted" style="font-size:11.5px;white-space:nowrap">${escHtmlEpost(a.forste && a.forste !== a.sist ? a.forste + " → " + a.sist : a.sist)}</td></tr>\n      ${apen ? `<tr><td colspan="8" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${lkAvDetaljHtml(a)}</td></tr>` : ""}`;
+  return `<tr data-lk-key="${escHtmlEpost(a.key)}" style="cursor:pointer${apen ? ";background:#f0f4ff" : ""}" onclick="lkAvToggle('${escHtmlEpost(a.key).replace(/'/g, "&#39;")}')">\n      <td>${lkAvChip(a.status)}</td>\n      <td style="min-width:190px"><strong style="color:#1A3A6B">${apen ? "▾ " : "▸ "}${escHtmlEpost(a.brukersted || "(uten navn)")}</strong>${a.leverandor === "Softpay" && (() => {
+   const x = lkAvSomRad(a);
+   return lkUtleieFor(x.r, x.d).length;
+  })() ? ' <span title="Kunden har utleie i fakturamåneden" style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:8px;padding:1px 6px">📦 Utleie</span>' : ""}${a.status === "NY" ? ' <span style="font-size:10px;font-weight:700;background:#1e40af;color:#fff;border-radius:8px;padding:1px 6px">NY</span>' : ""}${a.orgnr ? `<div class="muted" style="font-size:11px">orgnr ${escHtmlEpost(a.orgnr)}</div>` : ""}</td>\n      <td>${escHtmlEpost(a.bax)}<div class="muted" style="font-size:11px">${escHtmlEpost(a.leverandor)}</div></td>\n      <td style="color:${ty[1]};font-weight:600;white-space:nowrap;font-size:12.5px">${ty[0]}</td>\n      <td class="tr" style="color:${LK_AV_APNE.includes(a.status) && a.belop > 0 ? "#b91c1c" : "#9ca3af"}">${a.belop > 0 ? lkKr(a.belop) : "—"}</td>\n      <td style="font-size:12.5px">${a.ansvarlig ? escHtmlEpost(a.ansvarlig) : '<span class="muted">ingen</span>'}</td>\n      <td style="font-size:12px;max-width:280px">${sn ? `${escHtmlEpost(sn.t.length > 90 ? sn.t.slice(0, 90) + " …" : sn.t)}<div class="muted" style="font-size:11px">${escHtmlEpost(sn.n)} · ${escHtmlEpost(String(sn.d).slice(0, 10))}${a.logg.length > 1 ? ` · ${a.logg.length} i loggen` : ""}</div>` : '<span class="muted">Ingen notater</span>'}</td>\n      <td class="muted" style="font-size:11.5px;white-space:nowrap">${escHtmlEpost(a.forste && a.forste !== a.sist ? a.forste + " → " + a.sist : a.sist)}</td></tr>\n      ${apen ? `<tr><td colspan="8" style="padding:0;background:#fbfcfe;border-top:2px solid #1A3A6B">${lkAvDetaljHtml(a)}</td></tr>` : ""}`;
  }).join("");
  return sistKjort + banner + `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0">\n      ${kpi("Åpne avvik", apne.length, `${apne.filter(a => a.status === "NY").length} nye · ${apne.filter(a => !a.ansvarlig).length} uten ansvarlig`, apne.length ? "#b91c1c" : "#111")}\n      ${kpi("I fare per år", lkKr(apne.reduce((t, a) => t + (a.belop || 0), 0)), "sum for åpne avvik", apne.length ? "#b91c1c" : "#111")}\n      ${kpi("Mine", grunn.filter(LK_AV_FILTRE.mine[1]).length, "åpne der du er ansvarlig")}\n      ${kpi("Løst", grunn.filter(a => a.status === "LOST").length, `${grunn.filter(a => a.status === "GODTATT").length} godtatt`, "#15803d")}\n    </div>\n    <div class="filters" style="row-gap:8px">${pills}\n      <span style="margin-left:auto;display:flex;gap:6px;align-items:center">${levs.length > 1 ? `<select onchange="lkAvLev=this.value;lkAvApen=null;renderLisensKontroll()" style="padding:5px;border:1px solid #d1d5db;border-radius:6px;font:inherit;font-size:12.5px">${[ "Alle", ...levs ].map(l => `<option${lkAvLev === l ? " selected" : ""}>${escHtmlEpost(l)}</option>`).join("")}</select>` : ""}\n      <input type="search" placeholder="Søk navn, BAX, orgnr …" value="${escHtmlEpost(lkAvSok)}" oninput="lkAvSok=this.value;lkAvSokSnart()" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font:inherit;font-size:12.5px;width:190px">\n      <button class="btn-sm" onclick="lkAvEksporterCsv()">⬇ CSV</button></span></div>\n    <div class="tbl-wrap" id="lk-avvik-boks" style="overflow:auto;max-height:72vh"><table>\n      <thead><tr>${[ [ "Status", "status" ], [ "Kunde / brukersted", "navn" ], [ "BAX", "bax" ], [ "Avvik", "avvik" ], [ "I fare/år", "belop", 1 ], [ "Ansvarlig", "ansvarlig" ], [ "Siste notat", "notat" ], [ "Sett på faktura", "sett" ] ].map(([h, f, hoyre]) => lkSortTh(h, f, lkAvSort, "lkAvSorter", hoyre)).join("")}</tr></thead>\n      <tbody>${body || '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Ingen avvik med valgt filter 🎉</td></tr>'}</tbody>\n    </table></div>\n    <div class="hint" style="margin-top:6px">Avvik som ikke kommer igjen på neste faktura, settes automatisk til «✅ Løst». For Nets gjelder det også BAX som ikke lenger er på fakturaen. «👍 Godtatt» betyr at avviket er i orden, og det kommer ikke opp som åpent igjen.</div>`;
 }
@@ -32675,6 +32682,13 @@ function lkOppsummering(r, d) {
    gjor: "Legg Softpay-linjen (CI00000156) på kontrakten, eller godta avviket hvis Softpay faktureres på en annen måte."
   };
   const ingenKunde = !sp.kunder || !sp.kunder.length;
+  const utl = lkUtleieFor(r, d);
+  if (utl.length) return {
+   farge: "#fef3c7",
+   kant: "#92400e",
+   setning: `Softpay tar betalt for ${lis}, og kunden har <strong>📦 utleie</strong> i fakturamåneden (${utl.length} enhet${utl.length === 1 ? "" : "er"}). Lisensen skyldes trolig utleien, og det lages ikke kontrakt for utleie.`,
+   gjor: "Sjekk utleien under «Softpay – kobling og lisenser». Stemmer det, setter du avviket til «👍 Godtatt» med begrunnelse (f.eks. «Utleie, ordre …»). Er utleien avsluttet, må lisensen sies opp hos Softpay."
+  };
   return {
    farge: "#fee2e2",
    kant: "#991b1b",
@@ -32805,10 +32819,53 @@ function lkDetaljHtml(r, dX, utenKnapper) {
   }[k.status] || escHtmlEpost(k.status)}</span> · ${escHtmlEpost(k.kundenr)} ${vk ? `<a href="#" onclick="event.stopPropagation();taKaTilKundekort('${vk.id}');return false" style="color:#1A3A6B">${escHtmlEpost(k.kundenavn)}</a>` : escHtmlEpost(k.kundenavn)}<div class="muted" style="font-size:11px">${escHtmlEpost(k.beskrivelse)}</div></div>`;
  }).join("") || (r.softpay ? `<div class="hint">Ingen kontrakter funnet for kunden${r.softpay.kunder && r.softpay.kunder.length ? "" : " (ingen Visma-kunde med orgnr " + escHtmlEpost(r.orgnr || "?") + ")"}.</div>` : `<div class="hint">Ingen kontrakter i Visma har «Bax: ${escHtmlEpost(r.bax)}» i beskrivelsen.</div>`);
  const andre = (r.andreKontraktVarer || []).length ? `<div style="font-weight:600;color:#111;margin:12px 0 4px">Andre linjer på kontrakten (ikke gjenkjent som lisens/service)</div><div style="font-size:12px;color:#6b7280">${r.andreKontraktVarer.map(escHtmlEpost).join("<br>")}</div>` : "";
- return `<div style="padding:14px 16px" onclick="event.stopPropagation()">\n    ${topp}\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:18px">\n      <div><div style="font-weight:600;color:#111;margin-bottom:6px">Tjeneste for tjeneste</div>${tjTabell}</div>\n      <div><div style="font-weight:600;color:#111;margin-bottom:6px">${r.softpay ? "Kontrakter hos kunden" : `Kontrakter med BAX ${escHtmlEpost(r.bax)}`}</div>${kontr}${andre}</div>\n    </div>\n    ${r.softpay ? lkSoftpayDetalj(r) : ""}\n    <details style="margin-top:12px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Vis linjene fra ${escHtmlEpost(lev)}-fakturaen (${r.produkter.length} linje${r.produkter.length === 1 ? "" : "r"}${grp.size < r.produkter.length ? `, slått sammen til ${grp.size}` : ""})</summary>\n      <table style="margin-top:6px"><thead><tr><th>Produkt</th><th>Tekst</th><th class="tr">Antall</th><th class="tr">Beløp</th><th>Terminal</th></tr></thead><tbody>${prod}</tbody></table></details>\n  </div>`;
+ return `<div style="padding:14px 16px" onclick="event.stopPropagation()">\n    ${topp}\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:18px">\n      <div><div style="font-weight:600;color:#111;margin-bottom:6px">Tjeneste for tjeneste</div>${tjTabell}</div>\n      <div><div style="font-weight:600;color:#111;margin-bottom:6px">${r.softpay ? "Kontrakter hos kunden" : `Kontrakter med BAX ${escHtmlEpost(r.bax)}`}</div>${kontr}${andre}</div>\n    </div>\n    ${r.softpay ? lkSoftpayDetalj(r, d) : ""}\n    <details style="margin-top:12px"><summary style="cursor:pointer;font-size:13px;color:#6b7280">Vis linjene fra ${escHtmlEpost(lev)}-fakturaen (${r.produkter.length} linje${r.produkter.length === 1 ? "" : "r"}${grp.size < r.produkter.length ? `, slått sammen til ${grp.size}` : ""})</summary>\n      <table style="margin-top:6px"><thead><tr><th>Produkt</th><th>Tekst</th><th class="tr">Antall</th><th class="tr">Beløp</th><th>Terminal</th></tr></thead><tbody>${prod}</tbody></table></details>\n  </div>`;
 }
 
-function lkSoftpayDetalj(r) {
+function lkNormNavn(s) {
+ return String(s || "").toLowerCase().replace(/\.\.\.|…/g, "").replace(/æ/g, "ae").replace(/ø/g, "o").replace(/å/g, "a").replace(/[^a-z0-9 ]/g, " ").replace(/\b(as|asa|ans|da|enk|ba|sa|nuf)\b/g, " ").replace(/\s+/g, "");
+}
+
+function lkUtleieFor(r, d) {
+ if (!r || !r.softpay || typeof rentals === "undefined" || !rentals.length) return [];
+ const sp = r.softpay;
+ const navn = new Set([ ...String(r.brukersted || "").split(" / "), ...(sp.merchants || []).map(m => m.navn), ...(sp.tenants || []).map(t => t.navn), ...(sp.kunder || []).map(k => k.navn) ].map(lkNormNavn).filter(n => n.length >= 3));
+ if (!navn.size) return [];
+ const m = /(\d{2})\.(\d{2})\.(\d{4})/.exec(d && d.fakturadato || "");
+ const ref = m ? new Date(+m[3], +m[2] - 1, 1) : new Date((new Date).getFullYear(), (new Date).getMonth() - 1, 1);
+ const fra = ref.getTime(), til = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59).getTime();
+ const tid = x => {
+  const t = x ? Date.parse(x) : NaN;
+  return isNaN(t) ? null : t;
+ };
+ return rentals.filter(u => {
+  const n = lkNormNavn(u.customer);
+  if (n.length < 3) return false;
+  const treff = navn.has(n) || [ ...navn ].some(x => x.length >= 5 && n.length >= 5 && (n.startsWith(x) || x.startsWith(n)));
+  if (!treff) return false;
+  const f = tid(u.fromDate), t = tid(u.returnDate) ?? tid(u.toDate);
+  return (f == null || f <= til) && (t == null || t >= fra);
+ }).map(u => {
+  const e = (typeof units !== "undefined" ? units : []).find(x => x.id === u.unitId) || {};
+  return {
+   ...u,
+   enhet: e.name || "",
+   type: e.type || "",
+   serie: e.serial || ""
+  };
+ });
+}
+
+function lkUtleieHtml(r, d) {
+ const ut = lkUtleieFor(r, d);
+ const fmt = x => {
+  const t = x ? Date.parse(x) : NaN;
+  return isNaN(t) ? "—" : new Date(t).toLocaleDateString("nb-NO");
+ };
+ return `<div style="margin-top:12px"><div style="font-weight:600;font-size:12.5px;margin-bottom:4px">📦 Utleie i fakturamåneden (til info)</div>${ut.length ? `\n    <table><thead><tr><th>Kunde (utleie)</th><th>Enhet</th><th>Fra</th><th>Til / retur</th><th>Ordre</th></tr></thead><tbody>${ut.map(u => `<tr><td>${escHtmlEpost(u.customer)}</td><td>${escHtmlEpost([ u.enhet, u.type, u.serie ? "SN " + u.serie : "" ].filter(Boolean).join(" · "))}</td><td>${fmt(u.fromDate)}</td><td>${u.returnDate ? fmt(u.returnDate) + " (returnert)" : fmt(u.toDate)}</td><td>${escHtmlEpost(u.orderNr || "")}</td></tr>`).join("")}</tbody></table>\n    <div class="hint" style="margin-top:4px">Utleie får ikke kundekontrakt. Skyldes lisensen utleien, settes avviket til «👍 Godtatt» med en kort begrunnelse.</div>` : '<div class="hint" style="margin:0">Ingen utleie registrert på dette navnet i fakturamåneden.</div>'}</div>`;
+}
+
+function lkSoftpayDetalj(r, d) {
  const sp = r.softpay || {};
  const kunder = (sp.kunder || []).map(k => {
   const vk = vismaKunder.find(x => samKundenr(x.vismaNummer, k.kundenr));
@@ -32816,7 +32873,7 @@ function lkSoftpayDetalj(r) {
  }).join("<br>") || '<span style="color:#b91c1c">Ingen Visma-kunde med dette orgnr</span>';
  const merch = (sp.merchants || []).map(m => `<tr><td>${escHtmlEpost(m.navn)}</td><td>${escHtmlEpost(m.orgnr)}</td><td class="tr">${m.lisenserBestilt}</td><td>${escHtmlEpost(m.konto)}${m.state && m.state !== "ACTIVE" ? " · " + escHtmlEpost(m.state) : ""}</td></tr>`).join("");
  const ten = (sp.tenants || []).map(t => `<tr><td>${escHtmlEpost(t.tenant)}</td><td>${escHtmlEpost(t.navn)}</td><td class="tr">${t.fakturert}</td><td class="tr">${t.bestilt}</td><td class="tr">${t.aktive}</td><td class="tr">${t.trx}</td></tr>`).join("");
- return `<div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fff">\n    <div style="font-weight:700;color:#111;margin-bottom:4px">💳 Softpay – kobling og lisenser</div>\n    <div class="hint" style="margin:0 0 8px">${escHtmlEpost(sp.kobling || "")}</div>\n    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin-bottom:10px">\n      <span>Fakturert: <strong>${sp.fakturert ?? "—"}</strong></span><span>Aktive: <strong>${sp.aktive ?? "—"}</strong></span>\n      <span>Bestilt (faktura): <strong>${sp.bestilt ?? "—"}</strong></span><span>Bestilt (Softpay API): <strong>${sp.lisenserBestiltApi ?? "—"}</strong></span>\n      <span>Kontrakten dekker: <strong>${sp.kontraktEnheter ?? 0}</strong> enhet${sp.kontraktEnheter === 1 ? "" : "er"}</span></div>\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">\n      <div><div style="font-weight:600;font-size:12.5px;margin-bottom:4px">Visma-kunde(r)</div><div style="font-size:12.5px">${kunder}</div>\n        <div style="font-weight:600;font-size:12.5px;margin:10px 0 4px">Softpay-merchants</div>\n        <table><thead><tr><th>Navn</th><th>Orgnr</th><th class="tr">Lisenser bestilt</th><th>Konto</th></tr></thead><tbody>${merch || '<tr><td colspan="4" class="muted">Ingen</td></tr>'}</tbody></table></div>\n      <div><div style="font-weight:600;font-size:12.5px;margin-bottom:4px">Tenants på fakturaen</div>\n        <table><thead><tr><th>Tenant</th><th>Navn</th><th class="tr">Fakt.</th><th class="tr">Best.</th><th class="tr">Aktive</th><th class="tr">Trx</th></tr></thead><tbody>${ten}</tbody></table></div>\n    </div></div>`;
+ return `<div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fff">\n    <div style="font-weight:700;color:#111;margin-bottom:4px">💳 Softpay – kobling og lisenser</div>\n    <div class="hint" style="margin:0 0 8px">${escHtmlEpost(sp.kobling || "")}</div>\n    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin-bottom:10px">\n      <span>Fakturert: <strong>${sp.fakturert ?? "—"}</strong></span><span>Aktive: <strong>${sp.aktive ?? "—"}</strong></span>\n      <span>Bestilt (faktura): <strong>${sp.bestilt ?? "—"}</strong></span><span>Bestilt (Softpay API): <strong>${sp.lisenserBestiltApi ?? "—"}</strong></span>\n      <span>Kontrakten dekker: <strong>${sp.kontraktEnheter ?? 0}</strong> enhet${sp.kontraktEnheter === 1 ? "" : "er"}</span></div>\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">\n      <div><div style="font-weight:600;font-size:12.5px;margin-bottom:4px">Visma-kunde(r)</div><div style="font-size:12.5px">${kunder}</div>\n        <div style="font-weight:600;font-size:12.5px;margin:10px 0 4px">Softpay-merchants</div>\n        <table><thead><tr><th>Navn</th><th>Orgnr</th><th class="tr">Lisenser bestilt</th><th>Konto</th></tr></thead><tbody>${merch || '<tr><td colspan="4" class="muted">Ingen</td></tr>'}</tbody></table></div>\n      <div><div style="font-weight:600;font-size:12.5px;margin-bottom:4px">Tenants på fakturaen</div>\n        <table><thead><tr><th>Tenant</th><th>Navn</th><th class="tr">Fakt.</th><th class="tr">Best.</th><th class="tr">Aktive</th><th class="tr">Trx</th></tr></thead><tbody>${ten}</tbody></table></div>\n    </div>${lkUtleieHtml(r, d)}</div>`;
 }
 
 function lkLaasOpplasting(laast) {
