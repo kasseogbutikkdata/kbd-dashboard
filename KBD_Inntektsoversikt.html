@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.319 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.320 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15212,6 +15212,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.320",
+ dato: "15.10.2026",
+ punkter: [ "Fakturaoppfølging: oppfølging fra Mirrow-kontoen vises nå som «Mirrow» i Neste-kolonnen og i loggen, ikke som «Kasse»." ]
+}, {
  versjon: "v1.48.319",
  dato: "15.10.2026",
  punkter: [ "Fakturaoppfølging: KBD CC foreslår nå «Konkurs» når Brønnøysundregistrene viser at kunden er konkurs, eller når Visma-notatet nevner konkurs. Kunden får merket «⚠️ Konkurs?» i lista, og panelet har knappene «⚠️ Sett Konkurs» (setter status på alle åpne fakturaer og oppretter konkurssaken) og «Ikke konkurs» (fjerner forslaget, grunnen lagres i loggen)." ]
@@ -19316,6 +19320,10 @@ function foSisteLoggMap() {
  return m;
 }
 
+function foVisNavn(n) {
+ return /^kasse og butikkdata/i.test(String(n || "").trim()) ? "Mirrow" : String(n || "");
+}
+
 function foEierFor(fs, loggMap) {
  let siste = null;
  fs.forEach(f => {
@@ -20305,7 +20313,7 @@ function renderFakturaoppfolging() {
   })()}${r.fs.some(foNevnerInkasso) ? '<div style="font-size:11px;color:#b45309;margin-top:2px" title="Visma-notatet nevner inkasso/namsmann">⚠️ Inkasso i Visma-notat</div>' : ""}${(() => {
    const kk = foKonkursForslag(r.kundenr);
    return kk ? `<div style="font-size:11px;color:#b91c1c;font-weight:600;margin-top:2px" title="${kk === "brreg" ? "Brønnøysundregistrene viser at kunden er konkurs" : "Visma-notatet nevner konkurs"}. Åpne raden for å sette status Konkurs.">⚠️ Konkurs?</div>` : "";
-  })()}${foIkkeAvstemt(r.kundenr) ? `<div style="font-size:11px;color:#b45309;margin-top:2px;cursor:pointer" title="Kunden har kreditnota/innbetaling som ikke er koblet mot faktura i Visma. Klikk for å se." onclick="event.stopPropagation();iaApen='${String(r.kundenr).replace(/'/g, "\\'")}';setFoVisning('ikkeavstemt')">⚠️ Ikke avstemt i Visma</div>` : ""}${[ ...new Set(r.fs.map(f => f.inkassoSaksnr).filter(Boolean)) ].map(n => `<div style="font-size:11px;margin-top:2px">${foAmiliLenke(n)}</div>`).join("")}</td>\n        <td><span${nesteForfalt ? ' style="color:#dc2626;font-weight:600"' : ""}>${r.nesteOppfolging ? fDateShort(r.nesteOppfolging) : "—"}</span>${r.eier ? `<div style="font-size:11px;color:${r.eierType === "mine" ? "#1A3A6B" : "#9ca3af"}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g, "")}">👤 ${String(r.eier).split(" ")[0].replace(/</g, "&lt;")}</div>` : ""}</td>\n        <td><button class="btn-sm" onclick="event.stopPropagation();toggleFoDetalj('${r.key.replace(/'/g, "\\'")}')">${apen ? "▲ Lukk" : "📝 Logg"}</button></td>\n      </tr>` ];
+  })()}${foIkkeAvstemt(r.kundenr) ? `<div style="font-size:11px;color:#b45309;margin-top:2px;cursor:pointer" title="Kunden har kreditnota/innbetaling som ikke er koblet mot faktura i Visma. Klikk for å se." onclick="event.stopPropagation();iaApen='${String(r.kundenr).replace(/'/g, "\\'")}';setFoVisning('ikkeavstemt')">⚠️ Ikke avstemt i Visma</div>` : ""}${[ ...new Set(r.fs.map(f => f.inkassoSaksnr).filter(Boolean)) ].map(n => `<div style="font-size:11px;margin-top:2px">${foAmiliLenke(n)}</div>`).join("")}</td>\n        <td><span${nesteForfalt ? ' style="color:#dc2626;font-weight:600"' : ""}>${r.nesteOppfolging ? fDateShort(r.nesteOppfolging) : "—"}</span>${r.eier ? `<div style="font-size:11px;color:${r.eierType === "mine" ? "#1A3A6B" : "#9ca3af"}" title="Sist skrevet i loggen av ${String(r.eier).replace(/"/g, "")}">👤 ${foVisNavn(r.eier).split(" ")[0].replace(/</g, "&lt;")}</div>` : ""}</td>\n        <td><button class="btn-sm" onclick="event.stopPropagation();toggleFoDetalj('${r.key.replace(/'/g, "\\'")}')">${apen ? "▲ Lukk" : "📝 Logg"}</button></td>\n      </tr>` ];
   if (apen) {
    rows.push(`<tr style="background:#eef2ff"><td colspan="10" style="border-left:3px solid #1A3A6B;padding:0">${renderFoDetaljPanel(r)}</td></tr>`);
   }
@@ -20904,7 +20912,7 @@ function tidslinjeHtml(liste, opts = {}) {
    minute: "2-digit"
   })}</span>` : "";
   const fakt = e.fakturaer && e.fakturaer.length ? e.fakturaer.length > 1 ? ` · ${e.fakturaer.length} fakturaer` : ` · faktura ${iaEsc(e.fakturaer[0])}` : "";
-  return `<div style="display:flex;gap:10px;padding:7px 0;${i < liste.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}align-items:baseline">\n      <span style="min-width:74px;font-size:12px;color:#92400e;font-weight:600;white-space:nowrap">${fDateShort(e.dato.toISOString())}${tid}</span>\n      <span style="flex:1;min-width:0"><span style="font-size:13px;color:#111;line-height:1.45;white-space:pre-wrap">${e.ikon && !/^\p{Extended_Pictographic}/u.test(e.tekst) ? e.ikon + " " : ""}${iaNotatHtml(e.tekst)}</span>\n        <span style="display:block;font-size:11px;color:#9ca3af;margin-top:1px">${e.av ? iaEsc(e.av) : ""}${fakt} <span style="background:${kd[2]};color:${kd[3]};border-radius:8px;padding:0 6px;margin-left:4px;white-space:nowrap">${kd[0]} ${kd[1]}</span></span></span>\n    </div>`;
+  return `<div style="display:flex;gap:10px;padding:7px 0;${i < liste.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}align-items:baseline">\n      <span style="min-width:74px;font-size:12px;color:#92400e;font-weight:600;white-space:nowrap">${fDateShort(e.dato.toISOString())}${tid}</span>\n      <span style="flex:1;min-width:0"><span style="font-size:13px;color:#111;line-height:1.45;white-space:pre-wrap">${e.ikon && !/^\p{Extended_Pictographic}/u.test(e.tekst) ? e.ikon + " " : ""}${iaNotatHtml(e.tekst)}</span>\n        <span style="display:block;font-size:11px;color:#9ca3af;margin-top:1px">${e.av ? iaEsc(foVisNavn(e.av)) : ""}${fakt} <span style="background:${kd[2]};color:${kd[3]};border-radius:8px;padding:0 6px;margin-left:4px;white-space:nowrap">${kd[0]} ${kd[1]}</span></span></span>\n    </div>`;
  }).join("")}</div></div>`;
 }
 
