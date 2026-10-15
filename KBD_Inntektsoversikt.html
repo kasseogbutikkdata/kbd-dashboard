@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.321 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.322 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3351,6 +3351,9 @@ toggleInnstillingerSub(true)'>
 
     
     <div id="hjem-feiring" style="display:none"></div>
+
+    
+    <div id="hjem-min-provisjon" style="display:none;margin-bottom:24px"></div>
 
     <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">🔔 Trenger oppmerksomhet</div>
     <div id="hjem-oppmerksomhet" style="margin-bottom:24px"></div>
@@ -15212,6 +15215,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.322",
+ dato: "15.10.2026",
+ punkter: [ "Ny boks «💰 Min provisjon» på Hjem for de som har provisjon. Den viser egne godkjente måneder: fakturert mot budsjett i en graf, provisjon, sats, 3-årsverdi og fakturalinjene per måned. Hver ansatt ser bare sine egne tall.", "Provisjon (admin): ny grafisk oversikt over året med fakturert mot budsjett per person og provisjon per måned. Reglene har fått feltet E-post, som kobler personen til «Min provisjon». Linjene lagres nå når en måned lagres eller godkjennes." ]
+}, {
  versjon: "v1.48.321",
  dato: "15.10.2026",
  punkter: [ "Lisenskontroll, Softpay: kontrakten blir nå også funnet når den ligger på en annen kunde enn den Softpay har registrert, for eksempel når en regnskapsfører eller et morselskap betaler. Det skjer når kontraktbeskrivelsen har samme navn som Softpay-kunden. Detaljene viser da hvilken kunde og kontrakt som ble brukt.", "Lisenskontroll, Softpay: lagrede avvik viser nå Softpay-teksten og -detaljene også etter at siden er lastet på nytt. Før kom det en tekst om BAX, som ikke gjelder Softpay." ]
@@ -17948,6 +17955,11 @@ function toggleKulturVerdi(nr) {
 }
 
 function renderHjem() {
+ try {
+  renderMinProvisjon();
+ } catch (e) {
+  console.warn("Min provisjon", e);
+ }
  const greetEl = document.getElementById("hjem-greeting");
  const dateEl = document.getElementById("hjem-date");
  if (greetEl) {
@@ -27536,10 +27548,12 @@ async function renderProvisjon() {
   dateStyle: "short",
   timeStyle: "short"
  }) : ""} · ${pvGrunnlag.antallFakturaer} fakturaer (${pvGrunnlag.utenSelger} uten selger, f.eks. kontrakter) · ${pvGrunnlag.antallKreditnotaer} kreditnotaer</span>` : ""}\n  </div>`;
+ h += pvOversiktHtml();
  if (!pvGrunnlag) {
   h += `<div class="pk-tom">Trykk «🔄 Hent fra Visma» for å beregne provisjon for ${pvPeriodeTekst(pvPeriode)}. Grunnlaget er fakturaer i regnskapsperioden, linjebeløp eks. mva.</div>`;
   h += pvInnstHtml(r);
   el.innerHTML = h;
+  pvTegnOversikt();
   return;
  }
  const aar = pvPeriode.slice(0, 4), mi = Number(pvPeriode.slice(4)) - 1, bud = pvData["budsjett-" + aar] || {};
@@ -27568,6 +27582,7 @@ async function renderProvisjon() {
  h += `<div class="modal-footer" style="justify-content:flex-start;gap:8px;margin-top:16px">\n    <button class="btn-sm" onclick="pvExcel()">📥 Last ned Excel</button>\n    ${u.status === "godkjent" ? `<button class="btn-sm" onclick="pvGjenapne()">↩︎ Gjenåpne perioden</button>` : `<button class="btn-sm" onclick="pvLagrePeriode(false)">💾 Lagre utkast</button><button class="prim" onclick="pvLagrePeriode(true)">✅ Godkjenn ${e(pvPeriodeTekst(pvPeriode))}</button>`}\n  </div>`;
  h += pvInnstHtml(r);
  el.innerHTML = h;
+ pvTegnOversikt();
 }
 
 function pvDetaljHtml(x) {
@@ -27641,7 +27656,26 @@ async function pvLagrePeriode(godkjenn) {
    treaarProv: Math.round(x.treaarProv * 100) / 100,
    justering: x.justering,
    sum: x.sum,
-   fakturert: Math.round(x.fakturert * 100) / 100
+   fakturert: Math.round(x.fakturert * 100) / 100,
+   sats: x.p.sats,
+   linjer: x.linjer.map(z => ({
+    t: z.d.type === "Kreditnota" ? "KN" : "F",
+    nr: z.d.nr,
+    dato: z.d.dato,
+    kunde: z.d.kunde.navn,
+    varenr: z.l.varenr,
+    beskrivelse: z.l.beskrivelse,
+    antall: z.l.antall,
+    enhet: z.l.enhet,
+    belop: z.l.belop,
+    hva: z.hva,
+    grunnlag: Math.round((z.grunnlag || 0) * 100) / 100,
+    ...z.hva === "treaar" ? {
+     faktor: z.faktor,
+     mndPris: Math.round(z.mndPris * 100) / 100,
+     verdi: Math.round(z.verdi * 100) / 100
+    } : {}
+   }))
   };
  });
  const ny = {
@@ -27701,7 +27735,7 @@ function pvExcel() {
 
 function pvInnstHtml(r) {
  const e = jsEscapeHtml, aar = (pvPeriode || pvForrigeMnd()).slice(0, 4), bud = pvData["budsjett-" + aar] || {};
- return `<details style="margin-top:22px"><summary style="cursor:pointer;font-weight:600">⚙️ Regler og budsjett ${aar}</summary>\n    <div class="hint" style="margin:8px 0">Selgere får sats av fakturert eks. mva på fakturaer der de står som selger i Visma. 3-årsvarer: «varenr=faktor» (36 = månedspris × 36, 3 = sesongpris × 3). Teknikere får sats av egne timevarer.</div>\n    <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Person</th><th>Type</th><th>Selgernr. i Visma</th><th>Timevarer</th><th>Sats %</th><th>3-årsvarer</th></tr></thead><tbody>\n    ${r.personer.map((p, i) => `<tr><td><input type="text" id="pv-r-navn-${i}" value="${e(p.navn)}" style="width:110px"></td><td>${p.type === "tekniker" ? "Tekniker" : "Selger"}</td>\n      <td>${p.type === "selger" ? `<input type="text" id="pv-r-sid-${i}" value="${e(p.selgerId || "")}" style="width:60px">` : ""}</td>\n      <td>${p.type === "tekniker" ? `<input type="text" id="pv-r-tv-${i}" value="${e((p.timevarer || []).join(", "))}" style="width:110px">` : ""}</td>\n      <td><input type="number" step="0.1" id="pv-r-sats-${i}" value="${p.sats}" style="width:70px"></td>\n      <td>${p.type === "selger" ? `<input type="text" id="pv-r-tr-${i}" value="${e(Object.entries(p.treaar || {}).map(([k, v]) => `${k}=${v}`).join(", "))}" style="width:320px">` : ""}</td></tr>`).join("")}\n    </tbody></table></div>\n    <div class="fgrp" style="margin:8px 0;max-width:420px"><label>Varer som ikke gir provisjon (kommaseparert)</label><input type="text" id="pv-r-unntak" value="${e((r.unntak || []).join(", "))}"></div>\n    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-sm" onclick="pvLagreRegler()">💾 Lagre regler</button><button class="btn-sm" onclick="pvLimInnRegler()">📋 Lim inn regler (JSON)</button><button class="btn-sm" onclick="pvNyPerson('selger')">＋ Selger</button><button class="btn-sm" onclick="pvNyPerson('tekniker')">＋ Tekniker</button></div>\n    <div style="font-weight:600;margin:18px 0 6px">Budsjett / mål ${aar} (fakturert eks. mva per måned)</div>\n    <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Person</th>${PV_MND.map(m => `<th style="text-align:right">${m}</th>`).join("")}<th style="text-align:right">Sum</th></tr></thead><tbody>\n    ${r.personer.map(p => `<tr><td>${e(p.navn)}</td>${PV_MND.map((m, mi) => `<td><input type="number" step="1000" id="pv-b-${p.id}-${mi}" value="${bud[p.id]?.[mi] ?? ""}" style="width:78px;text-align:right"></td>`).join("")}<td style="text-align:right">${pvKr((bud[p.id] || []).reduce((s, v) => s + (Number(v) || 0), 0))}</td></tr>`).join("")}\n    </tbody></table></div>\n    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><button class="btn-sm" onclick="pvLagreBudsjett('${aar}')">💾 Lagre budsjett</button>\n      <label class="btn-sm" style="cursor:pointer">📥 Importer fra Excel<input type="file" accept=".xlsx" multiple style="display:none" onchange="pvImporterBudsjett(this.files,'${aar}')"></label>\n      <span class="hint" style="margin:0">Leser arket TOTAL (rad BUDSJETT eller MÅL) i «Salg og budsjett <navn> ${aar}.xlsx» og «<navn> fakturerte timer.xlsx». Personen finnes ut fra filnavnet.</span></div>\n  </details>`;
+ return `<details style="margin-top:22px"><summary style="cursor:pointer;font-weight:600">⚙️ Regler og budsjett ${aar}</summary>\n    <div class="hint" style="margin:8px 0">Selgere får sats av fakturert eks. mva på fakturaer der de står som selger i Visma. 3-årsvarer: «varenr=faktor» (36 = månedspris × 36, 3 = sesongpris × 3). Teknikere får sats av egne timevarer.</div>\n    <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Person</th><th>Type</th><th>Selgernr. i Visma</th><th>Timevarer</th><th>Sats %</th><th>3-årsvarer</th><th title="Innlogging som kobles til «Min provisjon» på Hjem">E-post (Min provisjon)</th></tr></thead><tbody>\n    ${r.personer.map((p, i) => `<tr><td><input type="text" id="pv-r-navn-${i}" value="${e(p.navn)}" style="width:110px"></td><td>${p.type === "tekniker" ? "Tekniker" : "Selger"}</td>\n      <td>${p.type === "selger" ? `<input type="text" id="pv-r-sid-${i}" value="${e(p.selgerId || "")}" style="width:60px">` : ""}</td>\n      <td>${p.type === "tekniker" ? `<input type="text" id="pv-r-tv-${i}" value="${e((p.timevarer || []).join(", "))}" style="width:110px">` : ""}</td>\n      <td><input type="number" step="0.1" id="pv-r-sats-${i}" value="${p.sats}" style="width:70px"></td>\n      <td>${p.type === "selger" ? `<input type="text" id="pv-r-tr-${i}" value="${e(Object.entries(p.treaar || {}).map(([k, v]) => `${k}=${v}`).join(", "))}" style="width:320px">` : ""}</td>\n      <td><input type="text" id="pv-r-ep-${i}" value="${e(p.epost || "")}" placeholder="navn@kbd.as" style="width:170px"></td></tr>`).join("")}\n    </tbody></table></div>\n    <div class="fgrp" style="margin:8px 0;max-width:420px"><label>Varer som ikke gir provisjon (kommaseparert)</label><input type="text" id="pv-r-unntak" value="${e((r.unntak || []).join(", "))}"></div>\n    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-sm" onclick="pvLagreRegler()">💾 Lagre regler</button><button class="btn-sm" onclick="pvLimInnRegler()">📋 Lim inn regler (JSON)</button><button class="btn-sm" onclick="pvNyPerson('selger')">＋ Selger</button><button class="btn-sm" onclick="pvNyPerson('tekniker')">＋ Tekniker</button></div>\n    <div style="font-weight:600;margin:18px 0 6px">Budsjett / mål ${aar} (fakturert eks. mva per måned)</div>\n    <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Person</th>${PV_MND.map(m => `<th style="text-align:right">${m}</th>`).join("")}<th style="text-align:right">Sum</th></tr></thead><tbody>\n    ${r.personer.map(p => `<tr><td>${e(p.navn)}</td>${PV_MND.map((m, mi) => `<td><input type="number" step="1000" id="pv-b-${p.id}-${mi}" value="${bud[p.id]?.[mi] ?? ""}" style="width:78px;text-align:right"></td>`).join("")}<td style="text-align:right">${pvKr((bud[p.id] || []).reduce((s, v) => s + (Number(v) || 0), 0))}</td></tr>`).join("")}\n    </tbody></table></div>\n    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><button class="btn-sm" onclick="pvLagreBudsjett('${aar}')">💾 Lagre budsjett</button>\n      <label class="btn-sm" style="cursor:pointer">📥 Importer fra Excel<input type="file" accept=".xlsx" multiple style="display:none" onchange="pvImporterBudsjett(this.files,'${aar}')"></label>\n      <span class="hint" style="margin:0">Leser arket TOTAL (rad BUDSJETT eller MÅL) i «Salg og budsjett <navn> ${aar}.xlsx» og «<navn> fakturerte timer.xlsx». Personen finnes ut fra filnavnet.</span></div>\n  </details>`;
 }
 
 async function pvLimInnRegler() {
@@ -27755,6 +27789,7 @@ async function pvLagreRegler() {
  r.personer.forEach((p, i) => {
   const v = id => document.getElementById(id)?.value ?? "";
   p.navn = v(`pv-r-navn-${i}`).trim() || p.navn;
+  p.epost = v(`pv-r-ep-${i}`).trim().toLowerCase();
   p.sats = Number(String(v(`pv-r-sats-${i}`)).replace(",", ".")) || 0;
   if (p.type === "selger") {
    p.selgerId = v(`pv-r-sid-${i}`).trim();
@@ -27858,6 +27893,325 @@ function pvSelgerFor(navn) {
  const fornavn = n.split(/\s+/)[0];
  const f = l.filter(s => s.navn.toLowerCase().split(/\s+/)[0] === fornavn);
  return f.length === 1 ? f[0].id : "";
+}
+
+const PV_FARGER = [ "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948" ];
+
+let pvMin = null, pvMinHentet = 0, pvMinLaster = false, pvMinApen = {};
+
+function pvGraf(id, fakt, bud, farge, etikett) {
+ const el = document.getElementById(id);
+ if (!el || typeof Chart === "undefined") return;
+ if (charts[id]) charts[id].destroy();
+ charts[id] = new Chart(el, {
+  data: {
+   labels: PV_MND,
+   datasets: [ {
+    type: "bar",
+    label: etikett || "Fakturert",
+    data: fakt,
+    backgroundColor: farge,
+    borderRadius: 4,
+    borderSkipped: "start",
+    maxBarThickness: 28,
+    order: 2
+   }, {
+    type: "line",
+    label: "Budsjett",
+    data: bud.map(v => v == null ? null : Number(v)),
+    borderColor: "#9ca3af",
+    borderDash: [ 5, 4 ],
+    borderWidth: 2,
+    pointRadius: 0,
+    pointHitRadius: 10,
+    stepped: "middle",
+    fill: false,
+    order: 1
+   } ]
+  },
+  options: {
+   responsive: true,
+   maintainAspectRatio: false,
+   interaction: {
+    mode: "index",
+    intersect: false
+   },
+   plugins: {
+    legend: {
+     display: true,
+     position: "bottom",
+     labels: {
+      boxWidth: 10,
+      font: {
+       size: 11
+      },
+      color: "#52514e"
+     }
+    },
+    tooltip: {
+     backgroundColor: "#fff",
+     titleColor: "#111",
+     bodyColor: "#374151",
+     borderColor: "#e5e7eb",
+     borderWidth: 1,
+     padding: 10,
+     callbacks: {
+      label: c => c.raw == null ? `${c.dataset.label}: –` : `${c.dataset.label}: ${pvKr(c.raw)}`
+     }
+    }
+   },
+   scales: {
+    x: {
+     grid: {
+      display: false
+     },
+     ticks: {
+      font: {
+       size: 11
+      },
+      color: "#9ca3af"
+     }
+    },
+    y: {
+     beginAtZero: true,
+     grid: {
+      color: "#f3f4f6"
+     },
+     border: {
+      display: false
+     },
+     ticks: {
+      font: {
+       size: 11
+      },
+      color: "#9ca3af",
+      callback: v => v >= 1e3 ? Math.round(v / 1e3) + "k" : v
+     }
+    }
+   }
+  }
+ });
+}
+
+function pvKpi(tittel, verdi, under) {
+ return `<div style="flex:1 1 150px;background:#f8fafc;border-radius:10px;padding:10px 12px"><div style="font-size:11px;color:#6b7280">${tittel}</div><div style="font-size:18px;font-weight:600;color:#111;margin-top:2px">${verdi}</div>${under ? `<div style="font-size:11.5px;color:#6b7280;margin-top:2px">${under}</div>` : ""}</div>`;
+}
+
+function pvLys(pst) {
+ return pst == null ? "" : pst >= 100 ? "🟢" : pst >= 75 ? "🟡" : "🔴";
+}
+
+function pvOversiktData(aar) {
+ const r = pvRegler(), bud = pvData["budsjett-" + aar] || {};
+ return r.personer.map((p, i) => {
+  const fakt = [], prov = [], status = [];
+  for (let m = 0; m < 12; m++) {
+   const per = pvData[`periode-${aar}${String(m + 1).padStart(2, "0")}`], x = per?.resultat?.[p.id];
+   fakt.push(x ? Number(x.fakturert) || 0 : null);
+   prov.push(x ? Number(x.sum) || 0 : null);
+   status.push(x ? per.status : null);
+  }
+  const sist = fakt.reduce((s, v, m) => v != null ? m : s, -1), b = (bud[p.id] || []).slice(0, 12);
+  const faktHit = fakt.reduce((s, v) => s + (v || 0), 0), budHit = b.slice(0, sist + 1).reduce((s, v) => s + (Number(v) || 0), 0), budAar = b.reduce((s, v) => s + (Number(v) || 0), 0);
+  const provGodkj = prov.reduce((s, v, m) => s + (status[m] === "godkjent" ? v || 0 : 0), 0), provAlle = prov.reduce((s, v) => s + (v || 0), 0);
+  return {
+   p: p,
+   farge: PV_FARGER[i % PV_FARGER.length],
+   fakt: fakt,
+   prov: prov,
+   status: status,
+   bud: Array.from({
+    length: 12
+   }, (_, m) => b[m] ?? null),
+   sist: sist,
+   faktHit: faktHit,
+   budHit: budHit,
+   budAar: budAar,
+   provGodkj: provGodkj,
+   provAlle: provAlle
+  };
+ });
+}
+
+function pvOversiktHtml() {
+ const aar = (pvPeriode || pvForrigeMnd()).slice(0, 4), e = jsEscapeHtml, d = pvOversiktData(aar);
+ if (!d.length) return "";
+ return `<details open style="margin-bottom:16px"><summary style="cursor:pointer;font-weight:600;margin-bottom:8px">📊 Oversikt ${aar}</summary>\n    <div class="hint" style="margin:0 0 8px">Fra lagrede måneder (utkast og godkjente). Måneder som ikke er lagret, mangler i grafen. Budsjett hittil = til og med siste lagrede måned.</div>\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">\n    ${d.map((x, i) => {
+  const pst = x.budHit ? x.faktHit / x.budHit * 100 : null;
+  return `<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px">\n      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="width:10px;height:10px;border-radius:3px;background:${x.farge};display:inline-block"></span><b>${e(x.p.navn)}</b><span class="muted" style="font-size:12px">${x.p.type === "tekniker" ? "timer" : "selger"}</span></div>\n      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12.5px;margin-bottom:6px">\n        <span>Fakturert: <b>${pvKr(x.faktHit)}</b></span><span>Budsjett hittil: ${x.budHit ? pvKr(x.budHit) : "–"} ${pvLys(pst)}${pst != null ? ` ${Math.round(pst)} %` : ""}</span>\n        <span>Årsbudsjett: ${x.budAar ? pvKr(x.budAar) : "–"}</span><span>Provisjon godkjent: <b>${pvKr(x.provGodkj)}</b>${x.provAlle !== x.provGodkj ? ` <span class="muted">(alle lagrede ${pvKr(x.provAlle)})</span>` : ""}</span></div>\n      <div style="height:170px"><canvas id="pv-graf-${i}" aria-label="Fakturert mot budsjett per måned for ${e(x.p.navn)}"></canvas></div></div>`;
+ }).join("")}\n    </div>\n    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-top:12px"><b>Provisjon per måned</b> <span class="muted" style="font-size:12px">å utbetale, alle lagrede måneder</span>\n      <div style="height:200px;margin-top:6px"><canvas id="pv-graf-prov" aria-label="Provisjon per måned per person"></canvas></div></div>\n  </details>`;
+}
+
+function pvTegnOversikt() {
+ if (typeof Chart === "undefined") return;
+ const aar = (pvPeriode || pvForrigeMnd()).slice(0, 4), d = pvOversiktData(aar);
+ d.forEach((x, i) => pvGraf(`pv-graf-${i}`, x.fakt, x.bud, x.farge, x.p.type === "tekniker" ? "Fakturerte timer" : "Fakturert"));
+ const el = document.getElementById("pv-graf-prov");
+ if (!el) return;
+ if (charts["pv-graf-prov"]) charts["pv-graf-prov"].destroy();
+ charts["pv-graf-prov"] = new Chart(el, {
+  type: "bar",
+  data: {
+   labels: PV_MND,
+   datasets: d.map(x => ({
+    label: x.p.navn,
+    data: x.prov,
+    backgroundColor: x.farge,
+    stack: "p",
+    borderRadius: 2,
+    borderColor: "#fff",
+    borderWidth: {
+     top: 2
+    },
+    maxBarThickness: 34
+   }))
+  },
+  options: {
+   responsive: true,
+   maintainAspectRatio: false,
+   interaction: {
+    mode: "index",
+    intersect: false
+   },
+   plugins: {
+    legend: {
+     position: "bottom",
+     labels: {
+      boxWidth: 10,
+      font: {
+       size: 11
+      },
+      color: "#52514e"
+     }
+    },
+    tooltip: {
+     backgroundColor: "#fff",
+     titleColor: "#111",
+     bodyColor: "#374151",
+     borderColor: "#e5e7eb",
+     borderWidth: 1,
+     padding: 10,
+     callbacks: {
+      label: c => {
+       const x = d[c.datasetIndex];
+       return c.raw == null ? null : `${x.p.navn}: ${pvKr(c.raw)}${x.status[c.dataIndex] === "godkjent" ? " ✅" : " (utkast)"}`;
+      }
+     }
+    }
+   },
+   scales: {
+    x: {
+     stacked: true,
+     grid: {
+      display: false
+     },
+     ticks: {
+      font: {
+       size: 11
+      },
+      color: "#9ca3af"
+     }
+    },
+    y: {
+     stacked: true,
+     beginAtZero: true,
+     grid: {
+      color: "#f3f4f6"
+     },
+     border: {
+      display: false
+     },
+     ticks: {
+      font: {
+       size: 11
+      },
+      color: "#9ca3af"
+     }
+    }
+   }
+  }
+ });
+}
+
+async function renderMinProvisjon(tving) {
+ const boks = document.getElementById("hjem-min-provisjon");
+ if (!boks) return;
+ const aar = String((new Date).getFullYear());
+ if (pvMin === false) {
+  boks.style.display = "none";
+  return;
+ }
+ if (!tving && pvMin && Date.now() - pvMinHentet < 10 * 60 * 1e3) {
+  pvMinVis();
+  return;
+ }
+ if (pvMinLaster) return;
+ pvMinLaster = true;
+ try {
+  const token = await vfGetApiToken();
+  const resp = await fetch(vfApiUrl(`/api/min_provisjon?aar=${aar}`), {
+   headers: {
+    Authorization: `Bearer ${token}`
+   }
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (resp.status === 404 && data.ingenProvisjon) {
+   pvMin = false;
+   boks.style.display = "none";
+   return;
+  }
+  if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+  pvMin = data;
+  pvMinHentet = Date.now();
+  pvMinVis();
+ } catch (e) {
+  console.warn("Min provisjon", e);
+  if (!pvMin) {
+   boks.style.display = "none";
+  }
+ } finally {
+  pvMinLaster = false;
+ }
+}
+
+function pvMinVis() {
+ const boks = document.getElementById("hjem-min-provisjon"), d = pvMin;
+ if (!boks || !d) return;
+ const e = jsEscapeHtml, tek = d.person.type === "tekniker", fakt = Array(12).fill(null), prov = Array(12).fill(null);
+ d.perioder.forEach(p => {
+  const m = Number(p.periode.slice(4)) - 1;
+  fakt[m] = Number(p.fakturert) || 0;
+  prov[m] = Number(p.sum) || 0;
+ });
+ const sist = fakt.reduce((s, v, m) => v != null ? m : s, -1), bud = d.budsjett || [];
+ const faktHit = fakt.reduce((s, v) => s + (v || 0), 0), budAar = bud.reduce((s, v) => s + (Number(v) || 0), 0);
+ const budHit = fakt.reduce((s, v, m) => s + (v != null ? Number(bud[m]) || 0 : 0), 0);
+ const provHit = prov.reduce((s, v) => s + (v || 0), 0), pst = budHit ? faktHit / budHit * 100 : null, aarPst = budAar ? Math.min(100, faktHit / budAar * 100) : null;
+ const tr = Object.entries(d.person.treaar || {});
+ let h = `<div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">💰 Min provisjon ${e(d.aar)}</div>\n  <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff">\n    <div class="hint" style="margin:0 0 10px">Bare godkjente måneder. Sats ${String(d.person.sats ?? "").replace(".", ",")} % av ${tek ? "egne fakturerte timer" : "fakturert eks. mva der du står som selger"}${tr.length ? `. 3-årsverdi på ${e(tr.map(([k, v]) => `${k} (${v === 36 ? "månedspris × 36" : "× " + v})`).join(", "))}` : ""}.</div>`;
+ if (!d.perioder.length) {
+  boks.innerHTML = h + `<div class="pk-tom">Ingen godkjente måneder ennå i ${e(d.aar)}.</div></div>`;
+  boks.style.display = "";
+  return;
+ }
+ h += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">\n      ${pvKpi(tek ? "Fakturerte timer i år" : "Fakturert i år", pvKr(faktHit), `${d.perioder.length} godkjente måneder, siste ${pvPeriodeTekst(d.aar + String(sist + 1).padStart(2, "0"))}`)}\n      ${pvKpi(tek ? "Mål for de samme månedene" : "Budsjett for de samme månedene", budHit ? pvKr(budHit) : "–", pst != null ? `${pvLys(pst)} ${Math.round(pst)} % av ${tek ? "målet" : "budsjettet"}` : "")}\n      ${pvKpi(tek ? "Årsmål" : "Årsbudsjett", budAar ? pvKr(budAar) : "–", aarPst != null ? `<div style="height:6px;background:#e5e7eb;border-radius:3px;margin-top:5px;overflow:hidden"><div style="height:100%;width:${aarPst}%;background:#2a78d6"></div></div><div style="margin-top:3px">${Math.round(aarPst)} % nådd</div>` : "")}\n      ${pvKpi("Provisjon i år", pvKr(provHit), "sum å utbetale")}\n    </div>\n    <div style="height:220px;margin-bottom:12px"><canvas id="pv-min-graf" aria-label="Fakturert mot budsjett per måned"></canvas></div>\n    <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Måned</th><th style="text-align:right">Fakturert</th><th style="text-align:right">Grunnlag</th><th style="text-align:right">Sats</th><th style="text-align:right">Provisjon</th><th style="text-align:right">3-årsverdi</th><th style="text-align:right">3-års prov.</th><th style="text-align:right">Justering</th><th style="text-align:right">Utbetales</th></tr></thead><tbody>\n    ${[ ...d.perioder ].reverse().map(p => `<tr class="rad-klikkbar" onclick="pvMinApen['${p.periode}']=!pvMinApen['${p.periode}'];pvMinVis()"><td><b>${pvMinApen[p.periode] ? "▾" : "▸"} ${e(pvPeriodeTekst(p.periode))}</b></td><td style="text-align:right">${pvKr(p.fakturert)}</td><td style="text-align:right">${pvKr(p.grunnlag)}</td><td style="text-align:right">${String(p.sats ?? "").replace(".", ",")} %</td><td style="text-align:right">${pvKr(p.provisjon)}</td><td style="text-align:right">${p.treaarVerdi ? pvKr(p.treaarVerdi) : "–"}</td><td style="text-align:right">${p.treaarProv ? pvKr(p.treaarProv) : "–"}</td><td style="text-align:right">${p.justering ? pvKr(p.justering) : "–"}</td><td style="text-align:right"><b>${pvKr(p.sum)}</b></td></tr>\n      ${pvMinApen[p.periode] ? `<tr><td colspan="9" style="background:#f8fafc">${pvMinLinjerHtml(p)}</td></tr>` : ""}`).join("")}\n    </tbody></table></div></div>`;
+ boks.innerHTML = h;
+ boks.style.display = "";
+ pvGraf("pv-min-graf", fakt, Array.from({
+  length: 12
+ }, (_, m) => bud[m] ?? null), "#2a78d6", tek ? "Fakturerte timer" : "Fakturert");
+}
+
+function pvMinLinjerHtml(p) {
+ const e = jsEscapeHtml;
+ const just = (p.justeringer || []).map(j => `<div style="font-size:12.5px">Justering: ${e(j.tekst)} <b>${pvKr(j.belop)}</b></div>`).join("");
+ if (!Array.isArray(p.linjer)) return `<div class="muted" style="font-size:12.5px">Linjene er ikke lagret for denne måneden (godkjent før linjer ble tatt med).</div>${just}`;
+ if (!p.linjer.length) return `<div class="muted">Ingen linjer.</div>${just}`;
+ const hva = {
+  unntak: '<span class="pk-merke pk-merke-gra">unntatt</span>',
+  treaar: '<span class="pk-merke pk-merke-gronn">3-årsverdi</span>'
+ };
+ return `<div class="tbl-wrap" style="max-height:360px;overflow:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Dok</th><th>Dato</th><th>Kunde</th><th>Varenr</th><th>Beskrivelse</th><th style="text-align:right">Antall</th><th style="text-align:right">Beløp</th><th style="text-align:right">Grunnlag</th><th></th></tr></thead><tbody>\n  ${p.linjer.map(z => `<tr><td>${z.t === "KN" ? "KN " : ""}${e(z.nr)}</td><td>${e(z.dato)}</td><td>${e(z.kunde)}</td><td>${e(z.varenr)}</td><td>${e(z.beskrivelse)}</td><td style="text-align:right">${pkAntall(z.antall)} ${e(z.enhet || "")}</td><td style="text-align:right">${pvKr(z.belop)}</td>\n    <td style="text-align:right">${z.hva === "treaar" ? `${pvKr(z.mndPris)} × ${z.faktor} = ${pvKr(z.verdi)}` : pvKr(z.grunnlag)}</td><td>${hva[z.hva] || ""}</td></tr>`).join("")}\n  </tbody></table></div>${just}`;
 }
 
 (function() {
