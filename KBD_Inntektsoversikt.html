@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.322 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.323 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15215,6 +15215,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.323",
+ dato: "15.10.2026",
+ punkter: [ "Provisjon: ny status «📁 Historikk (utbetalt via Excel)» for måneder som ble utbetalt før KBD CC. Måneden låses som en godkjent måned, men teller ikke som utbetaling fra KBD CC og vises ikke i provisjonsgrafen.", "«💰 Min provisjon» på Hjem viser nå også fakturert mot budsjett for historikk-månedene, så hele året kommer med i grafen. Provisjonsbeløpet vises bare for måneder som er godkjent i KBD CC." ]
+}, {
  versjon: "v1.48.322",
  dato: "15.10.2026",
  punkter: [ "Ny boks «💰 Min provisjon» på Hjem for de som har provisjon. Den viser egne godkjente måneder: fakturert mot budsjett i en graf, provisjon, sats, 3-årsverdi og fakturalinjene per måned. Hver ansatt ser bare sine egne tall.", "Provisjon (admin): ny grafisk oversikt over året med fakturert mot budsjett per person og provisjon per måned. Reglene har fått feltet E-post, som kobler personen til «Min provisjon». Linjene lagres nå når en måned lagres eller godkjennes." ]
@@ -27368,6 +27372,14 @@ function pvUlagret() {
  return l.hentet !== u.hentet || JSON.stringify(l.justeringer || []) !== JSON.stringify(u.justeringer || []) || j(l.kreditTildeling) !== j(u.kreditTildeling) || j(l.treaarOverstyr) !== j(u.treaarOverstyr);
 }
 
+function pvLaast(u) {
+ return u?.status === "godkjent" || u?.status === "historikk";
+}
+
+function pvStatusIkon(st) {
+ return st === "godkjent" ? " ✅" : st === "historikk" ? " 📁" : "";
+}
+
 function pvForrigeMnd() {
  const d = new Date;
  d.setDate(1);
@@ -27544,7 +27556,7 @@ async function renderProvisjon() {
  let h = "";
  if (!r.personer.length) h += `<div class="onb-advarsel" style="margin-bottom:12px">Ingen regler er lagt inn ennå. Legg inn personer, satser og varer under «Regler og budsjett» nederst, eller bruk «📋 Lim inn regler (JSON)».</div>`;
  if (pvFinnes === false) h += `<div class="onb-advarsel" style="margin-bottom:12px">Lista «ProvisjonData» finnes ikke ennå. Beregningen virker, men regler, budsjett og godkjenning kan ikke lagres før lista er opprettet (Kunde360-oppsett-sjekkliste.md, Liste 46).</div>`;
- h += `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">\n    <label style="font-weight:600">Periode</label><select id="pv-periode" style="width:auto;max-width:220px" onchange="pvPeriode=this.value;renderProvisjon()">${valg.map(p => `<option value="${p}"${p === pvPeriode ? " selected" : ""}>${pvPeriodeTekst(p)}${pvData["periode-" + p]?.status === "godkjent" ? " ✅" : ""}</option>`).join("")}</select>\n    <button class="prim" id="pv-hent" onclick="pvHent()" ${pvLaster ? "disabled" : ""}>${pvLaster ? "Henter fra Visma …" : "🔄 Hent fra Visma"}</button>\n    ${u.status === "godkjent" ? `<span class="pk-merke pk-merke-gronn">✅ Godkjent ${u.godkjentDato ? new Date(u.godkjentDato).toLocaleDateString("nb-NO") : ""}${u.godkjentAv ? " av " + e(u.godkjentAv) : ""}</span>` : pvGrunnlag ? pvUlagret() ? '<span class="pk-merke pk-merke-rod" title="Trykk «Lagre utkast» for at måneden skal telle med i akkumulert">⚠ Ikke lagret</span>' : '<span class="pk-merke pk-merke-gul">💾 Utkast lagret</span>' : ""}\n    ${pvGrunnlag ? `<span class="hint" style="margin:0">Hentet ${u.hentet ? new Date(u.hentet).toLocaleString("nb-NO", {
+ h += `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">\n    <label style="font-weight:600">Periode</label><select id="pv-periode" style="width:auto;max-width:220px" onchange="pvPeriode=this.value;renderProvisjon()">${valg.map(p => `<option value="${p}"${p === pvPeriode ? " selected" : ""}>${pvPeriodeTekst(p)}${pvStatusIkon(pvData["periode-" + p]?.status)}</option>`).join("")}</select>\n    <button class="prim" id="pv-hent" onclick="pvHent()" ${pvLaster ? "disabled" : ""}>${pvLaster ? "Henter fra Visma …" : "🔄 Hent fra Visma"}</button>\n    ${u.status === "historikk" ? `<span class="pk-merke pk-merke-gra">📁 Historikk (utbetalt via Excel)</span>` : u.status === "godkjent" ? `<span class="pk-merke pk-merke-gronn">✅ Godkjent ${u.godkjentDato ? new Date(u.godkjentDato).toLocaleDateString("nb-NO") : ""}${u.godkjentAv ? " av " + e(u.godkjentAv) : ""}</span>` : pvGrunnlag ? pvUlagret() ? '<span class="pk-merke pk-merke-rod" title="Trykk «Lagre utkast» for at måneden skal telle med i akkumulert">⚠ Ikke lagret</span>' : '<span class="pk-merke pk-merke-gul">💾 Utkast lagret</span>' : ""}\n    ${pvGrunnlag ? `<span class="hint" style="margin:0">Hentet ${u.hentet ? new Date(u.hentet).toLocaleString("nb-NO", {
   dateStyle: "short",
   timeStyle: "short"
  }) : ""} · ${pvGrunnlag.antallFakturaer} fakturaer (${pvGrunnlag.utenSelger} uten selger, f.eks. kontrakter) · ${pvGrunnlag.antallKreditnotaer} kreditnotaer</span>` : ""}\n  </div>`;
@@ -27576,17 +27588,17 @@ async function renderProvisjon() {
  const kn = pvGrunnlag.dokumenter.filter(d => d.type === "Kreditnota" && !d.selger && d.sumEksMva);
  if (kn.length) {
   const selgere = r.personer.filter(p => p.type === "selger");
-  h += `<div style="font-weight:600;margin:16px 0 6px">Kreditnotaer uten selger (${kn.length})</div><div class="hint" style="margin:0 0 6px">Visma har ikke selger på disse. Velg selger hvis kreditnotaen gjelder et salg som har gitt provisjon.</div>\n      <div class="tbl-wrap"><table class="pk-tabell pk-liten"><thead><tr><th>Nr</th><th>Dato</th><th>Kunde</th><th>Tekst</th><th style="text-align:right">Beløp eks. mva</th><th>Trekkes fra</th></tr></thead><tbody>\n      ${kn.map(d => `<tr><td>${e(d.nr)}</td><td>${e(d.dato)}</td><td>${e(d.kunde.navn)}</td><td>${e(d.tekst)}</td><td style="text-align:right">${pvKr(d.sumEksMva)}</td><td><select style="width:auto" onchange="pvUtkast.kreditTildeling['${e(d.nr)}']=this.value||undefined;renderProvisjon()" ${u.status === "godkjent" ? "disabled" : ""}><option value="">Ingen</option>${selgere.map(p => `<option value="${p.id}"${u.kreditTildeling?.[d.nr] === p.id ? " selected" : ""}>${e(p.navn)}</option>`).join("")}</select></td></tr>`).join("")}\n      </tbody></table></div>`;
+  h += `<div style="font-weight:600;margin:16px 0 6px">Kreditnotaer uten selger (${kn.length})</div><div class="hint" style="margin:0 0 6px">Visma har ikke selger på disse. Velg selger hvis kreditnotaen gjelder et salg som har gitt provisjon.</div>\n      <div class="tbl-wrap"><table class="pk-tabell pk-liten"><thead><tr><th>Nr</th><th>Dato</th><th>Kunde</th><th>Tekst</th><th style="text-align:right">Beløp eks. mva</th><th>Trekkes fra</th></tr></thead><tbody>\n      ${kn.map(d => `<tr><td>${e(d.nr)}</td><td>${e(d.dato)}</td><td>${e(d.kunde.navn)}</td><td>${e(d.tekst)}</td><td style="text-align:right">${pvKr(d.sumEksMva)}</td><td><select style="width:auto" onchange="pvUtkast.kreditTildeling['${e(d.nr)}']=this.value||undefined;renderProvisjon()" ${pvLaast(u) ? "disabled" : ""}><option value="">Ingen</option>${selgere.map(p => `<option value="${p.id}"${u.kreditTildeling?.[d.nr] === p.id ? " selected" : ""}>${e(p.navn)}</option>`).join("")}</select></td></tr>`).join("")}\n      </tbody></table></div>`;
  }
- h += `<div style="font-weight:600;margin:16px 0 6px">Justeringer (clawback, manuelle tillegg)</div>\n    <div class="tbl-wrap"><table class="pk-tabell pk-liten"><tbody>${(u.justeringer || []).map((j, i) => `<tr><td>${e(r.personer.find(p => p.id === j.personId)?.navn || j.personId)}</td><td>${e(j.tekst)}</td><td style="text-align:right">${pvKr(j.belop)}</td><td>${u.status === "godkjent" ? "" : `<button class="btn-sm" onclick="pvUtkast.justeringer.splice(${i},1);renderProvisjon()">Fjern</button>`}</td></tr>`).join("") || '<tr><td class="muted">Ingen justeringer.</td></tr>'}</tbody></table></div>\n    ${u.status === "godkjent" ? "" : `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><select id="pv-j-person" style="width:auto;max-width:180px">${r.personer.map(p => `<option value="${p.id}">${e(p.navn)}</option>`).join("")}</select><input type="text" id="pv-j-tekst" placeholder="F.eks. Clawback 8/36 kunde X" style="width:320px;max-width:100%"><input type="number" step="0.01" id="pv-j-belop" placeholder="Beløp (− for trekk)" style="width:150px"><button class="btn-sm" onclick="pvLeggTilJustering()">＋ Legg til</button></div>`}`;
- h += `<div class="modal-footer" style="justify-content:flex-start;gap:8px;margin-top:16px">\n    <button class="btn-sm" onclick="pvExcel()">📥 Last ned Excel</button>\n    ${u.status === "godkjent" ? `<button class="btn-sm" onclick="pvGjenapne()">↩︎ Gjenåpne perioden</button>` : `<button class="btn-sm" onclick="pvLagrePeriode(false)">💾 Lagre utkast</button><button class="prim" onclick="pvLagrePeriode(true)">✅ Godkjenn ${e(pvPeriodeTekst(pvPeriode))}</button>`}\n  </div>`;
+ h += `<div style="font-weight:600;margin:16px 0 6px">Justeringer (clawback, manuelle tillegg)</div>\n    <div class="tbl-wrap"><table class="pk-tabell pk-liten"><tbody>${(u.justeringer || []).map((j, i) => `<tr><td>${e(r.personer.find(p => p.id === j.personId)?.navn || j.personId)}</td><td>${e(j.tekst)}</td><td style="text-align:right">${pvKr(j.belop)}</td><td>${pvLaast(u) ? "" : `<button class="btn-sm" onclick="pvUtkast.justeringer.splice(${i},1);renderProvisjon()">Fjern</button>`}</td></tr>`).join("") || '<tr><td class="muted">Ingen justeringer.</td></tr>'}</tbody></table></div>\n    ${pvLaast(u) ? "" : `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><select id="pv-j-person" style="width:auto;max-width:180px">${r.personer.map(p => `<option value="${p.id}">${e(p.navn)}</option>`).join("")}</select><input type="text" id="pv-j-tekst" placeholder="F.eks. Clawback 8/36 kunde X" style="width:320px;max-width:100%"><input type="number" step="0.01" id="pv-j-belop" placeholder="Beløp (− for trekk)" style="width:150px"><button class="btn-sm" onclick="pvLeggTilJustering()">＋ Legg til</button></div>`}`;
+ h += `<div class="modal-footer" style="justify-content:flex-start;gap:8px;margin-top:16px">\n    <button class="btn-sm" onclick="pvExcel()">📥 Last ned Excel</button>\n    ${pvLaast(u) ? `<button class="btn-sm" onclick="pvGjenapne()">↩︎ Gjenåpne perioden</button>` : `<button class="btn-sm" onclick="pvLagrePeriode(false)">💾 Lagre utkast</button><button class="btn-sm" onclick="pvLagrePeriode('historikk')" title="For måneder som ble utbetalt fra Excel. De ansatte ser fakturert mot budsjett på Hjem, men ikke provisjonsbeløpet.">📁 Merk som historikk (utbetalt via Excel)</button><button class="prim" onclick="pvLagrePeriode(true)">✅ Godkjenn ${e(pvPeriodeTekst(pvPeriode))}</button>`}\n  </div>`;
  h += pvInnstHtml(r);
  el.innerHTML = h;
  pvTegnOversikt();
 }
 
 function pvDetaljHtml(x) {
- const e = jsEscapeHtml, u = pvUtkast, las = u.status === "godkjent";
+ const e = jsEscapeHtml, u = pvUtkast, las = pvLaast(u);
  if (!x.linjer.length) return '<div class="muted">Ingen linjer i perioden.</div>';
  const hva = {
   vanlig: "",
@@ -27613,7 +27625,7 @@ function pvLeggTilJustering() {
 
 async function pvHent() {
  if (pvLaster) return;
- if (pvUtkast?.status === "godkjent" && !confirm("Perioden er godkjent. Hente på nytt fra Visma og lage et nytt utkast?")) return;
+ if (pvLaast(pvUtkast) && !confirm(`Perioden er ${pvUtkast.status === "historikk" ? "merket som historikk" : "godkjent"}. Hente på nytt fra Visma og lage et nytt utkast?`)) return;
  pvLaster = true;
  renderProvisjon();
  try {
@@ -27642,9 +27654,11 @@ async function pvHent() {
  }
 }
 
-async function pvLagrePeriode(godkjenn) {
+async function pvLagrePeriode(modus) {
  const res = pvBeregn();
  if (!res) return;
+ const historikk = modus === "historikk", godkjenn = modus === true;
+ if (historikk && !confirm(`Merke ${pvPeriodeTekst(pvPeriode)} som historikk (utbetalt via Excel)?\n\nDe ansatte ser fakturert mot budsjett for måneden på Hjem, men ikke provisjonsbeløpet. Gjelder alle personer.`)) return;
  if (godkjenn && !confirm(`Godkjenne provisjonen for ${pvPeriodeTekst(pvPeriode)}?\n\n${Object.values(res).map(x => `${x.p.navn}: ${pvKr(x.sum)}`).join("\n")}`)) return;
  const resultat = {};
  Object.values(res).forEach(x => {
@@ -27682,10 +27696,10 @@ async function pvLagrePeriode(godkjenn) {
   ...pvUtkast,
   resultat: resultat,
   grunnlag: pvGrunnlag,
-  status: godkjenn ? "godkjent" : "utkast"
+  status: godkjenn ? "godkjent" : historikk ? "historikk" : "utkast"
  };
  delete ny._periode;
- if (godkjenn) {
+ if (godkjenn || historikk) {
   ny.godkjentAv = currentUser?.name || currentUser?.username || "";
   ny.godkjentDato = (new Date).toISOString();
  }
@@ -27695,7 +27709,7 @@ async function pvLagrePeriode(godkjenn) {
    ...ny,
    _periode: pvPeriode
   };
-  vfShowToast?.(godkjenn ? "✅ Perioden er godkjent" : "💾 Utkastet er lagret");
+  vfShowToast?.(godkjenn ? "✅ Perioden er godkjent" : historikk ? "📁 Merket som historikk" : "💾 Utkastet er lagret");
  } catch (err) {
   alert("Kunne ikke lagre: " + (err.message || err) + "\n\nSjekk at lista «ProvisjonData» har kolonnen Data (flere linjer, ren tekst).");
  }
@@ -27716,7 +27730,7 @@ function pvExcel() {
   alert("Excel-verktøyet er ikke lastet.");
   return;
  }
- const wb = XLSX.utils.book_new(), sum = [ [ "Provisjon", pvPeriodeTekst(pvPeriode), pvUtkast.status === "godkjent" ? "Godkjent" : "Utkast" ], [], [ "Person", "Grunnlag", "Sats %", "Provisjon", "3-årsverdi", "3-års provisjon", "Justering", "Å utbetale", "Fakturert" ] ];
+ const wb = XLSX.utils.book_new(), sum = [ [ "Provisjon", pvPeriodeTekst(pvPeriode), pvUtkast.status === "godkjent" ? "Godkjent" : pvUtkast.status === "historikk" ? "Historikk (utbetalt via Excel)" : "Utkast" ], [], [ "Person", "Grunnlag", "Sats %", "Provisjon", "3-årsverdi", "3-års provisjon", "Justering", "Å utbetale", "Fakturert" ] ];
  Object.values(res).forEach(x => sum.push([ x.p.navn, Math.round(x.grunnlag * 100) / 100, x.p.sats, Math.round(x.provisjon * 100) / 100, Math.round(x.treaarVerdi * 100) / 100, Math.round(x.treaarProv * 100) / 100, x.justering, x.sum, Math.round(x.fakturert * 100) / 100 ]));
  (pvUtkast.justeringer || []).forEach(j => sum.push([ "Justering: " + (res[j.personId]?.p.navn || j.personId), j.tekst, "", "", "", "", j.belop ]));
  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), "Sammendrag");
@@ -28013,7 +28027,8 @@ function pvOversiktData(aar) {
   }
   const sist = fakt.reduce((s, v, m) => v != null ? m : s, -1), b = (bud[p.id] || []).slice(0, 12);
   const faktHit = fakt.reduce((s, v) => s + (v || 0), 0), budHit = b.slice(0, sist + 1).reduce((s, v) => s + (Number(v) || 0), 0), budAar = b.reduce((s, v) => s + (Number(v) || 0), 0);
-  const provGodkj = prov.reduce((s, v, m) => s + (status[m] === "godkjent" ? v || 0 : 0), 0), provAlle = prov.reduce((s, v) => s + (v || 0), 0);
+  const provGodkj = prov.reduce((s, v, m) => s + (status[m] === "godkjent" ? v || 0 : 0), 0), provAlle = prov.reduce((s, v, m) => s + (status[m] === "historikk" ? 0 : v || 0), 0);
+  for (let m = 0; m < 12; m++) if (status[m] === "historikk") prov[m] = null;
   return {
    p: p,
    farge: PV_FARGER[i % PV_FARGER.length],
@@ -28036,7 +28051,7 @@ function pvOversiktData(aar) {
 function pvOversiktHtml() {
  const aar = (pvPeriode || pvForrigeMnd()).slice(0, 4), e = jsEscapeHtml, d = pvOversiktData(aar);
  if (!d.length) return "";
- return `<details open style="margin-bottom:16px"><summary style="cursor:pointer;font-weight:600;margin-bottom:8px">📊 Oversikt ${aar}</summary>\n    <div class="hint" style="margin:0 0 8px">Fra lagrede måneder (utkast og godkjente). Måneder som ikke er lagret, mangler i grafen. Budsjett hittil = til og med siste lagrede måned.</div>\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">\n    ${d.map((x, i) => {
+ return `<details open style="margin-bottom:16px"><summary style="cursor:pointer;font-weight:600;margin-bottom:8px">📊 Oversikt ${aar}</summary>\n    <div class="hint" style="margin:0 0 8px">Fra lagrede måneder (utkast, godkjente og 📁 historikk). Historikk-måneder er med i fakturert, men ikke i provisjon. Måneder som ikke er lagret, mangler i grafen. Budsjett hittil = til og med siste lagrede måned.</div>\n    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">\n    ${d.map((x, i) => {
   const pst = x.budHit ? x.faktHit / x.budHit * 100 : null;
   return `<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px">\n      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="width:10px;height:10px;border-radius:3px;background:${x.farge};display:inline-block"></span><b>${e(x.p.navn)}</b><span class="muted" style="font-size:12px">${x.p.type === "tekniker" ? "timer" : "selger"}</span></div>\n      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12.5px;margin-bottom:6px">\n        <span>Fakturert: <b>${pvKr(x.faktHit)}</b></span><span>Budsjett hittil: ${x.budHit ? pvKr(x.budHit) : "–"} ${pvLys(pst)}${pst != null ? ` ${Math.round(pst)} %` : ""}</span>\n        <span>Årsbudsjett: ${x.budAar ? pvKr(x.budAar) : "–"}</span><span>Provisjon godkjent: <b>${pvKr(x.provGodkj)}</b>${x.provAlle !== x.provGodkj ? ` <span class="muted">(alle lagrede ${pvKr(x.provAlle)})</span>` : ""}</span></div>\n      <div style="height:170px"><canvas id="pv-graf-${i}" aria-label="Fakturert mot budsjett per måned for ${e(x.p.navn)}"></canvas></div></div>`;
  }).join("")}\n    </div>\n    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-top:12px"><b>Provisjon per måned</b> <span class="muted" style="font-size:12px">å utbetale, alle lagrede måneder</span>\n      <div style="height:200px;margin-top:6px"><canvas id="pv-graf-prov" aria-label="Provisjon per måned per person"></canvas></div></div>\n  </details>`;
@@ -28181,20 +28196,21 @@ function pvMinVis() {
  d.perioder.forEach(p => {
   const m = Number(p.periode.slice(4)) - 1;
   fakt[m] = Number(p.fakturert) || 0;
-  prov[m] = Number(p.sum) || 0;
+  if (!p.historikk) prov[m] = Number(p.sum) || 0;
  });
+ const antGodkj = d.perioder.filter(p => !p.historikk).length, antHist = d.perioder.length - antGodkj;
  const sist = fakt.reduce((s, v, m) => v != null ? m : s, -1), bud = d.budsjett || [];
  const faktHit = fakt.reduce((s, v) => s + (v || 0), 0), budAar = bud.reduce((s, v) => s + (Number(v) || 0), 0);
  const budHit = fakt.reduce((s, v, m) => s + (v != null ? Number(bud[m]) || 0 : 0), 0);
  const provHit = prov.reduce((s, v) => s + (v || 0), 0), pst = budHit ? faktHit / budHit * 100 : null, aarPst = budAar ? Math.min(100, faktHit / budAar * 100) : null;
  const tr = Object.entries(d.person.treaar || {});
- let h = `<div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">💰 Min provisjon ${e(d.aar)}</div>\n  <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff">\n    <div class="hint" style="margin:0 0 10px">Bare godkjente måneder. Sats ${String(d.person.sats ?? "").replace(".", ",")} % av ${tek ? "egne fakturerte timer" : "fakturert eks. mva der du står som selger"}${tr.length ? `. 3-årsverdi på ${e(tr.map(([k, v]) => `${k} (${v === 36 ? "månedspris × 36" : "× " + v})`).join(", "))}` : ""}.</div>`;
+ let h = `<div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">💰 Min provisjon ${e(d.aar)}</div>\n  <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff">\n    <div class="hint" style="margin:0 0 10px">Godkjente måneder${antHist ? ", og fakturert for måneder som ble utbetalt via Excel (📁)" : ""}. Sats ${String(d.person.sats ?? "").replace(".", ",")} % av ${tek ? "egne fakturerte timer" : "fakturert eks. mva der du står som selger"}${tr.length ? `. 3-årsverdi på ${e(tr.map(([k, v]) => `${k} (${v === 36 ? "månedspris × 36" : "× " + v})`).join(", "))}` : ""}.</div>`;
  if (!d.perioder.length) {
   boks.innerHTML = h + `<div class="pk-tom">Ingen godkjente måneder ennå i ${e(d.aar)}.</div></div>`;
   boks.style.display = "";
   return;
  }
- h += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">\n      ${pvKpi(tek ? "Fakturerte timer i år" : "Fakturert i år", pvKr(faktHit), `${d.perioder.length} godkjente måneder, siste ${pvPeriodeTekst(d.aar + String(sist + 1).padStart(2, "0"))}`)}\n      ${pvKpi(tek ? "Mål for de samme månedene" : "Budsjett for de samme månedene", budHit ? pvKr(budHit) : "–", pst != null ? `${pvLys(pst)} ${Math.round(pst)} % av ${tek ? "målet" : "budsjettet"}` : "")}\n      ${pvKpi(tek ? "Årsmål" : "Årsbudsjett", budAar ? pvKr(budAar) : "–", aarPst != null ? `<div style="height:6px;background:#e5e7eb;border-radius:3px;margin-top:5px;overflow:hidden"><div style="height:100%;width:${aarPst}%;background:#2a78d6"></div></div><div style="margin-top:3px">${Math.round(aarPst)} % nådd</div>` : "")}\n      ${pvKpi("Provisjon i år", pvKr(provHit), "sum å utbetale")}\n    </div>\n    <div style="height:220px;margin-bottom:12px"><canvas id="pv-min-graf" aria-label="Fakturert mot budsjett per måned"></canvas></div>\n    <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Måned</th><th style="text-align:right">Fakturert</th><th style="text-align:right">Grunnlag</th><th style="text-align:right">Sats</th><th style="text-align:right">Provisjon</th><th style="text-align:right">3-årsverdi</th><th style="text-align:right">3-års prov.</th><th style="text-align:right">Justering</th><th style="text-align:right">Utbetales</th></tr></thead><tbody>\n    ${[ ...d.perioder ].reverse().map(p => `<tr class="rad-klikkbar" onclick="pvMinApen['${p.periode}']=!pvMinApen['${p.periode}'];pvMinVis()"><td><b>${pvMinApen[p.periode] ? "▾" : "▸"} ${e(pvPeriodeTekst(p.periode))}</b></td><td style="text-align:right">${pvKr(p.fakturert)}</td><td style="text-align:right">${pvKr(p.grunnlag)}</td><td style="text-align:right">${String(p.sats ?? "").replace(".", ",")} %</td><td style="text-align:right">${pvKr(p.provisjon)}</td><td style="text-align:right">${p.treaarVerdi ? pvKr(p.treaarVerdi) : "–"}</td><td style="text-align:right">${p.treaarProv ? pvKr(p.treaarProv) : "–"}</td><td style="text-align:right">${p.justering ? pvKr(p.justering) : "–"}</td><td style="text-align:right"><b>${pvKr(p.sum)}</b></td></tr>\n      ${pvMinApen[p.periode] ? `<tr><td colspan="9" style="background:#f8fafc">${pvMinLinjerHtml(p)}</td></tr>` : ""}`).join("")}\n    </tbody></table></div></div>`;
+ h += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">\n      ${pvKpi(tek ? "Fakturerte timer i år" : "Fakturert i år", pvKr(faktHit), `${d.perioder.length} måneder, siste ${pvPeriodeTekst(d.aar + String(sist + 1).padStart(2, "0"))}`)}\n      ${pvKpi(tek ? "Mål for de samme månedene" : "Budsjett for de samme månedene", budHit ? pvKr(budHit) : "–", pst != null ? `${pvLys(pst)} ${Math.round(pst)} % av ${tek ? "målet" : "budsjettet"}` : "")}\n      ${pvKpi(tek ? "Årsmål" : "Årsbudsjett", budAar ? pvKr(budAar) : "–", aarPst != null ? `<div style="height:6px;background:#e5e7eb;border-radius:3px;margin-top:5px;overflow:hidden"><div style="height:100%;width:${aarPst}%;background:#2a78d6"></div></div><div style="margin-top:3px">${Math.round(aarPst)} % nådd</div>` : "")}\n      ${pvKpi(antHist ? "Provisjon fra KBD CC" : "Provisjon i år", pvKr(provHit), antHist ? `${antGodkj} godkjente måneder (${antHist} utbetalt via Excel)` : "sum å utbetale")}\n    </div>\n    <div style="height:220px;margin-bottom:12px"><canvas id="pv-min-graf" aria-label="Fakturert mot budsjett per måned"></canvas></div>\n    <div class="tbl-wrap" style="overflow-x:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Måned</th><th style="text-align:right">Fakturert</th><th style="text-align:right">Grunnlag</th><th style="text-align:right">Sats</th><th style="text-align:right">Provisjon</th><th style="text-align:right">3-årsverdi</th><th style="text-align:right">3-års prov.</th><th style="text-align:right">Justering</th><th style="text-align:right">Utbetales</th></tr></thead><tbody>\n    ${[ ...d.perioder ].reverse().map(p => p.historikk ? `<tr><td><b>📁 ${e(pvPeriodeTekst(p.periode))}</b></td><td style="text-align:right">${pvKr(p.fakturert)}</td><td colspan="7" class="muted" style="text-align:right">Utbetalt via Excel</td></tr>` : `<tr class="rad-klikkbar" onclick="pvMinApen['${p.periode}']=!pvMinApen['${p.periode}'];pvMinVis()"><td><b>${pvMinApen[p.periode] ? "▾" : "▸"} ${e(pvPeriodeTekst(p.periode))}</b></td><td style="text-align:right">${pvKr(p.fakturert)}</td><td style="text-align:right">${pvKr(p.grunnlag)}</td><td style="text-align:right">${String(p.sats ?? "").replace(".", ",")} %</td><td style="text-align:right">${pvKr(p.provisjon)}</td><td style="text-align:right">${p.treaarVerdi ? pvKr(p.treaarVerdi) : "–"}</td><td style="text-align:right">${p.treaarProv ? pvKr(p.treaarProv) : "–"}</td><td style="text-align:right">${p.justering ? pvKr(p.justering) : "–"}</td><td style="text-align:right"><b>${pvKr(p.sum)}</b></td></tr>\n      ${pvMinApen[p.periode] ? `<tr><td colspan="9" style="background:#f8fafc">${pvMinLinjerHtml(p)}</td></tr>` : ""}`).join("")}\n    </tbody></table></div></div>`;
  boks.innerHTML = h;
  boks.style.display = "";
  pvGraf("pv-min-graf", fakt, Array.from({
