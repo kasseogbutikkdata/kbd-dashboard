@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.314 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.316 · Oppdatert: 15. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -5146,6 +5146,7 @@ onbStartFil("regnskap", event.dataTransfer.files[0])'>
             <option value="Ikke kontaktet">Ikke kontaktet</option>
             <option value="Kontaktet">Kontaktet</option>
             <option value="Lovet betaling">Lovet betaling</option>
+            <option value="Nedbetaling">Nedbetaling</option>
             <option value="Sendt til inkasso">Sendt til inkasso</option>
             <option value="Bestridt">Bestridt</option>
           </select>
@@ -5689,7 +5690,7 @@ let foSort = {
  dir: "desc"
 }, foVisBetalte = false, foKunForfalte = true, foSearch = "", foStatusFilter = "utenInkasso", foApenRad = null, foBucket = "alle";
 
-const FO_STATUSER = [ "Ikke kontaktet", "Kontaktet", "Lovet betaling", "Sendt til inkasso", "Bestridt" ];
+const FO_STATUSER = [ "Ikke kontaktet", "Kontaktet", "Lovet betaling", "Nedbetaling", "Sendt til inkasso", "Bestridt" ];
 
 let forsteTilgangssjekkGjort = false;
 
@@ -15210,6 +15211,14 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.316",
+ dato: "15.10.2026",
+ punkter: [ "Fakturaoppfølging: ny status «Nedbetaling» for kunder som har avtalt å betale ned i avdrag. Den krever dato for neste avdrag (Neste oppfølging), så kunden kommer tilbake på arbeidslisten den dagen." ]
+}, {
+ versjon: "v1.48.315",
+ dato: "15.10.2026",
+ punkter: [ "Fakturaoppfølging: e-post og saldobekreftelse fra Mirrow-kontoen signeres nå med «Veronika» i stedet for «Mirrow»." ]
+}, {
  versjon: "v1.48.314",
  dato: "15.10.2026",
  punkter: [ "Fakturaoppfølging: statusfilteret har fått valget «Alle utenom inkasso», og det er nå standard. Fakturaer som er sendt til inkasso vises fortsatt med «Alle statuser» eller «Sendt til inkasso»." ]
@@ -18358,6 +18367,7 @@ function foStatusBadge(s) {
   "Ikke kontaktet": "#6b7280",
   Kontaktet: "#2563eb",
   "Lovet betaling": "#d97706",
+  Nedbetaling: "#0d9488",
   "Sendt til inkasso": "#dc2626",
   Bestridt: "#7c3aed"
  };
@@ -18986,6 +18996,15 @@ function iaEksporter() {
  XLSX.writeFile(wb, `Ikke_avstemt_Visma_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}.xlsx`);
 }
 
+const EPOST_SIGNATUR_NAVN = {
+ "mirrow@kbd.as": "Veronika"
+};
+
+function epostSignaturNavn() {
+ if (typeof currentUser === "undefined" || !currentUser) return "";
+ return EPOST_SIGNATUR_NAVN[String(currentUser.username || "").toLowerCase()] || currentUser.name || currentUser.username || "";
+}
+
 const IA_FRA_EPOST = "firmapost@kbd.as";
 
 const IA_SVAR_DAGER = 14;
@@ -19026,7 +19045,7 @@ function iaSaldoTekst(r, mott, medVedlegg) {
   year: "numeric"
  });
  const navn = (mott.navn || "").split(" ")[0];
- const avsender = typeof currentUser !== "undefined" && currentUser && (currentUser.name || currentUser.username) || "";
+ const avsender = epostSignaturNavn();
  const netto = r.fakturaer - r.kreditt - r.innbetalt;
  const deler = [];
  if (r.fs.length) deler.push("Åpne fakturaer:\n" + r.fs.map(f => `- Faktura ${f.fakturanr}, forfall ${fDateShort(f.forfallsdato)}: ${kr(f.utestaende || 0)}`).join("\n"));
@@ -19478,7 +19497,7 @@ function foMailInnhold(rad, vedlegg) {
  const linjer = fs.map(f => `- Faktura ${f.fakturanr}: ${fF(f.utestaende || 0)}, forfall ${fDateShort(f.forfallsdato)}`).join("\n");
  const pk = foPurreKontakt(rad);
  const navn = (pk.navn || "").split(" ")[0];
- const avsender = typeof currentUser !== "undefined" && currentUser && (currentUser.name || currentUser.username) || "";
+ const avsender = epostSignaturNavn();
  const tekst = `Hei${navn ? " " + navn : ""},\n\nVi ser at ${fs.length === 1 ? "denne fakturaen" : "disse fakturaene"} ikke er registrert betalt hos oss:\n\n${linjer}\n\nKan du sjekke dette? Si gjerne ifra om noe er uklart, eller om betaling allerede er sendt. Svar gjerne til ${FO_SVAR_EPOST}.\n\nMed vennlig hilsen\n${avsender ? avsender + "\n" : ""}Kasse og Butikkdata AS`;
  const medVedlegg = vedlegg ? tekst.replace(`${linjer}\n\n`, `${linjer}\n\n${fs.length === 1 ? "Fakturaen" : "Fakturaene"} ligger vedlagt.\n\n`) : tekst;
  return {
@@ -20411,6 +20430,11 @@ function lagreFoOppfolging(key, opts = {}) {
  }
  if (nyStatus === "Lovet betaling" && !nesteRaw) {
   alert("Velg datoen kunden har lovet å betale (Neste oppfølging).");
+  nesteEl?.focus();
+  return;
+ }
+ if (nyStatus === "Nedbetaling" && !nesteRaw) {
+  alert("Velg datoen for neste avdrag (Neste oppfølging).");
   nesteEl?.focus();
   return;
  }
