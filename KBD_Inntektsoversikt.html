@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.330 · Oppdatert: 16. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.332 · Oppdatert: 16. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7141,7 +7141,13 @@ function renderVarselMeny() {
  } catch (e) {
   console.warn("Fakturaoppfølging-varsel:", e);
  }
- const antall = mine.length + mineRma.length + mineOnb.length + foVarsler.length;
+ let msVarsler = [];
+ try {
+  msVarsler = msApneTilMeg();
+ } catch (e) {
+  console.warn("Meldinger:", e);
+ }
+ const antall = mine.length + mineRma.length + mineOnb.length + foVarsler.length + msVarsler.length;
  if (antall === 0) {
   btn.style.display = "none";
   badge.style.display = "none";
@@ -7152,7 +7158,7 @@ function renderVarselMeny() {
  btn.style.display = "inline-flex";
  badge.style.display = "inline-block";
  badge.textContent = antall > 99 ? "99+" : String(antall);
- dropdown.innerHTML = foVarsler.map(v => `<div onclick="gaTilFakturaoppfolgingFraVarsel('${v.type}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🧾 [Fakturaoppfølging] ${v.tittel}</div>\n      <div style="font-size:12px;color:#b45309">${fF(v.sum)} utestående · åpne arbeidslisten</div>\n    </div>`).join("") + mineOnb.map(v => `<div onclick="gaTilOnboardingFraVarsel('${v.nokkel}','${v.o.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🚀 [Onboarding] ${onbEsc(v.o.tittel)}</div>\n      <div style="font-size:12px;color:#b45309">${onbEsc(v.tekst)}</div>\n    </div>`).join("") + mineRma.map(r => `<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';jumpToRmaSak('${r.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">📦 [RMA${r.sakNummer != null ? " sak " + r.sakNummer : ""}] ${r.kundeNavn || "Ukjent kunde"}</div>\n      <div style="font-size:12px;color:#4b5563;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Defekt ${r.maskin || "maskin"} ikke mottatt i retur fra kunden</div>\n      <div style="font-size:11px;color:#b45309">${rmaDagerHosKunde(r)} dager siden ny maskin ble sendt ${new Date(r.datoNyMaskinSendtKunde).toLocaleDateString("nb-NO")}</div>\n    </div>`).join("") + mine.map(n => {
+ dropdown.innerHTML = msVarsler.map(v => `<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';msGaTil('${iaJs(v.kundenr)}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🗨️ ${iaEsc(v.fra)} spør om ${iaEsc(v.kundenavn)}</div>\n      <div style="font-size:12px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${iaEsc(v.tekst)}</div>\n      <div style="font-size:11px;color:#b45309">${fDateShort(v.dato)} · svar i loggen på kunden</div>\n    </div>`).join("") + foVarsler.map(v => `<div onclick="gaTilFakturaoppfolgingFraVarsel('${v.type}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🧾 [Fakturaoppfølging] ${v.tittel}</div>\n      <div style="font-size:12px;color:#b45309">${fF(v.sum)} utestående · åpne arbeidslisten</div>\n    </div>`).join("") + mineOnb.map(v => `<div onclick="gaTilOnboardingFraVarsel('${v.nokkel}','${v.o.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🚀 [Onboarding] ${onbEsc(v.o.tittel)}</div>\n      <div style="font-size:12px;color:#b45309">${onbEsc(v.tekst)}</div>\n    </div>`).join("") + mineRma.map(r => `<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';jumpToRmaSak('${r.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">📦 [RMA${r.sakNummer != null ? " sak " + r.sakNummer : ""}] ${r.kundeNavn || "Ukjent kunde"}</div>\n      <div style="font-size:12px;color:#4b5563;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Defekt ${r.maskin || "maskin"} ikke mottatt i retur fra kunden</div>\n      <div style="font-size:11px;color:#b45309">${rmaDagerHosKunde(r)} dager siden ny maskin ble sendt ${new Date(r.datoNyMaskinSendtKunde).toLocaleDateString("nb-NO")}</div>\n    </div>`).join("") + mine.map(n => {
   const kunde = vismaKunder.find(k => samKundenr(k.vismaNummer, n.vismaKundeNummer));
   const kundeNavnVis = n.kundeNavn || kunde?.navn || "Ukjent kunde";
   const ikon = n.type === "Tilbud" ? "📄" : n.type === "Notat" ? "📝" : "🔔";
@@ -15285,6 +15291,14 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.332",
+ dato: "16.10.2026",
+ punkter: [ "Fakturaoppfølging: du kan nå spørre en kollega om en kunde. Skriv @ og navnet i «Ny registrering» (f.eks. «@Thomas har kunden betalt?»). Den du nevner får meldingen i 🔔 og under «Trenger oppmerksomhet» på Hjem, og den står med 🗨️ i loggen med «⏳ venter på svar» til vedkommende skriver noe på kunden.", "Meldinger mellom kolleger teller ikke som kontakt med kunden og påvirker ikke hvem som eier kunden på arbeidslisten." ]
+}, {
+ versjon: "v1.48.331",
+ dato: "16.10.2026",
+ punkter: [ "Nyhetsbrev (e-post): fanen åpner mye raskere. Avtaler og kontaktpersoner slås nå opp én gang i stedet for for hver kunde.", "Nyhetsbrev: ny knapp «📋 Kopier e-postadresser» som kopierer mottakerne til utklippstavlen (lim dem inn i Bcc). Et e-postfelt med flere adresser, f.eks. «a@x.no; b@y.no», deles nå opp i stedet for å merkes som ugyldig." ]
+}, {
  versjon: "v1.48.330",
  dato: "16.10.2026",
  punkter: [ "Start onboarding: «🔑 Bestill Susoft-lisens nå» er nå krysset av som standard. Vil selger ikke bestille lisens, må hen velge hvorfor (f.eks. «Ingen lisens i salget (kun printer/utstyr)»). Grunnen logges og vises på lisenskortet i onboardingen.", "Lisensbestilling: velges «NEI» på Nettbutikk/SuOrder, skjules de andre nettbutikkfeltene, og e-posten viser ikke lenger «Velg» under «Plassering av nettbutikk i G1»." ]
@@ -17837,6 +17851,15 @@ function hentTrengerOppmerksomhet() {
  const mittNavn = currentUser?.name || currentUser?.username || "";
  const idag = new Date;
  idag.setHours(0, 0, 0, 0);
+ try {
+  msApneTilMeg().forEach(v => punkter.push({
+   ikon: "🗨️",
+   tekst: `${v.fra} spør om ${v.kundenavn}: «${String(v.tekst).length > 70 ? String(v.tekst).slice(0, 70) + "…" : v.tekst}»`,
+   handling: () => msGaTil(v.kundenr)
+  }));
+ } catch (e) {
+  console.warn("Meldinger:", e);
+ }
  susoftRma.filter(r => r.ansvarligKbd && r.ansvarligKbd === mittNavn && r.status !== "Ferdig").forEach(r => {
   punkter.push({
    ikon: "🔧",
@@ -18883,7 +18906,7 @@ const IA_HURTIG_TEKST = {
 const IA_PS_URL = "";
 
 function iaNotatHtml(t) {
- return iaEsc(t).replace(/PS#\s?(\d{3,7})/g, (m, nr) => IA_PS_URL ? `<a href="${IA_PS_URL.replace("{nr}", nr)}" target="_blank" rel="noopener" style="background:#ede9fe;color:#5b21b6;border-radius:6px;padding:0 6px;font-weight:600;text-decoration:none">PS#${nr} ↗</a>` : `<span style="background:#ede9fe;color:#5b21b6;border-radius:6px;padding:0 6px;font-weight:600">PS#${nr}</span>`);
+ return msMarkerOmtaler(iaEsc(t)).replace(/PS#\s?(\d{3,7})/g, (m, nr) => IA_PS_URL ? `<a href="${IA_PS_URL.replace("{nr}", nr)}" target="_blank" rel="noopener" style="background:#ede9fe;color:#5b21b6;border-radius:6px;padding:0 6px;font-weight:600;text-decoration:none">PS#${nr} ↗</a>` : `<span style="background:#ede9fe;color:#5b21b6;border-radius:6px;padding:0 6px;font-weight:600">PS#${nr}</span>`);
 }
 
 function iaVisKunde(kundenr) {
@@ -19431,7 +19454,7 @@ function foErMeg(navn) {
 function foSisteLoggMap() {
  const m = new Map;
  fakturaoppfolgingLogg.forEach(l => {
-  if (!l.skrevetAv || l.kilde === "Automatisk") return;
+  if (!l.skrevetAv || l.kilde === "Automatisk" || l.type === "Melding") return;
   const p = m.get(l.fakturanr);
   if (!p || new Date(l.dato || 0) > new Date(p.dato || 0)) m.set(l.fakturanr, l);
  });
@@ -20010,12 +20033,12 @@ function foAvvisInkasso(key) {
 
 function foSistKontakt(fs) {
  const nr = new Set(fs.map(f => f.fakturanr));
- const kand = [ ...fakturaoppfolgingLogg.filter(l => nr.has(l.fakturanr) && l.dato && l.type !== "Status"), ...fs.flatMap(f => foSmsForFaktura(f.fakturanr)).filter(l => l.dato) ];
+ const kand = [ ...fakturaoppfolgingLogg.filter(l => nr.has(l.fakturanr) && l.dato && l.type !== "Status" && l.type !== "Melding"), ...fs.flatMap(f => foSmsForFaktura(f.fakturanr)).filter(l => l.dato) ];
  return kand.sort((a, b) => new Date(b.dato) - new Date(a.dato))[0] || null;
 }
 
 function foKontaktIkon(type) {
- return type === "SMS" ? "📱" : type === "Telefon" ? "📞" : type === "E-post" ? "✉️" : type === "Status" ? "🏷️" : "📝";
+ return type === "Melding" ? "🗨️" : type === "SMS" ? "📱" : type === "Telefon" ? "📞" : type === "E-post" ? "✉️" : type === "Status" ? "🏷️" : "📝";
 }
 
 function foMarkerInkasso(tekst) {
@@ -20491,7 +20514,7 @@ function renderFoDetaljPanel(r) {
  })}\n      ${regBoksHtml({
   hurtigHoyre: `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;color:#6b7280">Type:</span><input type="hidden" id="fo-type-${id}" value="Telefon"/>${typeKnapp("Telefon", "📞")}${typeKnapp("E-post", "✉️")}${typeKnapp("SMS", "💬")}${typeKnapp("Annet", "📝")}</div>`,
   hurtig: `${hk("ingensvar", "📞 Ingen svar", "Lagrer «Ringt – ingen svar» og ny oppfølging om 3 virkedager")}${hk("epost", "✉️ E-post sendt", "Lagrer «Purring sendt på e-post», status Kontaktet og ny oppfølging om 5 virkedager")}${hk("lovet", "🤝 Lovet betaling", "Fyller ut skjemaet. Velg datoen kunden har lovet å betale, og trykk Lagre")}${hk("frist", "📅 Ny frist", "Fyller ut skjemaet med ny frist om en uke. Juster og trykk Lagre")}`,
-  tekstfelt: `<textarea id="fo-kommentar-${id}" rows="3" placeholder="Skriv hva som er gjort eller avtalt${flere ? ` (lagres på alle ${fs.length} fakturaene)` : ""}. Ctrl+Enter lagrer." style="${REG_TEKST_STIL}" oninput="${REG_TEKST_VOKS}" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();lagreFoOppfolging('${key}')}"></textarea>`,
+  tekstfelt: `<textarea id="fo-kommentar-${id}" rows="3" placeholder="Skriv hva som er gjort eller avtalt${flere ? ` (lagres på alle ${fs.length} fakturaene)` : ""}. Skriv @navn for å spørre en kollega. Ctrl+Enter lagrer." style="${REG_TEKST_STIL}" oninput="${REG_TEKST_VOKS}" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();lagreFoOppfolging('${key}')}"></textarea>`,
   bunnVenstre: `<div class="fgrp" style="margin:0"><label>Status</label><select id="fo-statusvalg-${id}" style="width:auto;padding:6px 10px" onchange="const w=document.getElementById('fo-amili-wrap-${id}');if(w)w.style.display=this.value==='Sendt til inkasso'?'':'none'">${FO_STATUSER.map(s => `<option${s === fellesStatus ? " selected" : ""}>${s}</option>`).join("")}</select></div>\n          <div class="fgrp" style="margin:0"><label>Neste oppfølging</label><input type="date" id="fo-neste-${id}" value="${nesteVerdi}"/></div>\n          ${flere ? "" : `<div class="fgrp" id="fo-amili-wrap-${id}" style="margin:0;${fellesStatus === "Sendt til inkasso" ? "" : "display:none"}"><label>Amili saksnr</label><input type="text" inputmode="numeric" id="fo-amili-${id}" value="${(fs.find(f => f.inkassoSaksnr) || {}).inkassoSaksnr || ""}" placeholder="f.eks. 1234567" style="width:140px"/></div>`}`,
   bunnHoyre: `<span id="fo-hint-${id}" style="font-size:12px;color:#d97706"></span><button class="btn-sm" onclick="foRedigerAmili('${key}')" title="Sett «Sendt til inkasso» og Amili saksnr per faktura">🏛️ Inkasso / Amili</button><button class="prim" onclick="lagreFoOppfolging('${key}')">💾 Lagre</button>`,
   under: `<div style="font-size:11px;color:#6b7280;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">Faktura-PDF: ${fs.map(f => `<button class="btn-sm" style="font-size:11px;padding:2px 8px" onclick="event.stopPropagation();foLastNedPdf('${String(f.fakturanr).replace(/'/g, "")}',this)" title="Last ned fakturaen fra Visma som PDF">📄 ${f.fakturanr}</button>`).join("")} <span style="color:#9ca3af">Lastes ned som PDF. Vil du sende den, klikker du på e-postadressen øverst, så legges PDF-en ved automatisk.</span></div><div style="font-size:11px;color:#9ca3af;margin-top:4px">«Ingen svar» og «E-post sendt» lagrer med en gang, og tekst i feltet tas med.</div>`
@@ -20597,7 +20620,8 @@ function lagreFoOppfolging(key, opts = {}) {
  const oppgaver = [];
  const skrevetAv = currentUser?.name || currentUser?.username || "Ukjent";
  const naa = (new Date).toISOString();
- const type = typeEl ? typeEl.value : "Annet";
+ const omtalt = typeof msOmtaler === "function" ? msOmtaler(kommentar) : [];
+ const type = omtalt.length ? "Melding" : typeEl ? typeEl.value : "Annet";
  fs.forEach(f => {
   const gammelStatus = f.status;
   if (statusEndret && gammelStatus !== nyStatus) {
@@ -20664,8 +20688,9 @@ function lagreFoOppfolging(key, opts = {}) {
  });
  renderFakturaoppfolging();
  Promise.all(oppgaver).then(() => {
-  setSPStatus("✅ Lagret");
-  setTimeout(() => setSPStatus(""), 3e3);
+  setSPStatus(omtalt.length ? `✅ Lagret – ${omtalt.map(p => p.handle).join(", ")} får beskjed i KBD CC` : "✅ Lagret");
+  setTimeout(() => setSPStatus(""), omtalt.length ? 5e3 : 3e3);
+  if (omtalt.length && typeof renderVarselMeny === "function") renderVarselMeny();
   if (konkursNy) foKonkursSak(fs);
  }).catch(e => {
   setSPStatus("❌ " + e.message, false);
@@ -20932,12 +20957,187 @@ async function foBetLast(k) {
  });
 }
 
+function msHandle(b) {
+ const ep = String(b?.epost || "").toLowerCase();
+ if (typeof EPOST_SIGNATUR_NAVN !== "undefined" && EPOST_SIGNATUR_NAVN[ep]) return EPOST_SIGNATUR_NAVN[ep];
+ return foVisNavn(b?.navn || "").trim().split(/\s+/)[0] || "";
+}
+
+function msPersoner() {
+ const m = new Map;
+ (typeof brukere !== "undefined" ? brukere : []).forEach(b => {
+  const h = msHandle(b);
+  if (h && b.epost && !m.has(h.toLowerCase())) m.set(h.toLowerCase(), {
+   handle: h,
+   navn: b.navn,
+   epost: String(b.epost).toLowerCase()
+  });
+ });
+ return m;
+}
+
+function msMinHandle() {
+ const ep = String(currentUser?.username || "").toLowerCase();
+ const p = [ ...msPersoner().values() ].find(x => x.epost === ep);
+ return p ? p.handle : msHandle({
+  navn: currentUser?.name || "",
+  epost: ep
+ });
+}
+
+function msOmtaler(tekst) {
+ const m = msPersoner(), ut = [];
+ String(tekst || "").replace(/@([\p{L}][\p{L}-]*)/gu, (x, h) => {
+  const p = m.get(h.toLowerCase());
+  if (p && !ut.some(u => u.handle === p.handle)) ut.push(p);
+  return x;
+ });
+ return ut;
+}
+
+function msMarkerOmtaler(html) {
+ const m = msPersoner();
+ return String(html).replace(/@([\p{L}][\p{L}-]*)/gu, (x, h) => m.has(h.toLowerCase()) ? `<span style="background:#dbeafe;color:#1e40af;border-radius:6px;padding:0 5px;font-weight:600">@${m.get(h.toLowerCase()).handle}</span>` : x);
+}
+
+function msHandleForNavn(navn) {
+ const n = String(navn || "").trim();
+ if (!n) return "";
+ const b = (typeof brukere !== "undefined" ? brukere : []).find(x => x.navn === n);
+ if (b) return msHandle(b);
+ if (currentUser && n === (currentUser.name || currentUser.username)) return msMinHandle();
+ if (foVisNavn(n) === "Mirrow") return msHandle({
+  epost: "mirrow@kbd.as"
+ });
+ return n.split(/\s+/)[0];
+}
+
+function msKundeLogg(kundenr) {
+ const k = String(kundenr || "").trim();
+ const nr = new Set(fakturaoppfolging.filter(f => String(f.kundenr || "").trim() === k).map(f => f.fakturanr));
+ return fakturaoppfolgingLogg.filter(l => nr.has(l.fakturanr) && l.dato);
+}
+
+function msVenterPa(melding, kundenr, logg) {
+ const fra = msHandleForNavn(melding.skrevetAv).toLowerCase();
+ const omtalt = msOmtaler(melding.kommentar).filter(p => p.handle.toLowerCase() !== fra);
+ if (!omtalt.length) return null;
+ const ls = logg || msKundeLogg(kundenr), t = new Date(melding.dato);
+ return omtalt.filter(p => !ls.some(l => new Date(l.dato) > t && msHandleForNavn(l.skrevetAv).toLowerCase() === p.handle.toLowerCase())).map(p => p.handle);
+}
+
+function msApneTilMeg() {
+ const meg = msMinHandle().toLowerCase();
+ if (!meg) return [];
+ const kundeAv = new Map(fakturaoppfolging.map(f => [ f.fakturanr, String(f.kundenr || "").trim() ]));
+ const perKunde = new Map;
+ fakturaoppfolgingLogg.forEach(l => {
+  if (!l.dato) return;
+  const k = kundeAv.get(l.fakturanr);
+  if (!k) return;
+  if (!perKunde.has(k)) perKunde.set(k, []);
+  perKunde.get(k).push(l);
+ });
+ const ut = [];
+ perKunde.forEach((ls, k) => {
+  const til = ls.filter(l => l.type === "Melding" && (msVenterPa(l, k, ls) || []).some(h => h.toLowerCase() === meg)).sort((a, b) => new Date(b.dato) - new Date(a.dato));
+  if (!til.length) return;
+  const m = til[0], f = fakturaoppfolging.find(x => String(x.kundenr || "").trim() === k);
+  ut.push({
+   kundenr: k,
+   kundenavn: f?.kundenavn || k,
+   fra: msHandleForNavn(m.skrevetAv),
+   tekst: m.kommentar || "",
+   dato: m.dato
+  });
+ });
+ return ut.sort((a, b) => new Date(b.dato) - new Date(a.dato));
+}
+
+function msGaTil(kundenr) {
+ agApneKunde(kundenr);
+ foKunForfalte = false;
+ const kf = document.getElementById("fo-kun-forfalte");
+ if (kf) kf.checked = false;
+ renderFakturaoppfolging();
+}
+
+let msForslag = null;
+
+function msLukkForslag() {
+ document.getElementById("ms-forslag")?.remove();
+ msForslag = null;
+}
+
+function msVisForslag(ta) {
+ const pos = ta.selectionStart, foer = ta.value.slice(0, pos);
+ const m = /(^|\s)@([\p{L}-]*)$/u.exec(foer);
+ if (!m) {
+  msLukkForslag();
+  return;
+ }
+ const q = m[2].toLowerCase(), meg = msMinHandle().toLowerCase();
+ const liste = [ ...msPersoner().values() ].filter(p => p.handle.toLowerCase().startsWith(q) && p.handle.toLowerCase() !== meg).slice(0, 8);
+ if (!liste.length) {
+  msLukkForslag();
+  return;
+ }
+ msForslag = {
+  ta: ta,
+  start: pos - m[2].length - 1,
+  liste: liste
+ };
+ let el = document.getElementById("ms-forslag");
+ if (!el) {
+  el = document.createElement("div");
+  el.id = "ms-forslag";
+  document.body.appendChild(el);
+ }
+ const r = ta.getBoundingClientRect();
+ el.style.cssText = `position:fixed;left:${r.left}px;top:${Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 36 * liste.length - 40))}px;z-index:3000;background:#fff;border:1px solid #d0d5dd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:220px;overflow:hidden;font-size:13px`;
+ el.innerHTML = liste.map((p, i) => `<div style="padding:7px 12px;cursor:pointer;${i === 0 ? "background:#eef2ff" : ""}" onmousedown="event.preventDefault();msVelg(${i})"><b>@${iaEsc(p.handle)}</b> <span style="color:#6b7280">${iaEsc(foVisNavn(p.navn))}</span></div>`).join("") + `<div style="padding:4px 12px;font-size:11px;color:#9ca3af;border-top:1px solid #f1f5f9">Enter eller Tab velger · Esc lukker</div>`;
+}
+
+function msVelg(i) {
+ const f = msForslag;
+ if (!f) return;
+ const p = f.liste[i];
+ if (!p) return;
+ const ta = f.ta, slutt = ta.selectionStart;
+ ta.value = ta.value.slice(0, f.start) + "@" + p.handle + " " + ta.value.slice(slutt);
+ const ny = f.start + p.handle.length + 2;
+ ta.setSelectionRange(ny, ny);
+ ta.focus();
+ msLukkForslag();
+}
+
+document.addEventListener("input", e => {
+ const t = e.target;
+ if (t && t.tagName === "TEXTAREA" && /^fo-kommentar-/.test(t.id || "")) msVisForslag(t);
+});
+
+document.addEventListener("keydown", e => {
+ if (!msForslag || e.target !== msForslag.ta) return;
+ if (e.key === "Escape") {
+  e.preventDefault();
+  msLukkForslag();
+ } else if (e.key === "Enter" && !e.ctrlKey && !e.metaKey || e.key === "Tab") {
+  e.preventDefault();
+  e.stopPropagation();
+  msVelg(0);
+ }
+}, true);
+
+document.addEventListener("click", e => {
+ if (msForslag && !e.target.closest?.("#ms-forslag") && e.target !== msForslag.ta) msLukkForslag();
+});
+
 function ktNorm(t) {
  return String(t || "").replace(/\s*\([^()]*\)\.?\s*$/, "").replace(/[^\p{L}\p{N} ]/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 function ktTypeIkon(type, auto) {
- return auto ? "🤖" : type === "Telefon" ? "📞" : type === "E-post" ? "✉️" : type === "SMS" ? "💬" : type === "Status" ? "🏷️" : "📝";
+ return auto ? "🤖" : type === "Melding" ? "🗨️" : type === "Telefon" ? "📞" : type === "E-post" ? "✉️" : type === "SMS" ? "💬" : type === "Status" ? "🏷️" : "📝";
 }
 
 function kundeTidslinje(kundenr) {
@@ -20964,7 +21164,8 @@ function kundeTidslinje(kundenr) {
    av: l.skrevetAv || "",
    kilde: l.kilde === "Automatisk" ? "auto" : "faktura",
    fakturaer: l.nrListe,
-   type: l.type
+   type: l.type,
+   venter: l.type === "Melding" && typeof msVenterPa === "function" ? msVenterPa(l, k) : null
   });
  });
  fs.forEach(f => (typeof foSmsForFaktura === "function" ? foSmsForFaktura(f.fakturanr) : []).forEach(x => {
@@ -21030,7 +21231,7 @@ function tidslinjeHtml(liste, opts = {}) {
    minute: "2-digit"
   })}</span>` : "";
   const fakt = e.fakturaer && e.fakturaer.length ? e.fakturaer.length > 1 ? ` · ${e.fakturaer.length} fakturaer` : ` · faktura ${iaEsc(e.fakturaer[0])}` : "";
-  return `<div style="display:flex;gap:10px;padding:7px 0;${i < liste.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}align-items:baseline">\n      <span style="min-width:74px;font-size:12px;color:#92400e;font-weight:600;white-space:nowrap">${fDateShort(e.dato.toISOString())}${tid}</span>\n      <span style="flex:1;min-width:0"><span style="font-size:13px;color:#111;line-height:1.45;white-space:pre-wrap">${e.ikon && !/^\p{Extended_Pictographic}/u.test(e.tekst) ? e.ikon + " " : ""}${iaNotatHtml(e.tekst)}</span>\n        <span style="display:block;font-size:11px;color:#9ca3af;margin-top:1px">${e.av ? iaEsc(foVisNavn(e.av)) : ""}${fakt} <span style="background:${kd[2]};color:${kd[3]};border-radius:8px;padding:0 6px;margin-left:4px;white-space:nowrap">${kd[0]} ${kd[1]}</span></span></span>\n    </div>`;
+  return `<div style="display:flex;gap:10px;padding:7px 0;${i < liste.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}align-items:baseline">\n      <span style="min-width:74px;font-size:12px;color:#92400e;font-weight:600;white-space:nowrap">${fDateShort(e.dato.toISOString())}${tid}</span>\n      <span style="flex:1;min-width:0"><span style="font-size:13px;color:#111;line-height:1.45;white-space:pre-wrap">${e.ikon && !/^\p{Extended_Pictographic}/u.test(e.tekst) ? e.ikon + " " : ""}${iaNotatHtml(e.tekst)}</span>${e.venter ? e.venter.length ? ` <span style="font-size:11px;background:#fef3c7;color:#92400e;border-radius:8px;padding:0 6px;white-space:nowrap">⏳ venter på svar fra ${iaEsc(e.venter.join(", "))}</span>` : ` <span style="font-size:11px;background:#ecfdf5;color:#065f46;border-radius:8px;padding:0 6px;white-space:nowrap">✓ besvart</span>` : ""}\n        <span style="display:block;font-size:11px;color:#9ca3af;margin-top:1px">${e.av ? iaEsc(foVisNavn(e.av)) : ""}${fakt} <span style="background:${kd[2]};color:${kd[3]};border-radius:8px;padding:0 6px;margin-left:4px;white-space:nowrap">${kd[0]} ${kd[1]}</span></span></span>\n    </div>`;
  }).join("")}</div></div>`;
 }
 
@@ -21136,7 +21337,7 @@ function foRapGrunnlag() {
  const smsNr = new Map(fakturaoppfolging.map(f => [ foNormFakturanr(f.fakturanr), f.fakturanr ]));
  const kontakter = [], sett = new Set;
  fakturaoppfolgingLogg.forEach(l => {
-  if (!l.dato || l.type === "Status" || l.kilde === "Automatisk") return;
+  if (!l.dato || l.type === "Status" || l.type === "Melding" || l.kilde === "Automatisk") return;
   const d = foRapDato(l.dato);
   if (!d) return;
   const t = l.type === "Telefon" ? "📞 Telefon" : l.type === "E-post" ? "✉️ E-post" : l.type === "SMS" ? "💬 SMS (manuell)" : "📝 Annet";
@@ -28429,13 +28630,42 @@ let nb = {
 
 const NB_EPOST = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
 
-function nbLevFor(k) {
- const nr = String(k.vismaNummer || "").trim();
- const besk = vismaKontrakter.filter(c => {
+let nbIdx = null, nbCache = null;
+
+function nbIndeks() {
+ const nokkel = `${vismaKunder.length}|${vismaKontrakter.length}|${kontaktPersoner.length}`;
+ if (nbIdx && nbIdx.nokkel === nokkel) return nbIdx;
+ const besk = new Map;
+ for (const c of vismaKontrakter) {
   const s = (c.status || "").toLowerCase();
-  return (s === "active" || s === "aktiv") && String(c.vismaKundeNummer || "").trim() === nr;
- }).map(c => (c.beskrivelse || "").toLowerCase());
- return K360_PRODUKTNOKKELORD.filter(n => besk.some(b => b.includes(n.toLowerCase())));
+  if (s !== "active" && s !== "aktiv") continue;
+  const nr = effektivKundenr(c.vismaKundeNummer);
+  if (!nr) continue;
+  (besk.get(nr) || besk.set(nr, []).get(nr)).push((c.beskrivelse || "").toLowerCase());
+ }
+ const kp = new Map;
+ for (const c of kontaktPersoner) {
+  const nr = effektivKundenr(c.kundeNr);
+  if (!nr) continue;
+  (kp.get(nr) || kp.set(nr, []).get(nr)).push(c);
+ }
+ for (const l of kp.values()) l.sort((a, b) => new Date(a.opprettetDato || 0) - new Date(b.opprettetDato || 0));
+ const kunder = vismaKunder.filter(k => besk.has(effektivKundenr(k.vismaNummer))).map(k => {
+  const nr = effektivKundenr(k.vismaNummer), bl = besk.get(nr);
+  return {
+   k: k,
+   nr: nr,
+   lev: K360_PRODUKTNOKKELORD.filter(n => bl.some(x => x.includes(n.toLowerCase()))),
+   bransje: kbdBransje(k).kategori,
+   kp: kp.get(nr) || []
+  };
+ });
+ nbIdx = {
+  nokkel: nokkel,
+  kunder: kunder
+ };
+ nbCache = null;
+ return nbIdx;
 }
 
 function nbDelNavn(navn) {
@@ -28448,23 +28678,21 @@ function nbDelNavn(navn) {
 
 function nbKundeUtvalg() {
  const sted = nb.sted.trim().toLowerCase();
- return smsKunderMedAktivKontrakt().map(k => ({
-  k: k,
-  lev: nbLevFor(k),
-  bransje: kbdBransje(k).kategori
- })).filter(x => (!nb.lev.size || x.lev.some(n => nb.lev.has(n))) && (!nb.bransjer.size || nb.bransjer.has(x.bransje)) && (!sted || String(x.k.postnr || "").startsWith(sted) || String(x.k.sted || "").toLowerCase().includes(sted)));
+ return nbIndeks().kunder.filter(x => (!nb.lev.size || x.lev.some(n => nb.lev.has(n))) && (!nb.bransjer.size || nb.bransjer.has(x.bransje)) && (!sted || String(x.k.postnr || "").startsWith(sted) || String(x.k.sted || "").toLowerCase().includes(sted)));
 }
 
-function nbEposterFor(k) {
- const aktive = kontakterForKunde(k).filter(c => !c.tidligere && c.epost);
- if (nb.modus === "alle") {
-  const b = kontaktBase(k);
-  return [ ...b && b.epost ? [ b ] : [], ...aktive ];
- }
- const h = hovedkontaktFor(k);
+function nbEposterFor(x) {
+ const k = x.k, alleAktive = x.kp.filter(c => !c.tidligere), aktive = alleAktive.filter(c => c.epost);
+ const vb = k.kontaktNavn || k.kontaktTelefon || k.kontaktEpost ? {
+  navn: k.kontaktNavn || "",
+  mobil: k.kontaktTelefon || "",
+  epost: k.kontaktEpost || ""
+ } : null;
+ const base = vb && !x.kp.some(c => kpLik(c, vb)) ? vb : null;
+ if (nb.modus === "alle") return [ ...base && base.epost ? [ base ] : [], ...aktive ];
+ const h = alleAktive.find(c => c.hoved) || base || alleAktive[0] || null;
  if (h && h.epost) return [ h ];
- const b = kontaktBase(k);
- if (b && b.epost) return [ b ];
+ if (base && base.epost) return [ base ];
  if (k.kontaktEpost) return [ {
   navn: k.kontaktNavn || "",
   epost: k.kontaktEpost
@@ -28472,10 +28700,16 @@ function nbEposterFor(k) {
  return aktive.slice(0, 1);
 }
 
+function nbDelEpost(v) {
+ return String(v || "").split(/[;,\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+}
+
 function nbMottakere() {
+ const cKey = JSON.stringify([ nbIndeks().nokkel, [ ...nb.lev ], [ ...nb.bransjer ], nb.sted, nb.modus, (nb.status?.avmeldte || []).length ]);
+ if (nbCache && nbCache.key === cKey) return nbCache.verdi;
  const avm = new Set(nb.status?.avmeldte || []), perEpost = new Map, mangler = [];
  for (const x of nbKundeUtvalg()) {
-  const kontakter = nbEposterFor(x.k);
+  const kontakter = nbEposterFor(x);
   if (!kontakter.length) {
    mangler.push({
     key: "mangler-" + x.k.vismaNummer,
@@ -28490,8 +28724,7 @@ function nbMottakere() {
    });
    continue;
   }
-  for (const c of kontakter) {
-   const e = String(c.epost || "").trim().toLowerCase();
+  for (const c of kontakter) for (const e of nbDelEpost(c.epost)) {
    if (perEpost.has(e)) {
     const r = perEpost.get(e);
     if (!r.firma.split(", ").includes(x.k.navn)) r.firma += ", " + x.k.navn;
@@ -28512,6 +28745,13 @@ function nbMottakere() {
   }
  }
  const rader = [ ...perEpost.values() ].sort((a, b) => a.firma.localeCompare(b.firma, "nb"));
+ nbCache = {
+  key: cKey,
+  verdi: {
+   rader: rader,
+   mangler: mangler
+  }
+ };
  return {
   rader: rader,
   mangler: mangler
@@ -28566,7 +28806,7 @@ function renderNyhetsbrev() {
  const levKnapper = K360_PRODUKTNOKKELORD.map(n => `<button class="btn-sm" style="${nb.lev.has(n) ? "background:#1A3A6B;color:#fff;border-color:#1A3A6B" : ""}" onclick="nbToggle('lev','${n}')">${e(n)}</button>`).join("");
  const brKnapper = [ ...KBD_BRANSJE_VALG, KBD_BRANSJE_UKJENT ].map(n => `<button class="btn-sm" style="${nb.bransjer.has(n) ? "background:#1A3A6B;color:#fff;border-color:#1A3A6B" : ""}" onclick="nbToggle('bransjer',${JSON.stringify(n).replace(/"/g, "&quot;")})">${e(n)}</button>`).join("");
  h += `<div class="card"><div class="card-title">1. Velg mottakere</div>\n    <div style="display:grid;grid-template-columns:120px 1fr;gap:8px 12px;align-items:center">\n      <label style="font-weight:600">Leverandør</label><div style="display:flex;gap:6px;flex-wrap:wrap">${levKnapper}<span class="hint" style="margin:0">Ingen valgt = alle</span></div>\n      <label style="font-weight:600">Bransje</label><div style="display:flex;gap:6px;flex-wrap:wrap">${brKnapper}</div>\n      <label style="font-weight:600">Sted / postnr</label><div><input type="text" value="${e(nb.sted)}" placeholder="f.eks. Oslo eller 03" style="width:220px" onchange="nb.sted=this.value;nb.utelatt.clear();renderNyhetsbrev()"></div>\n      <label style="font-weight:600">Kontakter</label><div style="display:flex;gap:14px;flex-wrap:wrap">\n        <label><input type="radio" name="nb-modus" ${nb.modus === "hoved" ? "checked" : ""} onchange="nb.modus='hoved';renderNyhetsbrev()"> Hovedkontakt per kunde</label>\n        <label><input type="radio" name="nb-modus" ${nb.modus === "alle" ? "checked" : ""} onchange="nb.modus='alle';renderNyhetsbrev()"> Alle aktive kontaktpersoner</label></div>\n    </div>\n    <div class="hint" style="margin:10px 0 0">Kunder med minst én aktiv avtale. Samme e-post brukes bare én gang. Avmeldte i Brevo og ugyldige adresser tas ut automatisk.</div></div>`;
- h += `<div class="card"><div class="card-title">2. Mottakere: ${valgt.length}</div>\n    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">\n      <span class="pk-merke pk-merke-gronn">✅ ${valgt.length} sendes til Brevo</span>\n      ${nb.utelatt.size ? `<span class="pk-merke pk-merke-gra">${nb.utelatt.size} tatt ut manuelt</span>` : ""}\n      ${ant("avmeldt") ? `<span class="pk-merke pk-merke-rod">🚫 ${ant("avmeldt")} avmeldt</span>` : ""}\n      ${ant("ugyldig") ? `<span class="pk-merke pk-merke-rod">⚠ ${ant("ugyldig")} ugyldig e-post</span>` : ""}\n      ${mangler.length ? `<span class="pk-merke pk-merke-gul">📭 ${mangler.length} kunder uten e-post</span>` : ""}</div>\n    <input type="text" placeholder="Søk i mottakere" value="${e(nb.sok)}" style="width:260px;margin-bottom:8px" oninput="nb.sok=this.value;nbRenderTabell()">\n    <div id="nb-tabell"></div></div>`;
+ h += `<div class="card"><div class="card-title">2. Mottakere: ${valgt.length}</div>\n    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">\n      <span class="pk-merke pk-merke-gronn">✅ ${valgt.length} sendes til Brevo</span>\n      ${nb.utelatt.size ? `<span class="pk-merke pk-merke-gra">${nb.utelatt.size} tatt ut manuelt</span>` : ""}\n      ${ant("avmeldt") ? `<span class="pk-merke pk-merke-rod">🚫 ${ant("avmeldt")} avmeldt</span>` : ""}\n      ${ant("ugyldig") ? `<span class="pk-merke pk-merke-rod">⚠ ${ant("ugyldig")} ugyldig e-post</span>` : ""}\n      ${mangler.length ? `<span class="pk-merke pk-merke-gul">📭 ${mangler.length} kunder uten e-post</span>` : ""}</div>\n    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><input type="text" placeholder="Søk i mottakere" value="${e(nb.sok)}" style="width:260px" oninput="nb.sok=this.value;nbRenderTabell()">\n      <button class="btn-sm" onclick="nbKopierAdresser()" title="Kopierer adressene (skilt med semikolon) til utklippstavlen. Lim dem inn i Bcc, ikke Til.">📋 Kopier e-postadresser (${valgt.length})</button></div>\n    <div id="nb-tabell"></div></div>`;
  const forslag = `KBD CC ${(new Date).toLocaleDateString("nb-NO")} – ${nbSegmentTekst()}`;
  h += `<div class="card"><div class="card-title">3. Lag liste i Brevo</div>\n    <div class="fgrp" style="max-width:520px"><label>Navn på lista</label><input type="text" id="nb-listenavn" value="${e(nb.listeNavn || forslag)}" maxlength="100"></div>\n    <button class="prim" onclick="nbLagListe()" ${nb.sender || !valgt.length || st?.konfigurert === false ? "disabled" : ""}>${nb.sender ? "Sender …" : `📤 Lag liste i Brevo (${valgt.length})`}</button>\n    <div class="hint" style="margin:8px 0 0">Lista havner i mappen «KBD CC» i Brevo, med FIRMA, KUNDENR, BRANSJE, LEVERANDOR og STED som felt. Skriv og send nyhetsbrevet i Brevo: Campaigns → Create campaign → velg lista. Kontakter som har meldt seg av, forblir avmeldt.</div>\n    ${nbResultatHtml()}</div>`;
  el.innerHTML = h;
@@ -28607,6 +28847,12 @@ function nbToggle(felt, verdi) {
 function nbToggleMottaker(key, paa) {
  paa ? nb.utelatt.delete(key) : nb.utelatt.add(key);
  renderNyhetsbrev();
+}
+
+function nbKopierAdresser() {
+ const {rader: rader} = nbMottakere(), liste = rader.filter(r => r.status === "ok" && !nb.utelatt.has(r.key)).map(r => r.epost).join("; ");
+ const ok = () => vfShowToast?.("📋 Adressene er kopiert. Lim dem inn i Bcc, ikke i Til.");
+ navigator.clipboard?.writeText(liste).then(ok).catch(() => prompt("Kopier adressene (lim inn i Bcc):", liste));
 }
 
 async function nbLagListe() {
