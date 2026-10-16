@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.326 · Oppdatert: 15. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.327 · Oppdatert: 16. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3869,9 +3869,9 @@ renderLisensKontroll()'>📋 Historikk</button></div>
         <div class="card">
           <label id="lk-opplasting" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px dashed #c7d2e5;border-radius:10px;padding:14px 16px;background:#fafbfe;cursor:pointer">
             <span style="font-size:24px">📄</span>
-            <span style="flex:1;min-width:220px"><strong id="lk-filnavn">Last opp ny lisens-/servicefaktura (PDF)</strong><br><span id="lk-fil-meta" class="hint" style="margin:0"></span></span>
+            <span style="flex:1;min-width:220px"><strong id="lk-filnavn">Last opp lisens-/servicefaktura (PDF) eller Verifones fakturagrunnlag (Excel)</strong><br><span id="lk-fil-meta" class="hint" style="margin:0"></span></span>
             <span class="btn-sm" id="lk-opplast-knapp">Last opp</span>
-            <input type="file" id="lk-fil-input" accept="application/pdf,.pdf" style="display:none" onchange='lkLastOpp(this.files[0]);
+            <input type="file" id="lk-fil-input" accept="application/pdf,.pdf,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange='lkLastOpp(this.files[0]);
 
 this.value = ""'>
           </label>
@@ -15215,6 +15215,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.327",
+ dato: "16.10.2026",
+ punkter: [ "Lisenskontroll: du kan nå også laste opp Verifones fakturagrunnlag i Excel (.xls eller .xlsx), altså arket du får før fakturaen kommer. Det kontrolleres på samme måte som Verifone-fakturaen: kontrakt, tjeneste, antall og margin per BAX. Avvikene havner i avvikslisten, så du kan gi Verifone beskjed om terminaler som skal sies opp eller rettes før fakturaen sendes." ]
+}, {
  versjon: "v1.48.326",
  dato: "15.10.2026",
  punkter: [ "Lisenskontroll, Softpay: utleie fra Utleie-modulen vises nå til info på samme kunde. Har kunden leid en enhet i fakturamåneden, får raden merket «📦 Utleie». Detaljene viser enheten og perioden, og at lisensen kan skyldes utleien (det lages ikke kontrakt for utleie). Er det riktig, setter du avviket til «Godtatt» med en kort begrunnelse." ]
@@ -32331,7 +32335,7 @@ function lkAvvikHtml() {
  const grunn = lkAvvik.filter(a => (lkAvLev === "Alle" || a.leverandor === lkAvLev) && (!sok || [ a.brukersted, a.bax, a.orgnr, a.ansvarlig ].some(v => String(v || "").toLowerCase().includes(sok))));
  const apne = grunn.filter(a => LK_AV_APNE.includes(a.status));
  const kpi = (l, v, st, farge) => `<div style="flex:1 1 150px;background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.07)"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">${l}</div><div style="font-size:20px;font-weight:700;color:${farge || "#111"};margin-top:2px">${v}</div><div style="font-size:11px;color:#9ca3af">${st}</div></div>`;
- const banner = lkSynkRes ? `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #15803d;border-radius:10px;padding:10px 14px;margin:12px 0">\n      <span style="font-size:18px">🔁</span><span style="flex:1;font-size:13px"><strong>${escHtmlEpost(lkSynkRes.leverandor)} ${escHtmlEpost(lkSynkRes.fakturanr)} er sammenlignet med avvikslisten:</strong> ${lkSynkRes.nye} nye · ${lkSynkRes.fortsatt} fortsatt åpne · ${lkSynkRes.lost} løst${lkSynkRes.gjenapnet ? ` · ${lkSynkRes.gjenapnet} gjenåpnet` : ""}${lkSynkRes.softpay ? ` · ${lkSynkRes.softpay} Softpay satt til side` : ""}${lkSynkRes.godtatt ? ` · ${lkSynkRes.godtatt} godtatt` : ""}${lkSynkRes.hoppet ? ` · ${lkSynkRes.hoppet} ikke endret (eldre faktura enn sist)` : ""}${lkSynkRes.feil ? ` · <span style="color:#b91c1c">${lkSynkRes.feil} ikke lagret</span>` : ""}.</span>\n      ${lkSynkRes.nye ? `<button class="btn-sm" onclick="lkAvFilter='NY';lkAvApen=null;renderLisensKontroll()">Vis de nye</button>` : ""}\n      ${lkData ? `<button class="btn-sm" onclick="lkVisResultat=true;renderLisensKontroll()">Vis hele kontrollresultatet (${lkData.rader.length} BAX)</button>` : ""}</div>` : lkData ? `<div style="margin:10px 0"><button class="btn-sm" onclick="lkVisResultat=true;renderLisensKontroll()">Vis hele kontrollresultatet for ${escHtmlEpost(lkData.leverandor)} ${escHtmlEpost(lkData.fakturanr)} (${lkData.rader.length} BAX)</button></div>` : "";
+ const banner = lkSynkRes ? `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #15803d;border-radius:10px;padding:10px 14px;margin:12px 0">\n      <span style="font-size:18px">🔁</span><span style="flex:1;font-size:13px"><strong>${escHtmlEpost(lkSynkRes.leverandor)} ${escHtmlEpost(lkSynkRes.fakturanr)} er sammenlignet med avvikslisten:</strong> ${lkSynkRes.nye} nye · ${lkSynkRes.fortsatt} fortsatt åpne · ${lkSynkRes.lost} løst${lkSynkRes.gjenapnet ? ` · ${lkSynkRes.gjenapnet} gjenåpnet` : ""}${lkSynkRes.softpay ? ` · ${lkSynkRes.softpay} Softpay satt til side` : ""}${lkSynkRes.godtatt ? ` · ${lkSynkRes.godtatt} godtatt` : ""}${lkSynkRes.hoppet ? ` · ${lkSynkRes.hoppet} ikke endret (eldre faktura enn sist)` : ""}${lkSynkRes.feil ? ` · <span style="color:#b91c1c">${lkSynkRes.feil} ikke lagret</span>` : ""}.${lkData && lkData.grunnlag ? '<br><span style="color:#92400e">📋 Dette er Verifones fakturagrunnlag, før fakturaen er sendt. Gi Verifone beskjed om terminaler som skal sies opp eller rettes. Bruk gjerne ⬇ CSV for å sende lista.</span>' : ""}</span>\n      ${lkSynkRes.nye ? `<button class="btn-sm" onclick="lkAvFilter='NY';lkAvApen=null;renderLisensKontroll()">Vis de nye</button>` : ""}\n      ${lkData ? `<button class="btn-sm" onclick="lkVisResultat=true;renderLisensKontroll()">Vis hele kontrollresultatet (${lkData.rader.length} BAX)</button>` : ""}</div>` : lkData ? `<div style="margin:10px 0"><button class="btn-sm" onclick="lkVisResultat=true;renderLisensKontroll()">Vis hele kontrollresultatet for ${escHtmlEpost(lkData.leverandor)} ${escHtmlEpost(lkData.fakturanr)} (${lkData.rader.length} BAX)</button></div>` : "";
  const sisteH = [ ...lkHistorikk ].sort((a, b) => new Date(b.dato || 0) - new Date(a.dato || 0))[0];
  const sistKjort = sisteH ? `<div class="hint" style="margin:8px 2px 0">Sist kontrollert: ${escHtmlEpost(sisteH.leverandor)} ${escHtmlEpost(sisteH.fakturanr)} (${escHtmlEpost(sisteH.fakturadato)}) · kjørt ${sisteH.dato ? new Date(sisteH.dato).toLocaleString("nb-NO", {
   dateStyle: "short",
@@ -32933,7 +32937,7 @@ async function lkLastOpp(file) {
   } catch (_) {}
   if (!resp.ok || !data || !Array.isArray(data.rader)) throw new Error(data && data.error || `Feil fra server (${resp.status})`);
   lkData = data;
-  document.getElementById("lk-fil-meta").textContent = `${data.leverandor} · faktura ${data.fakturanr} · ${data.fakturadato} · ${data.rader.length} BAX · kostnad ${lkKr(data.kostnadAarTotalt)} per år`;
+  document.getElementById("lk-fil-meta").textContent = `${data.leverandor} · ${data.grunnlag ? "fakturagrunnlag (Excel) " + String(data.fakturanr || "").replace(/^Grunnlag\s*/, "") + " · lastet opp" : "faktura " + data.fakturanr} ${data.fakturadato} · ${data.rader.length} BAX · kostnad ${lkKr(data.kostnadAarTotalt)} per år`;
   await lkLastLister();
   lkLoggHistorikk();
   lkSynkRes = null;
