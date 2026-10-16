@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.334 · Oppdatert: 16. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.335 · Oppdatert: 16. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -7158,7 +7158,7 @@ function renderVarselMeny() {
  btn.style.display = "inline-flex";
  badge.style.display = "inline-block";
  badge.textContent = antall > 99 ? "99+" : String(antall);
- dropdown.innerHTML = msVarsler.map(v => `<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';msGaTilVarsel('${v.kilde}','${iaJs(v.kilde === "onb" ? v.id : v.kundenr)}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🗨️ ${iaEsc(v.fra)} spør om ${iaEsc(v.kundenavn)}${v.kilde === "onb" ? " (onboarding)" : ""}</div>\n      <div style="font-size:12px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${iaEsc(v.tekst)}</div>\n      <div style="font-size:11px;color:#b45309">${fDateShort(v.dato)} · svar i loggen ${v.kilde === "onb" ? "på onboardingen" : "på kunden"}</div>\n    </div>`).join("") + foVarsler.map(v => `<div onclick="gaTilFakturaoppfolgingFraVarsel('${v.type}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🧾 [Fakturaoppfølging] ${v.tittel}</div>\n      <div style="font-size:12px;color:#b45309">${fF(v.sum)} utestående · åpne arbeidslisten</div>\n    </div>`).join("") + mineOnb.map(v => `<div onclick="gaTilOnboardingFraVarsel('${v.nokkel}','${v.o.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🚀 [Onboarding] ${onbEsc(v.o.tittel)}</div>\n      <div style="font-size:12px;color:#b45309">${onbEsc(v.tekst)}</div>\n    </div>`).join("") + mineRma.map(r => `<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';jumpToRmaSak('${r.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">📦 [RMA${r.sakNummer != null ? " sak " + r.sakNummer : ""}] ${r.kundeNavn || "Ukjent kunde"}</div>\n      <div style="font-size:12px;color:#4b5563;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Defekt ${r.maskin || "maskin"} ikke mottatt i retur fra kunden</div>\n      <div style="font-size:11px;color:#b45309">${rmaDagerHosKunde(r)} dager siden ny maskin ble sendt ${new Date(r.datoNyMaskinSendtKunde).toLocaleDateString("nb-NO")}</div>\n    </div>`).join("") + mine.map(n => {
+ dropdown.innerHTML = msVarsler.map(v => `<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';msGaTilVarsel('${v.kilde}','${iaJs(v.kilde === "onb" ? v.id : v.kundenr)}','${iaJs(v.nokkel)}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🗨️ ${iaEsc(v.fra)} spør om ${iaEsc(v.kundenavn)}${v.kilde === "onb" ? " (onboarding)" : ""}</div>\n      <div style="font-size:12px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${iaEsc(v.tekst)}</div>\n      <div style="font-size:11px;color:#b45309">${fDateShort(v.dato)} · svar i loggen ${v.kilde === "onb" ? "på onboardingen" : "på kunden"}</div>\n    </div>`).join("") + foVarsler.map(v => `<div onclick="gaTilFakturaoppfolgingFraVarsel('${v.type}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🧾 [Fakturaoppfølging] ${v.tittel}</div>\n      <div style="font-size:12px;color:#b45309">${fF(v.sum)} utestående · åpne arbeidslisten</div>\n    </div>`).join("") + mineOnb.map(v => `<div onclick="gaTilOnboardingFraVarsel('${v.nokkel}','${v.o.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">🚀 [Onboarding] ${onbEsc(v.o.tittel)}</div>\n      <div style="font-size:12px;color:#b45309">${onbEsc(v.tekst)}</div>\n    </div>`).join("") + mineRma.map(r => `<div onclick="varselMenyApen=false;document.getElementById('varsel-dropdown').style.display='none';jumpToRmaSak('${r.id}')" style="padding:10px 14px;border-bottom:1px solid #f1f1f1;cursor:pointer" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background=''">\n      <div style="font-size:12.5px;font-weight:600;color:#111;margin-bottom:2px">📦 [RMA${r.sakNummer != null ? " sak " + r.sakNummer : ""}] ${r.kundeNavn || "Ukjent kunde"}</div>\n      <div style="font-size:12px;color:#4b5563;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Defekt ${r.maskin || "maskin"} ikke mottatt i retur fra kunden</div>\n      <div style="font-size:11px;color:#b45309">${rmaDagerHosKunde(r)} dager siden ny maskin ble sendt ${new Date(r.datoNyMaskinSendtKunde).toLocaleDateString("nb-NO")}</div>\n    </div>`).join("") + mine.map(n => {
   const kunde = vismaKunder.find(k => samKundenr(k.vismaNummer, n.vismaKundeNummer));
   const kundeNavnVis = n.kundeNavn || kunde?.navn || "Ukjent kunde";
   const ikon = n.type === "Tilbud" ? "📄" : n.type === "Notat" ? "📝" : "🔔";
@@ -15291,6 +15291,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.335",
+ dato: "16.10.2026",
+ punkter: [ "Meldinger med @navn: varselet i 🔔 og på Hjem forsvinner når du har klikket på det én gang. Kommer det en ny melding på samme kunde eller onboarding, får du nytt varsel." ]
+}, {
  versjon: "v1.48.334",
  dato: "16.10.2026",
  punkter: [ "Fakturaoppfølging: eier-filteret har fått ett valg per person (f.eks. «👤 Mirrow (14)») og finnes nå også i «Alle fakturaer». Når en person er valgt, vises samlet utestående og hvor mange saker som har passert Neste-dato eller mangler Neste-dato.", "Rapport: klikk på et navn i «Aktivitet per person og uke» for å se sakene den personen eier." ]
@@ -17864,7 +17868,7 @@ function hentTrengerOppmerksomhet() {
   msApneTilMeg().forEach(v => punkter.push({
    ikon: "🗨️",
    tekst: `${v.fra} spør om ${v.kundenavn}${v.kilde === "onb" ? " (onboarding)" : ""}: «${String(v.tekst).length > 70 ? String(v.tekst).slice(0, 70) + "…" : v.tekst}»`,
-   handling: () => msGaTilVarsel(v.kilde, v.kilde === "onb" ? v.id : v.kundenr)
+   handling: () => msGaTilVarsel(v.kilde, v.kilde === "onb" ? v.id : v.kundenr, v.nokkel)
   }));
  } catch (e) {
   console.warn("Meldinger:", e);
@@ -21107,7 +21111,10 @@ function msApneTilMeg() {
    dato: m.dato
   });
  });
- return ut.sort((a, b) => new Date(b.dato) - new Date(a.dato));
+ ut.forEach(v => {
+  v.nokkel = `ms|${v.kilde}|${v.kilde === "onb" ? v.id : v.kundenr}|${v.dato}`;
+ });
+ return ut.filter(v => !varselSettSet.has(v.nokkel)).sort((a, b) => new Date(b.dato) - new Date(a.dato));
 }
 
 function msErOnbMelding(x) {
@@ -21122,7 +21129,18 @@ function msOnbVenterPa(x, ls) {
  return omtalt.filter(p => !ls.some(l => new Date(l.dato) > t && msHandleForNavn(l.forfatter).toLowerCase() === p.handle.toLowerCase())).map(p => p.handle);
 }
 
-function msGaTilVarsel(kilde, id) {
+function msGaTilVarsel(kilde, id, nokkel) {
+ if (nokkel) {
+  varselSettSet.add(nokkel);
+  try {
+   localStorage.setItem("kbdVarselSett", JSON.stringify([ ...varselSettSet ].slice(-300)));
+  } catch {}
+  setTimeout(() => {
+   try {
+    renderVarselMeny();
+   } catch (e) {}
+  }, 0);
+ }
  if (kilde === "onb") {
   if (typeof closeVarselMeny === "function") closeVarselMeny();
   apneOnboarding(id);
