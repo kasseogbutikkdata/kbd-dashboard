@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.329 · Oppdatert: 16. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.330 · Oppdatert: 16. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -4493,7 +4493,14 @@ onbStartFil("regnskap", event.dataTransfer.files[0])'>
         <div class="muted">Info-e-posten med innlogging og brukerveiledning sendes hit når klargjøringen er ferdig.</div></div>
       <div class="fgrp" style="margin-top:10px"><label>Notat til teknikerne</label><textarea id="onbs-notat" rows="3" style="width:100%;padding:8px;border:1px solid #d0d5dd;border-radius:8px;font-family:inherit;font-size:13px"></textarea></div>
       <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:10px;cursor:pointer" title="Prioriterte saker får rødt flagg, ligger øverst i listene og merkes i Teams-varselet"><input type="checkbox" id="onbs-prioritert" style="width:16px;height:16px;flex:0 0 auto;margin:0">🚩 Prioritert sak</label>
-      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:10px;cursor:pointer" title="Åpner skjemaet for Susoft-lisensbestilling, ferdig utfylt, når onboardingen er sendt"><input type="checkbox" id="onbs-lisens" style="width:16px;height:16px;flex:0 0 auto;margin:0">🔑 Bestill Susoft-lisens nå (skjemaet åpnes etter sending)</label>
+      <div style="margin-top:10px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc">
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer" title="Åpner skjemaet for Susoft-lisensbestilling, ferdig utfylt, når onboardingen er sendt"><input type="checkbox" id="onbs-lisens" checked="checked" onchange="onbsLisensEndret()" style="width:16px;height:16px;flex:0 0 auto;margin:0">🔑 Bestill Susoft-lisens nå (skjemaet åpnes etter sending)</label>
+        <div id="onbs-lisens-nei" style="display:none;margin-top:8px">
+          <div class="fgrp"><label>Hvorfor skal det ikke bestilles lisens? <span style="color:#d03b3b">*</span></label>
+            <select id="onbs-lisens-grunn" onchange="onbsLisensEndret()" style="width:100%;padding:7px 9px;border:1px solid #d0d5dd;border-radius:7px;font-size:13px"><option value="">Velg …</option><option>Ingen lisens i salget (kun printer/utstyr)</option><option>Lisensen er allerede bestilt</option><option>Bestilles senere</option><option>Annet</option></select></div>
+          <div class="fgrp" id="onbs-lisens-kommentar-wrap" style="display:none;margin-top:6px"><label>Kommentar <span style="color:#d03b3b">*</span></label><input id="onbs-lisens-kommentar" style="width:100%" placeholder="Kort forklaring"></div>
+        </div>
+      </div>
       <label id="onbs-ta-selv-wrap" style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:10px;cursor:pointer"><input type="checkbox" id="onbs-ta-selv" style="width:16px;height:16px;flex:0 0 auto;margin:0">Jeg tar saken selv (blir ansvarlig med en gang)</label>
       <div id="onbs-feil" class="onb-advarsel" style="display:none"></div>
       <div class="modal-footer">
@@ -15278,6 +15285,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.330",
+ dato: "16.10.2026",
+ punkter: [ "Start onboarding: «🔑 Bestill Susoft-lisens nå» er nå krysset av som standard. Vil selger ikke bestille lisens, må hen velge hvorfor (f.eks. «Ingen lisens i salget (kun printer/utstyr)»). Grunnen logges og vises på lisenskortet i onboardingen.", "Lisensbestilling: velges «NEI» på Nettbutikk/SuOrder, skjules de andre nettbutikkfeltene, og e-posten viser ikke lenger «Velg» under «Plassering av nettbutikk i G1»." ]
+}, {
  versjon: "v1.48.329",
  dato: "16.10.2026",
  punkter: [ "Ny side «🔑 Lisensbestilling» under Onboarding i menyen. Susoft-lisens bestilles her i stedet for i skjemaet på kbd.as. Feltene og valgene er de samme, og bestillingen går som før på e-post til kundeservice@kbd.as, nå med kopi til selger.", "Skjemaet fylles ut automatisk: KBD og deg som forhandler, kundeopplysninger fra Visma, ordrenummer, antall kasser, Softpay, regnskap API/fil og forslag til e-Susoft-navn. Har kunden en aktiv Susoft-kontrakt i Visma, blir det «Tillegg», og eksisterende lisens og e-Susoft-adresse vises.", "«Start onboarding» har fått avkrysningen «🔑 Bestill Susoft-lisens nå». Onboardingen har fått kortet «🔑 Susoft-lisens» med status. Status går fra Sendt via Bestilt hos Susoft til ✅ Lisens lagt inn, og den siste settes automatisk når lisenskoden står på kontrakten i Visma." ]
@@ -37072,7 +37083,12 @@ function apneOnbStart(ctx = {}) {
  }
  {
   const li = document.getElementById("onbs-lisens");
-  if (li) li.checked = false;
+  if (li) li.checked = true;
+  const g = document.getElementById("onbs-lisens-grunn");
+  if (g) g.value = "";
+  const kk = document.getElementById("onbs-lisens-kommentar");
+  if (kk) kk.value = "";
+  onbsLisensEndret();
  }
  document.getElementById("onbs-ettersendes").checked = false;
  document.getElementById("onbs-ta-selv").checked = false;
@@ -37361,11 +37377,30 @@ async function sendTilOnboarding() {
   visFeil("Kontakt-e-posten ser ikke gyldig ut.");
   return;
  }
+ const bestillLisens = !!document.getElementById("onbs-lisens")?.checked;
+ let lisensUnntak = null;
+ if (!bestillLisens && document.getElementById("onbs-lisens")) {
+  const grunn = document.getElementById("onbs-lisens-grunn").value;
+  const kom = document.getElementById("onbs-lisens-kommentar").value.trim();
+  if (!grunn) {
+   visFeil("Velg hvorfor det ikke skal bestilles Susoft-lisens, eller kryss av for «Bestill Susoft-lisens nå».");
+   return;
+  }
+  if (grunn === "Annet" && !kom) {
+   visFeil("Skriv en kort kommentar om hvorfor det ikke bestilles lisens.");
+   return;
+  }
+  lisensUnntak = {
+   grunn: grunn,
+   kommentar: kom,
+   av: onbMeg(),
+   dato: (new Date).toISOString()
+  };
+ }
  const btn = document.getElementById("onbs-send-btn");
  btn.disabled = true;
  btn.textContent = "Sender…";
  const taSelv = onbTilgang && document.getElementById("onbs-ta-selv").checked;
- const bestillLisens = !!document.getElementById("onbs-lisens")?.checked;
  const naa = (new Date).toISOString();
  const mal = JSON.parse(JSON.stringify(onbMalAktiv()));
  const o = {
@@ -37390,6 +37425,7 @@ async function sendTilOnboarding() {
    onsketDato: document.getElementById("onbs-dato").value || "",
    notat: document.getElementById("onbs-notat").value.trim(),
    prioritert: !!document.getElementById("onbs-prioritert")?.checked,
+   lisensUnntak: lisensUnntak,
    salgsordrer: [],
    faser: mal.faser.map(f => ({
     ...f,
@@ -37431,6 +37467,7 @@ async function sendTilOnboarding() {
   onbLogg(o, `🚀 Sendt til onboarding av ${onbMeg()}${so.length ? " med " + so.map(s => "SO " + s.nr).join(", ") : ""}`);
   if (o.data.prioritert) onbLogg(o, "🚩 Merket som prioritert sak");
   if (taSelv) onbLogg(o, `🙋 ${onbMeg()} tok saken`);
+  if (lisensUnntak) onbLogg(o, `🔑 Susoft-lisens ikke bestilt: ${lisensUnntak.grunn}${lisensUnntak.kommentar ? " – " + lisensUnntak.kommentar : ""}`);
   const r = await spCreate("Onboarding", onbFelter(o));
   o.spId = r.id;
   o.id = `sp${r.id}`;
@@ -38108,7 +38145,7 @@ const LB_VALG = {
  janei: [ "Nei", "Ja" ],
  nettbutikk: [ "NEI", "JA, nettbutikk", "JA, SuOrder (bordbestilling)", "JA, TakeAway" ],
  nettbutikkRegnskap: [ "Ingen", "Visma Business", "Visma Global", "Visma eAccounting", "Visma Enterprise", "Tripletex", "Xledger", "UniMicro", "PowerOffice", "Mamut", "24SevenOffice", "Duett", "DI-Systemer", "Zirius", "Matrix", "InfoEasy", "Agro Økonomi", "Navision", "Uni Economy" ],
- nettbutikkPlassering: [ "Velg", "I eksisterende G1 butikk", "I en egen G1 butikk", "Leveres som en separat løsning" ]
+ nettbutikkPlassering: [ "I eksisterende G1 butikk", "I en egen G1 butikk", "Leveres som en separat løsning" ]
 };
 
 const LB_STATUS = {
@@ -38285,7 +38322,7 @@ function lbForhandsutfyll(ctx) {
    annet: "",
    nettbutikk: "NEI",
    nettbutikkRegnskap: "Ingen",
-   nettbutikkPlassering: "Velg",
+   nettbutikkPlassering: "",
    egetDomene: "Nei",
    domene: "",
    nettbutikkInfo: ""
@@ -38424,9 +38461,9 @@ function renderLbSkjema() {
   full: true
  })}</div>\n    <div class="lb-seksjon">Nettbutikk</div>\n    <div class="lb-grid">${lbFeltHtml("nettbutikk", "Nettbutikk/SuOrder", "select", {
   hint: "For serveringsnæringen"
- })}${lbFeltHtml("nettbutikkRegnskap", "Regnskapsintegrasjon", "select", {
+ })}${lbHarNettbutikk(f) ? lbFeltHtml("nettbutikkRegnskap", "Regnskapsintegrasjon", "select", {
   hint: "Ønskes det overføring til regnskap fra nettbutikken?"
- })}\n      ${lbFeltHtml("nettbutikkPlassering", "Plassering av nettbutikk i G1", "select")}${lbFeltHtml("egetDomene", "Eget domene", "select", {
+ }) : ""}\n      ${lbHarNettbutikk(f) ? `${lbFeltHtml("nettbutikkPlassering", "Plassering av nettbutikk i G1", "select")}${lbFeltHtml("egetDomene", "Eget domene", "select", {
   valg: "janei"
  })}\n      ${f.egetDomene === "Ja" ? lbFeltHtml("domene", "Domene", "text", {
   full: true
@@ -38434,7 +38471,7 @@ function renderLbSkjema() {
   req: false,
   full: true,
   ph: ""
- })}</div>\n    <div class="muted" style="margin-top:8px">📨 Sendes til kundeservice@kbd.as med kopi til deg. Svar fra kundeservice kommer til deg.</div>`;
+ })}` : ""}</div>\n    <div class="muted" style="margin-top:8px">📨 Sendes til kundeservice@kbd.as med kopi til deg. Svar fra kundeservice kommer til deg.</div>`;
 }
 
 function lbValider() {
@@ -38442,7 +38479,9 @@ function lbValider() {
  const eks = f.eksisterende === "Gjelder eksisterende kunde";
  const krev = [ "forhandler", "kontaktperson", "forhandlerEpost", "ordreRef", "firmanavn", "modul", "antallButikker", "antallKasser", "regnskap", "regnskapType", "lokalServer", "softpay", "casio", "nettbutikk", "nettbutikkRegnskap", "nettbutikkPlassering", "egetDomene" ];
  if (!eks) krev.push("orgnr", "kundeEpost", "adresseLinje", "postnr", "poststed", "shortName");
- if (f.egetDomene === "Ja") krev.push("domene");
+ if (!lbHarNettbutikk(f)) {
+  for (const k of [ "nettbutikkRegnskap", "nettbutikkPlassering", "egetDomene" ]) krev.splice(krev.indexOf(k), 1);
+ } else if (f.egetDomene === "Ja") krev.push("domene");
  const navn = {
   forhandler: "Forhandler",
   kontaktperson: "Kontaktperson",
@@ -38478,10 +38517,22 @@ function lbValider() {
  return "";
 }
 
+function lbHarNettbutikk(f) {
+ return !!f.nettbutikk && !/^nei$/i.test(f.nettbutikk);
+}
+
 function lbBackendFelter(f) {
  const ut = {
   ...f
  };
+ if (ut.nettbutikkPlassering === "Velg") ut.nettbutikkPlassering = "";
+ if (!lbHarNettbutikk(f)) {
+  ut.nettbutikkRegnskap = "Ingen";
+  ut.nettbutikkPlassering = "";
+  ut.egetDomene = "Nei";
+  ut.domene = "";
+  ut.nettbutikkInfo = "";
+ }
  ut.adresse = [ f.adresseLinje, [ f.postnr, f.poststed ].filter(Boolean).join(" ") ].filter(Boolean).join(", ");
  delete ut.adresseLinje;
  delete ut.postnr;
@@ -38713,6 +38764,14 @@ function lukkLbVis() {
  document.getElementById("lb-vis-modal").classList.remove("open");
 }
 
+function onbsLisensEndret() {
+ const pa = !!document.getElementById("onbs-lisens")?.checked;
+ const nei = document.getElementById("onbs-lisens-nei");
+ if (nei) nei.style.display = pa ? "none" : "";
+ const kw = document.getElementById("onbs-lisens-kommentar-wrap");
+ if (kw) kw.style.display = !pa && document.getElementById("onbs-lisens-grunn")?.value === "Annet" ? "" : "none";
+}
+
 function onbLbKort(o) {
  const best = lisensbestillinger.filter(b => String(b.onboardingSpId) === String(o.spId) && b.status !== "Avbrutt");
  const kan = lbKanBestille() && lbListeFinnes && o.status !== "Avbrutt";
@@ -38720,7 +38779,7 @@ function onbLbKort(o) {
  return `<div class="card card-public" style="margin-bottom:16px"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">🔑 Susoft-lisens${kan ? `<button class="btn-sm" onclick="apneLbSkjema({o:onbFind('${o.id}')})">${best.length ? "+ Ny bestilling" : "🔑 Bestill lisens"}</button>` : ""}</div>\n    ${best.length ? best.map(b => {
   const st = LB_STATUS[b.status] || LB_STATUS.Sendt;
   return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:13px;cursor:pointer" onclick="apneLbVis('${b.id}')"><span>${b.type === "Tillegg" ? "🔁 Tillegg" : "🆕 Ny lisens"} · ${onbEsc(b.data.felter.modul || "")} <span class="onb-meta">${onbDato(b.opprettet || b.data.sendtDato)} · ${onbEsc(b.selger)}</span></span><span style="font-size:11.5px;font-weight:700;color:${st.c};background:${st.bg};padding:2px 9px;border-radius:20px;white-space:nowrap">${st.t}</span></div>`;
- }).join("") : '<div class="muted">Ingen lisens bestilt ennå. Selger bestiller her eller i «🔑 Lisensbestilling».</div>'}</div>`;
+ }).join("") : o.data.lisensUnntak ? `<div style="font-size:13px">⏭️ <strong>Ikke bestilt:</strong> ${onbEsc(o.data.lisensUnntak.grunn)}${o.data.lisensUnntak.kommentar ? " – " + onbEsc(o.data.lisensUnntak.kommentar) : ""} <span class="onb-meta">${onbEsc(o.data.lisensUnntak.av || "")} · ${onbDato(o.data.lisensUnntak.dato)}</span></div>` : '<div class="muted">Ingen lisens bestilt ennå. Selger bestiller her eller i «🔑 Lisensbestilling».</div>'}</div>`;
 }
 
 initNotatDatePicker();
