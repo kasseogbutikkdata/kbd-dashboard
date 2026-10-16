@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.327 · Oppdatert: 16. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.328 · Oppdatert: 16. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -3225,6 +3225,9 @@ setSmsUtsendelseSubActive("smsplanlagt")'>🕐 Planlagt</div>
         <div class="nav-sub-item" id="smssub-smshistorikk" onclick='showTab("smshistorikk", document.getElementById("tab-smsutsendelse"));
 
 setSmsUtsendelseSubActive("smshistorikk")'>🕘 Tidligere utsendelser</div>
+        <div class="nav-sub-item" id="smssub-nyhetsbrev" onclick='showTab("nyhetsbrev", document.getElementById("tab-smsutsendelse"));
+
+setSmsUtsendelseSubActive("nyhetsbrev")'>📧 Nyhetsbrev (e-post)</div>
       </div>
       <div class="nav-item" id="tab-utleie" onclick='showTab("utleie", this);
 
@@ -3497,6 +3500,15 @@ renderOnboarding()" style="width:240px;min-width:180px;max-width:100%;flex:0 1 2
   </div>
 
   
+  
+  <div id="tp-nyhetsbrev" class="tp">
+    <div class="card card-public">
+      <div class="card-title">📧 Nyhetsbrev på e-post (Brevo)</div>
+      <div class="hint">Velg kundene som skal få nyhetsbrevet. KBD CC lager en kontaktliste i Brevo, og selve brevet skrives og sendes i Brevo. Bare kunder med aktiv avtale tas med, hver e-post bare én gang, og de som har meldt seg av, utelates. Ingen e-post sendes fra KBD CC.</div>
+    </div>
+    <div id="nb-innhold"></div>
+  </div>
+
   <div id="tp-smsplanlagt" class="tp">
     
     <div class="card card-public">
@@ -15215,6 +15227,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.328",
+ dato: "16.10.2026",
+ punkter: [ "Nytt under SMS utsendelse: «📧 Nyhetsbrev (e-post)». Velg kunder etter leverandør, bransje og sted, se hvem som får brevet, og send mottakerne til en kontaktliste i Brevo. Selve nyhetsbrevet skrives og sendes i Brevo. Samme e-post brukes bare én gang, og kunder som har meldt seg av, tas ut automatisk." ]
+}, {
  versjon: "v1.48.327",
  dato: "16.10.2026",
  punkter: [ "Lisenskontroll: du kan nå også laste opp Verifones fakturagrunnlag i Excel (.xls eller .xlsx), altså arket du får før fakturaen kommer. Det kontrolleres på samme måte som Verifone-fakturaen: kontrakt, tjeneste, antall og margin per BAX. Avvikene havner i avvikslisten, så du kan gi Verifone beskjed om terminaler som skal sies opp eller rettes før fakturaen sendes." ]
@@ -28331,6 +28347,247 @@ function pvMinLinjerHtml(p) {
  return `<div class="tbl-wrap" style="max-height:360px;overflow:auto"><table class="pk-tabell pk-liten"><thead><tr><th>Dok</th><th>Dato</th><th>Kunde</th><th>Varenr</th><th>Beskrivelse</th><th style="text-align:right">Antall</th><th style="text-align:right">Beløp</th><th style="text-align:right">Grunnlag</th><th></th></tr></thead><tbody>\n  ${p.linjer.map(z => `<tr><td>${z.t === "KN" ? "KN " : ""}${e(z.nr)}</td><td>${e(z.dato)}</td><td>${e(z.kunde)}</td><td>${e(z.varenr)}</td><td>${e(z.beskrivelse)}</td><td style="text-align:right">${pkAntall(z.antall)} ${e(z.enhet || "")}</td><td style="text-align:right">${pvKr(z.belop)}</td>\n    <td style="text-align:right">${z.hva === "treaar" ? `${pvKr(z.mndPris)} × ${z.faktor} = ${pvKr(z.verdi)}` : pvKr(z.grunnlag)}</td><td>${hva[z.hva] || ""}</td></tr>`).join("")}\n  </tbody></table></div>${just}`;
 }
 
+let nb = {
+ lev: new Set,
+ bransjer: new Set,
+ sted: "",
+ modus: "hoved",
+ utelatt: new Set,
+ status: null,
+ statusLaster: false,
+ sender: false,
+ resultat: null,
+ listeNavn: "",
+ sok: ""
+};
+
+const NB_EPOST = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
+
+function nbLevFor(k) {
+ const nr = String(k.vismaNummer || "").trim();
+ const besk = vismaKontrakter.filter(c => {
+  const s = (c.status || "").toLowerCase();
+  return (s === "active" || s === "aktiv") && String(c.vismaKundeNummer || "").trim() === nr;
+ }).map(c => (c.beskrivelse || "").toLowerCase());
+ return K360_PRODUKTNOKKELORD.filter(n => besk.some(b => b.includes(n.toLowerCase())));
+}
+
+function nbDelNavn(navn) {
+ const d = String(navn || "").trim().split(/\s+/);
+ return {
+  fornavn: d[0] || "",
+  etternavn: d.slice(1).join(" ")
+ };
+}
+
+function nbKundeUtvalg() {
+ const sted = nb.sted.trim().toLowerCase();
+ return smsKunderMedAktivKontrakt().map(k => ({
+  k: k,
+  lev: nbLevFor(k),
+  bransje: kbdBransje(k).kategori
+ })).filter(x => (!nb.lev.size || x.lev.some(n => nb.lev.has(n))) && (!nb.bransjer.size || nb.bransjer.has(x.bransje)) && (!sted || String(x.k.postnr || "").startsWith(sted) || String(x.k.sted || "").toLowerCase().includes(sted)));
+}
+
+function nbEposterFor(k) {
+ const aktive = kontakterForKunde(k).filter(c => !c.tidligere && c.epost);
+ if (nb.modus === "alle") {
+  const b = kontaktBase(k);
+  return [ ...b && b.epost ? [ b ] : [], ...aktive ];
+ }
+ const h = hovedkontaktFor(k);
+ if (h && h.epost) return [ h ];
+ const b = kontaktBase(k);
+ if (b && b.epost) return [ b ];
+ if (k.kontaktEpost) return [ {
+  navn: k.kontaktNavn || "",
+  epost: k.kontaktEpost
+ } ];
+ return aktive.slice(0, 1);
+}
+
+function nbMottakere() {
+ const avm = new Set(nb.status?.avmeldte || []), perEpost = new Map, mangler = [];
+ for (const x of nbKundeUtvalg()) {
+  const kontakter = nbEposterFor(x.k);
+  if (!kontakter.length) {
+   mangler.push({
+    key: "mangler-" + x.k.vismaNummer,
+    epost: "",
+    navn: "",
+    firma: x.k.navn || "",
+    kundenr: String(x.k.vismaNummer || ""),
+    bransje: x.bransje,
+    lev: x.lev,
+    sted: x.k.sted || "",
+    status: "mangler"
+   });
+   continue;
+  }
+  for (const c of kontakter) {
+   const e = String(c.epost || "").trim().toLowerCase();
+   if (perEpost.has(e)) {
+    const r = perEpost.get(e);
+    if (!r.firma.split(", ").includes(x.k.navn)) r.firma += ", " + x.k.navn;
+    r.lev = [ ...new Set([ ...r.lev, ...x.lev ]) ];
+    continue;
+   }
+   perEpost.set(e, {
+    key: e,
+    epost: e,
+    navn: c.navn || "",
+    firma: x.k.navn || "",
+    kundenr: String(x.k.vismaNummer || ""),
+    bransje: x.bransje,
+    lev: x.lev,
+    sted: x.k.sted || "",
+    status: !NB_EPOST.test(e) ? "ugyldig" : avm.has(e) ? "avmeldt" : "ok"
+   });
+  }
+ }
+ const rader = [ ...perEpost.values() ].sort((a, b) => a.firma.localeCompare(b.firma, "nb"));
+ return {
+  rader: rader,
+  mangler: mangler
+ };
+}
+
+function nbSegmentTekst() {
+ const d = [];
+ if (nb.lev.size) d.push([ ...nb.lev ].join("+"));
+ if (nb.bransjer.size) d.push([ ...nb.bransjer ].join("+"));
+ if (nb.sted.trim()) d.push(nb.sted.trim());
+ return d.join(" · ") || "Alle kunder med aktiv avtale";
+}
+
+async function nbHentStatus() {
+ if (nb.statusLaster) return;
+ nb.statusLaster = true;
+ try {
+  const token = await vfGetApiToken();
+  const resp = await fetch(vfApiUrl("/api/nyhetsbrev_status"), {
+   headers: {
+    Authorization: `Bearer ${token}`
+   }
+  });
+  const d = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+  nb.status = d;
+ } catch (e) {
+  console.warn("Nyhetsbrev-status", e);
+  nb.status = {
+   feil: String(e.message || e),
+   avmeldte: []
+  };
+ } finally {
+  nb.statusLaster = false;
+  renderNyhetsbrev();
+ }
+}
+
+function renderNyhetsbrev() {
+ const el = document.getElementById("nb-innhold");
+ if (!el) return;
+ if (!nb.status && !nb.statusLaster) {
+  nbHentStatus();
+ }
+ const e = jsEscapeHtml, {rader: rader, mangler: mangler} = nbMottakere(), valgt = rader.filter(r => r.status === "ok" && !nb.utelatt.has(r.key));
+ const ant = s => rader.filter(r => r.status === s).length;
+ const st = nb.status;
+ let h = "";
+ if (!st) h += `<div class="hint">Henter status fra Brevo …</div>`; else if (st.feil) h += `<div class="onb-advarsel" style="margin-bottom:12px">Fikk ikke kontakt med Brevo: ${e(st.feil)}. Avmeldte kan ikke utelates før dette virker.</div>`; else if (st.konfigurert === false) h += `<div class="onb-advarsel" style="margin-bottom:12px">Brevo er ikke koblet til ennå (BREVO_API_KEY mangler i Azure). Du kan se mottakerne, men ikke lage liste eller hente avmeldte.</div>`;
+ if (st && st.dryRun !== false) h += `<div class="pk-merke pk-merke-gul" style="display:inline-block;margin-bottom:10px">🧪 Testmodus (NYHETSBREV_DRY_RUN): ingenting opprettes i Brevo</div>`;
+ const levKnapper = K360_PRODUKTNOKKELORD.map(n => `<button class="btn-sm" style="${nb.lev.has(n) ? "background:#1A3A6B;color:#fff;border-color:#1A3A6B" : ""}" onclick="nbToggle('lev','${n}')">${e(n)}</button>`).join("");
+ const brKnapper = [ ...KBD_BRANSJE_VALG, KBD_BRANSJE_UKJENT ].map(n => `<button class="btn-sm" style="${nb.bransjer.has(n) ? "background:#1A3A6B;color:#fff;border-color:#1A3A6B" : ""}" onclick="nbToggle('bransjer',${JSON.stringify(n).replace(/"/g, "&quot;")})">${e(n)}</button>`).join("");
+ h += `<div class="card"><div class="card-title">1. Velg mottakere</div>\n    <div style="display:grid;grid-template-columns:120px 1fr;gap:8px 12px;align-items:center">\n      <label style="font-weight:600">Leverandør</label><div style="display:flex;gap:6px;flex-wrap:wrap">${levKnapper}<span class="hint" style="margin:0">Ingen valgt = alle</span></div>\n      <label style="font-weight:600">Bransje</label><div style="display:flex;gap:6px;flex-wrap:wrap">${brKnapper}</div>\n      <label style="font-weight:600">Sted / postnr</label><div><input type="text" value="${e(nb.sted)}" placeholder="f.eks. Oslo eller 03" style="width:220px" onchange="nb.sted=this.value;nb.utelatt.clear();renderNyhetsbrev()"></div>\n      <label style="font-weight:600">Kontakter</label><div style="display:flex;gap:14px;flex-wrap:wrap">\n        <label><input type="radio" name="nb-modus" ${nb.modus === "hoved" ? "checked" : ""} onchange="nb.modus='hoved';renderNyhetsbrev()"> Hovedkontakt per kunde</label>\n        <label><input type="radio" name="nb-modus" ${nb.modus === "alle" ? "checked" : ""} onchange="nb.modus='alle';renderNyhetsbrev()"> Alle aktive kontaktpersoner</label></div>\n    </div>\n    <div class="hint" style="margin:10px 0 0">Kunder med minst én aktiv avtale. Samme e-post brukes bare én gang. Avmeldte i Brevo og ugyldige adresser tas ut automatisk.</div></div>`;
+ h += `<div class="card"><div class="card-title">2. Mottakere: ${valgt.length}</div>\n    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">\n      <span class="pk-merke pk-merke-gronn">✅ ${valgt.length} sendes til Brevo</span>\n      ${nb.utelatt.size ? `<span class="pk-merke pk-merke-gra">${nb.utelatt.size} tatt ut manuelt</span>` : ""}\n      ${ant("avmeldt") ? `<span class="pk-merke pk-merke-rod">🚫 ${ant("avmeldt")} avmeldt</span>` : ""}\n      ${ant("ugyldig") ? `<span class="pk-merke pk-merke-rod">⚠ ${ant("ugyldig")} ugyldig e-post</span>` : ""}\n      ${mangler.length ? `<span class="pk-merke pk-merke-gul">📭 ${mangler.length} kunder uten e-post</span>` : ""}</div>\n    <input type="text" placeholder="Søk i mottakere" value="${e(nb.sok)}" style="width:260px;margin-bottom:8px" oninput="nb.sok=this.value;nbRenderTabell()">\n    <div id="nb-tabell"></div></div>`;
+ const forslag = `KBD CC ${(new Date).toLocaleDateString("nb-NO")} – ${nbSegmentTekst()}`;
+ h += `<div class="card"><div class="card-title">3. Lag liste i Brevo</div>\n    <div class="fgrp" style="max-width:520px"><label>Navn på lista</label><input type="text" id="nb-listenavn" value="${e(nb.listeNavn || forslag)}" maxlength="100"></div>\n    <button class="prim" onclick="nbLagListe()" ${nb.sender || !valgt.length || st?.konfigurert === false ? "disabled" : ""}>${nb.sender ? "Sender …" : `📤 Lag liste i Brevo (${valgt.length})`}</button>\n    <div class="hint" style="margin:8px 0 0">Lista havner i mappen «KBD CC» i Brevo, med FIRMA, KUNDENR, BRANSJE, LEVERANDOR og STED som felt. Skriv og send nyhetsbrevet i Brevo: Campaigns → Create campaign → velg lista. Kontakter som har meldt seg av, forblir avmeldt.</div>\n    ${nbResultatHtml()}</div>`;
+ el.innerHTML = h;
+ nbRenderTabell();
+}
+
+function nbResultatHtml() {
+ const r = nb.resultat, e = jsEscapeHtml;
+ if (!r) return "";
+ if (r.feil) return `<div class="onb-advarsel" style="margin-top:10px">Kunne ikke lage lista: ${e(r.feil)}</div>`;
+ if (r.dryRun) return `<div class="pk-tom" style="margin-top:10px;text-align:left">🧪 Testmodus: ingenting ble opprettet i Brevo. Lista «${e(r.listeNavn)}» ville fått <b>${r.antall}</b> kontakter${r.avvist?.length ? `, ${r.avvist.length} avvist` : ""}.</div>`;
+ return `<div class="pk-tom" style="margin-top:10px;text-align:left">✅ Lista «${e(r.listeNavn)}» (#${e(String(r.listeId))}) er opprettet i Brevo med <b>${r.antall}</b> kontakter. Importen tar noen minutter. Gå til Brevo → Campaigns → Create campaign og velg lista.</div>`;
+}
+
+function nbRenderTabell() {
+ const el = document.getElementById("nb-tabell");
+ if (!el) return;
+ const e = jsEscapeHtml, {rader: rader, mangler: mangler} = nbMottakere(), q = nb.sok.trim().toLowerCase();
+ const alle = [ ...rader, ...mangler ].filter(r => !q || [ r.epost, r.navn, r.firma, r.kundenr, r.sted ].some(v => String(v || "").toLowerCase().includes(q)));
+ const vis = alle.slice(0, 400);
+ const merke = {
+  avmeldt: '<span class="pk-merke pk-merke-rod">avmeldt</span>',
+  ugyldig: '<span class="pk-merke pk-merke-rod">ugyldig</span>',
+  mangler: '<span class="pk-merke pk-merke-gul">mangler e-post</span>'
+ };
+ el.innerHTML = `<div class="tbl-wrap" style="max-height:460px;overflow:auto"><table class="pk-tabell pk-liten"><thead><tr><th></th><th>Firma</th><th>Kontakt</th><th>E-post</th><th>Bransje</th><th>Leverandør</th><th>Sted</th><th></th></tr></thead><tbody>\n    ${vis.map(r => `<tr style="${r.status !== "ok" || nb.utelatt.has(r.key) ? "opacity:.55" : ""}"><td>${r.status === "ok" ? `<input type="checkbox" ${nb.utelatt.has(r.key) ? "" : "checked"} onchange="nbToggleMottaker(${JSON.stringify(r.key).replace(/"/g, "&quot;")},this.checked)">` : ""}</td>\n      <td>${e(r.firma)} <span class="muted" style="font-size:11.5px">${e(r.kundenr)}</span></td><td>${e(r.navn)}</td><td>${e(r.epost) || "–"}</td><td>${e(r.bransje)}</td><td>${e(r.lev.join(", "))}</td><td>${e(r.sted)}</td><td>${merke[r.status] || ""}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">Ingen kunder i utvalget.</td></tr>'}\n    </tbody></table></div>${alle.length > vis.length ? `<div class="hint">Viser 400 av ${alle.length}. Bruk søket for å finne flere.</div>` : ""}`;
+}
+
+function nbToggle(felt, verdi) {
+ const s = nb[felt];
+ s.has(verdi) ? s.delete(verdi) : s.add(verdi);
+ nb.utelatt.clear();
+ nb.listeNavn = "";
+ nb.resultat = null;
+ renderNyhetsbrev();
+}
+
+function nbToggleMottaker(key, paa) {
+ paa ? nb.utelatt.delete(key) : nb.utelatt.add(key);
+ renderNyhetsbrev();
+}
+
+async function nbLagListe() {
+ const {rader: rader} = nbMottakere(), valgt = rader.filter(r => r.status === "ok" && !nb.utelatt.has(r.key));
+ const navn = (document.getElementById("nb-listenavn")?.value || "").trim();
+ nb.listeNavn = navn;
+ if (!valgt.length || !navn) return;
+ const test = nb.status?.dryRun !== false;
+ if (!confirm(`${test ? "TESTMODUS – ingenting opprettes.\n\n" : ""}Lage lista «${navn}» i Brevo med ${valgt.length} kontakter?\n\nUtvalg: ${nbSegmentTekst()}\n\nIngen e-post sendes nå. Nyhetsbrevet sendes fra Brevo når du velger lista i en kampanje.`)) return;
+ nb.sender = true;
+ nb.resultat = null;
+ renderNyhetsbrev();
+ try {
+  const kontakter = valgt.map(r => ({
+   epost: r.epost,
+   ...nbDelNavn(r.navn),
+   firma: r.firma,
+   kundenr: r.kundenr,
+   bransje: r.bransje,
+   leverandor: r.lev.join(", "),
+   sted: r.sted
+  }));
+  const token = await vfGetApiToken();
+  const resp = await fetch(vfApiUrl("/api/nyhetsbrev_liste"), {
+   method: "POST",
+   headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json"
+   },
+   body: JSON.stringify({
+    listeNavn: navn,
+    kontakter: kontakter
+   })
+  });
+  const d = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+  nb.resultat = d;
+ } catch (err) {
+  nb.resultat = {
+   feil: String(err.message || err)
+  };
+ } finally {
+  nb.sender = false;
+  renderNyhetsbrev();
+ }
+}
+
 (function() {
  let nedPa = null;
  const erBakgrunn = el => !!(el && el.classList && (el.classList.contains("modal-overlay") || /(^|[\s-])overlay(\s|$)/.test(el.className || "")));
@@ -28361,7 +28618,7 @@ function showTab(name, btn) {
   tp.style.display = "block";
  }
  document.querySelectorAll(".nav-item").forEach(t => t.classList.remove("active"));
- const effectiveTab = name === "sammenligning" || name === "licmaaned" ? "lisenser" : name === "kicksammenligning" || name === "kickmaaned" ? "kickback" : name === "nyetableringer" || name === "kundesaker" || name === "konkurser" || name === "tilbud" ? "kunder" : name === "smshistorikk" || name === "smsplanlagt" ? "smsutsendelse" : name === "verifone" || name === "nets" || name === "lisenskontroll" || name === "susoftkontroll" ? "transaksjonsavgift" : name === "purring" ? "fakturaoppfolging" : name;
+ const effectiveTab = name === "sammenligning" || name === "licmaaned" ? "lisenser" : name === "kicksammenligning" || name === "kickmaaned" ? "kickback" : name === "nyetableringer" || name === "kundesaker" || name === "konkurser" || name === "tilbud" ? "kunder" : name === "smshistorikk" || name === "smsplanlagt" || name === "nyhetsbrev" ? "smsutsendelse" : name === "verifone" || name === "nets" || name === "lisenskontroll" || name === "susoftkontroll" ? "transaksjonsavgift" : name === "purring" ? "fakturaoppfolging" : name;
  const navBtn = document.getElementById("tab-" + effectiveTab);
  if (navBtn) navBtn.classList.add("active");
  toggleUtleieSub(name === "utleie");
@@ -28370,7 +28627,7 @@ function showTab(name, btn) {
  toggleInnstillingerSub(name === "innstillinger");
  toggleArbeidstidSub(name === "arbeidstid");
  toggleKunder360Sub(name === "kunder" || name === "nyetableringer" || name === "kundesaker" || name === "konkurser" || name === "tilbud");
- toggleSmsUtsendelseSub(name === "smsutsendelse" || name === "smsplanlagt" || name === "smshistorikk");
+ toggleSmsUtsendelseSub(name === "smsutsendelse" || name === "smsplanlagt" || name === "smshistorikk" || name === "nyhetsbrev");
  toggleTransaksjonsavgiftSub(name === "verifone" || name === "nets" || name === "lisenskontroll" || name === "susoftkontroll");
  toggleSilentOrderingSub(name === "silentordering");
  toggleFakturaoppfolgingSub(name === "fakturaoppfolging" || name === "purring");
@@ -28449,6 +28706,10 @@ function showTab(name, btn) {
  if (name === "smshistorikk") {
   setSmsUtsendelseSubActive("smshistorikk");
   renderSmsHistorikk();
+ }
+ if (name === "nyhetsbrev") {
+  setSmsUtsendelseSubActive("nyhetsbrev");
+  renderNyhetsbrev();
  }
  if (name === "purring") {
   setFakturaoppfolgingSubActive("purring");
@@ -28582,7 +28843,8 @@ function setSmsUtsendelseSubActive(view) {
  const idMap = {
   smsutsendelse: "smssub-smsutsendelse",
   smsplanlagt: "smssub-smsplanlagt",
-  smshistorikk: "smssub-smshistorikk"
+  smshistorikk: "smssub-smshistorikk",
+  nyhetsbrev: "smssub-nyhetsbrev"
  };
  const el = document.getElementById(idMap[view] || "smssub-smsutsendelse");
  if (el) el.classList.add("active");
