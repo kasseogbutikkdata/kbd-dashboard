@@ -3130,7 +3130,7 @@ buffer/index.js:
       </button>
       <div id="varsel-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:1000;color:#111"></div>
     </div>
-    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.333 · Oppdatert: 16. okt 2026</span>
+    <span style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2px">v1.48.334 · Oppdatert: 16. okt 2026</span>
     <button class="logout-btn" onclick="logout()">Logg ut</button>
   </div>
 </div>
@@ -15291,6 +15291,10 @@ function leggTilLoggpost(id) {
 }
 
 const versjonslogg = [ {
+ versjon: "v1.48.334",
+ dato: "16.10.2026",
+ punkter: [ "Fakturaoppfølging: eier-filteret har fått ett valg per person (f.eks. «👤 Mirrow (14)») og finnes nå også i «Alle fakturaer». Når en person er valgt, vises samlet utestående og hvor mange saker som har passert Neste-dato eller mangler Neste-dato.", "Rapport: klikk på et navn i «Aktivitet per person og uke» for å se sakene den personen eier." ]
+}, {
  versjon: "v1.48.333",
  dato: "16.10.2026",
  punkter: [ "Onboarding: @-omtale virker nå også i loggen på en onboarding. Skriv @navn i kommentarfeltet, så får kollegaen meldingen i 🔔 og på Hjem til hen har gjort noe på onboardingen." ]
@@ -17838,6 +17842,7 @@ function jumpToFakturaoppfolging(fakturanr) {
  foBucket = "alle";
  foStatusFilter = "alle";
  foKunForfalte = false;
+ if (typeof foEierFilter !== "undefined") foEierFilter = "alle";
  foSearch = String(fakturanr).toLowerCase();
  const sok = document.getElementById("fo-search");
  if (sok) sok.value = fakturanr;
@@ -19598,6 +19603,24 @@ function setFoEierFilter(v) {
  renderFakturaoppfolging();
 }
 
+function foVisPerson(navn) {
+ foVisning = "alle";
+ foGrupper = true;
+ foBucket = "alle";
+ foStatusFilter = "alle";
+ foKunForfalte = false;
+ foSearch = "";
+ foApenRad = null;
+ foEierFilter = "p:" + navn;
+ const sok = document.getElementById("fo-search");
+ if (sok) sok.value = "";
+ const sf = document.getElementById("fo-status-filter");
+ if (sf) sf.value = "alle";
+ const kf = document.getElementById("fo-kun-forfalte");
+ if (kf) kf.checked = false;
+ renderFakturaoppfolging();
+}
+
 function foGruppeObj(kundenr, fs) {
  fs = [ ...fs ].sort((a, b) => foScore(b) - foScore(a));
  const forste = fs[0];
@@ -20376,7 +20399,21 @@ function renderFakturaoppfolging() {
   mine: visRader.filter(r => r.eierType === "mine").length,
   nye: visRader.filter(r => r.eierType === "nye").length
  };
- if (arb && foEierFilter !== "alle") visRader = visRader.filter(r => r.eierType === foEierFilter);
+ const personer = new Map;
+ visRader.forEach(r => {
+  if (r.eier && r.eierType !== "mine") personer.set(r.eier, (personer.get(r.eier) || 0) + 1);
+ });
+ if (String(foEierFilter).startsWith("p:") && !personer.has(foEierFilter.slice(2))) personer.set(foEierFilter.slice(2), 0);
+ if (foEierFilter !== "alle") visRader = visRader.filter(r => String(foEierFilter).startsWith("p:") ? r.eier === foEierFilter.slice(2) : r.eierType === foEierFilter);
+ const eierInfo = foEierFilter === "alle" || foEierFilter === "nye" ? "" : (() => {
+  const idag = foIdag();
+  const forfalt = visRader.filter(r => {
+   const n = r.nesteOppfolging ? parseLD(String(r.nesteOppfolging).split("T")[0]) : null;
+   return n && n < idag;
+  }).length;
+  const uten = visRader.filter(r => !r.nesteOppfolging).length;
+  return `<span style="font-size:12px;color:#374151;margin-left:8px;white-space:nowrap">${fF(visRader.reduce((a, r) => a + (r.utestaende || 0), 0))} utestående · ${forfalt ? `<b style="color:#dc2626">${forfalt} med passert Neste-dato</b>` : "ingen med passert Neste-dato"}${uten ? ` · ${uten} uten Neste-dato` : ""}</span>`;
+ })();
  const antFakt = visRader.reduce((s, r) => s + r.fs.length, 0);
  const sumVis = visRader.reduce((s, r) => s + (r.utestaende || 0), 0);
  const barEl = document.getElementById("fo-visning-bar");
@@ -20390,7 +20427,7 @@ function renderFakturaoppfolging() {
   })()}` : "";
   const tannhjul = userRole === "admin" ? `<button class="btn-sm" onclick="foVisInnst=!foVisInnst;renderFakturaoppfolging()" title="Terskler for arbeidslisten">⚙️ Innstillinger</button>` : "";
   const innst = userRole === "admin" && foVisInnst ? `<div style="width:100%;margin-top:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">\n        <div class="fgrp" style="margin:0"><label>Minstebeløp utestående (kr)</label><input type="number" min="0" step="50" id="fo-innst-belop" value="${foInnst.minBelop}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Minst antall dager forfalt</label><input type="number" min="0" step="1" id="fo-innst-dager" value="${foInnst.minDager}" style="width:150px"/></div>\n        <div class="fgrp" style="margin:0"><label>Under minstebeløp: ta med etter (dager)</label><input type="number" min="0" step="1" id="fo-innst-smadager" value="${foInnst.smaDager}" style="width:150px" title="Kunder under minstebeløpet kommer likevel på lista når eldste faktura er forfalt så mange dager. 0 = av."/></div>\n        <div class="fgrp" style="margin:0"><label>Varsel om nye saker går til</label><select id="fo-innst-mottaker" style="min-width:220px"><option value="">Alle med tilgang</option>${(typeof brukere !== "undefined" ? brukere : []).filter(x => x.epost).sort((x, y) => x.navn.localeCompare(y.navn)).map(x => `<option value="${x.epost}"${foLc(x.epost) === foLc(foInnst.nyeSakerTil) ? " selected" : ""}>${x.navn}${x.tilgang && x.tilgang.fakturaoppfolging ? "" : " (mangler tilgang)"}</option>`).join("")}</select></div>\n        <div class="fgrp" style="margin:0"><label>Kostnad oppfølging per mnd (kr)</label><input type="text" inputmode="numeric" id="fo-innst-kostnad" value="${foInnst.kostnadPerMnd ?? ""}" placeholder="kr eks. mva" style="width:150px" title="Fast månedskostnad for fakturaoppfølging (Mirrow). Lagres i den daglige statistikken, så rapporter kan regne kostnad mot innkrevd beløp over tid."/></div>\n        <button class="prim" onclick="lagreFoInnstillinger()">💾 Lagre innstillinger</button>\n        <span style="font-size:11px;color:#6b7280;flex-basis:100%">Gjelder arbeidslisten for alle brukere. Endres bare av administrator. Oppfølginger noen allerede har skrevet i loggen på, varsles til den som skrev sist.${foInnstSpId ? "" : " (Ikke lagret i SharePoint ennå, standardverdier brukes.)"}</span>\n      </div>` : "";
-  barEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">\n        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">\n          ${iaVisningsknapper()}\n          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:8px"><input type="checkbox" ${foGrupper ? "checked" : ""} onchange="setFoGrupper(this.checked)"/> Grupper per kunde</label>\n          ${arb ? `<select onchange="setFoEierFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px" title="Eier = den som sist skrev i loggen">\n            <option value="alle"${foEierFilter === "alle" ? " selected" : ""}>Alle på lista (${eierTall.alle})</option>\n            <option value="mine"${foEierFilter === "mine" ? " selected" : ""}>👤 Mine oppfølginger (${eierTall.mine})</option>\n            <option value="nye"${foEierFilter === "nye" ? " selected" : ""}>🆕 Nye, ingen har tatt dem (${eierTall.nye})</option>\n          </select>` : ""}\n        </div>\n        <div style="display:flex;gap:10px;align-items:center">${teller}${tannhjul}</div>\n        ${(() => {
+  barEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">\n        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">\n          ${iaVisningsknapper()}\n          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;margin-left:8px"><input type="checkbox" ${foGrupper ? "checked" : ""} onchange="setFoGrupper(this.checked)"/> Grupper per kunde</label>\n          <select onchange="setFoEierFilter(this.value)" style="width:auto;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-left:8px" title="Eier = den som sist skrev i loggen">\n            <option value="alle"${foEierFilter === "alle" ? " selected" : ""}>${arb ? "Alle på lista" : "Alle eiere"} (${eierTall.alle})</option>\n            <option value="mine"${foEierFilter === "mine" ? " selected" : ""}>👤 Mine oppfølginger (${eierTall.mine})</option>\n            <option value="nye"${foEierFilter === "nye" ? " selected" : ""}>🆕 ${arb ? "Nye, ingen har tatt dem" : "Ingen eier ennå"} (${eierTall.nye})</option>\n            ${[ ...personer.entries() ].sort((a, b) => b[1] - a[1]).map(([n, a]) => `<option value="p:${iaEsc(n)}"${foEierFilter === "p:" + n ? " selected" : ""}>👤 ${iaEsc(foVisNavn(n))} (${a})</option>`).join("")}\n          </select>${eierInfo}\n        </div>\n        <div style="display:flex;gap:10px;align-items:center">${teller}${tannhjul}</div>\n        ${(() => {
    const ink = fakturaoppfolging.filter(foNevnerInkasso);
    if (foInkassoFilter) return `<div style="width:100%;margin-top:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">⚠️ Viser bare fakturaer der Visma-notatet nevner inkasso/namsmann (${ink.length}). <button class="btn-sm" onclick="setFoInkassoFilter(false)">✕ Fjern filter</button>${userRole === "admin" && ink.length ? '<button class="btn-sm" onclick="foRyddInkassoAlle()">Sett alle til «Sendt til inkasso»</button>' : ""}</div>`;
    if (!ink.length) return "";
@@ -21593,7 +21630,7 @@ function foRapRender() {
   akt.get(key).status++;
  });
  const aktRader = [ ...akt.values() ].sort((a, b) => b.uke.localeCompare(a.uke) || b.n - a.n);
- ut.push(seksjon("👤 Aktivitet per person og uke", "Manuelle henvendelser fra oppfølgingsloggen (purre-SMS er ikke med). Statusendringer logges fra v1.48.290 (13.10.2026).", tabell([ "Uke", "Person", ">Henvendelser", ">📞", ">✉️", ">Annet", ">Kunder", ">Statusendringer" ], aktRader.map(o => `<tr><td>${o.uke.replace("-U", " uke ")}</td><td>${iaEsc(o.av)}</td><td class="tr" style="font-weight:600">${o.n}</td><td class="tr">${o.tlf}</td><td class="tr">${o.ep}</td><td class="tr">${o.ann}</td><td class="tr">${o.kunder.size}</td><td class="tr">${o.status}</td></tr>`))));
+ ut.push(seksjon("👤 Aktivitet per person og uke", "Manuelle henvendelser fra oppfølgingsloggen (purre-SMS er ikke med). Statusendringer logges fra v1.48.290 (13.10.2026).", tabell([ "Uke", "Person", ">Henvendelser", ">📞", ">✉️", ">Annet", ">Kunder", ">Statusendringer" ], aktRader.map(o => `<tr><td>${o.uke.replace("-U", " uke ")}</td><td><a href="#" onclick="event.preventDefault();foVisPerson('${iaJs(o.av)}')" style="color:#2563eb;text-decoration:none" title="Vis sakene ${iaEsc(foVisNavn(o.av))} eier">${iaEsc(foVisNavn(o.av))}</a></td><td class="tr" style="font-weight:600">${o.n}</td><td class="tr">${o.tlf}</td><td class="tr">${o.ep}</td><td class="tr">${o.ann}</td><td class="tr">${o.kunder.size}</td><td class="tr">${o.status}</td></tr>`))));
  const kunder = new Map;
  fakturaoppfolging.forEach(f => {
   const b = foRapDato(f.betaltDato), forf = parseLD(f.forfallsdato);
@@ -21737,6 +21774,7 @@ function agApneKunde(kundenr) {
  foStatusFilter = "alle";
  foKunForfalte = true;
  foSearch = String(kundenr).toLowerCase();
+ if (typeof foEierFilter !== "undefined") foEierFilter = "alle";
  const sok = document.getElementById("fo-search");
  if (sok) sok.value = kundenr;
  const sf = document.getElementById("fo-status-filter");
